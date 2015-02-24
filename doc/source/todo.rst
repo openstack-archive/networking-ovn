@@ -5,9 +5,7 @@ TODO
 
 * Add implementation of creating/deleting resources in the OVN northbound DB
 
-** Create ML2 MechanismDriver
-
-** Create L3 service plugin
+** Create Neutron Plugin with appropriate mixins
 
 * Add sync functionality to ensure that the OVN northbound DB reflects the
   current state of the world according to Neutron.
