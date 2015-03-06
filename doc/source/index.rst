@@ -16,6 +16,7 @@ Contents:
    usage
    contributing
    todo
+   data_model
 
 Indices and tables
 ==================
