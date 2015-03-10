@@ -38,7 +38,7 @@ Neutron Subnet:
     network_id
     cidr
     gateway_ip
-    allocation_poos
+    allocation_pools
     dns_nameservers
     host_routers
     tenant_id
