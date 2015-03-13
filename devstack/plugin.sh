@@ -86,10 +86,7 @@ function stop_ovn {
 
 # main loop
 if is_service_enabled ovn; then
-    if [[ "$1" == "source" ]]; then
-        # no-op
-        :
-    elif [[ "$1" == "stack" && "$2" == "install" ]]; then
+    if [[ "$1" == "stack" && "$2" == "install" ]]; then
         if [[ "$OFFLINE" != "True" ]]; then
             install_ovn
         fi
@@ -103,19 +100,11 @@ if is_service_enabled ovn; then
         if is_service_enabled nova; then
             create_nova_conf_neutron
         fi
-    elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
-        # no-op
-        :
     fi
 
     if [[ "$1" == "unstack" ]]; then
         stop_ovn
         cleanup_ovn
-    fi
-
-    if [[ "$1" == "clean" ]]; then
-        # no-op
-        :
     fi
 fi
 
