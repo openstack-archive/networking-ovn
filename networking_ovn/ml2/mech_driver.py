@@ -10,14 +10,28 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_config import cfg
+
+import neutron.agent.linux.utils as linux_utils
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
+
+
+ovn_opts = [
+    cfg.StrOpt('database',
+               help=_('location of the ovn-nb database')),
+]
+
+cfg.CONF.register_opts(ovn_opts, 'ovn')
 
 
 class OVNMechDriver(driver_api.MechanismDriver):
 
     """OVN ML2 MechanismDriver for Neutron.
 
+    This driver currently executes the ovn-nbctl utility.  This works as an
+    initial pass to make something work, but the driver will need to be
+    reworked to use ovsdb directly.
     """
     def __init__(self):
         super(OVNMechDriver, self).__init__()
@@ -28,14 +42,44 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # instead of using the hybrid mode.
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
+    @staticmethod
+    def _nbctl_opts():
+        if cfg.CONF.ovn.database:
+            return '-d %s' % cfg.CONF.ovn.database
+        return ''
+
+    def _set_network_name(self, network):
+        linux_utils.execute(
+            'ovn-nbctl %s lswitch-set-external-id %s '
+            'neutron:network_name %s'
+            % (self._nbctl_opts(), network['id'], network['name']),
+            run_as_root=True)
+
     def create_network_postcommit(self, context):
-        pass
+        network = context.current()
+        # Create a logical switch with a name equal to the Neutron network
+        # UUID.  This provides an easy way to refer to the logical switch
+        # without having to track what UUID OVN assigned to it.
+        linux_utils.execute('ovn-nbctl %s lswitch-add %s' % (
+            self._nbctl_opts(), network['id']), run_as_root=True)
+        # Go ahead and also set the Neutron ID as an external:id, as that's
+        # where we want to store it long term.
+        linux_utils.execute(
+            'ovn-nbctl %s lswitch-set-external-id %s neutron:network_id %s'
+            % (self._nbctl_opts(), network['id'], network['id']),
+            run_as_root=True)
+        self._set_network_name(network)
 
     def update_network_postcommit(self, context):
-        pass
+        network = context.current()
+        # The only field that might get updated that we care about right now is
+        # the name.
+        self._set_network_name(network)
 
     def delete_network_postcommit(self, context):
-        pass
+        network = context.current()
+        linux_utils.execute('ovn-nbctl %s lswitch-del %s' % (
+            self._nbctl_opts(), network['id']), run_as_root=True)
 
     def create_subnet_postcommit(self, context):
         pass
