@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 
 
@@ -22,7 +23,10 @@ class OVNMechDriver(driver_api.MechanismDriver):
         super(OVNMechDriver, self).__init__()
 
     def initialize(self):
-        pass
+        self.vif_type = portbindings.VIF_TYPE_OVS
+        # When set to True, Nova plugs the VIF directly into the ovs bridge
+        # instead of using the hybrid mode.
+        self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
     def create_network_postcommit(self, context):
         pass
