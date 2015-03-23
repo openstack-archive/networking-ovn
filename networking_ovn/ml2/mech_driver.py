@@ -91,13 +91,34 @@ class OVNMechDriver(driver_api.MechanismDriver):
         pass
 
     def create_port_postcommit(self, context):
-        pass
+        port = context.current()
+        linux_utils.execute(
+            'ovn-nbctl %s lport-add %s %s'
+            % (self._nbctl_opts(), port['id'], port['network_id']),
+            run_as_root=True)
+        linux_utils.execute(
+            'ovn-nbctl %s lport-set-external-id %s neutron:port_name %s'
+            % (self._nbctl_opts(), port['id'], port['name']),
+            run_as_root=True)
+        linux_utils.execute(
+            'ovn-nbctl %s lport-set-macs %s %s'
+            % (self._nbctl_opts(), port['id'], port['mac_address']),
+            run_as_root=True)
 
     def update_port_postcommit(self, context):
-        pass
+        port = context.current()
+        # Neutron allows you to update the MAC address on a port.
+        linux_utils.execute(
+            'ovn-nbctl %s lport-set-macs %s %s'
+            % (self._nbctl_opts(), port['id'], port['mac_address']),
+            run_as_root=True)
 
     def delete_port_postcommit(self, context):
-        pass
+        port = context.current()
+        linux_utils.execute(
+            'ovn-nbctl %s lport-del %s'
+            % (self._nbctl_opts(), port['id']),
+            run_as_root=True)
 
     def bind_port(self, context):
         pass
