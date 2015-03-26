@@ -56,7 +56,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             run_as_root=True)
 
     def create_network_postcommit(self, context):
-        network = context.current()
+        network = context.current
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
@@ -71,13 +71,13 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self._set_network_name(network)
 
     def update_network_postcommit(self, context):
-        network = context.current()
+        network = context.current
         # The only field that might get updated that we care about right now is
         # the name.
         self._set_network_name(network)
 
     def delete_network_postcommit(self, context):
-        network = context.current()
+        network = context.current
         linux_utils.execute('ovn-nbctl %s lswitch-del %s' % (
             self._nbctl_opts(), network['id']), run_as_root=True)
 
@@ -91,7 +91,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         pass
 
     def create_port_postcommit(self, context):
-        port = context.current()
+        port = context.current
         linux_utils.execute(
             'ovn-nbctl %s lport-add %s %s'
             % (self._nbctl_opts(), port['id'], port['network_id']),
@@ -106,7 +106,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             run_as_root=True)
 
     def update_port_postcommit(self, context):
-        port = context.current()
+        port = context.current
         # Neutron allows you to update the MAC address on a port.
         linux_utils.execute(
             'ovn-nbctl %s lport-set-macs %s %s'
@@ -114,7 +114,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             run_as_root=True)
 
     def delete_port_postcommit(self, context):
-        port = context.current()
+        port = context.current
         linux_utils.execute(
             'ovn-nbctl %s lport-del %s'
             % (self._nbctl_opts(), port['id']),
