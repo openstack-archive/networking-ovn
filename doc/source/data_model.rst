@@ -81,6 +81,18 @@ OVN Northbound DB Logical Switch Port:
 Router
 ----------
 
+Neutron Router:
+    id
+    name
+    admin_state_up
+    status
+    tenant_id
+    external_gw_info:
+        network_id
+        external_fixed_ips: list of dicts
+            ip_address
+            subnet_id
+
 ...
 
 OVN Northbound DB Logical Router:

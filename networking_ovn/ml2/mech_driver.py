@@ -49,25 +49,29 @@ class OVNMechDriver(driver_api.MechanismDriver):
         return ''
 
     def _set_network_name(self, network):
-        linux_utils.execute(
-            'ovn-nbctl %s lswitch-set-external-id %s '
-            'neutron:network_name %s'
-            % (self._nbctl_opts(), network['id'], network['name']),
-            run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
+                   'neutron:network_name %s') % (self._nbctl_opts(),
+                                                 network['id'],
+                                                 network['name'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
 
     def create_network_postcommit(self, context):
         network = context.current
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        linux_utils.execute('ovn-nbctl %s lswitch-add %s' % (
-            self._nbctl_opts(), network['id']), run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lswitch-add %s') % (self._nbctl_opts(),
+                                                     network['id'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
         # Go ahead and also set the Neutron ID as an external:id, as that's
         # where we want to store it long term.
-        linux_utils.execute(
-            'ovn-nbctl %s lswitch-set-external-id %s neutron:network_id %s'
-            % (self._nbctl_opts(), network['id'], network['id']),
-            run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
+                   'neutron:network_id %s') % (self._nbctl_opts(),
+                                               network['id'], network['id'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
         self._set_network_name(network)
 
     def update_network_postcommit(self, context):
@@ -78,8 +82,10 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def delete_network_postcommit(self, context):
         network = context.current
-        linux_utils.execute('ovn-nbctl %s lswitch-del %s' % (
-            self._nbctl_opts(), network['id']), run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lswitch-del %s') % (self._nbctl_opts(),
+                                                     network['id'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
 
     def create_subnet_postcommit(self, context):
         pass
@@ -92,33 +98,38 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def create_port_postcommit(self, context):
         port = context.current
-        linux_utils.execute(
-            'ovn-nbctl %s lport-add %s %s'
-            % (self._nbctl_opts(), port['id'], port['network_id']),
-            run_as_root=True)
-        linux_utils.execute(
-            'ovn-nbctl %s lport-set-external-id %s neutron:port_name %s'
-            % (self._nbctl_opts(), port['id'], port['name']),
-            run_as_root=True)
-        linux_utils.execute(
-            'ovn-nbctl %s lport-set-macs %s %s'
-            % (self._nbctl_opts(), port['id'], port['mac_address']),
-            run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lport-add %s %s') % (self._nbctl_opts(),
+                                                      port['id'],
+                                                      port['network_id'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
+                   'neutron:port_name %s') % (self._nbctl_opts(),
+                                              port['id'],
+                                              port['name'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (self._nbctl_opts(),
+                                                           port['id'],
+                                                           port['mac_address'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
 
     def update_port_postcommit(self, context):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
-        linux_utils.execute(
-            'ovn-nbctl %s lport-set-macs %s %s'
-            % (self._nbctl_opts(), port['id'], port['mac_address']),
-            run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (self._nbctl_opts(),
+                                                           port['id'],
+                                                           port['mac_address'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
 
     def delete_port_postcommit(self, context):
         port = context.current
-        linux_utils.execute(
-            'ovn-nbctl %s lport-del %s'
-            % (self._nbctl_opts(), port['id']),
-            run_as_root=True)
+        cmd_str = ('ovn-nbctl %s lport-del %s') % (self._nbctl_opts(),
+                                                   port['id'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
 
     def bind_port(self, context):
         pass
