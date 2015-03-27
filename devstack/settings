@@ -3,11 +3,7 @@
 # For OVN, you can enable the OVN service
 # ovn - Add this to enable OVN locally on the host
 #
-# NOTE: The below should be uncommented once we have an
-#       actual plugin to use which does something useful.
-# Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn
 
-# We have to disable the neutron L2 agent. OVN does not use the L2 agent.
-disable_service q-agt
-
-enable_service ovn
+# Enable the OVN ML2 mechanism driver.  Include the logger to assist with
+# development and debugging, but it's not required.
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn,logger
