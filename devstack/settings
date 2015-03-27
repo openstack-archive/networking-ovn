@@ -5,7 +5,7 @@
 #
 # NOTE: The below should be uncommented once we have an
 #       actual plugin to use which does something useful.
-# Q_PLUGIN=ovn
+# Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn
 
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
 disable_service q-agt
