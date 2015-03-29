@@ -43,6 +43,15 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
     @staticmethod
+    def _ovn_name(id):
+        # The name of the OVN entry will be neutron-<UUID>
+        # This is due to the fact that the OVN appliaction checks if the name
+        # is a UUID. If so then there will be no matches.
+        # We prefix the UUID to enable us to use the Neutron UUID when
+        # updating, deleting etc.
+        return 'neutron-%s' % id
+
+    @staticmethod
     def _nbctl_opts():
         if cfg.CONF.ovn.database:
             return '-d %s' % cfg.CONF.ovn.database
@@ -50,9 +59,10 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def _set_network_name(self, network):
         cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
-                   'neutron:network_name %s') % (self._nbctl_opts(),
-                                                 network['id'],
-                                                 network['name'])
+                   'neutron:network_name %s') % (
+                       self._nbctl_opts(),
+                       OVNMechDriver._ovn_name(network['id']),
+                       network['name'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
@@ -61,15 +71,18 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        cmd_str = ('ovn-nbctl %s lswitch-add %s') % (self._nbctl_opts(),
-                                                     network['id'])
+        cmd_str = ('ovn-nbctl %s lswitch-add %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(network['id']))
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         # Go ahead and also set the Neutron ID as an external:id, as that's
         # where we want to store it long term.
         cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
-                   'neutron:network_id %s') % (self._nbctl_opts(),
-                                               network['id'], network['id'])
+                   'neutron:network_id %s') % (
+                       self._nbctl_opts(),
+                       OVNMechDriver._ovn_name(network['id']),
+                       network['id'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         self._set_network_name(network)
@@ -82,8 +95,9 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def delete_network_postcommit(self, context):
         network = context.current
-        cmd_str = ('ovn-nbctl %s lswitch-del %s') % (self._nbctl_opts(),
-                                                     network['id'])
+        cmd_str = ('ovn-nbctl %s lswitch-del %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(network['id']))
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
