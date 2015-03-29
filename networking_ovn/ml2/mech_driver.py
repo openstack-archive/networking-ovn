@@ -13,9 +13,9 @@
 from oslo_config import cfg
 
 import neutron.agent.linux.utils as linux_utils
+from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
-
 
 ovn_opts = [
     cfg.StrOpt('database',
@@ -112,38 +112,56 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def create_port_postcommit(self, context):
         port = context.current
-        cmd_str = ('ovn-nbctl %s lport-add %s %s') % (self._nbctl_opts(),
-                                                      port['id'],
-                                                      port['network_id'])
+        cmd_str = ('ovn-nbctl %s lport-add %s %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(port['id']),
+            OVNMechDriver._ovn_name(port['network_id']))
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
-                   'neutron:port_name %s') % (self._nbctl_opts(),
-                                              port['id'],
-                                              port['name'])
+                   'neutron:port_name %s') % (
+                       self._nbctl_opts(),
+                       OVNMechDriver._ovn_name(port['id']),
+                       port['name'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
-        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (self._nbctl_opts(),
-                                                           port['id'],
-                                                           port['mac_address'])
+        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(port['id']),
+            port['mac_address'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
     def update_port_postcommit(self, context):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
-        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (self._nbctl_opts(),
-                                                           port['id'],
-                                                           port['mac_address'])
+        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(port['id']),
+            port['mac_address'])
+        cmd = cmd_str.split()
+        linux_utils.execute(cmd, run_as_root=True)
+        # Neutron allows you to update the name on a port.
+        cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
+                   'neutron:port_name %s') % (
+                       self._nbctl_opts(),
+                       OVNMechDriver._ovn_name(port['id']),
+                       port['name'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
     def delete_port_postcommit(self, context):
         port = context.current
-        cmd_str = ('ovn-nbctl %s lport-del %s') % (self._nbctl_opts(),
-                                                   port['id'])
+        cmd_str = ('ovn-nbctl %s lport-del %s') % (
+            self._nbctl_opts(),
+            OVNMechDriver._ovn_name(port['id']))
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
     def bind_port(self, context):
-        pass
+        # This is just a temp solution so that Nova can boot images
+        for segment in context.segments_to_bind:
+            context.set_binding(segment[driver_api.ID],
+                                self.vif_type,
+                                self.vif_details,
+                                status=n_const.PORT_STATUS_ACTIVE)
