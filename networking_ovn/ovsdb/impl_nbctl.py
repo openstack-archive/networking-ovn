@@ -12,8 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-
+from networking_ovn.common import config
 from networking_ovn.ovsdb import ovn_api
 import neutron.agent.linux.utils as linux_utils
 from neutron.i18n import _
@@ -29,8 +28,9 @@ class Transaction(ovn_api.Transaction):
 
     @staticmethod
     def _nbctl_opts():
-        if cfg.CONF.ovn.database:
-            return '-d %s' % cfg.CONF.ovn.database
+        database = config.get_ovn_database()
+        if database:
+            return '-d %s' % database
         return ''
 
     def commit(self):

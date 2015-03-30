@@ -10,8 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_ovn.common import config
-import neutron.agent.linux.utils as linux_utils
+from networking_ovn.ovsdb import impl_nbctl
 from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
@@ -33,6 +32,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # When set to True, Nova plugs the VIF directly into the ovs bridge
         # instead of using the hybrid mode.
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
+        self._ovn = impl_nbctl.OvsdbNbctl()
 
     @staticmethod
     def _ovn_name(id):
@@ -43,41 +43,26 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # updating, deleting etc.
         return 'neutron-%s' % id
 
-    @staticmethod
-    def _nbctl_opts():
-        database = config.get_ovn_database()
-        if database:
-            return '-d %s' % database
-        return ''
-
     def _set_network_name(self, network):
-        cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
-                   'neutron:network_name %s') % (
-                       self._nbctl_opts(),
-                       OVNMechDriver._ovn_name(network['id']),
-                       network['name'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        ext_id = ['neutron:network_name', network['name']]
+        self._ovn.set_lswitch_ext_id(
+            OVNMechDriver._ovn_name(network['id']),
+            ext_id).execute()
+
+    def _set_network_id(self, network):
+        ext_id = ['neutron:network_name', network['id']]
+        self._ovn.set_lswitch_ext_id(
+            OVNMechDriver._ovn_name(network['id']),
+            ext_id).execute()
 
     def create_network_postcommit(self, context):
         network = context.current
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        cmd_str = ('ovn-nbctl %s lswitch-add %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(network['id']))
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
-        # Go ahead and also set the Neutron ID as an external:id, as that's
-        # where we want to store it long term.
-        cmd_str = ('ovn-nbctl %s lswitch-set-external-id %s '
-                   'neutron:network_id %s') % (
-                       self._nbctl_opts(),
-                       OVNMechDriver._ovn_name(network['id']),
-                       network['id'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._ovn.create_lswitch(
+            OVNMechDriver._ovn_name(network['id'])).execute()
+        self._set_network_id(network)
         self._set_network_name(network)
 
     def update_network_postcommit(self, context):
@@ -88,11 +73,8 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def delete_network_postcommit(self, context):
         network = context.current
-        cmd_str = ('ovn-nbctl %s lswitch-del %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(network['id']))
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._ovn.delete_lswitch(
+            OVNMechDriver._ovn_name(network['id'])).execute()
 
     def create_subnet_postcommit(self, context):
         pass
@@ -103,50 +85,31 @@ class OVNMechDriver(driver_api.MechanismDriver):
     def delete_subnet_postcommit(self, context):
         pass
 
+    def _set_port_name(self, port):
+        ext_id = ['neutron:port_name', port['name']]
+        self._ovn.set_lport_ext_id(port['id'], ext_id).execute()
+
     def create_port_postcommit(self, context):
         port = context.current
         # The port name *must* be port['id'].  It must match the iface-id set
         # in the Interfaces table of the Open_vSwitch database, which nova sets
         # to be the port ID.
-        cmd_str = ('ovn-nbctl %s lport-add %s %s') % (
-            self._nbctl_opts(), port['id'],
-            OVNMechDriver._ovn_name(port['network_id']))
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
-        cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
-                   'neutron:port_name %s') % (
-                       self._nbctl_opts(), port['id'],
-                       port['name'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
-        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
-            self._nbctl_opts(), port['id'],
-            port['mac_address'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._ovn.create_lport(
+            port['id'],
+            OVNMechDriver._ovn_name(port['network_id'])).execute()
+        self._ovn.set_lport_ext_id(port['id'], port['mac_address']).execute()
+        self._set_port_name(port)
 
     def update_port_postcommit(self, context):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
-        cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
-            self._nbctl_opts(), port['id'],
-            port['mac_address'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._ovn.set_lport_ext_id(port['id'], port['mac_address']).execute()
         # Neutron allows you to update the name on a port.
-        cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
-                   'neutron:port_name %s') % (
-                       self._nbctl_opts(), port['id'],
-                       port['name'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._set_port_name(port)
 
     def delete_port_postcommit(self, context):
         port = context.current
-        cmd_str = ('ovn-nbctl %s lport-del %s') % (
-            self._nbctl_opts(), port['id'])
-        cmd = cmd_str.split()
-        linux_utils.execute(cmd, run_as_root=True)
+        self._ovn.delete_lport(port['id']).execute()
 
     def bind_port(self, context):
         # This is just a temp solution so that Nova can boot images
