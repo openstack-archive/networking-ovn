@@ -79,7 +79,7 @@ function init_ovn {
             rm -f $base_dir/$db
         fi
     done
-    rm -f $base_dir/*.db.~lock~
+    rm -f $base_dir/.*.db.~lock~
 
     echo "Creating OVS, OVN, and OVN-Northbound Databases"
     ovsdb-tool create $base_dir/ovn.db $DEST/ovs/ovn/ovn.ovsschema
