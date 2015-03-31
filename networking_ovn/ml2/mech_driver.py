@@ -112,22 +112,22 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def create_port_postcommit(self, context):
         port = context.current
+        # The port name *must* be port['id'].  It must match the iface-id set
+        # in the Interfaces table of the Open_vSwitch database, which nova sets
+        # to be the port ID.
         cmd_str = ('ovn-nbctl %s lport-add %s %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(port['id']),
+            self._nbctl_opts(), port['id'],
             OVNMechDriver._ovn_name(port['network_id']))
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
                    'neutron:port_name %s') % (
-                       self._nbctl_opts(),
-                       OVNMechDriver._ovn_name(port['id']),
+                       self._nbctl_opts(), port['id'],
                        port['name'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(port['id']),
+            self._nbctl_opts(), port['id'],
             port['mac_address'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
@@ -136,16 +136,14 @@ class OVNMechDriver(driver_api.MechanismDriver):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
         cmd_str = ('ovn-nbctl %s lport-set-macs %s %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(port['id']),
+            self._nbctl_opts(), port['id'],
             port['mac_address'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
         # Neutron allows you to update the name on a port.
         cmd_str = ('ovn-nbctl %s lport-set-external-id %s '
                    'neutron:port_name %s') % (
-                       self._nbctl_opts(),
-                       OVNMechDriver._ovn_name(port['id']),
+                       self._nbctl_opts(), port['id'],
                        port['name'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
@@ -153,8 +151,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
     def delete_port_postcommit(self, context):
         port = context.current
         cmd_str = ('ovn-nbctl %s lport-del %s') % (
-            self._nbctl_opts(),
-            OVNMechDriver._ovn_name(port['id']))
+            self._nbctl_opts(), port['id'])
         cmd = cmd_str.split()
         linux_utils.execute(cmd, run_as_root=True)
 
