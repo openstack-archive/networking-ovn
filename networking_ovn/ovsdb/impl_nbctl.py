@@ -33,6 +33,11 @@ class Transaction(ovn_api.Transaction):
             return '-d %s' % database
         return ''
 
+    # All of these commands are executed individually and
+    # not within a transaction as the API suggests. This
+    # is because ovn-nbctl doesn't support multiple commands
+    # being run together as a transaction like ovs-vsctl does.
+    # If ovn-nbctl gains this feature, this can be updated.
     def commit(self):
         for cmd in self.commands:
             cmd_str = 'ovn-nbctl %s %s' % (Transaction._nbctl_opts(),
