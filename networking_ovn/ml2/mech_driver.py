@@ -10,19 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-
+from networking_ovn.common import config
 import neutron.agent.linux.utils as linux_utils
 from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
-
-ovn_opts = [
-    cfg.StrOpt('database',
-               help=_('location of the ovn-nb database')),
-]
-
-cfg.CONF.register_opts(ovn_opts, 'ovn')
 
 
 class OVNMechDriver(driver_api.MechanismDriver):
@@ -53,8 +45,9 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     @staticmethod
     def _nbctl_opts():
-        if cfg.CONF.ovn.database:
-            return '-d %s' % cfg.CONF.ovn.database
+        database = config.get_ovn_database()
+        if database:
+            return '-d %s' % database
         return ''
 
     def _set_network_name(self, network):
