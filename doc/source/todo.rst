@@ -14,6 +14,9 @@ ML2 Driver
 * Set Neutron port state when OVN logical port 'up' state changes to true so
   that Nova will get notified that the port is ready.
 
+* Add support for container sub-interfaces.  For more info, see the container
+  related additions to the OVN design described here:
+  https://github.com/openvswitch/ovs/commit/9fb4636f6c587060713ea0abf60ed6bcbe4f11f4
 
 L3
 ---------------------
