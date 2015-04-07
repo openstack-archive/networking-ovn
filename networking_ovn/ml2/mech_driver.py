@@ -10,10 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_ovn.ovsdb import impl_nbctl
 from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
+
+from networking_ovn.common import config as cfg
+from networking_ovn.ovsdb import impl_idl_ovn
 
 
 class OVNMechDriver(driver_api.MechanismDriver):
@@ -32,7 +34,10 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # When set to True, Nova plugs the VIF directly into the ovs bridge
         # instead of using the hybrid mode.
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
-        self._ovn = impl_nbctl.OvsdbNbctl()
+
+        # TODO(gsagie) replace this to be taken from configuration file
+        self.vsctl_timeout = cfg.get_ovn_ovsdb_timeout()
+        self._ovn = impl_idl_ovn.OvsdbOvnIdl(self)
 
     @staticmethod
     def _ovn_name(id):
