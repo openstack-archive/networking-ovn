@@ -94,15 +94,13 @@ function install_ovn {
 
     # If OVS is already installed, remove it, because we're about to re-install
     # it from source.
-    for package in openvswitch openvswitch-switch ; do
+    for package in openvswitch openvswitch-switch openvswitch-common; do
         if is_package_installed $package ; then
             uninstall_package $package
         fi
     done
 
-    cd $DEST/networking-ovn
-    sudo pip install .
-    cd ..
+    setup_develop $DEST/networking-ovn
 
     REPO_BASE="$(basename $OVN_REPO | cut -f1 -d'.')"
     if [ ! -d $REPO_BASE ] ; then
@@ -136,7 +134,9 @@ function start_ovn {
 
     ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+                 --remote=ptcp:6640:127.0.0.1 \
                  --pidfile --detach conf.db ovn.db ovnnb.db
+
     ovs-vsctl --no-wait init
 
     sudo ovs-vswitchd --pidfile --detach
