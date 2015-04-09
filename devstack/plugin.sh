@@ -81,8 +81,8 @@ function init_ovn {
     done
     rm -f $base_dir/.*.db.~lock~
 
-    echo "Creating OVS, OVN, and OVN-Northbound Databases"
-    ovsdb-tool create $base_dir/ovn.db $DEST/ovs/ovn/ovn.ovsschema
+    echo "Creating OVS, OVN-Southbound and OVN-Northbound Databases"
+    ovsdb-tool create $base_dir/ovn.db $DEST/ovs/ovn/ovn-sb.ovsschema
     ovsdb-tool create $base_dir/ovnnb.db $DEST/ovs/ovn/ovn-nb.ovsschema
     ovsdb-tool create $base_dir/conf.db $DEST/ovs/vswitchd/vswitch.ovsschema
 }
