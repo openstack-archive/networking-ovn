@@ -100,6 +100,9 @@ function install_ovn {
         fi
     done
 
+    echo "Installing OVS python binding"
+    install_package python-openvswitch
+
     setup_develop $DEST/networking-ovn
 
     REPO_BASE="$(basename $OVN_REPO | cut -f1 -d'.')"
