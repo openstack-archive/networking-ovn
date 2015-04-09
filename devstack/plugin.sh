@@ -106,6 +106,7 @@ function install_ovn {
     setup_develop $DEST/networking-ovn
 
     REPO_BASE="$(basename $OVN_REPO | cut -f1 -d'.')"
+    cd $DEST
     if [ ! -d $REPO_BASE ] ; then
         git clone $OVN_REPO
         cd $REPO_BASE
