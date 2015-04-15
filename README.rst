@@ -1,15 +1,14 @@
-===============================
-networking-ovn
-===============================
+=========================================================
+networking-ovn - OpenStack Neutron integration with OVN
+=========================================================
 
-OpenStack Neutron integration with OVN
+OVN provides virtual networking for Open vSwitch and is a component of the Open
+vSwitch project.  This project provides integration between OpenStack Neutron
+and OVN.
 
 * Free software: Apache license
-* Documentation: http://docs.openstack.org/developer/networking-ovn
 * Source: http://git.openstack.org/cgit/stackforge/networking-ovn
-* Bugs: http://bugs.launchpad.net/neutron
-
-Features
---------
-
-* TODO
+* Bugs: http://bugs.launchpad.net/networking-ovn
+* Mailing list:
+  http://lists.openstack.org/cgi-bin/mailman/listinfo/openstack-dev
+* IRC: #openstack-neutron-ovn on Freenode.
