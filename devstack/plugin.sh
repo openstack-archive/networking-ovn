@@ -145,6 +145,8 @@ function start_ovn {
 
     sudo ovs-vswitchd --pidfile --detach
 
+    _neutron_ovs_base_setup_bridge $OVS_BRIDGE
+
     cd $_pwd
 }
 
