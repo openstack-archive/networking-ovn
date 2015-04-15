@@ -21,14 +21,24 @@ ML2 Driver
 
 * Security groups
 
-  * Assignee: Russell Bryant
+  * Update the data_model docs to describe the mapping of Neutron security
+    groups to OVN northbound db contents.
+
+    * Assignee: Gal Sagie
+
+  * Implementation is currently blocked on
+    https://bugs.launchpad.net/networking-ovn/+bug/1444112
 
 * Add support for container sub-interfaces.  For more info, see the container
   related additions to the OVN design described here:
   https://github.com/openvswitch/ovs/commit/9fb4636f6c587060713ea0abf60ed6bcbe4f11f4
 
+  * Assignee: Russell Bryant
+
 * Add sync functionality to ensure that the OVN northbound DB reflects the
   current state of the world according to Neutron.
+
+  * Assignee: Gal Sagie
 
 L3
 ---------------------
