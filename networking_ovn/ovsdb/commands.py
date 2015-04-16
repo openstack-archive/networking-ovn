@@ -157,27 +157,6 @@ class LPortSetExternalIdCommand(BaseCommand):
         lport.external_ids = external_ids
 
 
-class SetLogicalPortUpStatusCommand(BaseCommand):
-    def __init__(self, api, name, status):
-        super(SetLogicalPortUpStatusCommand, self).__init__(api)
-        self.name = name
-        self.status = status
-
-    def run_idl(self, txn):
-        try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
-                                          'name', self.name)
-        except idlutils.RowNotFound:
-            if self.if_exists:
-                return
-            msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
-            raise RuntimeError(msg)
-
-        lport.verify('up')
-        lport.up = self.status
-
-
 class CreateACLRuleCommand(BaseCommand):
     def __init__(self, api, lswitch_name, priority, match,
                  action, ext_ids_dict=None):
