@@ -66,3 +66,9 @@ class OVNL3RouterPlugin(db_base_plugin_v2.common_db_mixin.CommonDbMixin,
 
     def delete_floatingip(self, context, id):
         pass
+
+    def add_router_interface(self, context, router_id, interface_info):
+        pass
+
+    def remove_router_interface(self, context, router_id, interface_info):
+        pass
