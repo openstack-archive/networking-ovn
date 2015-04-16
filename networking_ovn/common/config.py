@@ -20,6 +20,19 @@ ovn_opts = [
                default=10,
                help=_('Timeout in seconds for the OVSDB '
                       'connection transaction')),
+    cfg.StrOpt('neutron_sync_mode',
+               default='off',
+               help=_('The synchronization mode of OVN with Neutron DB. \n'
+                      'off - synchronization is off \n'
+                      'log - during neutron-server startup, '
+                      'check to see if OVN is in sync with '
+                      'the Neutron database. '
+                      ' Log warnings for any inconsistencies found so'
+                      ' that an admin can investigate \n'
+                      'repair - during neutron-server startup, automatically'
+                      ' create resources found in Neutron but not in OVN.'
+                      ' Also remove resources from OVN'
+                      ' that are no longer in Neutron.')),
 ]
 
 cfg.CONF.register_opts(ovn_opts, 'ovn')
@@ -31,3 +44,7 @@ def get_ovn_ovsdb_connection():
 
 def get_ovn_ovsdb_timeout():
     return cfg.CONF.ovn.ovsdb_connection_timeout
+
+
+def get_ovn_neutron_sync_mode():
+    return cfg.CONF.ovn.neutron_sync_mode

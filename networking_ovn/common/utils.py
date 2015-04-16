@@ -13,7 +13,7 @@
 
 def ovn_name(id):
     # The name of the OVN entry will be neutron-<UUID>
-    # This is due to the fact that the OVN appliaction checks if the name
+    # This is due to the fact that the OVN application checks if the name
     # is a UUID. If so then there will be no matches.
     # We prefix the UUID to enable us to use the Neutron UUID when
     # updating, deleting etc.

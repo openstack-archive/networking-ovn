@@ -80,3 +80,15 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.CreateACLRuleCommand(self, lswitch_name,
                                         priority, match,
                                         action, ext_ids_dict)
+
+    def get_all_logical_switches_ids(self):
+        result = {}
+        for row in self._tables['Logical_Switch'].rows.values():
+            result[row.name] = row.external_ids
+        return result
+
+    def get_all_logical_ports_ids(self):
+        result = {}
+        for row in self._tables['Logical_Port'].rows.values():
+            result[row.name] = row.external_ids
+        return result
