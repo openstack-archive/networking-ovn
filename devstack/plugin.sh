@@ -125,6 +125,7 @@ function install_ovn {
     make -j$[$(nproc) + 1]
     sudo make install
     sudo chown $(whoami) /usr/local/var/run/openvswitch
+    sudo chown $(whoami) /usr/local/var/log/openvswitch
 
     cd $_pwd
 }
@@ -139,11 +140,28 @@ function start_ovn {
     ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
                  --remote=ptcp:6640:127.0.0.1 \
-                 --pidfile --detach conf.db ovn.db ovnnb.db
+                 --pidfile --detach -vconsole:off --log-file \
+                 conf.db ovn.db ovnnb.db
 
+    echo -n "Waiting for ovsdb-server to start ... "
+    while ! test -e /usr/local/var/run/openvswitch/db.sock ; do
+        sleep 1
+    done
+    echo "done."
     ovs-vsctl --no-wait init
+    ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$(uuidgen)"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="tcp:127.0.0.1:6640"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="vxlan"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$SERVICE_HOST"
 
-    sudo ovs-vswitchd --pidfile --detach
+    sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
+
+    ovn-nbd --pidfile --detach -vconsole:off --log-file
+
+    ovn-controller --pidfile --detach -vconsole:off --log-file \
+        unix:/usr/local/var/run/openvswitch/db.sock
 
     _neutron_ovs_base_setup_bridge $OVS_BRIDGE
 
@@ -152,8 +170,10 @@ function start_ovn {
 
 # stop_ovn() - Stop running processes (non-screen)
 function stop_ovn {
-    sudo killall ovsdb-server
+    sudo killall ovn-controller
+    sudo killall ovn-nbd
     sudo killall ovs-vswitchd
+    sudo killall ovsdb-server
 }
 
 # main loop
