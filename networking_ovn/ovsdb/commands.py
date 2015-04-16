@@ -71,10 +71,12 @@ class LSwitchSetExternalIdCommand(BaseCommand):
 
 
 class AddLogicalPortCommand(BaseCommand):
-    def __init__(self, api, lswitch, lport, may_exist):
+    def __init__(self, api, lswitch, lport, parent_name, tag, may_exist):
         super(AddLogicalPortCommand, self).__init__(api)
         self.lswitch = lswitch
         self.lport = lport
+        self.parent_name = parent_name
+        self.tag = tag
         self.may_exist = may_exist
 
     def run_idl(self, txn):
@@ -94,6 +96,8 @@ class AddLogicalPortCommand(BaseCommand):
 
         port = txn.insert(self.api._tables['Logical_Port'])
         port.name = self.lport
+        port.parent_name = self.parent_name
+        port.tag = self.tag
         port.lswitch = lswitch
 
 
@@ -134,6 +138,44 @@ class SetLogicalPortMacCommand(BaseCommand):
 
         lport.verify('macs')
         lport.macs = self.macs
+
+
+class SetLogicalPortParentCommand(BaseCommand):
+    def __init__(self, api, name, parent_name):
+        super(SetLogicalPortParentCommand, self).__init__(api)
+        self.name = name
+        self.parent_name = parent_name
+
+    def run_idl(self, txn):
+        try:
+            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+                                          'name', self.name)
+        except idlutils.RowNotFound:
+            msg = _("Port %s does not exist") % self.lport
+            LOG.error(msg)
+            raise RuntimeError(msg)
+
+        lport.verify('parent_name')
+        lport.parent_name = self.parent_name
+
+
+class SetLogicalPortTagCommand(BaseCommand):
+    def __init__(self, api, name, tag):
+        super(SetLogicalPortTagCommand, self).__init__(api)
+        self.name = name
+        self.tag = tag
+
+    def run_idl(self, txn):
+        try:
+            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+                                          'name', self.name)
+        except idlutils.RowNotFound:
+            msg = _("Port %s does not exist") % self.lport
+            LOG.error(msg)
+            raise RuntimeError(msg)
+
+        lport.verify('tag')
+        lport.tag = self.tag
 
 
 class LPortSetExternalIdCommand(BaseCommand):

@@ -65,13 +65,21 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def create_lport(self, name, lswitch_name, may_exist=True):
+    def create_lport(self, name, lswitch_name, parent_name=None, tag=None,
+                     may_exist=True):
         """Create a command to add an OVN lport
 
         :param name:         The name of the lport
         :type name:          string
         :param lswitch_name: The name of the lswitch the lport is created on
         :type lswitch_name:  string
+        :param parent_name:  The name of the parent logical port, if one
+                             exists.
+        :type parent_name:   string
+        :param tag:          The tag used to identify traffic to/from this
+                             port.  This param only makes sense if parent_name
+                             is also set.
+        :type tag:           int
         :param may_exist:    Do not fail if lport already exists
         :type may_exist:     bool
         :returns:            :class:`Command` with no result
@@ -96,6 +104,28 @@ class API(object):
         :type lport_name:  string
         :param mac:        The MAC assigned to the lport
         :type mac:         string
+        :returns:          :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def set_lport_parent_name(self, lport_name, parent_name):
+        """Create a command to set OVN lport parent port name
+
+        :param lport_name:  The name of the lport
+        :type lport_name:   string
+        :param parent_name: The name of the parent lport
+        :type parent_name:  string
+        :returns:           :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def set_lport_tag(self, lport_name, tag):
+        """Create a command to set OVN lport tag
+
+        :param lport_name: The name of the lport
+        :type lport_name:  string
+        :param tag:        The tag used to identify traffic to/from this lport
+        :type tag:         int
         :returns:          :class:`Command` with no result
         """
 

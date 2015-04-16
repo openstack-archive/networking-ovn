@@ -59,9 +59,11 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.LSwitchSetExternalIdCommand(self, lswitch_id,
                                                ext_id[0], ext_id[1])
 
-    def create_lport(self, lport_name, lswitch_name, may_exist=True):
+    def create_lport(self, lport_name, lswitch_name, parent_name=None,
+                     tag=None, may_exist=True):
         return cmd.AddLogicalPortCommand(self, lswitch_name,
-                                         lport_name, may_exist)
+                                         lport_name, parent_name, tag,
+                                         may_exist)
 
     def delete_lport(self, lport_name=None, ext_id=None, if_exists=True):
         if (lport_name is not None):
@@ -72,6 +74,12 @@ class OvsdbOvnIdl(ovn_api.API):
 
     def set_lport_mac(self, lport_name, mac):
         return cmd.SetLogicalPortMacCommand(self, lport_name, [mac])
+
+    def set_lport_parent_name(self, lport_name, parent_name):
+        return cmd.SetLogicalPortParentCommand(self, lport_name, parent_name)
+
+    def set_lport_tag(self, lport_name, tag):
+        return cmd.SetLogicalPortTagCommand(self, lport_name, tag)
 
     def set_lport_ext_id(self, lport_name, ext_id):
         return cmd.LPortSetExternalIdCommand(self, lport_name,
