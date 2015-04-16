@@ -13,12 +13,21 @@
 from oslo_config import cfg
 
 ovn_opts = [
-    cfg.StrOpt('database',
-               help=_('location of the ovn-nb database')),
+    cfg.StrOpt('ovsdb_connection',
+               default='tcp:127.0.0.1:6640',
+               help=_('The connection string for the native OVSDB backend')),
+    cfg.IntOpt('ovsdb_connection_timeout',
+               default=10,
+               help=_('Timeout in seconds for the OVSDB '
+                      'connection transaction')),
 ]
 
 cfg.CONF.register_opts(ovn_opts, 'ovn')
 
 
-def get_ovn_database():
-    return cfg.CONF.ovn.database
+def get_ovn_ovsdb_connection():
+    return cfg.CONF.ovn.ovsdb_connection
+
+
+def get_ovn_ovsdb_timeout():
+    return cfg.CONF.ovn.ovsdb_connection_timeout

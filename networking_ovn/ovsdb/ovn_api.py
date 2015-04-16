@@ -1,5 +1,3 @@
-# Copyright (c) 2015 Openstack Foundation
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -14,42 +12,6 @@
 
 import abc
 import six
-
-
-@six.add_metaclass(abc.ABCMeta)
-class Command(object):
-    """An OSVDB command that can be executed in a transaction
-
-    :attr result: The result of executing the command in a transaction
-    """
-
-    @abc.abstractmethod
-    def execute(self, **transaction_options):
-        """Immediately execute an OVSDB command
-
-        This implicitly creates a transaction with the passed options and then
-        executes it, returning the value of the executed transaction
-
-        :param transaction_options: Options to pass to the transaction
-        """
-
-
-@six.add_metaclass(abc.ABCMeta)
-class Transaction(object):
-    @abc.abstractmethod
-    def commit(self):
-        """Commit the transaction to OVSDB"""
-
-    @abc.abstractmethod
-    def add(self, command):
-        """Append an OVSDB operation to the transaction"""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, tb):
-        if exc_type is None:
-            self.result = self.commit()
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -148,4 +110,34 @@ class API(object):
         :param if_exist:  Do not fail if the lport does not exists
         :type if_exist:   bool
         :returns:         :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def set_lport_up_status(self, lport_name, status):
+        """Create a command to set OVN lport "up" status
+
+        :param lport_name: The name of the lport
+        :type lport_name:  string
+        :param status:     The operational status of the lport
+        :type status:      boolean (True or False)
+        :returns:          :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def create_acl_rule(self, lswitch_name, priority, match, action,
+                        ext_ids_dict=None):
+        """Create a command to add an OVN ACL rule
+
+        :param lswitch_name: The name of the lswitch to create on
+        :type lswitch_name:  string
+        :param priority:     The priority of the rule
+        :type priority:      integer (0..65535)
+        :param match:        The ACL match expression
+        :type match:         string
+        :param action:       The ACL action in case of a match
+        :type action:        string ("allow",
+                             "allow-related", "drop", "reject")
+        :param ext_id:       Dictionary of external id's of this rule
+        :type ext_id:        Dictionary of [string]->string
+        :returns:            :class:`Command` with no result
         """
