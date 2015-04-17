@@ -35,6 +35,9 @@ ML2 Driver
 
   * Assignee: Russell Bryant
 
+  * Related patch to python-neutronclient to allow specifying a port
+    binding:profile: https://review.openstack.org/174098
+
 * Add sync functionality to ensure that the OVN northbound DB reflects the
   current state of the world according to Neutron.
 
@@ -49,12 +52,9 @@ L3
 Devstack and Testing
 ---------------------
 
-* Add jenkins job that uses devstack integration.  Until we're able to test with
-  OVN itself, this job can at least ensure that Neutron can start properly with
-  this driver enabled.
+* Get python-openvswitch installed for unit test jobs.
 
-  * Assignee: Kyle Mestery
-
-* Add gate_hook to install python-openvswitch for the unit test jobs.
+  * Related ovs-dev thread:
+    http://openvswitch.org/pipermail/dev/2015-April/053692.html
 
 * Add unit tests.
