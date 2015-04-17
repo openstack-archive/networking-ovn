@@ -158,7 +158,7 @@ function start_ovn {
 
     sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
 
-    ovn-nbd --pidfile --detach -vconsole:off --log-file
+    ovn-northd --pidfile --detach -vconsole:off --log-file
 
     ovn-controller --pidfile --detach -vconsole:off --log-file \
         unix:/usr/local/var/run/openvswitch/db.sock
@@ -171,7 +171,7 @@ function start_ovn {
 # stop_ovn() - Stop running processes (non-screen)
 function stop_ovn {
     sudo killall ovn-controller
-    sudo killall ovn-nbd
+    sudo killall ovn-northd
     sudo killall ovs-vswitchd
     sudo killall ovsdb-server
 }
