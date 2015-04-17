@@ -10,7 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from neutron.common import constants as n_const
+from neutron.common import exceptions as n_exc
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 
@@ -93,6 +96,51 @@ class OVNMechDriver(driver_api.MechanismDriver):
         ext_id = ['neutron:port_name', port['name']]
         self._ovn.set_lport_ext_id(port['id'], ext_id).execute()
 
+    def _validate_binding_profile(self, context):
+        # Validate binding:profile if it exists in precommit so that we can
+        # fail port creation if the contents are invalid.
+        port = context.current
+        if 'binding:profile' not in port:
+            return
+        parent_name = port['binding:profile'].get('parent_name')
+        tag = port['binding:profile'].get('tag')
+        if not any((parent_name, tag)):
+            # An empty profile is fine.
+            return
+        if not all((parent_name, tag)):
+            # If one is set, they both must be set.
+            msg = _('Invalid binding:profile. parent_name and tag are '
+                    'both required.')
+            raise n_exc.InvalidInput(error_message=msg)
+        if not isinstance(parent_name, six.string_types):
+            msg = _('Invalid binding:profile. parent_name "%s" must be '
+                    'a string.') % parent_name
+            raise n_exc.InvalidInput(error_message=msg)
+        if not isinstance(tag, int) or tag < 0 or tag > 4095:
+            # The tag range is defined by ovn-nb.ovsschema.
+            # https://github.com/openvswitch/ovs/blob/ovn/ovn/ovn-nb.ovsschema
+            msg = _('Invalid binding:profile. tag "%s" must be '
+                    'an int between 1 and 4096, inclusive.') % tag
+            raise n_exc.InvalidInput(error_message=msg)
+        # Make sure we can successfully look up the port indicated by
+        # parent_name.  Just let it raise the right exception if there is a
+        # problem.
+        context._plugin.get_port(context._plugin_context, parent_name)
+
+    def _set_from_binding_profile(self, port):
+        parent_name = None
+        tag = None
+        if 'binding:profile' in port:
+            # If binding:profile exists, we know the contents are valid as they
+            # were validated in create_port_precommit().
+            parent_name = port['binding:profile'].get('parent_name')
+            tag = port['binding:profile'].get('tag')
+        self._ovn.set_lport_parent_name(port['id'], parent_name).execute()
+        self._ovn.set_lport_tag(port['id'], tag).execute()
+
+    def create_port_precommit(self, context):
+        self._validate_binding_profile(context)
+
     def create_port_postcommit(self, context):
         port = context.current
         # The port name *must* be port['id'].  It must match the iface-id set
@@ -103,6 +151,10 @@ class OVNMechDriver(driver_api.MechanismDriver):
             OVNMechDriver._ovn_name(port['network_id'])).execute()
         self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         self._set_port_name(port)
+        self._set_from_binding_profile(port)
+
+    def update_port_precommit(self, context):
+        self._validate_binding_profile(context)
 
     def update_port_postcommit(self, context):
         port = context.current
@@ -110,6 +162,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         # Neutron allows you to update the name on a port.
         self._set_port_name(port)
+        self._set_from_binding_profile(port)
 
     def delete_port_postcommit(self, context):
         port = context.current
