@@ -76,9 +76,6 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.LPortSetExternalIdCommand(self, lport_name,
                                              ext_id[0], ext_id[1])
 
-    def set_lport_up_status(self, lport_name, status):
-        return cmd.SetLogicalPortUpStatusCommand(self, lport_name, status)
-
     def create_acl_rule(self, lswitch_name, priority, match, action,
                         ext_ids_dict=None):
         return cmd.CreateACLRuleCommand(self, lswitch_name,

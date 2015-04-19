@@ -113,17 +113,6 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lport_up_status(self, lport_name, status):
-        """Create a command to set OVN lport "up" status
-
-        :param lport_name: The name of the lport
-        :type lport_name:  string
-        :param status:     The operational status of the lport
-        :type status:      boolean (True or False)
-        :returns:          :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
     def create_acl_rule(self, lswitch_name, priority, match, action,
                         ext_ids_dict=None):
         """Create a command to add an OVN ACL rule
