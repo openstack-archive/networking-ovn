@@ -29,19 +29,20 @@ class OvsdbOvnIdl(ovn_api.API):
                                              cfg.get_ovn_ovsdb_timeout(),
                                              'OVN_Northbound')
 
-    def __init__(self, context):
+    def __init__(self):
         super(OvsdbOvnIdl, self).__init__()
         OvsdbOvnIdl.ovsdb_connection.start()
         self.idl = OvsdbOvnIdl.ovsdb_connection.idl
-        self.context = context
+        self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
     @property
     def _tables(self):
         return self.idl.tables
 
     def transaction(self, check_error=False, log_errors=True, **kwargs):
-        return impl_idl.Transaction(self.context, self,
+        return impl_idl.Transaction(self,
                                     OvsdbOvnIdl.ovsdb_connection,
+                                    self.ovsdb_timeout,
                                     check_error, log_errors)
 
     def create_lswitch(self, lswitch_name, may_exist=True):
