@@ -14,7 +14,6 @@ from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 
-from networking_ovn.common import config as cfg
 from networking_ovn.ovsdb import impl_idl_ovn
 
 
@@ -35,9 +34,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # instead of using the hybrid mode.
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
-        # TODO(gsagie) replace this to be taken from configuration file
-        self.vsctl_timeout = cfg.get_ovn_ovsdb_timeout()
-        self._ovn = impl_idl_ovn.OvsdbOvnIdl(self)
+        self._ovn = impl_idl_ovn.OvsdbOvnIdl()
 
     @staticmethod
     def _ovn_name(id):
