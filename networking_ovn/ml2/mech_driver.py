@@ -14,6 +14,7 @@ from neutron.common import constants as n_const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 
+from networking_ovn.ml2 import security_groups_handler as sec_handler
 from networking_ovn.ovsdb import impl_idl_ovn
 
 
@@ -35,6 +36,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
+        self.security_handler = sec_handler.OvnSecurityGroupsHandler(self._ovn)
 
     @staticmethod
     def _ovn_name(id):
