@@ -101,13 +101,13 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self._ovn.create_lport(
             port['id'],
             OVNMechDriver._ovn_name(port['network_id'])).execute()
-        self._ovn.set_lport_ext_id(port['id'], port['mac_address']).execute()
+        self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         self._set_port_name(port)
 
     def update_port_postcommit(self, context):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
-        self._ovn.set_lport_ext_id(port['id'], port['mac_address']).execute()
+        self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         # Neutron allows you to update the name on a port.
         self._set_port_name(port)
 
