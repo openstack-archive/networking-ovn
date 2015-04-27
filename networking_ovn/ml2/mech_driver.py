@@ -52,7 +52,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             ext_id).execute()
 
     def _set_network_id(self, network):
-        ext_id = ['neutron:network_name', network['id']]
+        ext_id = ['neutron:network_id', network['id']]
         self._ovn.set_lswitch_ext_id(
             OVNMechDriver._ovn_name(network['id']),
             ext_id).execute()
