@@ -46,6 +46,8 @@ class DelLSwitchCommand(BaseCommand):
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.name)
         except idlutils.RowNotFound:
+            if self.if_exists:
+                return
             msg = _("Logical Switch %s does not exist") % self.name
             LOG.error(msg)
             raise RuntimeError(msg)
