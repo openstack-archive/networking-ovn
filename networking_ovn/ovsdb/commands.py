@@ -128,8 +128,6 @@ class SetLogicalPortMacCommand(BaseCommand):
             lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
                                           'name', self.name)
         except idlutils.RowNotFound:
-            if self.if_exists:
-                return
             msg = _("Port %s does not exist") % self.lport
             LOG.error(msg)
             raise RuntimeError(msg)
