@@ -52,15 +52,15 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def delete_lswitch(self, name=None, ext_id=None, if_exist=True):
+    def delete_lswitch(self, name=None, ext_id=None, if_exists=True):
         """Create a command to delete an OVN lswitch
 
         :param name:      The name of the lswitch
         :type name:       string
         :param ext_id:    The external id of the lswitch
         :type ext_id:     pair of <ext_id_key ,ext_id_value>
-        :param if_exist:  Do not fail if the lswitch does not exists
-        :type if_exist:   bool
+        :param if_exists: Do not fail if the lswitch does not exists
+        :type if_exists:  bool
         :returns:         :class:`Command` with no result
         """
 
@@ -100,15 +100,15 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def delete_lport(self, name=None, ext_id=None, if_exist=True):
+    def delete_lport(self, name=None, ext_id=None, if_exists=True):
         """Create a command to delete an OVN lport
 
         :param name:      The name of the lport
         :type name:       string
         :param ext_id:    The external id of the lport
         :type ext_id:     pair of <ext_id_key ,ext_id_value>
-        :param if_exist:  Do not fail if the lport does not exists
-        :type if_exist:   bool
+        :param if_exists: Do not fail if the lport does not exists
+        :type if_exists:  bool
         :returns:         :class:`Command` with no result
         """
 

@@ -63,9 +63,9 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.AddLogicalPortCommand(self, lswitch_name,
                                          lport_name, may_exist)
 
-    def delete_lport(self, lport_name=None, ext_id=None, if_exist=True):
+    def delete_lport(self, lport_name=None, ext_id=None, if_exists=True):
         if (lport_name is not None):
-            return cmd.DelLogicalPortCommand(self, lport_name, if_exist)
+            return cmd.DelLogicalPortCommand(self, lport_name, if_exists)
         else:
             raise RuntimeError(_("Currently only supports "
                                  "delete by lport-name"))
