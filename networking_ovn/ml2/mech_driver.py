@@ -17,6 +17,7 @@ from neutron.common import exceptions as n_exc
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 
+from networking_ovn.common import utils
 from networking_ovn.ml2 import security_groups_handler as sec_handler
 from networking_ovn.ovsdb import impl_idl_ovn
 
@@ -41,25 +42,16 @@ class OVNMechDriver(driver_api.MechanismDriver):
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
         self.security_handler = sec_handler.OvnSecurityGroupsHandler(self._ovn)
 
-    @staticmethod
-    def _ovn_name(id):
-        # The name of the OVN entry will be neutron-<UUID>
-        # This is due to the fact that the OVN appliaction checks if the name
-        # is a UUID. If so then there will be no matches.
-        # We prefix the UUID to enable us to use the Neutron UUID when
-        # updating, deleting etc.
-        return 'neutron-%s' % id
-
     def _set_network_name(self, network):
         ext_id = ['neutron:network_name', network['name']]
         self._ovn.set_lswitch_ext_id(
-            OVNMechDriver._ovn_name(network['id']),
+            utils.ovn_name(network['id']),
             ext_id).execute()
 
     def _set_network_id(self, network):
         ext_id = ['neutron:network_id', network['id']]
         self._ovn.set_lswitch_ext_id(
-            OVNMechDriver._ovn_name(network['id']),
+            utils.ovn_name(network['id']),
             ext_id).execute()
 
     def create_network_postcommit(self, context):
@@ -68,7 +60,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
         self._ovn.create_lswitch(
-            OVNMechDriver._ovn_name(network['id'])).execute()
+            utils.ovn_name(network['id'])).execute()
         self._set_network_id(network)
         self._set_network_name(network)
 
@@ -81,7 +73,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
     def delete_network_postcommit(self, context):
         network = context.current
         self._ovn.delete_lswitch(
-            OVNMechDriver._ovn_name(network['id'])).execute()
+            utils.ovn_name(network['id'])).execute()
 
     def create_subnet_postcommit(self, context):
         pass
@@ -148,7 +140,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # to be the port ID.
         self._ovn.create_lport(
             port['id'],
-            OVNMechDriver._ovn_name(port['network_id'])).execute()
+            utils.ovn_name(port['network_id'])).execute()
         self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         self._set_port_name(port)
         self._set_from_binding_profile(port)
