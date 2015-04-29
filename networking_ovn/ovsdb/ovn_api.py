@@ -30,25 +30,28 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def create_lswitch(self, name, may_exist=True):
+    def create_lswitch(self, name, may_exist=True, **columns):
         """Create a command to add an OVN lswitch
 
-        :param name:      The id of the lswitch
-        :type name:       string
-        :param may_exist: Do not fail if lswitch already exists
-        :type may_exist:  bool
-        :returns:         :class:`Command` with no result
+        :param name:         The id of the lswitch
+        :type name:          string
+        :param may_exist:    Do not fail if lswitch already exists
+        :type may_exist:     bool
+        :param columns:      Dictionary of port columns
+                             Supported columns: external_ids
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
         """
 
     @abc.abstractmethod
     def set_lswitch_ext_id(self, name, ext_id):
         """Create a command to set OVN lswitch external id
 
-        :param name:    The name of the lswitch
-        :type name:     string
-        :param ext_id:  The external id to set for the lswitch
-        :type ext_id:   pair of <ext_id_key ,ext_id_value>
-        :returns:       :class:`Command` with no result
+        :param name:     The name of the lswitch
+        :type name:      string
+        :param ext_id:   The external id to set for the lswitch
+        :type ext_id:    pair of <ext_id_key ,ext_id_value>
+        :returns:        :class:`Command` with no result
         """
 
     @abc.abstractmethod
@@ -65,68 +68,33 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def create_lport(self, name, lswitch_name, parent_name=None, tag=None,
-                     may_exist=True):
+    def create_lport(self, name, lswitch_name, may_exist=True, **columns):
         """Create a command to add an OVN lport
 
-        :param name:         The name of the lport
-        :type name:          string
-        :param lswitch_name: The name of the lswitch the lport is created on
-        :type lswitch_name:  string
-        :param parent_name:  The name of the parent logical port, if one
-                             exists.
-        :type parent_name:   string
-        :param tag:          The tag used to identify traffic to/from this
-                             port.  This param only makes sense if parent_name
-                             is also set.
-        :type tag:           int
-        :param may_exist:    Do not fail if lport already exists
-        :type may_exist:     bool
-        :returns:            :class:`Command` with no result
+        :param name:          The name of the lport
+        :type name:           string
+        :param lswitch_name:  The name of the lswitch the lport is created on
+        :type lswitch_name:   string
+        :param may_exist:     Do not fail if lport already exists
+        :type may_exist:      bool
+        :param columns:       Dictionary of port columns
+                              Supported columns: macs, external_ids,
+                                                 parent_name, tag
+        :type columns:        dictionary
+        :returns:             :class:`Command` with no result
         """
 
     @abc.abstractmethod
-    def set_lport_ext_id(self, lport_name, ext_id):
-        """Create a command to set OVN lport external id
+    def set_lport(self, lport_name, **columns):
+        """Create a command to set OVN lport fields
 
-        :param lport_name: The name of the lport
-        :type lport_name:  string
-        :param ext_id:     The external id to set for the lport
-        :type ext_id:      pair of <ext_id_key ,ext_id_value>
-        :returns:          :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
-    def set_lport_mac(self, lport_name, mac):
-        """Create a command to set OVN lport MAC
-
-        :param lport_name: The name of the lport
-        :type lport_name:  string
-        :param mac:        The MAC assigned to the lport
-        :type mac:         string
-        :returns:          :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
-    def set_lport_parent_name(self, lport_name, parent_name):
-        """Create a command to set OVN lport parent port name
-
-        :param lport_name:  The name of the lport
-        :type lport_name:   string
-        :param parent_name: The name of the parent lport
-        :type parent_name:  string
-        :returns:           :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
-    def set_lport_tag(self, lport_name, tag):
-        """Create a command to set OVN lport tag
-
-        :param lport_name: The name of the lport
-        :type lport_name:  string
-        :param tag:        The tag used to identify traffic to/from this lport
-        :type tag:         int
-        :returns:          :class:`Command` with no result
+        :param lport_name:    The name of the lport
+        :type lport_name:     string
+        :param columns:       Dictionary of port columns
+                              Supported columns: macs, external_ids,
+                                                 parent_name, tag
+        :type columns:        dictionary
+        :returns:             :class:`Command` with no result
         """
 
     @abc.abstractmethod

@@ -20,9 +20,10 @@ LOG = logging.getLogger(__name__)
 
 
 class AddLSwitchCommand(BaseCommand):
-    def __init__(self, api, name, may_exist):
+    def __init__(self, api, name, may_exist, **columns):
         super(AddLSwitchCommand, self).__init__(api)
         self.name = name
+        self.columns = columns
         self.may_exist = may_exist
 
     def run_idl(self, txn):
@@ -33,6 +34,8 @@ class AddLSwitchCommand(BaseCommand):
                 return
         row = txn.insert(self.api._tables['Logical_Switch'])
         row.name = self.name
+        for col, val in self.columns.items():
+            setattr(row, col, val)
 
 
 class DelLSwitchCommand(BaseCommand):
@@ -71,13 +74,12 @@ class LSwitchSetExternalIdCommand(BaseCommand):
 
 
 class AddLogicalPortCommand(BaseCommand):
-    def __init__(self, api, lswitch, lport, parent_name, tag, may_exist):
+    def __init__(self, api, lport, lswitch, may_exist, **columns):
         super(AddLogicalPortCommand, self).__init__(api)
-        self.lswitch = lswitch
         self.lport = lport
-        self.parent_name = parent_name
-        self.tag = tag
+        self.lswitch = lswitch
         self.may_exist = may_exist
+        self.columns = columns
 
     def run_idl(self, txn):
         try:
@@ -96,9 +98,28 @@ class AddLogicalPortCommand(BaseCommand):
 
         port = txn.insert(self.api._tables['Logical_Port'])
         port.name = self.lport
-        port.parent_name = self.parent_name
-        port.tag = self.tag
         port.lswitch = lswitch
+        for col, val in self.columns.items():
+            setattr(port, col, val)
+
+
+class SetLogicalPortCommand(BaseCommand):
+    def __init__(self, api, lport, **columns):
+        super(SetLogicalPortCommand, self).__init__(api)
+        self.lport = lport
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            port = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+                                         'name', self.lport)
+        except idlutils.RowNotFound:
+            msg = _("Logical Port %s does not exist") % self.lport
+            LOG.error(msg)
+            raise RuntimeError(msg)
+
+        for col, val in self.columns.items():
+            setattr(port, col, val)
 
 
 class DelLogicalPortCommand(BaseCommand):
@@ -119,84 +140,6 @@ class DelLogicalPortCommand(BaseCommand):
             raise RuntimeError(msg)
 
         self.api._tables['Logical_Port'].rows[lport.uuid].delete()
-
-
-class SetLogicalPortMacCommand(BaseCommand):
-    def __init__(self, api, name, macs):
-        super(SetLogicalPortMacCommand, self).__init__(api)
-        self.name = name
-        self.macs = macs
-
-    def run_idl(self, txn):
-        try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
-                                          'name', self.name)
-        except idlutils.RowNotFound:
-            msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
-            raise RuntimeError(msg)
-
-        lport.verify('macs')
-        lport.macs = self.macs
-
-
-class SetLogicalPortParentCommand(BaseCommand):
-    def __init__(self, api, name, parent_name):
-        super(SetLogicalPortParentCommand, self).__init__(api)
-        self.name = name
-        self.parent_name = parent_name
-
-    def run_idl(self, txn):
-        try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
-                                          'name', self.name)
-        except idlutils.RowNotFound:
-            msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
-            raise RuntimeError(msg)
-
-        lport.verify('parent_name')
-        lport.parent_name = self.parent_name
-
-
-class SetLogicalPortTagCommand(BaseCommand):
-    def __init__(self, api, name, tag):
-        super(SetLogicalPortTagCommand, self).__init__(api)
-        self.name = name
-        self.tag = tag
-
-    def run_idl(self, txn):
-        try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
-                                          'name', self.name)
-        except idlutils.RowNotFound:
-            msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
-            raise RuntimeError(msg)
-
-        lport.verify('tag')
-        lport.tag = self.tag
-
-
-class LPortSetExternalIdCommand(BaseCommand):
-    def __init__(self, api, name, field, value):
-        super(LPortSetExternalIdCommand, self).__init__(api)
-        self.name = name
-        self.field = field
-        self.value = value
-
-    def run_idl(self, txn):
-        try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
-                                          'name', self.name)
-        except idlutils.RowNotFound:
-            msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
-            raise RuntimeError(msg)
-
-        external_ids = getattr(lport, 'external_ids', {})
-        external_ids[self.field] = self.value
-        lport.external_ids = external_ids
 
 
 class CreateACLRuleCommand(BaseCommand):
