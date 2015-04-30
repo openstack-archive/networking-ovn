@@ -29,6 +29,7 @@ set +o xtrace
 
 # The git repo to use
 OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
+OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
 # The branch to use from $OVN_REPO
 OVN_BRANCH=${OVN_BRANCH:-origin/ovn}
@@ -82,9 +83,9 @@ function init_ovn {
     rm -f $base_dir/.*.db.~lock~
 
     echo "Creating OVS, OVN-Southbound and OVN-Northbound Databases"
-    ovsdb-tool create $base_dir/ovn.db $DEST/ovs/ovn/ovn-sb.ovsschema
-    ovsdb-tool create $base_dir/ovnnb.db $DEST/ovs/ovn/ovn-nb.ovsschema
-    ovsdb-tool create $base_dir/conf.db $DEST/ovs/vswitchd/vswitch.ovsschema
+    ovsdb-tool create $base_dir/ovn.db $DEST/$OVN_REPO_NAME/ovn/ovn-sb.ovsschema
+    ovsdb-tool create $base_dir/ovnnb.db $DEST/$OVN_REPO_NAME/ovn/ovn-nb.ovsschema
+    ovsdb-tool create $base_dir/conf.db $DEST/$OVN_REPO_NAME/vswitchd/vswitch.ovsschema
 }
 
 # install_ovn() - Collect source and prepare
@@ -105,14 +106,13 @@ function install_ovn {
 
     setup_develop $DEST/networking-ovn
 
-    REPO_BASE="$(basename $OVN_REPO | cut -f1 -d'.')"
     cd $DEST
-    if [ ! -d $REPO_BASE ] ; then
+    if [ ! -d $OVN_REPO_NAME ] ; then
         git clone $OVN_REPO
-        cd $REPO_BASE
+        cd $OVN_REPO_NAME
         git checkout $OVN_BRANCH
     else
-        cd $REPO_BASE
+        cd $OVN_REPO_NAME
     fi
 
     # TODO: Can you create package list files like you can inside devstack?
