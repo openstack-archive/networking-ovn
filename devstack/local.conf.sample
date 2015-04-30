@@ -6,6 +6,12 @@
 #SERVICE_TOKEN=password
 #ADMIN_PASSWORD=password
 
+# The DevStack plugin defaults to using the ovn branch from the official ovs
+# repo.  You can optionally use a different one.  For example, you may want to
+# use the latest patches in blp's ovn branch:
+#OVN_REPO=http://github.com/blp/ovn-reviews.git
+#OVN_BRANCH=origin/ovn
+
 enable_plugin networking-ovn http://git.openstack.org/stackforge/networking-ovn
 enable_service ovn
 
