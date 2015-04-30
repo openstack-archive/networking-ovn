@@ -2,6 +2,6 @@
 Usage
 ========
 
-To use networking-ovn in a project::
-
-    import networking_ovn
+..
+    TODO: document the configuration of OVN as a Neutron backend in general
+    terms to apply to something deployed not by devstack.
