@@ -21,29 +21,3 @@ enable_service q-l3
 
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
 disable_service q-agt
-
-# OVN isn't functional enough yet to bother testing with the rest of the
-# services.  We just want keystone and neutron for now.  Running the rest of the
-# services doesn't cause a problem, but devstack will run faster without them
-# since they aren't being used.
-disable_service g-api
-disable_service g-reg
-disable_service n-api
-disable_service n-crt
-disable_service n-obj
-disable_service n-cpu
-disable_service n-net
-disable_service n-cond
-disable_service n-sch
-disable_service n-novnc
-disable_service n-xvnc
-disable_service n-cauth
-disable_service c-sch
-disable_service c-api
-disable_service c-vol
-disable_service h-eng
-disable_service h-api
-disable_service h-api-cfn
-disable_service h-api-cw
-disable_service horizon
-disable_service tempest
