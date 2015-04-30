@@ -153,7 +153,7 @@ function start_ovn {
     ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$(uuidgen)"
     ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="tcp:127.0.0.1:6640"
     ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="vxlan"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
     ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$SERVICE_HOST"
 
     sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
