@@ -160,7 +160,7 @@ function start_ovn {
 
     ovn-northd --pidfile --detach -vconsole:off --log-file
 
-    ovn-controller --pidfile --detach -vconsole:off --log-file \
+    sudo ovn-controller --pidfile --detach -vconsole:off --log-file \
         unix:/usr/local/var/run/openvswitch/db.sock
 
     _neutron_ovs_base_setup_bridge $OVS_BRIDGE
