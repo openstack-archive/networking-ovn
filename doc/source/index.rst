@@ -16,7 +16,6 @@ Contents:
    usage
    contributing
    containers
-   todo
    data_model
 
 Indices and tables
