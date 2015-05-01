@@ -164,6 +164,7 @@ function start_ovn {
         unix:/usr/local/var/run/openvswitch/db.sock
 
     _neutron_ovs_base_setup_bridge $OVS_BRIDGE
+    ovs-vsctl set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
     cd $_pwd
 }
