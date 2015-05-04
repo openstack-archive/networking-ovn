@@ -48,21 +48,15 @@ class OVNMechDriver(driver_api.MechanismDriver):
             utils.ovn_name(network['id']),
             ext_id).execute()
 
-    def _set_network_id(self, network):
-        ext_id = ['neutron:network_id', network['id']]
-        self._ovn.set_lswitch_ext_id(
-            utils.ovn_name(network['id']),
-            ext_id).execute()
-
     def create_network_postcommit(self, context):
         network = context.current
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        self._ovn.create_lswitch(
-            utils.ovn_name(network['id'])).execute()
-        self._set_network_id(network)
-        self._set_network_name(network)
+        external_ids = {'neutron:network_name': network['name'],
+                        'neutron:network_id': network['id']}
+        self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
+                                 external_ids=external_ids).execute()
 
     def update_network_postcommit(self, context):
         network = context.current
@@ -83,10 +77,6 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def delete_subnet_postcommit(self, context):
         pass
-
-    def _set_port_name(self, port):
-        ext_id = ['neutron:port_name', port['name']]
-        self._ovn.set_lport_ext_id(port['id'], ext_id).execute()
 
     def _validate_binding_profile(self, context):
         # Validate binding:profile if it exists in precommit so that we can
@@ -119,7 +109,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # problem.
         context._plugin.get_port(context._plugin_context, parent_name)
 
-    def _set_from_binding_profile(self, port):
+    def _get_data_from_binding_profile(self, port):
         parent_name = None
         tag = None
         if 'binding:profile' in port:
@@ -127,8 +117,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             # were validated in create_port_precommit().
             parent_name = port['binding:profile'].get('parent_name')
             tag = port['binding:profile'].get('tag')
-        self._ovn.set_lport_parent_name(port['id'], parent_name).execute()
-        self._ovn.set_lport_tag(port['id'], tag).execute()
+        return parent_name, tag
 
     def create_port_precommit(self, context):
         self._validate_binding_profile(context)
@@ -138,12 +127,13 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # The port name *must* be port['id'].  It must match the iface-id set
         # in the Interfaces table of the Open_vSwitch database, which nova sets
         # to be the port ID.
+        external_ids = {'neutron:port_name': port['name']}
+        parent_name, tag = self._get_data_from_binding_profile(port)
         self._ovn.create_lport(
-            port['id'],
-            utils.ovn_name(port['network_id'])).execute()
-        self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
-        self._set_port_name(port)
-        self._set_from_binding_profile(port)
+            lport_name=port['id'],
+            lswitch_name=utils.ovn_name(port['network_id']),
+            macs=[port['mac_address']], external_ids=external_ids,
+            parent_name=parent_name, tag=tag).execute()
 
     def update_port_precommit(self, context):
         self._validate_binding_profile(context)
@@ -151,10 +141,14 @@ class OVNMechDriver(driver_api.MechanismDriver):
     def update_port_postcommit(self, context):
         port = context.current
         # Neutron allows you to update the MAC address on a port.
-        self._ovn.set_lport_mac(port['id'], port['mac_address']).execute()
         # Neutron allows you to update the name on a port.
-        self._set_port_name(port)
-        self._set_from_binding_profile(port)
+        # Neutron allows to update binding profile data (parent_name, tag)
+        external_ids = {'neutron:port_name': port['name']}
+        parent_name, tag = self._get_data_from_binding_profile(port)
+        self._ovn.set_lport(lport_name=port['id'],
+                            macs=[port['mac_address']],
+                            external_ids=external_ids,
+                            parent_name=parent_name, tag=tag).execute()
 
     def delete_port_postcommit(self, context):
         port = context.current

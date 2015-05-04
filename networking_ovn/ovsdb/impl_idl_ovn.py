@@ -45,8 +45,9 @@ class OvsdbOvnIdl(ovn_api.API):
                                     self.ovsdb_timeout,
                                     check_error, log_errors)
 
-    def create_lswitch(self, lswitch_name, may_exist=True):
-        return cmd.AddLSwitchCommand(self, lswitch_name, may_exist)
+    def create_lswitch(self, lswitch_name, may_exist=True, **columns):
+        return cmd.AddLSwitchCommand(self, lswitch_name,
+                                     may_exist, **columns)
 
     def delete_lswitch(self, lswitch_name=None, ext_id=None, if_exists=True):
         if (lswitch_name is not None):
@@ -59,11 +60,13 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.LSwitchSetExternalIdCommand(self, lswitch_id,
                                                ext_id[0], ext_id[1])
 
-    def create_lport(self, lport_name, lswitch_name, parent_name=None,
-                     tag=None, may_exist=True):
-        return cmd.AddLogicalPortCommand(self, lswitch_name,
-                                         lport_name, parent_name, tag,
-                                         may_exist)
+    def create_lport(self, lport_name, lswitch_name, may_exist=True,
+                     **columns):
+        return cmd.AddLogicalPortCommand(self, lport_name, lswitch_name,
+                                         may_exist, **columns)
+
+    def set_lport(self, lport_name, **columns):
+        return cmd.SetLogicalPortCommand(self, lport_name, **columns)
 
     def delete_lport(self, lport_name=None, ext_id=None, if_exists=True):
         if (lport_name is not None):
@@ -71,19 +74,6 @@ class OvsdbOvnIdl(ovn_api.API):
         else:
             raise RuntimeError(_("Currently only supports "
                                  "delete by lport-name"))
-
-    def set_lport_mac(self, lport_name, mac):
-        return cmd.SetLogicalPortMacCommand(self, lport_name, [mac])
-
-    def set_lport_parent_name(self, lport_name, parent_name):
-        return cmd.SetLogicalPortParentCommand(self, lport_name, parent_name)
-
-    def set_lport_tag(self, lport_name, tag):
-        return cmd.SetLogicalPortTagCommand(self, lport_name, tag)
-
-    def set_lport_ext_id(self, lport_name, ext_id):
-        return cmd.LPortSetExternalIdCommand(self, lport_name,
-                                             ext_id[0], ext_id[1])
 
     def create_acl_rule(self, lswitch_name, priority, match, action,
                         ext_ids_dict=None):
