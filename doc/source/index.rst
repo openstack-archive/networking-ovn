@@ -9,12 +9,10 @@ Welcome to networking-ovn's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    readme
    testing
-   installation
-   usage
    contributing
    containers
    data_model
