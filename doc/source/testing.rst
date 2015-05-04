@@ -343,10 +343,13 @@ have been added after we booted our two test VMs::
 ..
     TODO: Show how to look at the corresponding configuration of OVS.
 
-Multi-node Testing
-------------------
+Additional Resources
+--------------------
 
-DevStack supports setting up multi-node OpenStack deployments.  The
-networking-ovn devstack integration needs a bit more work before that works,
-though.  Once that work has been completed and tested, this document will be
-updated to cover a multi-node devstack test environment.
+These resources may also help with testing out and understanding OVN:
+
+* http://blog.russellbryant.net/2015/04/08/ovn-and-openstack-integration-development-update/
+* http://blog.russellbryant.net/2015/04/21/ovn-and-openstack-status-2015-04-21/
+
+..
+    TODO: multi-node testing
