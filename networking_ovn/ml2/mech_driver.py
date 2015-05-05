@@ -53,8 +53,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        external_ids = {'neutron:network_name': network['name'],
-                        'neutron:network_id': network['id']}
+        external_ids = {'neutron:network_name': network['name']}
         self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
                                  external_ids=external_ids).execute()
 
