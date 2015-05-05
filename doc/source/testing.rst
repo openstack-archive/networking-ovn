@@ -105,11 +105,9 @@ their names correlate with the output from ``neutron net-list``::
     f4e6e393-a8a3-4066-b6c5-eb1ac253d02f (neutron-c1f33146-1b82-48fb-aad6-493d08fbe492)
 
     $ ovn-nbctl lswitch-get-external-id neutron-266371ca-904e-4433-b653-866f9204d22e
-    neutron:network_id=266371ca-904e-4433-b653-866f9204d22e
     neutron:network_name=private
 
     $ ovn-nbctl lswitch-get-external-id neutron-c1f33146-1b82-48fb-aad6-493d08fbe492
-    neutron:network_id=c1f33146-1b82-48fb-aad6-493d08fbe492
     neutron:network_name=public
 
 Some Neutron ports are created by default, as well.  These ports are actually an

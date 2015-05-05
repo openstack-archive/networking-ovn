@@ -27,7 +27,6 @@ Once a network is created, we should create an entry in the Logical Switch table
 
     OVN northbound DB Logical Switch:
         external_ids: {
-            'neutron:network_id': network.id,
             'neutron:network_name': network.name
         }
 
