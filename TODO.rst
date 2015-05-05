@@ -16,20 +16,9 @@ ML2 Driver
 
 * Security groups
 
-  * Update the data_model docs to describe the mapping of Neutron security
-    groups to OVN northbound db contents.
-
-    * Assignee: Gal Sagie
-
   * Implementation of creating ACL entries for security groups.
 
-* Add sync functionality to ensure that the OVN northbound DB reflects the
-  current state of the world according to Neutron.
-
-  * Assignee: Gal Sagie
-
-* Convert ml2 mech driver to perform entire operations inside a single ovsdb
-  transaction.
+* Change default sync mode to 'log' after the summit
 
   * Assignee: Gal Sagie
 
