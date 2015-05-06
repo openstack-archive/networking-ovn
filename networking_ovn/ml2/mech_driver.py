@@ -11,13 +11,16 @@
 #    under the License.
 
 import six
-
+_
 from neutron.common import constants as n_const
 from neutron.common import exceptions as n_exc
 from neutron.extensions import portbindings
+from neutron.i18n import _
 from neutron.plugins.ml2 import driver_api
 
+from networking_ovn.common import config as cfg
 from networking_ovn.common import utils
+from networking_ovn.ml2 import ovn_nb_sync
 from networking_ovn.ml2 import security_groups_handler as sec_handler
 from networking_ovn.ovsdb import impl_idl_ovn
 
@@ -41,6 +44,14 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
         self.security_handler = sec_handler.OvnSecurityGroupsHandler(self._ovn)
+
+        # Call the synchronization task, this sync neutron DB to OVN-NB DB
+        # only in inconsistent states
+        self.synchronizer = (
+            ovn_nb_sync.OvnNbSynchronizer(self,
+                                          self._ovn,
+                                          cfg.get_ovn_neutron_sync_mode()))
+        self.synchronizer.sync()
 
     def _set_network_name(self, network):
         ext_id = ['neutron:network_name', network['name']]

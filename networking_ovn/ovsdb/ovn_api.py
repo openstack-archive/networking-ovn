@@ -128,3 +128,17 @@ class API(object):
         :type ext_id:        Dictionary of [string]->string
         :returns:            :class:`Command` with no result
         """
+
+    @abc.abstractmethod
+    def get_all_logical_switches_ids(self):
+        """Returns all logical switches names and external ids
+
+        :returns: dictionary with lswitch name and ext ids
+        """
+
+    @abc.abstractmethod
+    def get_all_logical_ports_ids(self):
+        """Returns all logical ports names and external ids
+
+        :returns: dictionary with lport name and ext ids
+        """
