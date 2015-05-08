@@ -19,6 +19,7 @@ from neutron import manager
 from neutron.plugins.ml2 import db as l2_db
 from neutron.plugins.ml2 import driver_context
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
 LOG = log.getLogger(__name__)
@@ -81,13 +82,14 @@ class OvnNbSynchronizer(object):
         # Only delete logical switch if it was previously created by neutron
         with self.ovn_api.transaction() as txn:
             for lswitch, ext_ids in lswitches.items():
-                if 'neutron:network_name' in ext_ids:
+                if ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY in ext_ids:
                     if self.mode == SYNC_MODE_REPAIR:
                         txn.add(self.ovn_api.delete_lswitch(lswitch))
                     if self.mode == SYNC_MODE_LOG:
                         LOG.warn(_LW("Network found in OVN but not in Neutron,"
                                      " network_name=%s"),
-                                 ext_ids['neutron:network_name'])
+                                 (ext_ids
+                                  [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY]))
 
         LOG.debug("OVN-NB Sync networks finished")
 
@@ -120,12 +122,12 @@ class OvnNbSynchronizer(object):
         # Only delete logical port if it was previously created by neutron
         with self.ovn_api.transaction() as txn:
             for lport, ext_ids in lports.items():
-                if 'neutron:port_name' in ext_ids:
+                if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in ext_ids:
                     if self.mode == SYNC_MODE_REPAIR:
                         txn.add(self.ovn_api.delete_lport(lport))
                     if self.mode == SYNC_MODE_LOG:
                         LOG.warn(_LW("Port found in OVN but not in Neutron,"
                                      " port_name=%s"),
-                                 ext_ids['neutron:port_name'])
+                                 ext_ids[ovn_const.OVN_PORT_NAME_EXT_ID_KEY])
 
         LOG.debug("OVN-NB Sync ports finished")
