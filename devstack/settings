@@ -7,9 +7,3 @@
 # Enable the OVN ML2 mechanism driver.  Include the logger to assist with
 # development and debugging, but it's not required.
 Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn,logger
-
-# This is a temporary workaround until the following patch is merged:
-# https://review.openstack.org/#/c/173607/
-enable_service key
-enable_service mysql
-enable_service rabbit
