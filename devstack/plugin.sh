@@ -52,15 +52,6 @@ function configure_ovn {
 
 function configure_ovn_plugin {
     echo "Configuring Neutron for OVN"
-
-    # TODO: The changes in setup.cfg should have this installed automatically
-    # but doesn't seem to be working
-    sudo cp $DEST/networking-ovn/etc/ovn.filters /etc/neutron/rootwrap.d/.
-
-    # ovs is installed with a prefix of /usr/local, so neutron-rootwrap needs to
-    # be allowed to find the tools installed in /usr/local/bin.
-    iniset /etc/neutron/rootwrap.conf DEFAULT exec_dirs \
-        "$(iniget /etc/neutron/rootwrap.conf DEFAULT exec_dirs),/usr/local/bin"
 }
 
 # init_ovn() - Initialize databases, etc.
