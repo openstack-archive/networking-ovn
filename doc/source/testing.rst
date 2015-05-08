@@ -156,6 +156,7 @@ the public key be put in the VM so we can SSH into it.
 ::
 
     $ nova keypair-add demo > id_rsa_demo
+    $ chmod 600 id_rsa_demo
 
 3. Choose a flavor.
 
@@ -340,6 +341,87 @@ have been added after we booted our two test VMs::
 
 ..
     TODO: Show how to look at the corresponding configuration of OVS.
+
+Adding Another Compute Node
+---------------------------
+
+After completing the earlier instructions for setting up devstack, you can use a
+second VM to emulate an additional compute node.  This is important for OVN
+testing as it exercises the tunnels created by OVN between the hypervisors.
+
+Just as before, create a throwaway VM.  Create a user with sudo access and
+install git.
+
+::
+
+     $ git clone http://git.openstack.org/openstack-dev/devstack.git
+     $ git clone http://git.openstack.org/stackforge/networking-ovn.git
+
+networking-ovn comes with another sample configuration file that can be used for
+this::
+
+     $ cd devstack
+     $ cp ../networking-ovn/devstack/computenode-local.conf.sample local.conf
+
+You must set SERVICE_HOST in local.conf.  The value should be the IP address of
+the main DevStack host.  See the text in the sample configuration file for more
+information.  Once that is complete, run DevStack::
+
+    $ cd devstack
+    $ ./stack.sh
+
+This should complete in less time than before, as it's only running a single
+OpenStack service (nova-compute) along with OVN (ovn-controller, ovs-vswitchd,
+ovsdb-server).  The final output will look something like this::
+
+    This is your host ip: 172.16.189.10
+    2015-05-09 01:21:49.565 | stack.sh completed in 308 seconds.
+
+Now go back to your main DevStack host.  You can use admin credentials to verify
+that the additional hypervisor has been added to the deployment::
+
+    $ cd devstack
+    $ . openrc admin
+
+    $ nova hypervisor-list
+    +----+------------------------------------+-------+---------+
+    | ID | Hypervisor hostname                | State | Status  |
+    +----+------------------------------------+-------+---------+
+    | 1  | ovn-devstack-1                     | up    | enabled |
+    | 2  | ovn-devstack-2                     | up    | enabled |
+    +----+------------------------------------+-------+---------+
+
+You can also look at OVN and OVS to see that the second host has shown up.  For
+example, there will be a second entry in the Chassis table of the OVN_Southbound
+database::
+
+    $ ovsdb-client dump OVN_Southbound
+
+    ...
+
+    Chassis table
+    _uuid                                encaps                                 gateway_ports name
+    ------------------------------------ -------------------------------------- ------------- --------------------------------------
+    68933e4a-7a1e-4a41-af77-6cd1bfdc953a [e3a766c2-bec0-4f65-b9d7-72a89df87e95] {}            "719834e5-dd0f-482f-985d-442aca51180f"
+    518702e9-ffc2-4e27-8057-8ebd155ea436 [b8793b59-195c-4e8e-8898-399f52139870] {}            "ac780a06-76a3-4b85-859a-450de7170201"
+
+    ...
+
+You can also see a tunnel created to the other compute node::
+
+    $ ovs-vsctl show
+
+    ...
+
+    Bridge br-int
+        fail_mode: secure
+        Port "ovn-90b4d4-0"
+            Interface "ovn-90b4d4-0"
+                type: geneve
+                options: {key=flow, remote_ip="172.16.189.10"}
+
+    ...
+
 
 Additional Resources
 --------------------

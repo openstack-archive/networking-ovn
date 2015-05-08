@@ -34,6 +34,25 @@ OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 # The branch to use from $OVN_REPO
 OVN_BRANCH=${OVN_BRANCH:-origin/ovn}
 
+# How to connect to ovsdb-server hosting the OVN databases.
+OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
+
+# A UUID to uniquely identify this system.  If one is not specified, a random
+# one will be generated.  A randomly generated UUID will be saved in a file
+# 'ovn-uuid' so that the same one will be re-used if you re-run DevStack.
+OVN_UUID=${OVN_UUID:-}
+
+
+# Utility Functions
+# -----------------
+
+function is_ovn_service_enabled {
+    ovn_service=$1
+    is_service_enabled ovn && return 0
+    is_service_enabled $ovn_service && return 0
+    return 1
+}
+
 
 # Entry Points
 # ------------
@@ -47,11 +66,24 @@ function cleanup_ovn {
 # configure_ovn() - Set config files, create data dirs, etc
 function configure_ovn {
     echo "Configuring OVN"
-    :
+
+    if [ -z "$OVN_UUID" ] ; then
+        if [ -f ./ovn-uuid ] ; then
+            OVN_UUID=$(cat ovn-uuid)
+        else
+            OVN_UUID=$(uuidgen)
+            echo $OVN_UUID > ovn-uuid
+        fi
+    fi
 }
 
 function configure_ovn_plugin {
     echo "Configuring Neutron for OVN"
+
+    if is_service_enabled q-svc ; then
+        NEUTRON_CONF=/etc/neutron/neutron.conf
+        iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_REMOTE"
+    fi
 }
 
 # init_ovn() - Initialize databases, etc.
@@ -66,7 +98,7 @@ function init_ovn {
     base_dir=$DATA_DIR/ovs
     mkdir -p $base_dir
 
-    for db in conf.db ovn.db ovnnb.db ; do
+    for db in conf.db ovnsb.db ovnnb.db ; do
         if [ -f $base_dir/$db ] ; then
             rm -f $base_dir/$db
         fi
@@ -74,9 +106,11 @@ function init_ovn {
     rm -f $base_dir/.*.db.~lock~
 
     echo "Creating OVS, OVN-Southbound and OVN-Northbound Databases"
-    ovsdb-tool create $base_dir/ovn.db $DEST/$OVN_REPO_NAME/ovn/ovn-sb.ovsschema
-    ovsdb-tool create $base_dir/ovnnb.db $DEST/$OVN_REPO_NAME/ovn/ovn-nb.ovsschema
     ovsdb-tool create $base_dir/conf.db $DEST/$OVN_REPO_NAME/vswitchd/vswitch.ovsschema
+    if is_ovn_service_enabled ovn-northd ; then
+        ovsdb-tool create $base_dir/ovnsb.db $DEST/$OVN_REPO_NAME/ovn/ovn-sb.ovsschema
+        ovsdb-tool create $base_dir/ovnnb.db $DEST/$OVN_REPO_NAME/ovn/ovn-nb.ovsschema
+    fi
 }
 
 # install_ovn() - Collect source and prepare
@@ -91,6 +125,12 @@ function install_ovn {
             uninstall_package $package
         fi
     done
+
+    if ! is_neutron_enabled ; then
+        # networking-ovn depends on neutron, so ensure it at least gets
+        # installed.
+        install_neutron
+    fi
 
     setup_develop $DEST/networking-ovn
 
@@ -109,7 +149,9 @@ function install_ovn {
     if [ ! -f configure ] ; then
         ./boot.sh
     fi
-    ./configure
+    if [ ! -f config.status ] || [ configure -nt config.status ] ; then
+        ./configure
+    fi
     make -j$[$(nproc) + 1]
     sudo make install
     sudo chown $(whoami) /usr/local/var/run/openvswitch
@@ -118,18 +160,23 @@ function install_ovn {
     cd $_pwd
 }
 
-# start_ovn() - Start running processes, including screen
-function start_ovn {
-    echo "Starting OVN"
+function start_ovs {
+    echo "Starting OVS"
 
     local _pwd=$(pwd)
     cd $DATA_DIR/ovs
 
+    EXTRA_DBS=""
+    OVSDB_REMOTE=""
+    if is_ovn_service_enabled ovn-northd ; then
+        EXTRA_DBS="ovnsb.db ovnnb.db"
+        OVSDB_REMOTE="--remote=ptcp:6640:$HOST_IP"
+    fi
+
     ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
-                 --remote=ptcp:6640:127.0.0.1 \
-                 --pidfile --detach -vconsole:off --log-file \
-                 conf.db ovn.db ovnnb.db
+                 --pidfile --detach -vconsole:off --log-file $OVSDB_REMOTE \
+                 conf.db ${EXTRA_DBS}
 
     echo -n "Waiting for ovsdb-server to start ... "
     while ! test -e /usr/local/var/run/openvswitch/db.sock ; do
@@ -138,35 +185,57 @@ function start_ovn {
     echo "done."
     ovs-vsctl --no-wait init
     ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$(uuidgen)"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="tcp:127.0.0.1:6640"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$SERVICE_HOST"
+    ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
+    if is_ovn_service_enabled ovn-controller ; then
+        sudo modprobe openvswitch || die $LINENO "Failed to load openvswitch module"
+        # TODO This needs to be a fatal error when doing multi-node testing, but
+        # breaks testing in OpenStack CI where geneve isn't available.
+        #sudo modprobe geneve || die $LINENO "Failed to load geneve module"
+        sudo modprobe geneve || true
+        #sudo modprobe vport_geneve || die $LINENO "Failed to load vport_geneve module"
+        sudo modprobe vport_geneve || true
 
-    sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_REMOTE"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$HOST_IP"
 
-    ovn-northd --pidfile --detach -vconsole:off --log-file
+        _neutron_ovs_base_setup_bridge br-int
+        ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
-    sudo ovn-controller --pidfile --detach -vconsole:off --log-file \
-        unix:/usr/local/var/run/openvswitch/db.sock
-
-    _neutron_ovs_base_setup_bridge $OVS_BRIDGE
-    ovs-vsctl set bridge br-int fail-mode=secure other-config:disable-in-band=true
+        sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
+    fi
 
     cd $_pwd
 }
 
+# start_ovn() - Start running processes, including screen
+function start_ovn {
+    echo "Starting OVN"
+
+    if is_ovn_service_enabled ovn-controller ; then
+        run_process ovn-controller "sudo ovn-controller --log-file unix:/usr/local/var/run/openvswitch/db.sock"
+    fi
+
+    if is_ovn_service_enabled ovn-northd ; then
+        run_process ovn-northd "ovn-northd --log-file"
+    fi
+}
+
 # stop_ovn() - Stop running processes (non-screen)
 function stop_ovn {
-    sudo killall ovn-controller
-    sudo killall ovn-northd
-    sudo killall ovs-vswitchd
+    if is_ovn_service_enabled ovn-controller ; then
+        stop_process ovn-controller
+        sudo killall ovs-vswitchd
+    fi
+    if is_ovn_service_enabled ovn-northd ; then
+        stop_process ovn-northd
+    fi
     sudo killall ovsdb-server
 }
 
 # main loop
-if is_service_enabled ovn; then
+if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
         if [[ "$OFFLINE" != "True" ]]; then
             install_ovn
@@ -175,13 +244,15 @@ if is_service_enabled ovn; then
         init_ovn
         # We have to start at install time, because Neutron's post-config
         # phase runs ovs-vsctl.
-        start_ovn
+        start_ovs
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         configure_ovn_plugin
 
         if is_service_enabled nova; then
             create_nova_conf_neutron
         fi
+
+        start_ovn
     fi
 
     if [[ "$1" == "unstack" ]]; then
