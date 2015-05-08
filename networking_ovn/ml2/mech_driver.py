@@ -132,6 +132,14 @@ class OVNMechDriver(driver_api.MechanismDriver):
             tag = port[ovn_const.OVN_PORT_BINDING_PROFILE].get('tag')
         return parent_name, tag
 
+    def _get_allowed_mac_addresses_from_port(self, port):
+        allowed_macs = set()
+        allowed_macs.add(port['mac_address'])
+        allowed_address_pairs = port.get('allowed_address_pairs', [])
+        for allowed_address in allowed_address_pairs:
+            allowed_macs.add(allowed_address['mac_address'])
+        return list(allowed_macs)
+
     def create_port_precommit(self, context):
         self._validate_binding_profile(context)
 
@@ -142,11 +150,13 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # to be the port ID.
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         parent_name, tag = self._get_data_from_binding_profile(port)
+        allowed_macs = self._get_allowed_mac_addresses_from_port(port)
         self._ovn.create_lport(
             lport_name=port['id'],
             lswitch_name=utils.ovn_name(port['network_id']),
             macs=[port['mac_address']], external_ids=external_ids,
-            parent_name=parent_name, tag=tag).execute()
+            parent_name=parent_name, tag=tag,
+            port_security=allowed_macs).execute()
 
     def update_port_precommit(self, context):
         self._validate_binding_profile(context)
@@ -158,10 +168,12 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # Neutron allows to update binding profile data (parent_name, tag)
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         parent_name, tag = self._get_data_from_binding_profile(port)
+        allowed_macs = self._get_allowed_mac_addresses_from_port(port)
         self._ovn.set_lport(lport_name=port['id'],
                             macs=[port['mac_address']],
                             external_ids=external_ids,
-                            parent_name=parent_name, tag=tag).execute()
+                            parent_name=parent_name, tag=tag,
+                            port_security=allowed_macs).execute()
 
     def delete_port_postcommit(self, context):
         port = context.current
