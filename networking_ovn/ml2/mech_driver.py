@@ -30,9 +30,6 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     """OVN ML2 MechanismDriver for Neutron.
 
-    This driver currently executes the ovn-nbctl utility.  This works as an
-    initial pass to make something work, but the driver will need to be
-    reworked to use ovsdb directly.
     """
     def __init__(self):
         super(OVNMechDriver, self).__init__()
