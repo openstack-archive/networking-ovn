@@ -31,9 +31,6 @@ class OVNMechDriver(driver_api.MechanismDriver):
     """OVN ML2 MechanismDriver for Neutron.
 
     """
-    def __init__(self):
-        super(OVNMechDriver, self).__init__()
-
     def initialize(self):
         self.vif_type = portbindings.VIF_TYPE_OVS
         # When set to True, Nova plugs the VIF directly into the ovs bridge
