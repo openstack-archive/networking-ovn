@@ -22,6 +22,8 @@ ML2 Driver
 
   * Assignee: Gal Sagie
 
+* L2 Gateway Integration (design, API change?)
+
 L3
 ---------------------
 
@@ -31,9 +33,12 @@ L3
 Devstack and Testing
 ---------------------
 
-* Get python-openvswitch installed for unit test jobs.
+* Add unit tests for mech driver
 
-  * Related ovs-dev thread:
-    http://openvswitch.org/pipermail/dev/2015-April/053692.html
+  * Assignee: Gal Sagie
 
-* Add unit tests.
+* Add unit tests for OVSDB implementation
+
+* Add unit tests for sync process
+
+* Add functional tests
