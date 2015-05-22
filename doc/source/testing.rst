@@ -423,6 +423,11 @@ You can also see a tunnel created to the other compute node::
     ...
 
 
+Troubleshooting
+---------------
+
+If you run into any problems, take a look at our troubleshooting_ page.
+
 Additional Resources
 --------------------
 
