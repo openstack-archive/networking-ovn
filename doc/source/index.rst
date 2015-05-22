@@ -13,8 +13,9 @@ Contents:
 
    readme
    testing
-   contributing
    containers
+   troubleshooting
+   contributing
    data_model
 
 Indices and tables
