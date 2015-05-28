@@ -33,8 +33,7 @@ enable_service q-svc
 # corresponding functionality is available in OVN.
 enable_service q-dhcp
 enable_service q-l3
-# Enable q-meta once nova is being used.
-#enable_service q-meta
+enable_service q-meta
 
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
 disable_service q-agt
