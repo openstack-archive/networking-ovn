@@ -52,7 +52,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
         ext_id = [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, network['name']]
         self._ovn.set_lswitch_ext_id(
             utils.ovn_name(network['id']),
-            ext_id).execute()
+            ext_id).execute(check_error=True)
 
     def create_network_postcommit(self, context):
         network = context.current
@@ -61,7 +61,8 @@ class OVNMechDriver(driver_api.MechanismDriver):
         # without having to track what UUID OVN assigned to it.
         external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name']}
         self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
-                                 external_ids=external_ids).execute()
+                                 external_ids=external_ids).execute(
+                                     check_error=True)
 
     def update_network_postcommit(self, context):
         network = context.current
@@ -72,7 +73,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
     def delete_network_postcommit(self, context):
         network = context.current
         self._ovn.delete_lswitch(
-            utils.ovn_name(network['id'])).execute()
+            utils.ovn_name(network['id'])).execute(check_error=True)
 
     def create_subnet_postcommit(self, context):
         pass
@@ -150,7 +151,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             lswitch_name=utils.ovn_name(port['network_id']),
             macs=[port['mac_address']], external_ids=external_ids,
             parent_name=parent_name, tag=tag,
-            port_security=allowed_macs).execute()
+            port_security=allowed_macs).execute(check_error=True)
 
     def update_port_precommit(self, context):
         self._validate_binding_profile(context)
@@ -167,11 +168,12 @@ class OVNMechDriver(driver_api.MechanismDriver):
                             macs=[port['mac_address']],
                             external_ids=external_ids,
                             parent_name=parent_name, tag=tag,
-                            port_security=allowed_macs).execute()
+                            port_security=allowed_macs).execute(
+                                check_error=True)
 
     def delete_port_postcommit(self, context):
         port = context.current
-        self._ovn.delete_lport(port['id']).execute()
+        self._ovn.delete_lport(port['id']).execute(check_error=True)
 
     def bind_port(self, context):
         # This is just a temp solution so that Nova can boot images
