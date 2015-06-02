@@ -437,6 +437,7 @@ These resources may also help with testing out and understanding OVN:
 * http://blog.russellbryant.net/2015/04/21/ovn-and-openstack-status-2015-04-21/
 * http://galsagie.github.io/sdn/openstack/ovs/2015/04/26/ovn-containers/
 * http://blog.russellbryant.net/2015/05/14/an-ez-bake-ovn-for-openstack/
+* http://galsagie.github.io/sdn/openstack/ovs/2015/05/30/ovn-deep-dive/
 
 OVN architecture documents and DB schema explanations:
 
