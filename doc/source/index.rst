@@ -6,7 +6,7 @@
 Welcome to networking-ovn's documentation!
 ========================================================
 
-Contents:
+General Contents:
 
 .. toctree::
    :maxdepth: 1
@@ -16,7 +16,13 @@ Contents:
    containers
    troubleshooting
    contributing
-   data_model
+
+Design Notes:
+
+.. toctree::
+   :maxdepth: 1
+
+   design/data_model
 
 Indices and tables
 ==================
