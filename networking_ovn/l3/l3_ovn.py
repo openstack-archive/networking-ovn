@@ -14,14 +14,14 @@
 #
 
 from neutron.common import constants as q_const
-from neutron.db import db_base_plugin_v2
+from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
 from neutron.db import l3_dvr_db
 from neutron.db import l3_gwmode_db
 from neutron.plugins.common import constants
 
 
-class OVNL3RouterPlugin(db_base_plugin_v2.common_db_mixin.CommonDbMixin,
+class OVNL3RouterPlugin(common_db_mixin.CommonDbMixin,
                         extraroute_db.ExtraRoute_db_mixin,
                         l3_dvr_db.L3_NAT_with_dvr_db_mixin,
                         l3_gwmode_db.L3_NAT_db_mixin):
