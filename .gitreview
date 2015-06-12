@@ -1,4 +1,4 @@
 [gerrit]
 host=review.openstack.org
 port=29418
-project=stackforge/networking-ovn.git
+project=openstack/networking-ovn.git
