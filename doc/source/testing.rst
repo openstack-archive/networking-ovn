@@ -21,7 +21,7 @@ Create a user and grant it sudo access.  Install git.
 ::
 
      $ git clone http://git.openstack.org/openstack-dev/devstack.git
-     $ git clone http://git.openstack.org/stackforge/networking-ovn.git
+     $ git clone http://git.openstack.org/openstack/networking-ovn.git
 
 3. Configure DevStack to use networking-ovn.
 
@@ -355,7 +355,7 @@ install git.
 ::
 
      $ git clone http://git.openstack.org/openstack-dev/devstack.git
-     $ git clone http://git.openstack.org/stackforge/networking-ovn.git
+     $ git clone http://git.openstack.org/openstack/networking-ovn.git
 
 networking-ovn comes with another sample configuration file that can be used for
 this::
