@@ -44,7 +44,7 @@ OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
 # The branch to use from $OVN_REPO
-OVN_BRANCH=${OVN_BRANCH:-origin/ovn}
+OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
 # How to connect to ovsdb-server hosting the OVN databases.
 OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
