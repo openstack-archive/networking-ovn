@@ -86,7 +86,7 @@ class AddLogicalPortCommand(BaseCommand):
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch)
         except idlutils.RowNotFound:
-            msg = _("Logical Switch %s does not exist") % self.name
+            msg = _("Logical Switch %s does not exist") % self.lswitch
             LOG.error(msg)
             raise RuntimeError(msg)
         if self.may_exist:
@@ -157,7 +157,7 @@ class CreateACLRuleCommand(BaseCommand):
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch_name)
         except idlutils.RowNotFound:
-            msg = _("Logical Switch %s does not exist") % self.name
+            msg = _("Logical Switch %s does not exist") % self.lswitch_name
             LOG.error(msg)
             raise RuntimeError(msg)
 
