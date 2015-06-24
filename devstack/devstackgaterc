@@ -12,11 +12,12 @@
 
 #
 # This script is executed in the OpenStack CI job that runs DevStack + tempest.
-# It's used to configure which tempest tests actually get run.  You can find
-# the CI job configuration here:
+# You can find the CI job configuration here:
 #
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #
+
+export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,tempest,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-dhcp,q-l3
 
 # Begin list of exclusions.
 r="^(?!.*"
