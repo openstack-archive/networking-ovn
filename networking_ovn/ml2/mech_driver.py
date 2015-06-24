@@ -11,7 +11,7 @@
 #    under the License.
 
 import six
-_
+
 from neutron.common import constants as n_const
 from neutron.common import exceptions as n_exc
 from neutron.extensions import portbindings
