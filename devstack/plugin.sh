@@ -246,6 +246,18 @@ function stop_ovn {
     sudo killall ovsdb-server
 }
 
+function disable_libvirt_apparmor {
+    if ! sudo aa-status --enabled ; then
+        return 0
+    fi
+    # NOTE(arosen): This is used as a work around to allow newer versions
+    # of libvirt to work with ovs configured ports. See LP#1466631.
+    # requires the apparmor-utils
+    install_package apparmor-utils
+    # disables apparmor for libvirtd
+    sudo aa-complain /etc/apparmor.d/usr.sbin.libvirtd
+}
+
 # main loop
 if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
@@ -257,6 +269,7 @@ if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; t
         # We have to start at install time, because Neutron's post-config
         # phase runs ovs-vsctl.
         start_ovs
+        disable_libvirt_apparmor
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         configure_ovn_plugin
 
