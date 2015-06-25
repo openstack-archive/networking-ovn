@@ -48,6 +48,9 @@ r="$r|(?:tempest\.api\.identity.*)"
 r="$r|(?:tempest\.api\.image.*)"
 r="$r|(?:tempest\.api\.volume.*)"
 
+# https://bugs.launchpad.net/networking-ovn/+bug/1470615
+r="$r|(?:tempest\.api\.network.test_allowed_address_pair.*)"
+
 # https://bugs.launchpad.net/networking-ovn/+bug/1467971
 r="$r|(?:tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_update_instance_port_admin_state.*)"
 
