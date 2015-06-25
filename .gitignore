@@ -39,6 +39,7 @@ ChangeLog
 
 # Editors
 *~
+*.sw?
 
 # Hidden directories
 /.*
