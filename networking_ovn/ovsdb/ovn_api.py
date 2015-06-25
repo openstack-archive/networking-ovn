@@ -79,7 +79,7 @@ class API(object):
         :type may_exist:      bool
         :param columns:       Dictionary of port columns
                               Supported columns: macs, external_ids,
-                                                 parent_name, tag
+                                                 parent_name, tag, enabled
         :type columns:        dictionary
         :returns:             :class:`Command` with no result
         """
@@ -92,7 +92,7 @@ class API(object):
         :type lport_name:     string
         :param columns:       Dictionary of port columns
                               Supported columns: macs, external_ids,
-                                                 parent_name, tag
+                                                 parent_name, tag, enabled
         :type columns:        dictionary
         :returns:             :class:`Command` with no result
         """
