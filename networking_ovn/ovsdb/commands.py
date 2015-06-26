@@ -85,6 +85,7 @@ class AddLogicalPortCommand(BaseCommand):
         try:
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch)
+            ports = getattr(lswitch, 'ports', [])
         except idlutils.RowNotFound:
             msg = _("Logical Switch %s does not exist") % self.lswitch
             LOG.error(msg)
@@ -98,9 +99,12 @@ class AddLogicalPortCommand(BaseCommand):
 
         port = txn.insert(self.api._tables['Logical_Port'])
         port.name = self.lport
-        port.lswitch = lswitch
         for col, val in self.columns.items():
             setattr(port, col, val)
+        # add the newly created port to exiting lswitch
+        ports.append(port.uuid)
+        setattr(lswitch, 'ports', ports)
+        lswitch.verify('ports')
 
 
 class SetLogicalPortCommand(BaseCommand):
@@ -130,6 +134,9 @@ class DelLogicalPortCommand(BaseCommand):
 
     def run_idl(self, txn):
         try:
+            # NOTE(arosen): we might want to also delete the logical_port from
+            # the logical_switch that it's attached to. Though ovsdb is
+            # automatically garbage collecting this for us.
             lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
                                           'name', self.lport)
         except idlutils.RowNotFound:
