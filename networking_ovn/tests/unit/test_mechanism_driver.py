@@ -13,6 +13,7 @@
 import mock
 
 from neutron.common import exceptions as n_exc
+from neutron.tests import tools
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ml2 import mech_driver
@@ -98,6 +99,30 @@ class TestOvnMechanismDriver(base.TestCase):
         self.assertTrue(self.driver._ovn.set_lport.called)
         called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
         self.assertEqual(called_args_dict.get('port_security'), [])
+
+    def test_create_port_security_allowed_address_pairs(self):
+        context = mock.Mock()
+        context.current = self._create_dummy_port()
+        context.current['allowed_address_pairs'] = [
+            {"ip_address": "1.1.1.1", "mac_address": "22:22:22:22:22:22"}]
+
+        self.driver._ovn.create_lport = mock.Mock()
+        self.driver.create_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.create_lport.called)
+        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
+        self.assertEqual(tools.UnorderedList(
+            called_args_dict.get('port_security')),
+            tools.UnorderedList([context.current['mac_address'],
+                                 "22:22:22:22:22:22"]))
+
+        self.driver._ovn.set_lport = mock.Mock()
+        self.driver.update_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.set_lport.called)
+        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
+        self.assertEqual(tools.UnorderedList(
+            called_args_dict.get('port_security')),
+            tools.UnorderedList([context.current['mac_address'],
+                                 "22:22:22:22:22:22"]))
 
     def _create_dummy_network(self):
         return {'id': 'fakenetworkid123',
