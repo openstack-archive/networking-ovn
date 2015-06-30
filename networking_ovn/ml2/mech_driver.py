@@ -128,6 +128,8 @@ class OVNMechDriver(driver_api.MechanismDriver):
         return parent_name, tag
 
     def _get_allowed_mac_addresses_from_port(self, port):
+        if not port.get('port_security_enabled', True):
+            return []
         allowed_macs = set()
         allowed_macs.add(port['mac_address'])
         allowed_address_pairs = port.get('allowed_address_pairs', [])

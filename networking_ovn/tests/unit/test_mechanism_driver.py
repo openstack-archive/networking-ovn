@@ -65,6 +65,40 @@ class TestOvnMechanismDriver(base.TestCase):
         self.assertRaises(n_exc.InvalidInput,
                           self.driver.create_port_precommit, context)
 
+    def test_create_port_security(self):
+        context = mock.Mock()
+        context.current = self._create_dummy_port()
+        self.driver._ovn.create_lport = mock.Mock()
+        self.driver.create_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.create_lport.called)
+        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
+        self.assertEqual(called_args_dict.get('port_security'),
+                         [context.current['mac_address']])
+
+        self.driver._ovn.set_lport = mock.Mock()
+        self.driver.update_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.set_lport.called)
+        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
+        self.assertEqual(called_args_dict.get('port_security'),
+                         [context.current['mac_address']])
+
+    def test_create_port_with_disabled_security(self):
+        context = mock.Mock()
+        context.current = self._create_dummy_port()
+        context.current['port_security_enabled'] = False
+
+        self.driver._ovn.create_lport = mock.Mock()
+        self.driver.create_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.create_lport.called)
+        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
+        self.assertEqual(called_args_dict.get('port_security'), [])
+
+        self.driver._ovn.set_lport = mock.Mock()
+        self.driver.update_port_postcommit(context)
+        self.assertTrue(self.driver._ovn.set_lport.called)
+        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
+        self.assertEqual(called_args_dict.get('port_security'), [])
+
     def _create_dummy_network(self):
         return {'id': 'fakenetworkid123',
                 'name': 'fakenet1'}
@@ -74,4 +108,5 @@ class TestOvnMechanismDriver(base.TestCase):
                 'name': 'fakeport1',
                 'network_id': 'fakenetworkid123',
                 'mac_address': '00:00:00:00:00:01',
-                'allowed_address_pairs': []}
+                'allowed_address_pairs': [],
+                'port_security_enabled': True}
