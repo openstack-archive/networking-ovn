@@ -153,6 +153,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
             lswitch_name=utils.ovn_name(port['network_id']),
             macs=[port['mac_address']], external_ids=external_ids,
             parent_name=parent_name, tag=tag,
+            enabled=port['admin_state_up'],
             port_security=allowed_macs).execute(check_error=True)
 
     def update_port_precommit(self, context):
@@ -160,9 +161,11 @@ class OVNMechDriver(driver_api.MechanismDriver):
 
     def update_port_postcommit(self, context):
         port = context.current
-        # Neutron allows you to update the MAC address on a port.
-        # Neutron allows you to update the name on a port.
-        # Neutron allows to update binding profile data (parent_name, tag)
+        # Neutron allows you to update:
+        #  - MAC address on a port.
+        #  - name on a port.
+        #  - binding profile data (parent_name, tag)
+        #  - admin port state
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         parent_name, tag = self._get_data_from_binding_profile(port)
         allowed_macs = self._get_allowed_mac_addresses_from_port(port)
@@ -170,6 +173,7 @@ class OVNMechDriver(driver_api.MechanismDriver):
                             macs=[port['mac_address']],
                             external_ids=external_ids,
                             parent_name=parent_name, tag=tag,
+                            enabled=port['admin_state_up'],
                             port_security=allowed_macs).execute(
                                 check_error=True)
 

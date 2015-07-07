@@ -134,4 +134,5 @@ class TestOvnMechanismDriver(base.TestCase):
                 'network_id': 'fakenetworkid123',
                 'mac_address': '00:00:00:00:00:01',
                 'allowed_address_pairs': [],
-                'port_security_enabled': True}
+                'port_security_enabled': True,
+                'admin_state_up': True}
