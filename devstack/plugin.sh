@@ -93,8 +93,14 @@ function configure_ovn_plugin {
     echo "Configuring Neutron for OVN"
 
     if is_service_enabled q-svc ; then
+        # NOTE(arosen) needed for tempest
+        export NETWORK_API_EXTENSIONS='binding,quotas,agent,dhcp_agent_scheduler,external-net,router'
+        Q_PLUGIN_CLASS="networking_ovn.plugin.OVNPlugin"
+
         NEUTRON_CONF=/etc/neutron/neutron.conf
         iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_REMOTE"
+        iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
+        iniset $NEUTRON_CONF DEFAULT service_plugins ""
     fi
 }
 
