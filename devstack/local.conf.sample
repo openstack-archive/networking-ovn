@@ -48,3 +48,8 @@ disable_service q-agt
 
 # Until this is merged: https://review.openstack.org/#/c/192279/
 API_WORKERS=0
+
+# Mirrors what runs in OpenStack CI for Neutron.  See
+# DEVSTACK_GATE_NEUTRON_UNSTABLE handling here:
+# https://git.openstack.org/cgit/openstack-infra/devstack-gate/tree/devstack-vm-gate.sh
+MYSQL_DRIVER=MySQL-python
