@@ -92,3 +92,7 @@ class OvsdbOvnIdl(ovn_api.API):
         for row in self._tables['Logical_Port'].rows.values():
             result[row.name] = row.external_ids
         return result
+
+    def create_lrouter(self, name, may_exist=True, **columns):
+        return cmd.AddLRouterCommand(self, name,
+                                     may_exist, **columns)

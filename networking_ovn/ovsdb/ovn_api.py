@@ -37,7 +37,7 @@ class API(object):
         :type name:          string
         :param may_exist:    Do not fail if lswitch already exists
         :type may_exist:     bool
-        :param columns:      Dictionary of port columns
+        :param columns:      Dictionary of lswitch columns
                              Supported columns: external_ids
         :type columns:       dictionary
         :returns:            :class:`Command` with no result
@@ -141,4 +141,18 @@ class API(object):
         """Returns all logical ports names and external ids
 
         :returns: dictionary with lport name and ext ids
+        """
+
+    @abc.abstractmethod
+    def create_lrouter(self, name, may_exist=True, **columns):
+        """Create a command to add an OVN lrouter
+
+        :param name:         The id of the lrouter
+        :type name:          string
+        :param may_exist:    Do not fail if lrouter already exists
+        :type may_exist:     bool
+        :param columns:      Dictionary of lrouter columns
+                             Supported columns: external_ids, default_gw, ip
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
         """
