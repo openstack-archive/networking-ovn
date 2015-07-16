@@ -174,3 +174,22 @@ class CreateACLRuleCommand(BaseCommand):
         row.match = self.match
         row.action = self.action
         row.external_ids = self.ext_ids_dict
+
+
+class AddLRouterCommand(BaseCommand):
+    def __init__(self, api, name, may_exist, **columns):
+        super(AddLRouterCommand, self).__init__(api)
+        self.name = name
+        self.columns = columns
+        self.may_exist = may_exist
+
+    def run_idl(self, txn):
+        if self.may_exist:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.name, None)
+            if lrouter:
+                return
+        row = txn.insert(self.api._tables['Logical_Router'])
+        row.name = self.name
+        for col, val in self.columns.items():
+            setattr(row, col, val)
