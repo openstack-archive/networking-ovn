@@ -51,6 +51,9 @@ r="$r|(?:tempest\.api\.volume.*)"
 # https://bugs.launchpad.net/networking-ovn/+bug/1470615
 r="$r|(?:tempest\.api\.network.test_allowed_address_pair.*)"
 
+# https://bugs.launchpad.net/networking-ovn/+bug/1474977
+r="$r|(?:tempest\.api\.network.admin.test_external_network_extension.*)"
+
 # Current list of failing tests that need to be triaged, have bugs filed, and
 # fixed as appropriate.
 # (none)
