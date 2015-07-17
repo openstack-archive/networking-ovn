@@ -1,9 +1,0 @@
-# Devstack settings
-
-# For OVN, you can enable the OVN service
-# ovn - Add this to enable OVN locally on the host
-#
-
-# Enable the OVN ML2 mechanism driver.  Include the logger to assist with
-# development and debugging, but it's not required.
-Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn,logger
