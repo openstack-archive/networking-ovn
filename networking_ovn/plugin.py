@@ -149,16 +149,19 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                            network)
             self._process_l3_create(context, result, network['network'])
 
+        return self.create_network_in_ovn(result)
+
+    def create_network_in_ovn(self, network):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: result['name']}
+        external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name']}
 
         # TODO(arosen): Undo logical switch creation on failure
-        self._ovn.create_lswitch(lswitch_name=utils.ovn_name(result['id']),
+        self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
                                  external_ids=external_ids).execute(
                                      check_error=True)
-        return result
+        return network
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
                                retry_on_deadlock=True)
@@ -280,20 +283,24 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             db_port[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
+        return self.create_port_in_ovn(db_port)
+
+    def create_port_in_ovn(self, port):
         # The port name *must* be port['id'].  It must match the iface-id set
         # in the Interfaces table of the Open_vSwitch database, which nova sets
         # to be the port ID.
-        external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: db_port['name']}
-        parent_name, tag = self._get_data_from_binding_profile(db_port)
-        allowed_macs = self._get_allowed_mac_addresses_from_port(db_port)
+        external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
+        parent_name, tag = self._get_data_from_binding_profile(port)
+        allowed_macs = self._get_allowed_mac_addresses_from_port(port)
         self._ovn.create_lport(
-            lport_name=db_port['id'],
-            lswitch_name=utils.ovn_name(db_port['network_id']),
-            macs=[db_port['mac_address']], external_ids=external_ids,
+            lport_name=port['id'],
+            lswitch_name=utils.ovn_name(port['network_id']),
+            macs=[port['mac_address']], external_ids=external_ids,
             parent_name=parent_name, tag=tag,
+            enabled=port.get('admin_state_up', None),
             port_security=allowed_macs).execute(check_error=True)
 
-        return db_port
+        return port
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
                                retry_on_deadlock=True)

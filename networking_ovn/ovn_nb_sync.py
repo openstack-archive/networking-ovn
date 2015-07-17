@@ -15,9 +15,6 @@ from oslo_log import log
 
 from neutron import context
 from neutron.i18n import _LW
-from neutron import manager
-from neutron.plugins.ml2 import db as l2_db
-from neutron.plugins.ml2 import driver_context
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -31,8 +28,8 @@ SYNC_MODE_REPAIR = 'repair'
 
 class OvnNbSynchronizer(object):
 
-    def __init__(self, driver, ovn_api, mode):
-        self.driver = driver
+    def __init__(self, plugin, ovn_api, mode):
+        self.core_plugin = plugin
         self.ovn_api = ovn_api
         self.mode = mode
 
@@ -48,7 +45,6 @@ class OvnNbSynchronizer(object):
         greenthread.sleep(10)
         LOG.debug("Starting OVN-Northbound DB sync process")
 
-        self.core_plugin = manager.NeutronManager.get_plugin()
         ctx = context.get_admin_context()
         self._sync_networks(ctx)
         self._sync_ports(ctx)
@@ -62,21 +58,19 @@ class OvnNbSynchronizer(object):
         lswitches = self.ovn_api.get_all_logical_switches_ids()
 
         for network in self.core_plugin.get_networks(ctx):
-            net_context = driver_context.NetworkContext(self.core_plugin, ctx,
-                                                        network)
             try:
                 if self.mode == SYNC_MODE_REPAIR:
-                    self.driver.create_network_postcommit(net_context)
+                    self.core_plugin.create_network_in_ovn(network)
                 res = lswitches.pop(utils.ovn_name(
-                                    net_context.current['id']), None)
+                                    network['id']), None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
                         LOG.warn(_LW("Network found in Neutron but not in OVN"
                                      "DB, network_id=%s"),
-                                 net_context.current['id'])
+                                 network['id'])
 
             except RuntimeError:
-                LOG.warn(_LW("Create network postcommit failed for "
+                LOG.warn(_LW("Create network failed for "
                              "network %s"), network['id'])
 
         # Only delete logical switch if it was previously created by neutron
@@ -99,24 +93,18 @@ class OvnNbSynchronizer(object):
         lports = self.ovn_api.get_all_logical_ports_ids()
 
         for port in self.core_plugin.get_ports(ctx):
-            _, binding = l2_db.get_locked_port_and_binding(ctx.session,
-                                                           port['id'])
-            network = self.core_plugin.get_network(ctx, port['network_id'])
-            port_context = driver_context.PortContext(self.core_plugin, ctx,
-                                                      port, network, binding,
-                                                      [])
             try:
                 if self.mode == SYNC_MODE_REPAIR:
-                    self.driver.create_port_postcommit(port_context)
-                res = lports.pop(port_context.current['id'], None)
+                    self.core_plugin.create_port_in_ovn(port)
+                res = lports.pop(port['id'], None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
                         LOG.warn(_LW("Port found in Neutron but not in OVN"
                                      "DB, port_id=%s"),
-                                 port_context.current['id'])
+                                 port['id'])
 
             except RuntimeError:
-                LOG.warn(_LW("Create port postcommit failed for"
+                LOG.warn(_LW("Create port failed for"
                              " port %s"), port['id'])
 
         # Only delete logical port if it was previously created by neutron
