@@ -52,7 +52,6 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
-from networking_ovn import security_groups_handler as sec_handler
 
 
 LOG = log.getLogger(__name__)
@@ -89,7 +88,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
 
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
-        self.security_handler = sec_handler.OvnSecurityGroupsHandler(self._ovn)
 
         # Call the synchronization task, this sync neutron DB to OVN-NB DB
         # only in inconsistent states
