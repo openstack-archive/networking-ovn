@@ -16,7 +16,8 @@
 
 import mock
 
-from neutron.common import exceptions as n_exc
+from webob import exc
+
 from neutron.tests import tools
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 
@@ -59,106 +60,136 @@ class TestSubnetsV2(test_plugin.TestSubnetsV2, OVNPluginTestCase):
 
 class TestOvnPlugin(OVNPluginTestCase):
 
+    supported_extension_aliases = ["allowed-address-pairs", "port-security"]
+
     def test_port_invalid_binding_profile(self):
-        self.skipTest("Fix these tests after we converted from ml2")
-        context = mock.Mock()
-        binding_profile = {'tag': 0,
-                           'parent_name': 'fakename'}
-        context.current = self._create_dummy_port()
-        context.current[ovn_const.OVN_PORT_BINDING_PROFILE] = binding_profile
-        self.assertRaises(n_exc.InvalidInput,
-                          self.driver.create_port_precommit, context)
-
-        binding_profile = {'tag': 1024}
-        context.current[ovn_const.OVN_PORT_BINDING_PROFILE] = binding_profile
-        self.assertRaises(n_exc.InvalidInput,
-                          self.driver.create_port_precommit, context)
-
-        binding_profile = {'tag': 1024, 'parent_name': 1024}
-        context.current[ovn_const.OVN_PORT_BINDING_PROFILE] = binding_profile
-        self.assertRaises(n_exc.InvalidInput,
-                          self.driver.create_port_precommit, context)
-
-        binding_profile = {'parent_name': 'test'}
-        context.current[ovn_const.OVN_PORT_BINDING_PROFILE] = binding_profile
-        self.assertRaises(n_exc.InvalidInput,
-                          self.driver.create_port_precommit, context)
-
-        binding_profile = {'tag': 'test'}
-        context.current[ovn_const.OVN_PORT_BINDING_PROFILE] = binding_profile
-        self.assertRaises(n_exc.InvalidInput,
-                          self.driver.create_port_precommit, context)
+        invalid_binding_profiles = [
+            {'tag': 0,
+             'parent_name': 'fakename'},
+            {'tag': 1024},
+            {'tag': 1024, 'parent_name': 1024},
+            {'parent_name': 'test'},
+            {'tag': 'test'}
+        ]
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                # succeed without binding:profile
+                with self.port(subnet=subnet1,
+                               set_context=True, tenant_id='test'):
+                    pass
+                # fail with invalid binding profiles
+                for invalid_profile in invalid_binding_profiles:
+                    try:
+                        kwargs = {ovn_const.OVN_PORT_BINDING_PROFILE:
+                                  invalid_profile}
+                        with self.port(
+                                subnet=subnet1,
+                                expected_res_status=403,
+                                arg_list=(
+                                ovn_const.OVN_PORT_BINDING_PROFILE,),
+                                set_context=True, tenant_id='test',
+                                **kwargs):
+                            pass
+                    except exc.HTTPClientError:
+                        pass
 
     def test_create_port_security(self):
-        self.skipTest("Fix these tests after we converted from ml2")
-        context = mock.Mock()
-        context.current = self._create_dummy_port()
-        self.driver._ovn.create_lport = mock.Mock()
-        self.driver.create_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.create_lport.called)
-        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
-        self.assertEqual(called_args_dict.get('port_security'),
-                         [context.current['mac_address']])
+        self.plugin._ovn.create_lport = mock.Mock()
+        self.plugin._ovn.set_lport = mock.Mock()
+        kwargs = {'mac_address': '00:00:00:00:00:00'}
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               arg_list=('mac_address',),
+                               set_context=True, tenant_id='test',
+                               **kwargs) as port:
+                    self.assertTrue(
+                        self.plugin._ovn.create_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.create_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(called_args_dict.get('port_security'),
+                                     ['00:00:00:00:00:00'])
 
-        self.driver._ovn.set_lport = mock.Mock()
-        self.driver.update_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.set_lport.called)
-        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
-        self.assertEqual(called_args_dict.get('port_security'),
-                         [context.current['mac_address']])
+                    data = {'port': {'mac_address': '00:00:00:00:00:01'}}
+                    req = self.new_update_request(
+                        'ports',
+                        data, port['port']['id'])
+                    req.get_response(self.api)
+                    self.assertTrue(
+                        self.plugin._ovn.set_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.set_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(called_args_dict.get('port_security'),
+                                     ['00:00:00:00:00:01'])
 
     def test_create_port_with_disabled_security(self):
-        self.skipTest("Fix these tests after we converted from ml2")
-        context = mock.Mock()
-        context.current = self._create_dummy_port()
-        context.current['port_security_enabled'] = False
+        self.skipTest("Fix this after port-security extension is supported")
+        self.plugin._ovn.create_lport = mock.Mock()
+        self.plugin._ovn.set_lport = mock.Mock()
+        kwargs = {'port_security_enabled': False}
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               arg_list=('port_security_enabled',),
+                               set_context=True, tenant_id='test',
+                               **kwargs) as port:
+                    self.assertTrue(
+                        self.plugin._ovn.create_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.create_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(called_args_dict.get('port_security'),
+                                     [])
 
-        self.driver._ovn.create_lport = mock.Mock()
-        self.driver.create_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.create_lport.called)
-        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
-        self.assertEqual(called_args_dict.get('port_security'), [])
-
-        self.driver._ovn.set_lport = mock.Mock()
-        self.driver.update_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.set_lport.called)
-        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
-        self.assertEqual(called_args_dict.get('port_security'), [])
+                    data = {'port': {'mac_address': '00:00:00:00:00:01'}}
+                    req = self.new_update_request(
+                        'ports',
+                        data, port['port']['id'])
+                    req.get_response(self.api)
+                    self.assertTrue(
+                        self.plugin._ovn.set_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.set_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(called_args_dict.get('port_security'),
+                                     [])
 
     def test_create_port_security_allowed_address_pairs(self):
-        self.skipTest("Fix these tests after we converted from ml2")
-        context = mock.Mock()
-        context.current = self._create_dummy_port()
-        context.current['allowed_address_pairs'] = [
-            {"ip_address": "1.1.1.1", "mac_address": "22:22:22:22:22:22"}]
+        self.skipTest("Fix this after allowed-address-pairs"
+                      " extension is supported")
+        self.plugin._ovn.create_lport = mock.Mock()
+        self.plugin._ovn.set_lport = mock.Mock()
+        kwargs = {'allowed_address_pairs':
+                  [{"ip_address": "1.1.1.1",
+                    "mac_address": "22:22:22:22:22:22"}]}
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               arg_list=('allowed_address_pairs',),
+                               set_context=True, tenant_id='test',
+                               **kwargs) as port:
+                    self.assertTrue(
+                        self.plugin._ovn.create_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.create_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(
+                        called_args_dict.get('port_security'),
+                        tools.UnorderedList("22:22:22:22:22:22",
+                                            port['port']['mac_address']))
 
-        self.driver._ovn.create_lport = mock.Mock()
-        self.driver.create_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.create_lport.called)
-        called_args_dict = self.driver._ovn.create_lport.call_args_list[0][1]
-        self.assertEqual(tools.UnorderedList(
-            called_args_dict.get('port_security')),
-            tools.UnorderedList([context.current['mac_address'],
-                                 "22:22:22:22:22:22"]))
-
-        self.driver._ovn.set_lport = mock.Mock()
-        self.driver.update_port_postcommit(context)
-        self.assertTrue(self.driver._ovn.set_lport.called)
-        called_args_dict = self.driver._ovn.set_lport.call_args_list[0][1]
-        self.assertEqual(tools.UnorderedList(
-            called_args_dict.get('port_security')),
-            tools.UnorderedList([context.current['mac_address'],
-                                 "22:22:22:22:22:22"]))
-
-    def _create_dummy_network(self):
-        return {'id': 'fakenetworkid123',
-                'name': 'fakenet1'}
-
-    def _create_dummy_port(self):
-        return {'id': 'fakeportid123',
-                'name': 'fakeport1',
-                'network_id': 'fakenetworkid123',
-                'mac_address': '00:00:00:00:00:01',
-                'allowed_address_pairs': [],
-                'port_security_enabled': True,
-                'admin_state_up': True}
+                    data = {'port': {'mac_address': '00:00:00:00:00:01'}}
+                    req = self.new_update_request(
+                        'ports',
+                        data, port['port']['id'])
+                    req.get_response(self.api)
+                    self.assertTrue(
+                        self.plugin._ovn.set_lport.called)
+                    called_args_dict = (
+                        (self.plugin._ovn.set_lport
+                         ).call_args_list[0][1])
+                    self.assertEqual(called_args_dict.get('port_security'),
+                                     tools.UnorderedList("22:22:22:22:22:22",
+                                                         "00:00:00:00:00:01"))
