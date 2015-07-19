@@ -96,3 +96,10 @@ class OvsdbOvnIdl(ovn_api.API):
     def create_lrouter(self, name, may_exist=True, **columns):
         return cmd.AddLRouterCommand(self, name,
                                      may_exist, **columns)
+
+    def delete_lrouter(self, name, if_exists=True):
+        return cmd.DelLRouterCommand(self, name, if_exists)
+
+    def add_lrouter_port(self, lrouter, lswitch, may_exist=True, **columns):
+        return cmd.AddLRouterPortCommand(self, lrouter, lswitch,
+                                         may_exist, **columns)

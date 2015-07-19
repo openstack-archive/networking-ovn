@@ -189,7 +189,57 @@ class AddLRouterCommand(BaseCommand):
                                             'name', self.name, None)
             if lrouter:
                 return
+
         row = txn.insert(self.api._tables['Logical_Router'])
         row.name = self.name
         for col, val in self.columns.items():
             setattr(row, col, val)
+
+
+class DelLRouterCommand(BaseCommand):
+    def __init__(self, api, name, if_exists):
+        super(DelLRouterCommand, self).__init__(api)
+        self.name = name
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.name
+            LOG.error(msg)
+            raise RuntimeError(msg)
+
+        self.api._tables['Logical_Router'].rows[lrouter.uuid].delete()
+
+
+class AddLRouterPortCommand(BaseCommand):
+    def __init__(self, api, lrouter, lswitch, may_exist, **columns):
+        super(AddLRouterPortCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.lswitch = lswitch
+        self.columns = columns
+        self.may_exist = may_exist
+
+    def run_idl(self, txn):
+
+        lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                        'name', self.lrouter)
+        lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                        'name', self.lswitch)
+        lrouter_ports = getattr(lrouter, 'ports', [])
+
+        if self.may_exist:
+            if getattr(lswitch, 'router_port', None) in lrouter_ports:
+                return
+
+        lrouter_port = txn.insert(self.api._tables['Logical_Router_Port'])
+        for col, val in self.columns.items():
+            setattr(lrouter_port, col, val)
+
+        lrouter_ports.append(lrouter_port)
+        setattr(lrouter, 'ports', lrouter_ports)
+        lswitch.router_port = lrouter_port

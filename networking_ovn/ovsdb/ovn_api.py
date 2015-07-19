@@ -156,3 +156,30 @@ class API(object):
         :type columns:       dictionary
         :returns:            :class:`Command` with no result
         """
+
+    @abc.abstractmethod
+    def delete_lrouter(self, name, if_exists=True):
+        """Create a command to delete an OVN lrouter
+
+        :param name:         The id of the lrouter
+        :type name:          string
+        :param if_exists:    Do not fail if the lrouter  does not exists
+        :type if_exists:     bool
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def add_lrouter_port(self, lrouter, lswitch, may_exist=True, **columns):
+        """Create a command to add an OVN lrouter port
+
+        :param lrouter:      The unique name of the lrouter
+        :type lrouter:       string
+        :param lswitch:      The unique name of the lswitch
+        :type lswitch:       string
+        :param may_exist:    Do not fail if lrouter port already exists
+        :type may_exist:     bool
+        :param columns:      Dictionary of lrouter columns
+                             Supported columns: external_ids, mac, network
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
+        """
