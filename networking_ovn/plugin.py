@@ -305,7 +305,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
                                retry_on_deadlock=True)
     def delete_port(self, context, port_id, l3_port_check=True):
-        self._ovn.delete_lport(port_id).execute(check_error=True)
+        port = self.get_port(context, port_id)
+        self._ovn.delete_lport(port_id,
+                               utils.ovn_name(port['network_id'])
+                               ).execute(check_error=True)
         with context.session.begin():
             self.disassociate_floatingips(context, port_id)
             super(OVNPlugin, self).delete_port(context, port_id)

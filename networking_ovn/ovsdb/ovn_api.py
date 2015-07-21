@@ -98,11 +98,14 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def delete_lport(self, name=None, ext_id=None, if_exists=True):
+    def delete_lport(self, name=None, lswitch=None, ext_id=None,
+                     if_exists=True):
         """Create a command to delete an OVN lport
 
         :param name:      The name of the lport
         :type name:       string
+        :param lswitch:   The name of the lswitch
+        :type lswitch:    string
         :param ext_id:    The external id of the lport
         :type ext_id:     pair of <ext_id_key ,ext_id_value>
         :param if_exists: Do not fail if the lport does not exists

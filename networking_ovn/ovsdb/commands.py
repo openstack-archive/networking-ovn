@@ -127,18 +127,19 @@ class SetLogicalPortCommand(BaseCommand):
 
 
 class DelLogicalPortCommand(BaseCommand):
-    def __init__(self, api, lport, if_exists):
+    def __init__(self, api, lport, lswitch, if_exists):
         super(DelLogicalPortCommand, self).__init__(api)
         self.lport = lport
+        self.lswitch = lswitch
         self.if_exists = if_exists
 
     def run_idl(self, txn):
         try:
-            # NOTE(arosen): we might want to also delete the logical_port from
-            # the logical_switch that it's attached to. Though ovsdb is
-            # automatically garbage collecting this for us.
             lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
                                           'name', self.lport)
+            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                            'name', self.lswitch)
+            ports = getattr(lswitch, 'ports', [])
         except idlutils.RowNotFound:
             if self.if_exists:
                 return
@@ -146,6 +147,9 @@ class DelLogicalPortCommand(BaseCommand):
             LOG.error(msg)
             raise RuntimeError(msg)
 
+        ports.remove(lport)
+        lswitch.verify('ports')
+        setattr(lswitch, 'ports', ports)
         self.api._tables['Logical_Port'].rows[lport.uuid].delete()
 
 
