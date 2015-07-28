@@ -162,7 +162,7 @@ function install_ovn {
     fi
 
     # TODO: Can you create package list files like you can inside devstack?
-    install_package autoconf automake libtool gcc patch
+    install_package autoconf automake libtool gcc patch make
 
     if [ ! -f configure ] ; then
         ./boot.sh
