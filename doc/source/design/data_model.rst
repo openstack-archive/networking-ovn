@@ -177,7 +177,7 @@ Security Groups
 
               (all match options for ACL can be found here:
                https://github.com/openvswitch/ovs/blob/ovn/ovn/ovn-sb.xml)
-       action: "allow"
+       action: "allow-related"
        log: true/false
        external_ids: {'neutron:port_id': port.id}
                      {'neutron:security_rule_id': security_rule.id}
