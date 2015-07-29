@@ -14,4 +14,5 @@ from neutron.extensions import portbindings
 
 OVN_NETWORK_NAME_EXT_ID_KEY = 'neutron:network_name'
 OVN_PORT_NAME_EXT_ID_KEY = 'neutron:port_name'
+OVN_ROUTER_NAME_EXT_ID_KEY = 'neutron:router_name'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE

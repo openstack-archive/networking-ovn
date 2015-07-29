@@ -316,3 +316,23 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def extend_port_dict_binding(self, port_res, port_db):
         super(OVNPlugin, self).extend_port_dict_binding(port_res, port_db)
         port_res[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
+
+    def create_router(self, context, router):
+        router = super(OVNPlugin, self).create_router(
+            context, router)
+        router_name = utils.ovn_name(router['id'])
+        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                        router.get('name', 'no_router_name')}
+        self._ovn.create_lrouter(router_name,
+                                 external_ids=external_ids
+                                 ).execute(check_error=True)
+
+        # TODO(gsagie) rollback router creation on OVN failure
+        return router
+
+    def delete_router(self, context, router_id):
+        router_name = utils.ovn_name(router_id)
+        self._ovn.delete_lrouter(router_name).execute(check_error=True)
+        ret_val = super(OVNPlugin, self).delete_router(context,
+                                                       router_id)
+        return ret_val
