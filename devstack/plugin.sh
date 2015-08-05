@@ -150,7 +150,7 @@ function install_ovn {
         install_neutron
     fi
 
-    setup_develop $DEST/networking-ovn
+    setup_package $DEST/networking-ovn
 
     cd $DEST
     if [ ! -d $OVN_REPO_NAME ] ; then
