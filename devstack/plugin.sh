@@ -102,6 +102,24 @@ function configure_ovn_plugin {
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins ""
     fi
+
+    if is_service_enabled q-dhcp ; then
+        #
+        # OVN uses tunnels between hypervisors to create virtual networks.  These tunnels add
+        # some headers to each packet.  You may need to force a smaller MTU inside your
+        # VMs to ensure that once the additional headers are added that the resulting
+        # packets do not exceed the MTU of the underlying network.  Otherwise, packets will
+        # just get dropped.
+        #
+        # The following dnsmasq option just tells VMs to use an MTU of 1400, which will avoid
+        # the most common instance of this problem, where the VMs and the underlying network
+        # both have an MTU of 1500.
+        #
+        iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file "/etc/neutron/dnsmasq.conf"
+        if ! grep "dhcp-option=26" /etc/neutron/dnsmasq.conf ; then
+            echo "dhcp-option=26,1400" | sudo tee -a /etc/neutron/dnsmasq.conf
+        fi
+    fi
 }
 
 # init_ovn() - Initialize databases, etc.
