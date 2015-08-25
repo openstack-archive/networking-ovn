@@ -101,6 +101,9 @@ function configure_ovn_plugin {
         iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_REMOTE"
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins ""
+
+        # XXX Until this is merged: https://review.openstack.org/#/c/192279/
+        iniset $NEUTRON_CONF DEFAULT api_workers "0"
     fi
 
     if is_service_enabled q-dhcp ; then

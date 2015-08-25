@@ -96,7 +96,7 @@ class TestOvnPlugin(OVNPluginTestCase):
     def test_create_port_security(self):
         self.plugin._ovn.create_lport = mock.Mock()
         self.plugin._ovn.set_lport = mock.Mock()
-        kwargs = {'mac_address': '00:00:00:00:00:00'}
+        kwargs = {'mac_address': '00:00:00:00:00:01'}
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
@@ -109,9 +109,9 @@ class TestOvnPlugin(OVNPluginTestCase):
                         (self.plugin._ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual(called_args_dict.get('port_security'),
-                                     ['00:00:00:00:00:00'])
+                                     ['00:00:00:00:00:01'])
 
-                    data = {'port': {'mac_address': '00:00:00:00:00:01'}}
+                    data = {'port': {'mac_address': '00:00:00:00:00:02'}}
                     req = self.new_update_request(
                         'ports',
                         data, port['port']['id'])
@@ -122,7 +122,7 @@ class TestOvnPlugin(OVNPluginTestCase):
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
                     self.assertEqual(called_args_dict.get('port_security'),
-                                     ['00:00:00:00:00:01'])
+                                     ['00:00:00:00:00:02'])
 
     def test_create_port_with_disabled_security(self):
         self.skipTest("Fix this after port-security extension is supported")
