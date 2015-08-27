@@ -36,6 +36,7 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
         impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
         super(OVNPluginTestCase, self).setUp(plugin=plugin,
                                              ext_mgr=ext_mgr)
+        self.plugin._ovn = mock.Mock()
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):

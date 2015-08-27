@@ -27,6 +27,9 @@ from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.api.rpc.handlers import l3_rpc
 from neutron.api.rpc.handlers import metadata_rpc
 from neutron.api.v2 import attributes as attr
+from neutron.callbacks import events
+from neutron.callbacks import registry
+from neutron.callbacks import resources
 from neutron.common import exceptions as n_exc
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
@@ -87,7 +90,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # When set to True, Nova plugs the VIF directly into the ovs bridge
         # instead of using the hybrid mode.
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
+        registry.subscribe(self.post_fork_initialize, resources.PROCESS,
+                           events.AFTER_CREATE)
+        self._setup_rpc()
 
+    def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
 
         # Call the synchronization task, this sync neutron DB to OVN-NB DB
@@ -104,10 +111,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 'security-group' in self.supported_extension_aliases}}
 
         self.synchronizer.sync()
-        self._setup_rpc()
 
     def _setup_rpc(self):
-        self.conn = n_rpc.create_connection(new=True)
         self.endpoints = [dhcp_rpc.DhcpRpcCallback(),
                           l3_rpc.L3RpcCallback(),
                           agents_db.AgentExtRpcCallback(),
@@ -122,6 +127,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         )
         self.supported_extension_aliases.extend(
             ['agent', 'dhcp_agent_scheduler'])
+
+    def start_rpc_listeners(self):
+        self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(topics.PLUGIN, self.endpoints,
                                   fanout=False)
         self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
