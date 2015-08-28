@@ -157,32 +157,6 @@ class DelLogicalPortCommand(BaseCommand):
         self.api._tables['Logical_Port'].rows[lport.uuid].delete()
 
 
-class CreateACLRuleCommand(BaseCommand):
-    def __init__(self, api, lswitch_name, priority, match,
-                 action, ext_ids_dict=None):
-        super(CreateACLRuleCommand, self).__init__(api)
-        self.lswitch_name = lswitch_name
-        self.priority = priority
-        self.match = match
-        self.action = action
-        self.ext_ids_dict = ext_ids_dict
-
-    def run_idl(self, txn):
-        try:
-            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
-                                            'name', self.lswitch_name)
-        except idlutils.RowNotFound:
-            msg = _("Logical Switch %s does not exist") % self.lswitch_name
-            raise RuntimeError(msg)
-
-        row = txn.insert(self.api._tables['ACL'])
-        row.lswitch = lswitch
-        row.priority = self.priority
-        row.match = self.match
-        row.action = self.action
-        row.external_ids = self.ext_ids_dict
-
-
 class AddLRouterCommand(BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddLRouterCommand, self).__init__(api)
@@ -305,3 +279,58 @@ class DelLRouterPortCommand(BaseCommand):
         lrouter_ports.remove(lrouter_port)
         setattr(lrouter, 'ports', lrouter_ports)
         setattr(lswitch, 'router_port', [])
+
+
+class AddACLCommand(BaseCommand):
+    def __init__(self, api, lswitch, lport, **columns):
+        super(AddACLCommand, self).__init__(api)
+        self.lswitch = lswitch
+        self.lport = lport
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                            'name', self.lswitch)
+        except idlutils.RowNotFound:
+            msg = _("Logical Switch %s does not exist") % self.lswitch
+            raise RuntimeError(msg)
+
+        row = txn.insert(self.api._tables['ACL'])
+        for col, val in self.columns.items():
+            setattr(row, col, val)
+        row.external_ids = {'neutron:lport': self.lport}
+        acls = getattr(lswitch, 'acls', [])
+        acls.append(row.uuid)
+        setattr(lswitch, 'acls', acls)
+        lswitch.verify('acls')
+
+
+class DelACLCommand(BaseCommand):
+    def __init__(self, api, lswitch, lport, if_exists):
+        super(DelACLCommand, self).__init__(api)
+        self.lswitch = lswitch
+        self.lport = lport
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                            'name', self.lswitch)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Switch %s does not exist") % self.lswitch
+            raise RuntimeError(msg)
+
+        acls_to_del = []
+        acls = getattr(lswitch, 'acls', [])
+        for acl in acls:
+            ext_ids = getattr(acl, 'external_ids', {})
+            if ext_ids.get('neutron:lport') == self.lport:
+                acls_to_del.append(acl)
+        for acl in acls_to_del:
+            acls.remove(acl)
+            acl.delete()
+        setattr(lswitch, 'acls', acls)
+        lswitch.verify('acls')

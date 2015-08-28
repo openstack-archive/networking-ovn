@@ -40,14 +40,20 @@ set +o xtrace
 # --------
 
 # The git repo to use
-OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
+# TODO(russellb) Change this back to upstream ovs once the ovs conntrack kernel
+# backport has merged.
+OVN_REPO=https://github.com/russellb/ovs.git
+#OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
 # The project directory
 NETWORKING_OVN_DIR=$DEST/networking-ovn
 
 # The branch to use from $OVN_REPO
-OVN_BRANCH=${OVN_BRANCH:-origin/master}
+# TODO(russellb) Change this back to master once the ovs conntrack kernel
+# backport has merged.
+OVN_BRANCH=origin/conntrack
+#OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
 # How to connect to ovsdb-server hosting the OVN databases.
 OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
@@ -197,10 +203,17 @@ function install_ovn {
         ./boot.sh
     fi
     if [ ! -f config.status ] || [ configure -nt config.status ] ; then
-        ./configure
+        ./configure --with-linux=/lib/modules/`uname -r`/build
     fi
     make -j$[$(nproc) + 1]
     sudo make install
+    sudo make modules_install
+    sudo modprobe -r vport_geneve
+    sudo modprobe -r openvswitch
+    sudo modprobe libcrc32c
+    # Be super explicit that we want our custom modules loaded ...
+    sudo insmod datapath/linux/openvswitch.ko
+    sudo insmod datapath/linux/vport-geneve.ko || (echo "FAILED TO LOAD vport_geneve" && dmesg)
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
 
@@ -234,14 +247,6 @@ function start_ovs {
     ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
     ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
     if is_ovn_service_enabled ovn-controller ; then
-        sudo modprobe openvswitch || die $LINENO "Failed to load openvswitch module"
-        # TODO This needs to be a fatal error when doing multi-node testing, but
-        # breaks testing in OpenStack CI where geneve isn't available.
-        #sudo modprobe geneve || die $LINENO "Failed to load geneve module"
-        sudo modprobe geneve || true
-        #sudo modprobe vport_geneve || die $LINENO "Failed to load vport_geneve module"
-        sudo modprobe vport_geneve || true
-
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_REMOTE"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"

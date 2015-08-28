@@ -118,25 +118,6 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def create_acl_rule(self, lswitch_name, priority, match, action,
-                        ext_ids_dict=None):
-        """Create a command to add an OVN ACL rule
-
-        :param lswitch_name: The name of the lswitch to create on
-        :type lswitch_name:  string
-        :param priority:     The priority of the rule
-        :type priority:      integer (0..65535)
-        :param match:        The ACL match expression
-        :type match:         string
-        :param action:       The ACL action in case of a match
-        :type action:        string ("allow",
-                             "allow-related", "drop", "reject")
-        :param ext_id:       Dictionary of external id's of this rule
-        :type ext_id:        Dictionary of [string]->string
-        :returns:            :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
     def get_all_logical_switches_ids(self):
         """Returns all logical switches names and external ids
 
@@ -222,3 +203,29 @@ class API(object):
         :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
+
+    @abc.abstractmethod
+    def add_acl(self, lswitch, lport, **columns):
+        """Create an ACL for a logical port.
+
+        :param lswitch:      The logical switch the port is attached to.
+        :type lswitch:       string
+        :param lport:        The logical port this ACL is associated with.
+        :type lport:         string
+        :param columns:      Dictionary of ACL columns
+                             Supported columns: see ACL table in OVN_Northbound
+        :type columns:       dictionary
+        """
+
+    @abc.abstractmethod
+    def delete_acl(self, lswitch, lport, if_exists=True):
+        """Delete all ACLs for a logical port.
+
+        :param lswitch:      The logical switch the port is attached to.
+        :type lswitch:       string
+        :param lport:        The logical port this ACL is associated with.
+        :type lport:         string
+        :param if_exists:    Do not fail if the ACL for this lport does not
+                             exist
+        :type if_exists:     bool
+    """

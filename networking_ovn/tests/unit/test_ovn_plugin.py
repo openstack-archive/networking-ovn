@@ -42,6 +42,11 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
             lambda *args, **kwargs: mock.MagicMock())
         patcher.start()
 
+        def _fake(*args, **kwargs):
+            return mock.MagicMock()
+
+        self.plugin._ovn.transaction = _fake
+
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
     pass

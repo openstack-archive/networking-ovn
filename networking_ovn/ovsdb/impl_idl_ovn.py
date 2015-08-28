@@ -79,12 +79,6 @@ class OvsdbOvnIdl(ovn_api.API):
             raise RuntimeError(_("Currently only supports "
                                  "delete by lport-name"))
 
-    def create_acl_rule(self, lswitch_name, priority, match, action,
-                        ext_ids_dict=None):
-        return cmd.CreateACLRuleCommand(self, lswitch_name,
-                                        priority, match,
-                                        action, ext_ids_dict)
-
     def get_all_logical_switches_ids(self):
         result = {}
         for row in self._tables['Logical_Switch'].rows.values():
@@ -116,3 +110,9 @@ class OvsdbOvnIdl(ovn_api.API):
     def delete_lrouter_port(self, name, lrouter, lswitch, if_exists=True):
         return cmd.DelLRouterPortCommand(self, name, lrouter, lswitch,
                                          if_exists)
+
+    def add_acl(self, lswitch, lport, **columns):
+        return cmd.AddACLCommand(self, lswitch, lport, **columns)
+
+    def delete_acl(self, lswitch, lport, if_exists=True):
+        return cmd.DelACLCommand(self, lswitch, lport, if_exists)
