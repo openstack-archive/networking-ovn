@@ -45,6 +45,3 @@ disable_service q-agt
 # one will be generated and saved in the file 'ovn-uuid' for re-use in future
 # DevStack runs.
 #OVN_UUID=
-
-# Until this is merged: https://review.openstack.org/#/c/192279/
-API_WORKERS=0
