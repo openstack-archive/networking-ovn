@@ -1,0 +1,34 @@
+Q_PLUGIN="ovn"
+
+function neutron_plugin_configure_common {
+    Q_PLUGIN_CLASS="networking_ovn.plugin.OVNPlugin"
+    Q_PLUGIN_CONF_PATH=/etc/neutron/plugins/networking-ovn/
+    Q_PLUGIN_CONF_FILENAME=networking-ovn.ini
+    Q_PLUGIN_CONF_FILE=$Q_PLUGIN_CONF_PATH/$Q_PLUGIN_CONF_FILENAME
+}
+
+function neutron_plugin_configure_service {
+    cd $NETWORKING_OVN_DIR; tox -egenconfig; cd -
+    cp $NETWORKING_OVN_DIR/etc/* $NEUTRON_CONF_DIR/plugins -R
+}
+
+function has_neutron_plugin_security_group {
+    # 0 means True here
+    return 0
+}
+
+# These functions are hooks that are invoked by DevStack's Neutron
+# plugin setup code; they can be no-op for now, but can be used if
+# need be, but they can go away if ovn ends up taking over these
+# too.
+function neutron_plugin_install_agent_packages {
+    :
+}
+
+function neutron_plugin_configure_dhcp_agent {
+    :
+}
+
+function neutron_plugin_configure_l3_agent {
+    :
+}

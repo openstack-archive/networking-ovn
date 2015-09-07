@@ -12,6 +12,9 @@
 
 from oslo_config import cfg
 
+from neutron.i18n import _
+
+
 ovn_opts = [
     cfg.StrOpt('ovsdb_connection',
                default='tcp:127.0.0.1:6640',
@@ -35,7 +38,13 @@ ovn_opts = [
                       ' that are no longer in Neutron.')),
 ]
 
-cfg.CONF.register_opts(ovn_opts, 'ovn')
+cfg.CONF.register_opts(ovn_opts, group='ovn')
+
+
+def list_opts():
+    return [
+        ('ovn', ovn_opts),
+    ]
 
 
 def get_ovn_ovsdb_connection():

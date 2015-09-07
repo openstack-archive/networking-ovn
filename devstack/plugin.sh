@@ -43,6 +43,9 @@ set +o xtrace
 OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
+# The project directory
+NETWORKING_OVN_DIR=$DEST/networking-ovn
+
 # The branch to use from $OVN_REPO
 OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
@@ -57,6 +60,10 @@ OVN_UUID=${OVN_UUID:-}
 
 # Utility Functions
 # -----------------
+
+# There are some ovs functions OVN depends on that must be sourced from these
+source $TOP_DIR/lib/neutron_plugins/ovs_base
+source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
 
 function is_ovn_service_enabled {
     ovn_service=$1
@@ -95,12 +102,10 @@ function configure_ovn_plugin {
     if is_service_enabled q-svc ; then
         # NOTE(arosen) needed for tempest
         export NETWORK_API_EXTENSIONS='binding,quotas,agent,dhcp_agent_scheduler,external-net,router'
-        Q_PLUGIN_CLASS="networking_ovn.plugin.OVNPlugin"
 
-        NEUTRON_CONF=/etc/neutron/neutron.conf
-        iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_REMOTE"
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins ""
+        iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_REMOTE"
     fi
 
     if is_service_enabled q-dhcp ; then
