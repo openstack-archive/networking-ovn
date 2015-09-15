@@ -175,7 +175,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
                                retry_on_deadlock=True)
     def delete_network(self, context, network_id):
-        with context.session.begin():
+        with context.session.begin(subtransactions=True):
             super(OVNPlugin, self).delete_network(context,
                                                   network_id)
         self._ovn.delete_lswitch(
@@ -326,7 +326,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self._ovn.delete_lport(port_id,
                                utils.ovn_name(port['network_id'])
                                ).execute(check_error=True)
-        with context.session.begin():
+        with context.session.begin(subtransactions=True):
             self.disassociate_floatingips(context, port_id)
             super(OVNPlugin, self).delete_port(context, port_id)
 
