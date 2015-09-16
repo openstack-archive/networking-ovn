@@ -79,7 +79,10 @@ function is_ovn_service_enabled {
 # cleanup_ovn() - Remove residual data files, anything left over from previous
 # runs that a clean run would need to clean up
 function cleanup_ovn {
-    :
+    local _pwd=$(pwd)
+    cd $DEST/$OVN_REPO_NAME
+    sudo make uninstall
+    cd $_pwd
 }
 
 # configure_ovn() - Set config files, create data dirs, etc
