@@ -151,7 +151,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                   port.id)
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def create_network(self, context, network):
         with context.session.begin(subtransactions=True):
             result = super(OVNPlugin, self).create_network(context,
@@ -173,7 +173,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return network
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def delete_network(self, context, network_id):
         with context.session.begin(subtransactions=True):
             super(OVNPlugin, self).delete_network(context,
@@ -188,7 +188,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             ext_id).execute(check_error=True)
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def update_network(self, context, network_id, network):
         pnet._raise_if_updates_provider_attributes(network['network'])
         # FIXME(arosen) - rollback...
@@ -199,7 +199,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                          network)
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def update_port(self, context, id, port):
         with context.session.begin(subtransactions=True):
             # FIXME(arosen): if binding data isn't passed in here
@@ -276,7 +276,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return list(allowed_macs)
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def create_port(self, context, port):
         with context.session.begin(subtransactions=True):
             parent_name, tag = self._get_data_from_binding_profile(
@@ -320,7 +320,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return port
 
     @oslo_db_api.wrap_db_retry(max_retries=db_api.MAX_RETRIES,
-                               retry_on_deadlock=True)
+                               exception_checker=db_api.is_deadlock)
     def delete_port(self, context, port_id, l3_port_check=True):
         port = self.get_port(context, port_id)
         self._ovn.delete_lport(port_id,
