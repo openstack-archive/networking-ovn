@@ -4,4 +4,4 @@ source = networking_ovn
 omit = networking_ovn/tests/*,networking_ovn/openstack/*
 
 [report]
-ignore-errors = True
+ignore_errors = True
