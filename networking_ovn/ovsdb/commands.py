@@ -59,15 +59,25 @@ class DelLSwitchCommand(BaseCommand):
 
 
 class LSwitchSetExternalIdCommand(BaseCommand):
-    def __init__(self, api, name, field, value):
+    def __init__(self, api, name, field, value, if_exists):
         super(LSwitchSetExternalIdCommand, self).__init__(api)
         self.name = name
         self.field = field
         self.value = value
+        self.if_exists = if_exists
 
     def run_idl(self, txn):
-        lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
-                                        'name', self.name)
+        try:
+            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                            'name', self.name)
+
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Switch %s does not exist") % self.name
+            LOG.error(msg)
+            raise RuntimeError(msg)
+
         external_ids = getattr(lswitch, 'external_ids', {})
         external_ids[self.field] = self.value
         lswitch.external_ids = external_ids
@@ -108,16 +118,19 @@ class AddLogicalPortCommand(BaseCommand):
 
 
 class SetLogicalPortCommand(BaseCommand):
-    def __init__(self, api, lport, **columns):
+    def __init__(self, api, lport, if_exists, **columns):
         super(SetLogicalPortCommand, self).__init__(api)
         self.lport = lport
         self.columns = columns
+        self.if_exists = if_exists
 
     def run_idl(self, txn):
         try:
             port = idlutils.row_by_value(self.api.idl, 'Logical_Port',
                                          'name', self.lport)
         except idlutils.RowNotFound:
+            if self.if_exists:
+                return
             msg = _("Logical Port %s does not exist") % self.lport
             LOG.error(msg)
             raise RuntimeError(msg)

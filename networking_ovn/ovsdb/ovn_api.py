@@ -44,13 +44,15 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lswitch_ext_id(self, name, ext_id):
+    def set_lswitch_ext_id(self, name, ext_id, if_exists=True):
         """Create a command to set OVN lswitch external id
 
-        :param name:     The name of the lswitch
-        :type name:      string
-        :param ext_id:   The external id to set for the lswitch
-        :type ext_id:    pair of <ext_id_key ,ext_id_value>
+        :param name:      The name of the lswitch
+        :type name:       string
+        :param ext_id:    The external id to set for the lswitch
+        :type ext_id:     pair of <ext_id_key ,ext_id_value>
+        :param if_exists: Do not fail if lswitch does not exist
+        :type if_exists:  bool
         :returns:        :class:`Command` with no result
         """
 
@@ -85,7 +87,7 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lport(self, lport_name, **columns):
+    def set_lport(self, lport_name, if_exists=True, **columns):
         """Create a command to set OVN lport fields
 
         :param lport_name:    The name of the lport
@@ -93,6 +95,8 @@ class API(object):
         :param columns:       Dictionary of port columns
                               Supported columns: macs, external_ids,
                                                  parent_name, tag, enabled
+        :param if_exists:     Do not fail if lport does not exist
+        :type if_exists:      bool
         :type columns:        dictionary
         :returns:             :class:`Command` with no result
         """

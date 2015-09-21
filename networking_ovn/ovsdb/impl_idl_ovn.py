@@ -56,17 +56,19 @@ class OvsdbOvnIdl(ovn_api.API):
             raise RuntimeError(_("Currently only supports delete "
                                  "by lswitch-name"))
 
-    def set_lswitch_ext_id(self, lswitch_id, ext_id):
+    def set_lswitch_ext_id(self, lswitch_id, ext_id, if_exists=True):
         return cmd.LSwitchSetExternalIdCommand(self, lswitch_id,
-                                               ext_id[0], ext_id[1])
+                                               ext_id[0], ext_id[1],
+                                               if_exists)
 
     def create_lport(self, lport_name, lswitch_name, may_exist=True,
                      **columns):
         return cmd.AddLogicalPortCommand(self, lport_name, lswitch_name,
                                          may_exist, **columns)
 
-    def set_lport(self, lport_name, **columns):
-        return cmd.SetLogicalPortCommand(self, lport_name, **columns)
+    def set_lport(self, lport_name, if_exists=True, **columns):
+        return cmd.SetLogicalPortCommand(self, lport_name,
+                                         if_exists, **columns)
 
     def delete_lport(self, lport_name=None, lswitch=None,
                      ext_id=None, if_exists=True):
