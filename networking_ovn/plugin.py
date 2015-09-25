@@ -11,8 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-
 from oslo_config import cfg
 from oslo_db import api as oslo_db_api
 from oslo_log import log
@@ -205,8 +203,13 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # FIXME(arosen): if binding data isn't passed in here
             # we should fetch it from the db instead and not set it to
             # None since neutron implements patch sematics for updates
-            parent_name, tag = self._get_data_from_binding_profile(
+            binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
+            parent_name = binding_profile.get('parent_name')
+            tag = binding_profile.get('tag')
+            vtep_physical_switch = binding_profile.get('vtep_physical_switch')
+            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
+
             original_port = self._get_port(context, id)
             updated_port = super(OVNPlugin, self).update_port(context, id,
                                                               port)
@@ -217,14 +220,28 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
+        if vtep_physical_switch:
+            port_type = 'vtep'
+            options = {'vtep_physical_switch': vtep_physical_switch,
+                       'vtep_logical_switch': vtep_logical_switch}
+            macs = ["unknown"]
+            allowed_macs = []
+        else:
+            port_type = None
+            options = None
+            macs = [updated_port['mac_address']]
+            allowed_macs = self._get_allowed_mac_addresses_from_port(
+                updated_port)
+
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: updated_port['name']}
-        allowed_macs = self._get_allowed_mac_addresses_from_port(
-            updated_port)
+
         self._ovn.set_lport(lport_name=updated_port['id'],
-                            macs=[updated_port['mac_address']],
+                            macs=macs,
                             external_ids=external_ids,
                             parent_name=parent_name, tag=tag,
+                            type=port_type,
+                            options=options,
                             enabled=updated_port['admin_state_up'],
                             port_security=allowed_macs).execute(
                                 check_error=True)
@@ -234,38 +251,56 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
                 not attr.is_attr_set(
                     port[ovn_const.OVN_PORT_BINDING_PROFILE])):
-            return None, None
+            return {}
 
-        parent_name = (
-            port[ovn_const.OVN_PORT_BINDING_PROFILE].get('parent_name'))
-        tag = port[ovn_const.OVN_PORT_BINDING_PROFILE].get('tag')
-        if not any((parent_name, tag)):
-            # An empty profile is fine.
-            return None, None
-        if not all((parent_name, tag)):
-            # If one is set, they both must be set.
-            msg = _('Invalid binding:profile. parent_name and tag are '
-                    'both required.')
-            raise n_exc.InvalidInput(error_message=msg)
-        if not isinstance(parent_name, six.string_types):
-            msg = _('Invalid binding:profile. parent_name "%s" must be '
-                    'a string.') % parent_name
-            raise n_exc.InvalidInput(error_message=msg)
-        try:
-            tag = int(tag)
-            if(tag < 0 or tag > 4095):
-                raise ValueError
-        except ValueError:
-            # The tag range is defined by ovn-nb.ovsschema.
-            # https://github.com/openvswitch/ovs/blob/ovn/ovn/ovn-nb.ovsschema
-            msg = _('Invalid binding:profile. tag "%s" must be '
-                    'an int between 1 and 4096, inclusive.') % tag
-            raise n_exc.InvalidInput(error_message=msg)
+        param_dict = {}
+        for param_set in ovn_const.OVN_PORT_BINDING_PROFILE_PARAMS:
+            param_keys = param_set.keys()
+            for param_key in param_keys:
+                try:
+                    param_dict[param_key] = (port[
+                        ovn_const.OVN_PORT_BINDING_PROFILE][param_key])
+                except KeyError:
+                    pass
+            if len(param_dict) == 0:
+                continue
+            if len(param_dict) != len(param_keys):
+                msg = _('Invalid binding:profile. %s are all '
+                        'required.') % param_keys
+                raise n_exc.InvalidInput(error_message=msg)
+            if (len(port[ovn_const.OVN_PORT_BINDING_PROFILE]) != len(
+                    param_keys)):
+                msg = _('Invalid binding:profile. too many parameters')
+                raise n_exc.InvalidInput(error_message=msg)
+            break
+
+        if not param_dict:
+            return {}
+
+        for param_key, param_type in param_set.items():
+            if param_type is None:
+                continue
+            param_value = param_dict[param_key]
+            if not isinstance(param_value, param_type):
+                msg = _('Invalid binding:profile. %(key)s %(value)s'
+                        'value invalid type') % {'key': param_key,
+                                                 'value': param_value}
+                raise n_exc.InvalidInput(error_message=msg)
+
         # Make sure we can successfully look up the port indicated by
         # parent_name.  Just let it raise the right exception if there is a
         # problem.
-        self.get_port(context, parent_name)
-        return parent_name, tag
+        if 'parent_name' in param_set.keys():
+            self.get_port(context, param_dict['parent_name'])
+
+        if 'tag' in param_set.keys():
+            tag = int(param_dict['tag'])
+            if tag < 0 or tag > 4095:
+                msg = _('Invalid binding:profile. tag "%s" must be '
+                        'an int between 1 and 4096, inclusive.') % tag
+                raise n_exc.InvalidInput(error_message=msg)
+
+        return param_dict
 
     def _get_allowed_mac_addresses_from_port(self, port):
         allowed_macs = set()
@@ -279,8 +314,13 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                exception_checker=db_api.is_deadlock)
     def create_port(self, context, port):
         with context.session.begin(subtransactions=True):
-            parent_name, tag = self._get_data_from_binding_profile(
+            binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
+            parent_name = binding_profile.get('parent_name')
+            tag = binding_profile.get('tag')
+            vtep_physical_switch = binding_profile.get('vtep_physical_switch')
+            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
+
             dhcp_opts = port['port'].get(edo_ext.EXTRADHCPOPTS, [])
             db_port = super(OVNPlugin, self).create_port(context, port)
             sgids = self._get_security_groups_on_port(context, port)
@@ -301,19 +341,37 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
-        return self.create_port_in_ovn(db_port, parent_name, tag)
 
-    def create_port_in_ovn(self, port, parent_name, tag):
+            if vtep_physical_switch:
+                port_type = 'vtep'
+                options = {'vtep_physical_switch': vtep_physical_switch,
+                           'vtep_logical_switch': vtep_logical_switch}
+                macs = ["unknown"]
+                allowed_macs = []
+            else:
+                port_type = None
+                options = None
+                macs = [db_port['mac_address']]
+                allowed_macs = self._get_allowed_mac_addresses_from_port(
+                    db_port)
+
+        return self.create_port_in_ovn(db_port, macs, parent_name, tag,
+                                       port_type, options, allowed_macs)
+
+    def create_port_in_ovn(self, port, macs, parent_name, tag, port_type,
+                           options, allowed_macs):
         # The port name *must* be port['id'].  It must match the iface-id set
         # in the Interfaces table of the Open_vSwitch database, which nova sets
         # to be the port ID.
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
-        allowed_macs = self._get_allowed_mac_addresses_from_port(port)
+
         self._ovn.create_lport(
             lport_name=port['id'],
             lswitch_name=utils.ovn_name(port['network_id']),
-            macs=[port['mac_address']], external_ids=external_ids,
+            macs=macs, external_ids=external_ids,
             parent_name=parent_name, tag=tag,
+            type=port_type,
+            options=options,
             enabled=port.get('admin_state_up', None),
             port_security=allowed_macs).execute(check_error=True)
 

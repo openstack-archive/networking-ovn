@@ -11,8 +11,13 @@
 #    under the License.
 
 from neutron.extensions import portbindings
+import six
 
 OVN_NETWORK_NAME_EXT_ID_KEY = 'neutron:network_name'
 OVN_PORT_NAME_EXT_ID_KEY = 'neutron:port_name'
 OVN_ROUTER_NAME_EXT_ID_KEY = 'neutron:router_name'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE
+OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
+                                    'tag': six.integer_types},
+                                   {'vtep_physical_switch': six.string_types,
+                                    'vtep_logical_switch': six.string_types}]

@@ -70,7 +70,17 @@ class TestOvnPlugin(OVNPluginTestCase):
             {'tag': 1024},
             {'tag': 1024, 'parent_name': 1024},
             {'parent_name': 'test'},
-            {'tag': 'test'}
+            {'tag': 'test'},
+            {'vtep_physical_switch': 'psw1'},
+            {'vtep_logical_switch': 'lsw1'},
+            {'vtep_physical_switch': 'psw1', 'vtep_logical_switch': 1234},
+            {'vtep_physical_switch': 1234, 'vtep_logical_switch': 'lsw1'},
+            {'vtep_physical_switch': 'psw1', 'vtep_logical_switch': 'lsw1',
+             'tag': 1024},
+            {'vtep_physical_switch': 'psw1', 'vtep_logical_switch': 'lsw1',
+             'parent_name': 'fakename'},
+            {'vtep_physical_switch': 'psw1', 'vtep_logical_switch': 'lsw1',
+             'tag': 1024, 'parent_name': 'fakename'},
         ]
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
