@@ -36,7 +36,11 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
         impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
         super(OVNPluginTestCase, self).setUp(plugin=plugin,
                                              ext_mgr=ext_mgr)
-        self.plugin._ovn = mock.Mock()
+        self.plugin._ovn = mock.MagicMock()
+        patcher = mock.patch(
+            'neutron.agent.ovsdb.native.idlutils.row_by_value',
+            lambda *args, **kwargs: mock.MagicMock())
+        patcher.start()
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
@@ -118,7 +122,7 @@ class TestOvnPlugin(OVNPluginTestCase):
                         self.plugin._ovn.create_lport.called)
                     called_args_dict = (
                         (self.plugin._ovn.create_lport
-                         ).call_args_list[0][1])
+                         ).call_args_list[1][1])
                     self.assertEqual(called_args_dict.get('port_security'),
                                      ['00:00:00:00:00:01'])
 

@@ -422,6 +422,108 @@ You can also see a tunnel created to the other compute node::
 
     ...
 
+Provider Networks
+-----------------
+
+Neutron has a "provider networks" API extension that lets you specify
+some additional attributes on a network.  These attributes let you
+map a Neutron network to a physical network in your environment.
+The OVN plugin is adding support for this API extension.  It currently
+supports "flat" and "vlan" networks.
+
+Here is how you can test it:
+
+First you must create an OVS bridge that provides connectivity to the
+provider network on every host running ovn-controller.  For trivial
+testing this could just be a dummy bridge.  In a real environment, you
+would want to add a local network interface to the bridge, as well.
+
+::
+
+    $ ovs-vsctl add-br br-provider
+
+ovn-controller on each host must be configured with a mapping between
+a network name and the bridge that provides connectivity to that network.
+In this case we'll create a mapping from the network name "providernet"
+to the bridge 'br-provider".
+
+::
+
+    $ ovs-vsctl set open . \
+    external-ids:ovn-bridge-mappings=providernet:br-provider
+
+At this point you should be able to observe that ovn-controller
+automatically created patch ports between br-int and br-provider.
+
+::
+
+    $ ovs-vsctl show
+    ...
+    Bridge br-provider
+        Port br-provider
+            Interface br-provider
+                type: internal
+        Port patch-br-provider-to-br-int
+            Interface patch-br-provider-to-br-int
+                type: patch
+                options: {peer=patch-br-int-to-br-provider}
+    Bridge br-int
+        ...
+        Port patch-br-int-to-br-provider
+            Interface patch-br-int-to-br-provider
+                type: patch
+                options: {peer=patch-br-provider-to-br-int}
+        ...
+
+
+Now create a Neutron provider network.
+
+::
+
+    $ neutron net-create provider --shared \
+    --provider:physical_network providernet \
+    --provider:network_type flat
+
+Alternatively, you can define connectivity to a VLAN instead of a flat network:
+
+::
+
+    $ neutron net-create provider-101 --shared \
+    --provider:physical_network providernet \
+    --provider:network_type vlan \
+    --provider:segmentation_id 101
+
+Finally, create a Neutron port on the provider network.
+
+::
+
+    $ neutron port-create provider
+
+or if you followed the VLAN example, it would be:
+
+::
+
+    $ neutron port-create provider-101
+
+Observe that the OVN plugin created a special logical switch that models
+the connection between this port and the provider network.
+
+::
+
+    $ ovn-nbctl show
+    ...
+     lswitch 5bbccbbd-f5ca-411b-bad9-01095d6f1316 (neutron-729dbbee-db84-4a3d-afc3-82c0b3701074)
+         lport provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+             macs: unknown
+         lport 729dbbee-db84-4a3d-afc3-82c0b3701074
+             macs: fa:16:3e:20:38:d1
+    ...
+
+    $ ovn-nbctl lport-get-type provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    localnet
+
+    $ ovn-nbctl lport-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    network_name=providernet
 
 Troubleshooting
 ---------------
