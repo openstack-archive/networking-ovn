@@ -132,6 +132,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                   fanout=False)
         self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
                                   fanout=False)
+        self.conn.create_consumer(topics.REPORTS, self.endpoints,
+                                  fanout=False)
         self.conn.consume_in_threads()
 
     def _delete_ports(self, context, ports):
