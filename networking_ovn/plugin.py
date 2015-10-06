@@ -76,6 +76,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     supported_extension_aliases = ["quotas",
                                    "extra_dhcp_opt",
                                    "binding",
+                                   "agent",
+                                   "dhcp_agent_scheduler",
                                    "security-group",
                                    "extraroute",
                                    "external-net",
@@ -90,7 +92,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self.vif_details = {portbindings.CAP_PORT_FILTER: True}
         registry.subscribe(self.post_fork_initialize, resources.PROCESS,
                            events.AFTER_CREATE)
-        self._setup_rpc()
+        self._setup_dhcp()
+        self._start_rpc_notifiers()
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn = impl_idl_ovn.OvsdbOvnIdl()
@@ -115,26 +118,33 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                           l3_rpc.L3RpcCallback(),
                           agents_db.AgentExtRpcCallback(),
                           metadata_rpc.MetadataRpcCallback()]
-        self.agent_notifiers[const.AGENT_TYPE_L3] = (
-            l3_rpc_agent_api.L3AgentNotifyAPI()
-        )
-        self.agent_notifiers[const.AGENT_TYPE_DHCP] = (
-            dhcp_rpc_agent_api.DhcpAgentNotifyAPI())
+
+    def _setup_dhcp(self):
+        """Initialize components to support DHCP."""
         self.network_scheduler = importutils.import_object(
             cfg.CONF.network_scheduler_driver
         )
-        self.supported_extension_aliases.extend(
-            ['agent', 'dhcp_agent_scheduler'])
+        self.start_periodic_dhcp_agent_status_check()
+
+    def _start_rpc_notifiers(self):
+        """Initialize RPC notifiers for agents."""
+        self.agent_notifiers[const.AGENT_TYPE_DHCP] = (
+            dhcp_rpc_agent_api.DhcpAgentNotifyAPI()
+        )
+        self.agent_notifiers[const.AGENT_TYPE_L3] = (
+            l3_rpc_agent_api.L3AgentNotifyAPI()
+        )
 
     def start_rpc_listeners(self):
+        self._setup_rpc()
         self.conn = n_rpc.create_connection(new=True)
-        self.conn.create_consumer(topics.PLUGIN, self.endpoints,
-                                  fanout=False)
+        self.conn.create_consumer(topics.PLUGIN, self.endpoints, fanout=False)
         self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
                                   fanout=False)
-        self.conn.create_consumer(topics.REPORTS, self.endpoints,
+        self.conn.create_consumer(topics.REPORTS,
+                                  [agents_db.AgentExtRpcCallback()],
                                   fanout=False)
-        self.conn.consume_in_threads()
+        return self.conn.consume_in_threads()
 
     def _delete_ports(self, context, ports):
         for port in ports:
