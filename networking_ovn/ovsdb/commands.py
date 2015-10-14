@@ -10,13 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
 from neutron.agent.ovsdb.native.commands import BaseCommand
 from neutron.agent.ovsdb.native import idlutils
 from neutron.i18n import _
-
-LOG = logging.getLogger(__name__)
 
 
 class AddLSwitchCommand(BaseCommand):
@@ -52,7 +48,6 @@ class DelLSwitchCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Logical Switch %s does not exist") % self.name
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         self.api._tables['Logical_Switch'].rows[lswitch.uuid].delete()
@@ -75,7 +70,6 @@ class LSwitchSetExternalIdCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Logical Switch %s does not exist") % self.name
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         external_ids = getattr(lswitch, 'external_ids', {})
@@ -98,7 +92,6 @@ class AddLogicalPortCommand(BaseCommand):
             ports = getattr(lswitch, 'ports', [])
         except idlutils.RowNotFound:
             msg = _("Logical Switch %s does not exist") % self.lswitch
-            LOG.error(msg)
             raise RuntimeError(msg)
         if self.may_exist:
             port = idlutils.row_by_value(self.api.idl,
@@ -132,7 +125,6 @@ class SetLogicalPortCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Logical Port %s does not exist") % self.lport
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         for col, val in self.columns.items():
@@ -157,7 +149,6 @@ class DelLogicalPortCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Port %s does not exist") % self.lport
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         ports.remove(lport)
@@ -182,7 +173,6 @@ class CreateACLRuleCommand(BaseCommand):
                                             'name', self.lswitch_name)
         except idlutils.RowNotFound:
             msg = _("Logical Switch %s does not exist") % self.lswitch_name
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         row = txn.insert(self.api._tables['ACL'])
@@ -227,7 +217,6 @@ class DelLRouterCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Logical Router %s does not exist") % self.name
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         self.api._tables['Logical_Router'].rows[lrouter.uuid].delete()
@@ -288,7 +277,6 @@ class DelLRouterPortCommand(BaseCommand):
             if self.if_exists:
                 return
             msg = _("Logical Router Port %s does not exist") % self.name
-            LOG.error(msg)
             raise RuntimeError(msg)
 
         lrouter_ports.remove(lrouter_port)
