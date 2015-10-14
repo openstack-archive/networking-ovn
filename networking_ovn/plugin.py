@@ -11,10 +11,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import netaddr
+import six
+
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
-import six
 
 
 from neutron.agent.ovsdb.native import idlutils
@@ -122,9 +124,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _setup_rpc(self):
         self.endpoints = [dhcp_rpc.DhcpRpcCallback(),
-                          l3_rpc.L3RpcCallback(),
                           agents_db.AgentExtRpcCallback(),
                           metadata_rpc.MetadataRpcCallback()]
+        if not config.is_ovn_l3():
+            self.endpoints.append(l3_rpc.L3RpcCallback())
 
     def _setup_dhcp(self):
         """Initialize components to support DHCP."""
@@ -138,16 +141,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self.agent_notifiers[const.AGENT_TYPE_DHCP] = (
             dhcp_rpc_agent_api.DhcpAgentNotifyAPI()
         )
-        self.agent_notifiers[const.AGENT_TYPE_L3] = (
-            l3_rpc_agent_api.L3AgentNotifyAPI()
-        )
+        if not config.is_ovn_l3():
+            self.agent_notifiers[const.AGENT_TYPE_L3] = (
+                l3_rpc_agent_api.L3AgentNotifyAPI()
+            )
 
     def start_rpc_listeners(self):
         self._setup_rpc()
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(topics.PLUGIN, self.endpoints, fanout=False)
-        self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
-                                  fanout=False)
+        if not config.is_ovn_l3():
+            self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
+                                      fanout=False)
         self.conn.create_consumer(topics.REPORTS,
                                   [agents_db.AgentExtRpcCallback()],
                                   fanout=False)
@@ -720,9 +725,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def delete_router(self, context, router_id):
         router_name = utils.ovn_name(router_id)
-        self._ovn.delete_lrouter(router_name).execute(check_error=True)
         ret_val = super(OVNPlugin, self).delete_router(context,
                                                        router_id)
+        self._ovn.delete_lrouter(router_name).execute(check_error=True)
         return ret_val
 
     def update_router(self, context, id, router):
@@ -737,6 +742,77 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         # TODO(Sisir) Rollback router update on OVN NB DB Update Failure.
         return router
+
+    def add_router_interface(self, context, router_id, interface_info):
+        router_interface_info = super(OVNPlugin, self).add_router_interface(
+            context, router_id, interface_info)
+
+        if not config.is_ovn_l3():
+            LOG.debug(_("OVN L3 mode is disabled, skipping "
+                        "add_router_interface"))
+            return router_interface_info
+
+        port = self.get_port(context, router_interface_info['port_id'])
+        subnet_id = port['fixed_ips'][0]['subnet_id']
+        subnet = self.get_subnet(context, subnet_id)
+        lrouter = utils.ovn_name(router_id)
+        cidr = netaddr.IPNetwork(subnet['cidr'])
+        network = "%s/%s" % (port['fixed_ips'][0]['ip_address'],
+                             str(cidr.prefixlen))
+
+        self._ovn.add_lrouter_port(port['id'], lrouter,
+                                   mac=port['mac_address'],
+                                   network=network).execute(check_error=True)
+        # TODO(chandrav)
+        # The following code is to update the options column in the lport
+        # table with {router-port: "UUID of logical_router_port"}. Ideally this
+        # should have been handled ine one transaction with add_lrouter_port,
+        # but due to a bug in idl, we are forced to update it in a separate
+        # transaction. After the transaction is committed idl does not update
+        # the UUID that is part of a string from old to new.
+        self._ovn.set_lrouter_port_in_lport(port['id']).execute(
+            check_error=True)
+        return router_interface_info
+
+    def remove_router_interface(self, context, router_id, interface_info):
+        if not config.is_ovn_l3():
+            LOG.debug(_("OVN L3 mode is disabled, skipping "
+                        "remove_router_interface"))
+            return super(OVNPlugin, self).remove_router_interface(
+                context, router_id, interface_info)
+        # TODO(chandrav)
+        # Need to rework this code to get the port_id when the incoming request
+        # contains only the subnet_id. Also need to figure out if OVN needs to
+        # care about multiple prefix subnets on a single router interface.
+        # This code is duplicated from neutron. Probably a better thing to do
+        # is to handle everything in the plugin and just call delete_port
+        # update_port.
+        port_id = None
+        if 'port_id' in interface_info:
+            port_id = interface_info['port_id']
+        elif 'subnet_id' in interface_info:
+            subnet_id = interface_info['subnet_id']
+            subnet = self.get_subnet(context, subnet_id)
+            device_filter = {'device_id': [router_id],
+                             'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
+                             'network_id': [subnet['network_id']]}
+            ports = super(OVNPlugin, self).get_ports(context,
+                                                     filters=device_filter)
+            for p in ports:
+                port_subnets = [fip['subnet_id'] for fip in p['fixed_ips']]
+                if subnet_id in port_subnets and len(port_subnets) == 1:
+                    port_id = p['id']
+                    break
+
+        router_interface_info = super(OVNPlugin, self).remove_router_interface(
+            context, router_id, interface_info)
+
+        if port_id is not None:
+            self._ovn.delete_lrouter_port(port_id,
+                                          utils.ovn_name(router_id),
+                                          if_exists=False
+                                          ).execute(check_error=True)
+        return router_interface_info
 
     def _update_acls_for_security_group(self, context, security_group_id,
                                         sg_ports_cache=None,

@@ -63,6 +63,10 @@ OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
 # 'ovn-uuid' so that the same one will be re-used if you re-run DevStack.
 OVN_UUID=${OVN_UUID:-}
 
+# Whether to enable using OVN's L3 functionality. If this value is disabled,
+# Openstack will use q-l3 functionality.
+OVN_L3_MODE=${OVN_L3_MODE:-False}
+
 
 # Utility Functions
 # -----------------
@@ -115,6 +119,7 @@ function configure_ovn_plugin {
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins ""
         iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_REMOTE"
+        iniset $Q_PLUGIN_CONF_FILE ovn ovn_l3_mode "$OVN_L3_MODE"
     fi
 
     if is_service_enabled q-dhcp ; then

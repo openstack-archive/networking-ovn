@@ -45,3 +45,8 @@ disable_service q-agt
 # one will be generated and saved in the file 'ovn-uuid' for re-use in future
 # DevStack runs.
 #OVN_UUID=
+
+# Whether to enable using OVN's L3 functionality. If this value is disabled,
+# Openstack will use the q-l3 functionality.
+#OVN_L3_MODE=False
+

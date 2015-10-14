@@ -36,6 +36,9 @@ ovn_opts = [
                       ' create resources found in Neutron but not in OVN.'
                       ' Also remove resources from OVN'
                       ' that are no longer in Neutron.')),
+    cfg.BoolOpt('ovn_l3_mode',
+                default=False,
+                help=_('Whether to use OVN L3 support')),
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -57,3 +60,7 @@ def get_ovn_ovsdb_timeout():
 
 def get_ovn_neutron_sync_mode():
     return cfg.CONF.ovn.neutron_sync_mode
+
+
+def is_ovn_l3():
+    return cfg.CONF.ovn.ovn_l3_mode
