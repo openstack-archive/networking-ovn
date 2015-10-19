@@ -510,3 +510,16 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         ret_val = super(OVNPlugin, self).delete_router(context,
                                                        router_id)
         return ret_val
+
+    def update_router(self, context, id, router):
+        router = super(OVNPlugin, self).update_router(
+            context, id, router)
+        router_name = utils.ovn_name(router['id'])
+        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                        router.get('name', 'no_router_name')}
+        self._ovn.update_lrouter(router_name,
+                                 external_ids=external_ids
+                                 ).execute(check_error=True)
+
+        # TODO(Sisir) Rollback router update on OVN NB DB Update Failure.
+        return router

@@ -101,6 +101,10 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.AddLRouterCommand(self, name,
                                      may_exist, **columns)
 
+    def update_lrouter(self, name, if_exists=True, **columns):
+        return cmd.UpdateLRouterCommand(self, name,
+                                        if_exists, **columns)
+
     def delete_lrouter(self, name, if_exists=True):
         return cmd.DelLRouterCommand(self, name, if_exists)
 

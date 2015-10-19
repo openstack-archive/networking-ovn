@@ -203,6 +203,29 @@ class AddLRouterCommand(BaseCommand):
             setattr(row, col, val)
 
 
+class UpdateLRouterCommand(BaseCommand):
+    def __init__(self, api, name, if_exists, **columns):
+        super(UpdateLRouterCommand, self).__init__(api)
+        self.name = name
+        self.columns = columns
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.name, None)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.name
+            raise RuntimeError(msg)
+
+        if lrouter:
+            for col, val in self.columns.items():
+                setattr(lrouter, col, val)
+            return
+
+
 class DelLRouterCommand(BaseCommand):
     def __init__(self, api, name, if_exists):
         super(DelLRouterCommand, self).__init__(api)
