@@ -476,7 +476,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # execute a transaction with the remote db.  The check is local.
             self._ovn.delete_lswitch(
                 utils.ovn_name(port['id']), if_exists=False).execute(
-                    check_error=True)
+                    check_error=True, log_errors=False)
         except RuntimeError:
             # If the switch doesn't exist, we'll get a RuntimeError, meaning
             # we just need to delete a port.
