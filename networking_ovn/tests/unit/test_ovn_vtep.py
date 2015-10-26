@@ -31,8 +31,8 @@ class TestOVNVtepPortBinding(test_ovn_plugin.OVNPluginTestCase):
                                         arg_list=(OVN_PROFILE,),
                                         **binding)
                 port = self.deserialize(self.fmt, res)
-                self.assertEqual(port['port'][OVN_PROFILE],
-                                 binding[OVN_PROFILE])
+                self.assertEqual(binding[OVN_PROFILE],
+                                 port['port'][OVN_PROFILE])
 
     def test_create_port_with_only_vtep_physical_switch(self):
         binding = {OVN_PROFILE: {"vtep_physical_switch": 'psw'}}

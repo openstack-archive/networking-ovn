@@ -128,8 +128,8 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.create_lport
                          ).call_args_list[1][1])
-                    self.assertEqual(called_args_dict.get('port_security'),
-                                     ['00:00:00:00:00:01'])
+                    self.assertEqual(['00:00:00:00:00:01'],
+                                     called_args_dict.get('port_security'))
 
                     data = {'port': {'mac_address': '00:00:00:00:00:02'}}
                     req = self.new_update_request(
@@ -141,8 +141,8 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(called_args_dict.get('port_security'),
-                                     ['00:00:00:00:00:02'])
+                    self.assertEqual(['00:00:00:00:00:02'],
+                                     called_args_dict.get('port_security'))
 
     def test_create_port_with_disabled_security(self):
         self.skipTest("Fix this after port-security extension is supported")
@@ -160,8 +160,8 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.create_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(called_args_dict.get('port_security'),
-                                     [])
+                    self.assertEqual([],
+                                     called_args_dict.get('port_security'))
 
                     data = {'port': {'mac_address': '00:00:00:00:00:01'}}
                     req = self.new_update_request(
@@ -173,8 +173,8 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(called_args_dict.get('port_security'),
-                                     [])
+                    self.assertEqual([],
+                                     called_args_dict.get('port_security'))
 
     def test_create_port_security_allowed_address_pairs(self):
         self.skipTest("Fix this after allowed-address-pairs"
@@ -196,9 +196,9 @@ class TestOvnPlugin(OVNPluginTestCase):
                         (self.plugin._ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual(
-                        called_args_dict.get('port_security'),
                         tools.UnorderedList("22:22:22:22:22:22",
-                                            port['port']['mac_address']))
+                                            port['port']['mac_address']),
+                        called_args_dict.get('port_security'))
 
                     data = {'port': {'mac_address': '00:00:00:00:00:01'}}
                     req = self.new_update_request(
@@ -210,6 +210,6 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(called_args_dict.get('port_security'),
-                                     tools.UnorderedList("22:22:22:22:22:22",
-                                                         "00:00:00:00:00:01"))
+                    self.assertEqual(tools.UnorderedList("22:22:22:22:22:22",
+                                                         "00:00:00:00:00:01"),
+                                     called_args_dict.get('port_security'))
