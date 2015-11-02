@@ -276,26 +276,33 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_type, options, macs, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, updated_port)
 
-        external_ids = {
-            ovn_const.OVN_PORT_NAME_EXT_ID_KEY: updated_port['name']}
         allowed_macs = self._get_allowed_mac_addresses_from_port(
             updated_port)
+
+        return self._update_port_in_ovn(context, updated_port, macs,
+                                        parent_name, tag, port_type, options,
+                                        allowed_macs)
+
+    def _update_port_in_ovn(self, context, port, macs, parent_name, tag,
+                            port_type, options, allowed_macs):
+        external_ids = {
+            ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         with self._ovn.transaction(check_error=True) as txn:
-            txn.add(self._ovn.set_lport(lport_name=updated_port['id'],
+            txn.add(self._ovn.set_lport(lport_name=port['id'],
                     addresses=macs,
                     external_ids=external_ids,
                     parent_name=parent_name, tag=tag,
                     type=port_type,
                     options=options,
-                    enabled=updated_port['admin_state_up'],
+                    enabled=port['admin_state_up'],
                     port_security=allowed_macs))
             # Note that the ovsdb IDL supresses the transaction down to what
             # has actually changed.
             txn.add(self._ovn.delete_acl(
-                    utils.ovn_name(updated_port['network_id']),
-                    updated_port['id']))
-            self._add_acls(context, updated_port, txn)
-        return updated_port
+                    utils.ovn_name(port['network_id']),
+                    port['id']))
+            self._add_acls(context, port, txn)
+        return port
 
     def _get_data_from_binding_profile(self, context, port):
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
