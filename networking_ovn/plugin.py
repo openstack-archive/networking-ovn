@@ -276,9 +276,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_type, options, macs, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, updated_port)
 
-        allowed_macs = self._get_allowed_mac_addresses_from_port(
-            updated_port)
-
         return self._update_port_in_ovn(context, updated_port, macs,
                                         parent_name, tag, port_type, options,
                                         allowed_macs)
