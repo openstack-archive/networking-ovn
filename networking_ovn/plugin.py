@@ -262,10 +262,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # None since neutron implements patch sematics for updates
             binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
-            parent_name = binding_profile.get('parent_name')
-            tag = binding_profile.get('tag')
-            vtep_physical_switch = binding_profile.get('vtep_physical_switch')
-            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
 
             original_port = self._get_port(context, id)
             updated_port = super(OVNPlugin, self).update_port(context, id,
@@ -277,18 +273,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
-        if vtep_physical_switch:
-            port_type = 'vtep'
-            options = {'vtep_physical_switch': vtep_physical_switch,
-                       'vtep_logical_switch': vtep_logical_switch}
-            macs = ["unknown"]
-            allowed_macs = []
-        else:
-            port_type = None
-            options = None
-            macs = [updated_port['mac_address']]
-            allowed_macs = self._get_allowed_mac_addresses_from_port(
-                updated_port)
+        port_type, options, macs, allowed_macs, parent_name, tag = \
+            self._get_ovn_port_options(binding_profile, updated_port)
 
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: updated_port['name']}
@@ -378,10 +364,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
-            parent_name = binding_profile.get('parent_name')
-            tag = binding_profile.get('tag')
-            vtep_physical_switch = binding_profile.get('vtep_physical_switch')
-            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
 
             dhcp_opts = port['port'].get(edo_ext.EXTRADHCPOPTS, [])
             db_port = super(OVNPlugin, self).create_port(context, port)
@@ -404,21 +386,31 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
 
-            if vtep_physical_switch:
-                port_type = 'vtep'
-                options = {'vtep_physical_switch': vtep_physical_switch,
-                           'vtep_logical_switch': vtep_logical_switch}
-                macs = ["unknown"]
-                allowed_macs = []
-            else:
-                port_type = None
-                options = None
-                macs = [db_port['mac_address']]
-                allowed_macs = self._get_allowed_mac_addresses_from_port(
-                    db_port)
+        port_type, options, macs, allowed_macs, parent_name, tag = \
+            self._get_ovn_port_options(binding_profile, db_port)
 
         return self._create_port_in_ovn(context, db_port, macs, parent_name,
                                         tag, port_type, options, allowed_macs)
+
+    def _get_ovn_port_options(self, binding_profile, port):
+        vtep_physical_switch = binding_profile.get('vtep_physical_switch')
+        vtep_logical_switch = binding_profile.get('vtep_logical_switch')
+        parent_name = binding_profile.get('parent_name')
+        tag = binding_profile.get('tag')
+
+        if vtep_physical_switch:
+            port_type = 'vtep'
+            options = {'vtep_physical_switch': vtep_physical_switch,
+                       'vtep_logical_switch': vtep_logical_switch}
+            macs = ["unknown"]
+            allowed_macs = []
+        else:
+            port_type = None
+            options = None
+            macs = [port['mac_address']]
+            allowed_macs = self._get_allowed_mac_addresses_from_port(port)
+
+        return (port_type, options, macs, allowed_macs, parent_name, tag)
 
     def _acl_direction(self, r, port):
         if r['direction'] == 'ingress':
