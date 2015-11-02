@@ -13,10 +13,8 @@
 
 from oslo_config import cfg
 from oslo_log import log
-from oslo_utils import excutils
 from oslo_utils import importutils
 import six
-from sqlalchemy.orm import exc as sa_exc
 
 
 from neutron.agent.ovsdb.native import idlutils
@@ -47,7 +45,6 @@ from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
-from neutron.i18n import _LE, _LI
 
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
@@ -155,20 +152,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                   [agents_db.AgentExtRpcCallback()],
                                   fanout=False)
         return self.conn.consume_in_threads()
-
-    def _delete_ports(self, context, ports):
-        for port in ports:
-            try:
-                self.delete_port(context, port.id)
-            except (n_exc.PortNotFound, sa_exc.ObjectDeletedError):
-                context.session.expunge(port)
-                # concurrent port deletion can be performed by
-                # release_dhcp_port caused by concurrent subnet_delete
-                LOG.info(_LI("Port %s was deleted concurrently"), port.id)
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    LOG.exception(_LE("Exception auto-deleting port %s"),
-                                  port.id)
 
     def _get_attribute(self, obj, attribute):
         res = obj.get(attribute)
