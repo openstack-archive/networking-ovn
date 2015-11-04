@@ -186,9 +186,7 @@ function install_ovn {
 
     cd $DEST
     if [ ! -d $OVN_REPO_NAME ] ; then
-        git clone $OVN_REPO
-        cd $OVN_REPO_NAME
-        git checkout $OVN_BRANCH
+        git_clone $OVN_REPO $OVN_REPO_NAME $OVN_BRANCH
     else
         cd $OVN_REPO_NAME
     fi
@@ -301,9 +299,7 @@ function disable_libvirt_apparmor {
 # main loop
 if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
-        if [[ "$OFFLINE" != "True" ]]; then
-            install_ovn
-        fi
+        install_ovn
         configure_ovn
         init_ovn
         # We have to start at install time, because Neutron's post-config
