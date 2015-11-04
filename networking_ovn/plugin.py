@@ -381,19 +381,22 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _get_ovn_port_options(self, binding_profile, port):
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
-        vtep_logical_switch = binding_profile.get('vtep_logical_switch')
-        parent_name = binding_profile.get('parent_name')
-        tag = binding_profile.get('tag')
+        vtep_logical_switch = None
+        parent_name = None
+        tag = None
+        port_type = None
+        options = None
 
         if vtep_physical_switch:
+            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
             port_type = 'vtep'
             options = {'vtep_physical_switch': vtep_physical_switch,
                        'vtep_logical_switch': vtep_logical_switch}
             macs = ["unknown"]
             allowed_macs = []
         else:
-            port_type = None
-            options = None
+            parent_name = binding_profile.get('parent_name')
+            tag = binding_profile.get('tag')
             macs = [port['mac_address']]
             allowed_macs = self._get_allowed_mac_addresses_from_port(port)
 
