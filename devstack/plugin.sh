@@ -186,7 +186,7 @@ function install_ovn {
 
     cd $DEST
     if [ ! -d $OVN_REPO_NAME ] ; then
-        git_clone $OVN_REPO $OVN_REPO_NAME $OVN_BRANCH
+        git_clone $OVN_REPO $DEST/$OVN_REPO_NAME $OVN_BRANCH
     else
         cd $OVN_REPO_NAME
     fi

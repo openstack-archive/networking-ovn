@@ -50,3 +50,6 @@ ChangeLog
 !/.pylintrc
 !/.testr.conf
 etc
+
+# Vagrant directory
+vagrant/.vagrant

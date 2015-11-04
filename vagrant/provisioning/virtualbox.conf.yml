@@ -1,12 +1,17 @@
 ---
-box: "ubuntu/vivid64"
-devstack_controller:
-  host_name: controller.devstack.dev
+box: "ubuntu/trusty64"
+ovncontroller:
+  host_name: ovn-controller.devstack.dev
   ip: "192.168.33.101"
-  memory: 8192
+  memory: 6144
   cpus: 2
-devstack_compute:
-  host_name: compute.devstack.dev
+ovncompute1:
+  host_name: ovn-compute1.devstack.dev
   ip: "192.168.33.102"
+  memory: 1024
+  cpus: 1
+ovncompute2:
+  host_name: ovn-compute2.devstack.dev
+  ip: "192.168.33.103"
   memory: 1024
   cpus: 1
