@@ -2,7 +2,7 @@
  Enabling in Devstack
 ======================
 
-1. Download devstack and networking-ovn
+1. Download devstack and networking-ovn::
 
      git clone http://git.openstack.org/openstack-dev/devstack.git
      git clone http://git.openstack.org/openstack/networking-ovn.git
