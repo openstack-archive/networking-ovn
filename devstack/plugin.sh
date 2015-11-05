@@ -194,6 +194,11 @@ function install_ovn {
     # TODO: Can you create package list files like you can inside devstack?
     install_package autoconf automake libtool gcc patch make
 
+    if is_fedora ; then
+        # is_fedora covers Fedora, RHEL, CentOS, etc...
+        install_package kernel-devel
+    fi
+
     # Install tox, used to generate the config
     pip_install tox
 
