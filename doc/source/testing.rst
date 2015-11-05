@@ -105,11 +105,11 @@ their names correlate with the output from ``neutron net-list``::
     c628c46a-372f-412b-8edf-eb3408b021ca (neutron-266371ca-904e-4433-b653-866f9204d22e)
     f4e6e393-a8a3-4066-b6c5-eb1ac253d02f (neutron-c1f33146-1b82-48fb-aad6-493d08fbe492)
 
-    $ ovn-nbctl lswitch-get-external-id neutron-266371ca-904e-4433-b653-866f9204d22e
-    neutron:network_name=private
+    $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
+    {"neutron:network_name"=private}
 
-    $ ovn-nbctl lswitch-get-external-id neutron-c1f33146-1b82-48fb-aad6-493d08fbe492
-    neutron:network_name=public
+    $ ovn-nbctl get Logical_Switch neutron-c1f33146-1b82-48fb-aad6-493d08fbe492 external_ids
+    {"neutron:network_name"=public}
 
 Some Neutron ports are created by default, as well.  These ports are actually an
 implementation detail of the Neutron DHCP and L3 agents that are currently in
@@ -198,7 +198,23 @@ It's a very small test image.
 
     $ IMAGE_ID=2698bd5b-e493-4ea7-8d4a-e30c14df5c80
 
-5. Boot some VMs.
+5. Setup a security rule so that we can access the VMs we will boot up next.
+
+By default, DevStack does not allow users to access VMs, to enable that, we will need to
+add a rule.
+
+::
+
+    $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --port-range-min 22 --port-range-max 22 --protocol tcp default
+    $ neutron security-group-rule-list
+    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
+    | id                                   | security_group | direction | ethertype | protocol/port | remote          |
+    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
+    | 8b2edbe6-790e-40ef-af54-c7b64ced8240 | default        | ingress   | IPv4      | 22/tcp        | any             |
+    ...
+    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
+
+6. Boot some VMs.
 
 Now we will boot two VMs.  We'll name them ``test1`` and ``test2``.
 
