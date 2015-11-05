@@ -1,7 +1,7 @@
 Testing with DevStack
 =====================
 
-This document describes how to test OpenStack with OVN using DevStack.  We will
+This document describes how to test OpenStack with OVN using DevStack. We will
 start by describing how to test on a single host.
 
 Single Node Test Environment
@@ -14,7 +14,7 @@ I'm using a Fedora 21 VM with 4 GB of RAM.  You should be able to use any
 distribution that is supported by DevStack.  So far, networking-ovn is being
 tested on Fedora 21 and Ubuntu 14.04.
 
-Create a user and grant it sudo access.  Install git.
+Create a user and grant it sudo access. Install git.
 
 2. Get DevStack and networking-ovn.
 
@@ -63,6 +63,7 @@ with these APIs.  DevStack provides a file you can source to set up the right
 environment variables to make the OpenStack command line tools work.
 
 ::
+
     $ . openrc
 
 If you're curious what environment variables are set, they generally start with
