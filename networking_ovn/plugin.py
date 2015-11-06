@@ -256,20 +256,20 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
-        port_type, options, macs, allowed_macs, parent_name, tag = \
+        port_type, options, addresses, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, updated_port)
 
-        return self._update_port_in_ovn(context, updated_port, macs,
+        return self._update_port_in_ovn(context, updated_port, addresses,
                                         parent_name, tag, port_type, options,
                                         allowed_macs)
 
-    def _update_port_in_ovn(self, context, port, macs, parent_name, tag,
+    def _update_port_in_ovn(self, context, port, addresses, parent_name, tag,
                             port_type, options, allowed_macs):
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.set_lport(lport_name=port['id'],
-                    addresses=macs,
+                    addresses=addresses,
                     external_ids=external_ids,
                     parent_name=parent_name, tag=tag,
                     type=port_type,
@@ -373,11 +373,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
 
-        port_type, options, macs, allowed_macs, parent_name, tag = \
+        port_type, options, addresses, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, db_port)
 
-        return self._create_port_in_ovn(context, db_port, macs, parent_name,
-                                        tag, port_type, options, allowed_macs)
+        return self._create_port_in_ovn(context, db_port, addresses,
+                                        parent_name, tag, port_type, options,
+                                        allowed_macs)
 
     def _get_ovn_port_options(self, binding_profile, port):
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
@@ -392,15 +393,19 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             port_type = 'vtep'
             options = {'vtep_physical_switch': vtep_physical_switch,
                        'vtep_logical_switch': vtep_logical_switch}
-            macs = ["unknown"]
+            addresses = ["unknown"]
             allowed_macs = []
         else:
             parent_name = binding_profile.get('parent_name')
             tag = binding_profile.get('tag')
-            macs = [port['mac_address']]
+            if 'fixed_ips' in port:
+                addresses = [port['mac_address'] + ' ' + ip['ip_address'] for
+                             ip in port['fixed_ips']]
+            else:
+                addresses = [port['mac_address']]
             allowed_macs = self._get_allowed_mac_addresses_from_port(port)
 
-        return (port_type, options, macs, allowed_macs, parent_name, tag)
+        return (port_type, options, addresses, allowed_macs, parent_name, tag)
 
     def _acl_direction(self, r, port):
         if r['direction'] == 'ingress':
