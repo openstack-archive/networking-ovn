@@ -246,7 +246,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
 
-            original_port = self._get_port(context, id)
+            original_port = self.get_port(context, id)
             updated_port = super(OVNPlugin, self).update_port(context, id,
                                                               port)
 
