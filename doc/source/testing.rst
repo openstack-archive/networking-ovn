@@ -550,19 +550,4 @@ If you run into any problems, take a look at our troubleshooting_ page.
 Additional Resources
 --------------------
 
-These resources may also help with testing out and understanding OVN:
-
-* http://blog.russellbryant.net/2015/04/08/ovn-and-openstack-integration-development-update/
-* http://blog.russellbryant.net/2015/04/21/ovn-and-openstack-status-2015-04-21/
-* http://galsagie.github.io/sdn/openstack/ovs/2015/04/26/ovn-containers/
-* http://blog.russellbryant.net/2015/05/14/an-ez-bake-ovn-for-openstack/
-* http://galsagie.github.io/sdn/openstack/ovs/2015/05/30/ovn-deep-dive/
-
-OVN architecture documents and DB schema explanations:
-
-* http://benpfaff.org/~blp/dist-docs/ovn-architecture.7.html
-* http://benpfaff.org/~blp/dist-docs/ovn-nb.5.html
-* http://benpfaff.org/~blp/dist-docs/ovn.5.html
-
-..
-    TODO: multi-node testing
+See the documentation and other references linked from the readme_ page.
