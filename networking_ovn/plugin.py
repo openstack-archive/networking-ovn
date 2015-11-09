@@ -648,6 +648,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     external_ids=external_ids,
                     parent_name=parent_name, tag=tag,
                     enabled=port.get('admin_state_up', None),
+                    options=options,
+                    type=port_type,
                     port_security=allowed_macs))
             sg_ports_cache = {}
             remote_group_sgs = self._add_acls(context, port, txn,
