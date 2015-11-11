@@ -6,16 +6,23 @@
 Welcome to networking-ovn's documentation!
 ========================================================
 
-General Contents:
+General Information and Other Project References:
 
 .. toctree::
    :maxdepth: 1
 
    readme
+   contributing
+   faq
+
+Testing and Usage Information:
+
+.. toctree::
+   :maxdepth: 1
+
    testing
    containers
    troubleshooting
-   contributing
 
 Design Notes:
 
