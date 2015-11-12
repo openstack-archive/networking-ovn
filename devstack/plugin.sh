@@ -65,7 +65,7 @@ OVN_UUID=${OVN_UUID:-}
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
 # Openstack will use q-l3 functionality.
-OVN_L3_MODE=${OVN_L3_MODE:-False}
+OVN_L3_MODE=$(trueorfalse False OVN_L3_MODE)
 
 
 # Utility Functions
