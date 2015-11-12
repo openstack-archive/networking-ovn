@@ -20,6 +20,8 @@ from webob import exc
 
 from neutron.tests import tools
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
+from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
+
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -213,3 +215,8 @@ class TestOvnPlugin(OVNPluginTestCase):
                     self.assertEqual(tools.UnorderedList("22:22:22:22:22:22",
                                                          "00:00:00:00:00:01"),
                                      called_args_dict.get('port_security'))
+
+
+class TestL3NatTestCase(test_l3_plugin.L3NatDBIntTestCase,
+                        OVNPluginTestCase):
+    pass
