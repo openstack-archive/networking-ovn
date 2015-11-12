@@ -122,6 +122,12 @@ function configure_ovn_plugin {
         iniset $Q_PLUGIN_CONF_FILE ovn ovn_l3_mode "$OVN_L3_MODE"
     fi
 
+    if is_service_enabled q-l3 ; then
+        if [[ "$OVN_L3_MODE" == "True" ]]; then
+            die $LINENO "The q-l3 service must be disabled with OVN_L3_MODE set to True."
+        fi
+    fi
+
     if is_service_enabled q-dhcp ; then
         #
         # OVN uses tunnels between hypervisors to create virtual networks.  These tunnels add

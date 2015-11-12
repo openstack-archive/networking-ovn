@@ -32,7 +32,6 @@ enable_service q-svc
 # OVN uses the DHCP and L3 agents for now.  They will be dropped once the
 # corresponding functionality is available in OVN.
 enable_service q-dhcp
-enable_service q-l3
 enable_service q-meta
 
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
@@ -47,6 +46,8 @@ disable_service q-agt
 #OVN_UUID=
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
-# Openstack will use the q-l3 functionality.
+# Openstack will use the q-l3 functionality.  If you set OVN_L3_MODE to True,
+# you must also disable the q-l3 service.
 #OVN_L3_MODE=False
-
+enable_service q-l3
+#disable_service q-l3
