@@ -52,7 +52,7 @@ NETWORKING_OVN_DIR=$DEST/networking-ovn
 # The branch to use from $OVN_REPO
 # TODO(russellb) Change this back to master once the ovs conntrack kernel
 # backport has merged.
-OVN_BRANCH=origin/conntrack
+OVN_BRANCH=origin/conntrack2
 #OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
 # How to connect to ovsdb-server hosting the OVN databases.

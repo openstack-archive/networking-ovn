@@ -546,8 +546,36 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # Make sure we don't create duplicate ACL rows.
             acls[key] = cmd
 
+    def _add_acl_dhcp(self, context, port, txn, subnet_cache):
+        # Allow DHCP responses through from source IPs on the local subnet.
+        # We do this even if DHCP isn't enabled.  It could be enabled later.
+        # We could hook into handling when it's enabled/disabled for a subnet,
+        # but this code is temporary anyway.  It's likely no longer needed
+        # once OVN native DHCP support merges, which is under development and
+        # review already.
+        # TODO(russellb) Remove this once OVN native DHCP support is merged.
+        for ip in port['fixed_ips']:
+            if ip['subnet_id'] in subnet_cache:
+                subnet = subnet_cache[ip['subnet_id']]
+            else:
+                subnet = self.get_subnet(context, ip['subnet_id'])
+                subnet_cache[ip['subnet_id']] = subnet
+            if subnet['ip_version'] != 4:
+                continue
+            txn.add(self._ovn.add_acl(
+                lswitch=utils.ovn_name(port['network_id']),
+                lport=port['id'],
+                priority=ACL_PRIORITY_ALLOW,
+                action='allow',
+                log=False,
+                direction='to-lport',
+                match=('outport == "%s" && ip4 && ip4.src == %s && '
+                       'udp && udp.src == 67 && udp.dst == 68'
+                       ) % (port['id'], subnet['cidr']),
+                external_ids={'neutron:lport': port['id']}))
+
     def _add_acls(self, context, port, txn,
-                  sg_cache=None, sg_ports_cache=None):
+                  sg_cache=None, sg_ports_cache=None, subnet_cache=None):
         # Return a list of security groups applied to this port that have a
         # rule that matches on a remote_group_id.  This helps us figure out
         # which security groups need a full ACL refresh when a port gets
@@ -570,6 +598,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 direction=direction,
                 match='%s == "%s" && ip' % (p, port['id']),
                 external_ids={'neutron:lport': port['id']}))
+
+        if subnet_cache is None:
+            subnet_cache = {}
+        self._add_acl_dhcp(context, port, txn, subnet_cache)
 
         # We often need a list of all ports on a security group.  Cache these
         # results so we only do the query once throughout this processing.
@@ -662,15 +694,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     type=port_type,
                     port_security=allowed_macs))
             sg_ports_cache = {}
+            subnet_cache = {}
             remote_group_sgs = self._add_acls(context, port, txn,
-                                              sg_ports_cache=sg_ports_cache)
+                                              sg_ports_cache=sg_ports_cache,
+                                              subnet_cache=subnet_cache)
         for sg_id in remote_group_sgs:
             # Update ACLs for all other ports on a security group with this
             # port that includes a remote_group_id match.  We can skip updating
             # ACLs for this port though, because we just did it.
             self._update_acls_for_security_group(context, sg_id,
                                                  sg_ports_cache,
-                                                 exclude_ports=[port['id']])
+                                                 exclude_ports=[port['id']],
+                                                 subnet_cache=subnet_cache)
 
         return port
 
@@ -816,7 +851,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _update_acls_for_security_group(self, context, security_group_id,
                                         sg_ports_cache=None,
-                                        exclude_ports=None):
+                                        exclude_ports=None,
+                                        subnet_cache=None):
         # Update ACLs for all ports using this security group.  Note that the
         # ovsdb IDL supresses the transaction down to what has actually
         # changed.
@@ -828,13 +864,16 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             sg_cache = {}
             if sg_ports_cache is None:
                 sg_ports_cache = {}
+            if subnet_cache is None:
+                subnet_cache = {}
             for binding in sg_ports:
                 if binding['port_id'] in exclude_ports:
                     continue
                 port = self.get_port(context, binding['port_id'])
                 txn.add(self._ovn.delete_acl(
                         utils.ovn_name(port['network_id']), port['id']))
-                self._add_acls(context, port, txn, sg_cache, sg_ports_cache)
+                self._add_acls(context, port, txn, sg_cache, sg_ports_cache,
+                               subnet_cache)
 
     def update_security_group(self, context, id, security_group):
         res = super(OVNPlugin, self).update_security_group(context, id,
