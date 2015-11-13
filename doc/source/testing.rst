@@ -366,8 +366,10 @@ After completing the earlier instructions for setting up devstack, you can use a
 second VM to emulate an additional compute node.  This is important for OVN
 testing as it exercises the tunnels created by OVN between the hypervisors.
 
-Just as before, create a throwaway VM.  Create a user with sudo access and
-install git.
+Just as before, create a throwaway VM but make sure that this VM has a
+different host name. Having same host name for both VMs will confuse Nova and
+will not produce two hypervisors when you query nova hypervisor list later.
+Once the VM is setup, create a user with sudo access and install git.
 
 ::
 
