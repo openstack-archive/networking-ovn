@@ -123,7 +123,7 @@ Router Port
 
     OVN Northbound DB Logical Router Port:
         router: (reference to Logical Router)
-        network: (refernce to network this port is connected to)
+        network: (reference to network this port is connected to)
         mac:
         external_ids:
 
