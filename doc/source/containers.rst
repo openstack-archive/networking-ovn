@@ -8,7 +8,7 @@ VMs, OVN can be used to provide a virtual networking overlay for those
 containers to use.
 
 The second mode is very interesting in the context of OpenStack.  OVN makes
-special accomodation for running containers inside of VMs when the networking
+special accommodation for running containers inside of VMs when the networking
 for those VMs is already being managed by OVN.  You can create a special type of
 port in OVN for these containers and have them directly connected to virtual
 networks managed by OVN.  There are two major benefits of this:

@@ -86,11 +86,11 @@ def cleanup_test_name(name, strip_tags=True, strip_scenarios=False):
     """Clean up the test name for display.
 
     By default we strip out the tags in the test because they don't help us
-    in identifying the test that is run to it's result.
+    in identifying the test that is run to its result.
 
     Make it possible to strip out the testscenarios information (not to
     be confused with tempest scenarios) however that's often needed to
-    indentify generated negative tests.
+    identify generated negative tests.
     """
     if strip_tags:
         tags_start = name.find('[')
@@ -268,7 +268,7 @@ def parse_args():
                         'debug information in realtime')
     parser.add_argument('--fails', '-f', action='store_true',
                         dest='post_fails', help='Print failure debug '
-                        'information after the stream is proccesed')
+                        'information after the stream is processed')
     parser.add_argument('--failonly', action='store_true',
                         dest='failonly', help="Don't print success items",
                         default=(

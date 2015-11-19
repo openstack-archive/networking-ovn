@@ -281,7 +281,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     options=options,
                     enabled=port['admin_state_up'],
                     port_security=allowed_macs))
-            # Note that the ovsdb IDL supresses the transaction down to what
+            # Note that the ovsdb IDL suppresses the transaction down to what
             # has actually changed.
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']),
@@ -818,7 +818,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                         sg_ports_cache=None,
                                         exclude_ports=None):
         # Update ACLs for all ports using this security group.  Note that the
-        # ovsdb IDL supresses the transaction down to what has actually
+        # ovsdb IDL suppresses the transaction down to what has actually
         # changed.
         if exclude_ports is None:
             exclude_ports = []
