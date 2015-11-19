@@ -294,9 +294,35 @@ Once both VMs have been started, they will have a status of ``ACTIVE``::
     | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
     +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
 
+::
+
+Create floating-ip for the vm. You can create a new floating-ip by just typing
+this command if default local.conf mentioned above was used::
+
+    $ neutron floatingip-create c1f33146-1b82-48fb-aad6-493d08fbe492
+    Created a new floatingip:
+    +---------------------+--------------------------------------+
+    | Field               | Value                                |
+    +---------------------+--------------------------------------+
+    | fixed_ip_address    |                                      |
+    | floating_ip_address | 172.24.4.3                           |
+    | floating_network_id | c1f33146-1b82-48fb-aad6-493d08fbe492
+    | id                  | a163264c-9394-4f6b-a1cd-0dd848f33ddd |
+    | port_id             |                                      |
+    | router_id           |                                      |
+    | status              | ACTIVE                               |
+    | tenant_id           | b398e4a01b2c4a719bfd2e928358b4d3     |
+    +---------------------+--------------------------------------+
+
+Check id of the port to associate the floating ip (see port-list below).
+Then associate as followe::
+
+    $ neutron floatingip-associate --fixed-ip-address 10.0.0.3 \
+    > a163264c-9394-4f6b-a1cd-0dd848f33ddd e3800c90-24d4-49ad-abb2-041a2e3dd259
+
 SSH into one VM and ping the other::
 
-    $ ssh -i id_rsa_demo cirros@10.0.0.3
+    $ ssh -i id_rsa_demo cirros@172.24.4.3
 
     (cirros)$ ping 10.0.0.4
     PING 10.0.0.4 (10.0.0.4): 56 data bytes
