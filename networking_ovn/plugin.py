@@ -261,6 +261,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
+            self._update_extra_dhcp_opts_on_port(context, id, port,
+                                                 updated_port=updated_port)
+
         port_type, options, addresses, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, updated_port)
 
