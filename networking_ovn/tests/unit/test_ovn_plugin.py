@@ -20,6 +20,7 @@ from webob import exc
 
 from neutron.tests import tools
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
+from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 
 
@@ -220,3 +221,10 @@ class TestOvnPlugin(OVNPluginTestCase):
 class TestL3NatTestCase(test_l3_plugin.L3NatDBIntTestCase,
                         OVNPluginTestCase):
     pass
+
+
+class DHCPOptsTestCase(test_dhcpopts.TestExtraDhcpOpt, OVNPluginTestCase):
+
+    def setUp(self, plugin=None):
+        super(test_dhcpopts.ExtraDhcpOptDBTestCase, self).setUp(
+            plugin=PLUGIN_NAME)
