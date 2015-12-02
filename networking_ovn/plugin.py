@@ -47,6 +47,7 @@ from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
+from neutron.i18n import _LI
 
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
@@ -94,7 +95,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def __init__(self):
         super(OVNPlugin, self).__init__()
-        LOG.info(_("Starting OVNPlugin"))
+        LOG.info(_LI("Starting OVNPlugin"))
         self.vif_type = portbindings.VIF_TYPE_OVS
         # When set to True, Nova plugs the VIF directly into the ovs bridge
         # instead of using the hybrid mode.
