@@ -12,7 +12,7 @@
 
 from oslo_config import cfg
 
-from neutron.i18n import _
+from networking_ovn._i18n import _
 
 
 ovn_opts = [

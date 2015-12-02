@@ -14,8 +14,8 @@ from oslo_log import log as logging
 
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
-from neutron.i18n import _
 
+from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api

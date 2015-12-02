@@ -12,7 +12,8 @@
 
 from neutron.agent.ovsdb.native.commands import BaseCommand
 from neutron.agent.ovsdb.native import idlutils
-from neutron.i18n import _
+
+from networking_ovn._i18n import _
 
 
 class AddLSwitchCommand(BaseCommand):

@@ -14,8 +14,8 @@ from eventlet import greenthread
 from oslo_log import log
 
 from neutron import context
-from neutron.i18n import _LW
 
+from networking_ovn._i18n import _LW
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
