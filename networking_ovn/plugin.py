@@ -149,7 +149,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def start_rpc_listeners(self):
         self._setup_rpc()
-        self.conn = n_rpc.create_connection(new=True)
+        self.conn = n_rpc.create_connection()
         self.conn.create_consumer(topics.PLUGIN, self.endpoints, fanout=False)
         if not config.is_ovn_l3():
             self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
