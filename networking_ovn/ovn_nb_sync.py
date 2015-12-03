@@ -65,7 +65,7 @@ class OvnNbSynchronizer(object):
                                     network['id']), None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
-                        LOG.warn(_LW("Network found in Neutron but not in OVN"
+                        LOG.warn(_LW("Network found in Neutron but not in OVN "
                                      "DB, network_id=%s"),
                                  network['id'])
 
@@ -99,7 +99,7 @@ class OvnNbSynchronizer(object):
                 res = lports.pop(port['id'], None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
-                        LOG.warn(_LW("Port found in Neutron but not in OVN"
+                        LOG.warn(_LW("Port found in Neutron but not in OVN "
                                      "DB, port_id=%s"),
                                  port['id'])
 
