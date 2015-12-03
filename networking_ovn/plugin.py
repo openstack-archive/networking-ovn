@@ -799,18 +799,15 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         network = "%s/%s" % (port['fixed_ips'][0]['ip_address'],
                              str(cidr.prefixlen))
 
-        self._ovn.add_lrouter_port(port['id'], lrouter,
-                                   mac=port['mac_address'],
-                                   network=network).execute(check_error=True)
-        # TODO(chandrav)
-        # The following code is to update the options column in the lport
-        # table with {router-port: "UUID of logical_router_port"}. Ideally this
-        # should have been handled ine one transaction with add_lrouter_port,
-        # but due to a bug in idl, we are forced to update it in a separate
-        # transaction. After the transaction is committed idl does not update
-        # the UUID that is part of a string from old to new.
-        self._ovn.set_lrouter_port_in_lport(port['id']).execute(
-            check_error=True)
+        lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.add_lrouter_port(name=lrouter_port_name,
+                                               lrouter=lrouter,
+                                               mac=port['mac_address'],
+                                               network=network))
+
+            txn.add(self._ovn.set_lrouter_port_in_lport(port['id'],
+                                                        lrouter_port_name))
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -847,7 +844,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             context, router_id, interface_info)
 
         if port_id is not None:
-            self._ovn.delete_lrouter_port(port_id,
+            self._ovn.delete_lrouter_port(utils.ovn_lrouter_port_name(port_id),
                                           utils.ovn_name(router_id),
                                           if_exists=False
                                           ).execute(check_error=True)

@@ -283,9 +283,10 @@ class DelLRouterPortCommand(BaseCommand):
 
 
 class SetLRouterPortInLPortCommand(BaseCommand):
-    def __init__(self, api, lport):
+    def __init__(self, api, lport, lrouter_port):
         super(SetLRouterPortInLPortCommand, self).__init__(api)
         self.lport = lport
+        self.lrouter_port = lrouter_port
 
     def run_idl(self, txn):
         try:
@@ -294,15 +295,8 @@ class SetLRouterPortInLPortCommand(BaseCommand):
         except idlutils.RowNotFound:
             msg = _("Logical Port %s does not exist") % self.lport
             raise RuntimeError(msg)
-        try:
-            lrouter_port = idlutils.row_by_value(self.api.idl,
-                                                 'Logical_Router_Port',
-                                                 'name', self.lport)
-        except idlutils.RowNotFound:
-            msg = _("Logical Router Port %s does not exist") % self.lport
-            raise RuntimeError(msg)
 
-        options = {'router-port': str(lrouter_port.uuid)}
+        options = {'router-port': self.lrouter_port}
         setattr(port, 'options', options)
         setattr(port, 'type', 'router')
 

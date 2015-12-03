@@ -203,11 +203,13 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lrouter_port_in_lport(self, lport):
+    def set_lrouter_port_in_lport(self, lport, lrouter_port):
         """Create a command to set lport as lrouter_port
 
         :param lport:        The name of logical port
-        :type name:          string
+        :type lport:         string
+        :param lrouter_port: The name of logical router port
+        :type lrouter_port:  string
         :returns:            :class:`Command` with no result
         """
 

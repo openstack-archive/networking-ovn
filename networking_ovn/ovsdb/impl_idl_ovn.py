@@ -109,8 +109,8 @@ class OvsdbOvnIdl(ovn_api.API):
         return cmd.DelLRouterPortCommand(self, name, lrouter,
                                          if_exists)
 
-    def set_lrouter_port_in_lport(self, lport):
-        return cmd.SetLRouterPortInLPortCommand(self, lport)
+    def set_lrouter_port_in_lport(self, lport, lrouter_port):
+        return cmd.SetLRouterPortInLPortCommand(self, lport, lrouter_port)
 
     def add_acl(self, lswitch, lport, **columns):
         return cmd.AddACLCommand(self, lswitch, lport, **columns)

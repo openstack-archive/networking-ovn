@@ -18,3 +18,14 @@ def ovn_name(id):
     # We prefix the UUID to enable us to use the Neutron UUID when
     # updating, deleting etc.
     return 'neutron-%s' % id
+
+
+def ovn_lrouter_port_name(id):
+    # The name of the OVN lrouter port entry will be lrp-<UUID>
+    # This is to distinguish with the name of the connected lswitch patch port,
+    # which is named with neutron port uuid, so that OVS patch ports are
+    # generated properly. The pairing patch port names will be:
+    #   - patch-lrp-<UUID>-to-<UUID>
+    #   - patch-<UUID>-to-lrp-<UUID>
+    # lrp stands for Logical Router Port
+    return 'lrp-%s' % id
