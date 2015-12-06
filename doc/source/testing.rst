@@ -139,7 +139,7 @@ Booting VMs
 -----------
 
 In this section we'll go through the steps to create two VMs that have a virtual
-NIC attached to the ``private`` Neutron network.  
+NIC attached to the ``private`` Neutron network.
 
 DevStack uses libvirt as the Nova backend by default.  If KVM is available, it
 will be used.  Otherwise, it will just run qemu emulated guests.  This is
