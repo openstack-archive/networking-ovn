@@ -46,6 +46,8 @@ about OVN:
 * OVN at OpenStack Summit in Vancouver, Sping 2015
   * http://openvswitch.org/support/slides/OVN-Vancouver.pdf
   * https://www.youtube.com/watch?v=kEzXTq2fPDg
+* OVS Conference 2015
+  * https://www.youtube.com/watch?v=JLGZOYi_Cqc
 
 These blog resources may also help with testing and understanding OVN:
 
