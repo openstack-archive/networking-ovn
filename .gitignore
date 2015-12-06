@@ -53,3 +53,6 @@ etc
 
 # Vagrant directory
 vagrant/.vagrant
+
+# Files created by releasenotes build
+releasenotes/build
