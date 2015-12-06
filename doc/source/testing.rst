@@ -128,8 +128,12 @@ use.
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
 
 ..
-    TODO Go into more detail about the DHCP and L3 agents and how to figure out
-    which ports are associated with which.
+
+One can determine the DHCP port by running: ``neutron port-list --device-owner 'network:dhcp'``. This
+will return the DHCP port that was created by Neutron.
+
+The owner of the port, that is, the 'device_owner', will have details of the port owner.
+For example the port owner by a Nova instance  with will have device_owner 'compute:None'.
 
 Booting VMs
 -----------
