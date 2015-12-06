@@ -787,8 +787,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             context, router_id, interface_info)
 
         if not config.is_ovn_l3():
-            LOG.debug(_("OVN L3 mode is disabled, skipping "
-                        "add_router_interface"))
+            LOG.debug("OVN L3 mode is disabled, skipping "
+                      "add_router_interface")
             return router_interface_info
 
         port = self.get_port(context, router_interface_info['port_id'])
@@ -815,8 +815,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def remove_router_interface(self, context, router_id, interface_info):
         if not config.is_ovn_l3():
-            LOG.debug(_("OVN L3 mode is disabled, skipping "
-                        "remove_router_interface"))
+            LOG.debug("OVN L3 mode is disabled, skipping "
+                      "remove_router_interface")
             return super(OVNPlugin, self).remove_router_interface(
                 context, router_id, interface_info)
         # TODO(chandrav)
