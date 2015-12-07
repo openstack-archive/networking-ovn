@@ -9,6 +9,16 @@ The primary benefit of using ML2 is to support multiple mechanism drivers.  OVN
 does not currently support a deployment model that would benefit from the use of
 ML2.
 
+**Q: Does OVN support DVR or distributed L3 routing?**
+
+DVR (Distributed Virtual Router) is typically used to refer to a specific
+implementation of distributed routers provided by the Neutron L3 agent.  The
+Neutron L3 agent in DVR mode has never been tested with OVN.  Support for the
+Neutron L3 agent is only temporary and will be removed once OVN's native L3
+support includes enough functionality.
+
+When using OVN's native L3 support, L3 routing is always distributed.
+
 **Q: Does OVN support integration with physical switches?**
 
 OVN currently integrates with physical switches by optionally using them as VTEP
