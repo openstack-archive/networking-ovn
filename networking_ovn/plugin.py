@@ -48,7 +48,7 @@ from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
 
-from networking_ovn._i18n import _LI
+from networking_ovn._i18n import _, _LI
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
