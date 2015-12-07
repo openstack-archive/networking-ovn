@@ -40,20 +40,14 @@ set +o xtrace
 # --------
 
 # The git repo to use
-# TODO(russellb) Change this back to upstream ovs once the ovs conntrack kernel
-# backport has merged.
-OVN_REPO=https://github.com/russellb/ovs.git
-#OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
+OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
 # The project directory
 NETWORKING_OVN_DIR=$DEST/networking-ovn
 
 # The branch to use from $OVN_REPO
-# TODO(russellb) Change this back to master once the ovs conntrack kernel
-# backport has merged.
-OVN_BRANCH=origin/conntrack2
-#OVN_BRANCH=${OVN_BRANCH:-origin/master}
+OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
 # How to connect to ovsdb-server hosting the OVN databases.
 OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
