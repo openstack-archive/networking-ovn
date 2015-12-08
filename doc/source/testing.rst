@@ -574,6 +574,33 @@ the connection between this port and the provider network.
     $ ovn-nbctl lport-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
     network_name=providernet
 
+
+OVN L3
+-------
+
+The default sample local.conf uses Neutron's L3 agent in order to implement L3
+connectivity across subnets.  In this setup, all L3 traffic in this mode
+traverses the virtual router namespace on the network node running Neutron's L3
+agent.
+
+If you would like to use OVN distributed L3 support you must add the
+following line to your local.conf
+::
+
+   OVN_L3_MODE=True
+
+If you use OVN L3 mode you must also disable q-l3 service
+::
+
+   change 'enable_service q-l3' ==> to 'disable_service q-l3'
+
+OVN implements distributed virtual routing using OVS flows and
+does not require any namespaces.
+
+Keep in mind that OVN doesnt yet support SNAT/DNAT, in order
+to have public network (north/south traffic) you must still use
+Neutron L3 agent.
+
 Troubleshooting
 ---------------
 
