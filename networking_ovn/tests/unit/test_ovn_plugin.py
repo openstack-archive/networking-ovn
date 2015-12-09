@@ -27,6 +27,8 @@ from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import impl_idl_ovn
 
+from oslo_config import cfg
+
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 
 
@@ -49,6 +51,7 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
             return mock.MagicMock()
 
         self.plugin._ovn.transaction = _fake
+        self.context = _fake
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
@@ -216,6 +219,71 @@ class TestOvnPlugin(OVNPluginTestCase):
                     self.assertEqual(tools.UnorderedList("22:22:22:22:22:22",
                                                          "00:00:00:00:00:01"),
                                      called_args_dict.get('port_security'))
+
+
+class TestOvnPluginL3(OVNPluginTestCase):
+
+    def setUp(self,
+              plugin=PLUGIN_NAME,
+              ext_mgr=None,
+              service_plugins=None):
+        super(TestOvnPluginL3, self).setUp(plugin=plugin,
+                                           ext_mgr=ext_mgr,
+                                           service_plugins=service_plugins)
+
+        self.fake_router_port = {'mac_address': 'aa:aa:aa:aa:aa:aa',
+                                 'fixed_ips': [{'ip_address': '10.0.0.100',
+                                                'subnet_id': 'subnet-id'}],
+                                 'id': 'router-port-id'}
+
+        self.fake_subnet = {'id': 'subnet-id',
+                            'cidr': '10.0.0.1/24'}
+
+    @mock.patch('neutron.db.l3_gwmode_db.L3_NAT_db_mixin.'
+                'add_router_interface')
+    def test_add_router_interface(self, func):
+        self.plugin._ovn.add_lrouter_port = mock.Mock()
+        self.plugin._ovn.set_lrouter_port_in_lport = mock.Mock()
+        cfg.CONF.set_override('ovn_l3_mode', True, 'ovn')
+
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                        'get_port',
+                        return_value=self.fake_router_port):
+            with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                            'get_subnet',
+                            return_value=self.fake_subnet):
+                self.plugin.add_router_interface(self.context, router_id,
+                                                 interface_info)
+
+        self.plugin._ovn.add_lrouter_port.assert_called_once_with(
+            lrouter='neutron-router-id',
+            mac='aa:aa:aa:aa:aa:aa',
+            name='lrp-router-port-id',
+            network='10.0.0.100/24')
+        self.plugin._ovn.set_lrouter_port_in_lport.assert_called_once_with(
+            'router-port-id', 'lrp-router-port-id')
+
+    @mock.patch('neutron.db.l3_gwmode_db.L3_NAT_db_mixin.'
+                'remove_router_interface')
+    def test_remove_router_interface(self, func):
+        self.plugin._ovn.delete_lrouter_port = mock.Mock()
+        cfg.CONF.set_override('ovn_l3_mode', True, 'ovn')
+
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                        'get_port',
+                        return_value=self.fake_router_port):
+            with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                            'get_ports',
+                            return_value=[self.fake_router_port]):
+                self.plugin.remove_router_interface(self.context, router_id,
+                                                    interface_info)
+
+        self.plugin._ovn.delete_lrouter_port.assert_called_once_with(
+            'lrp-router-port-id', 'neutron-router-id', if_exists=False)
 
 
 class TestL3NatTestCase(test_l3_plugin.L3NatDBIntTestCase,
