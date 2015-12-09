@@ -578,6 +578,19 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                        ) % (port['id'], subnet['cidr']),
                 external_ids={'neutron:lport': port['id']}))
 
+    def _drop_all_ip_traffic_for_port(self, port, txn):
+        for direction, p in (('from-lport', 'inport'),
+                             ('to-lport', 'outport')):
+            txn.add(self._ovn.add_acl(
+                lswitch=utils.ovn_name(port['network_id']),
+                lport=port['id'],
+                priority=ACL_PRIORITY_DROP,
+                action='drop',
+                log=False,
+                direction=direction,
+                match='%s == "%s" && ip' % (p, port['id']),
+                external_ids={'neutron:lport': port['id']}))
+
     def _add_acls(self, context, port, txn,
                   sg_cache=None, sg_ports_cache=None, subnet_cache=None):
         # Return a list of security groups applied to this port that have a
@@ -591,17 +604,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             return remote_group_sgs
 
         # Drop all IP traffic to and from the logical port by default.
-        for direction, p in (('from-lport', 'inport'),
-                             ('to-lport', 'outport')):
-            txn.add(self._ovn.add_acl(
-                lswitch=utils.ovn_name(port['network_id']),
-                lport=port['id'],
-                priority=ACL_PRIORITY_DROP,
-                action='drop',
-                log=False,
-                direction=direction,
-                match='%s == "%s" && ip' % (p, port['id']),
-                external_ids={'neutron:lport': port['id']}))
+        self._drop_all_ip_traffic_for_port(port, txn)
 
         if subnet_cache is None:
             subnet_cache = {}

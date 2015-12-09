@@ -222,6 +222,83 @@ class TestOvnPlugin(OVNPluginTestCase):
                                      called_args_dict.get('port_security'))
 
 
+class TestOvnPluginACLs(OVNPluginTestCase):
+
+    def setUp(self,
+              plugin=PLUGIN_NAME,
+              ext_mgr=None,
+              service_plugins=None):
+        super(TestOvnPluginACLs, self).setUp(plugin=plugin,
+                                             ext_mgr=ext_mgr,
+                                             service_plugins=service_plugins)
+
+        self.fake_port = {'id': 'fake_port_id1',
+                          'network_id': 'network_id1',
+                          'fixed_ips': [{'subnet_id': 'subnet_id1',
+                                         'ip_address': '1.1.1.1'}]}
+        self.fake_subnet = {'id': 'subnet_id1',
+                            'ip_version': 4,
+                            'cidr': '1.1.1.0/24'}
+
+    def test__drop_all_ip_traffic_for_port(self):
+        self.plugin._ovn.add_acl = mock.Mock()
+        self.plugin._drop_all_ip_traffic_for_port(self.fake_port, mock.Mock())
+        self.plugin._ovn.add_acl.assert_has_calls(
+            [mock.call(action='drop', direction='from-lport',
+                       external_ids={'neutron:lport': self.fake_port['id']},
+                       log=False, lport=self.fake_port['id'],
+                       lswitch='neutron-network_id1',
+                       match='inport == "fake_port_id1" && ip', priority=1001),
+             mock.call(action='drop', direction='to-lport',
+                       external_ids={'neutron:lport': self.fake_port['id']},
+                       log=False, lport=self.fake_port['id'],
+                       lswitch='neutron-network_id1',
+                       match='outport == "fake_port_id1" && ip',
+                       priority=1001)])
+
+    def test__add_acl_dhcp_no_cache(self):
+        self.plugin._ovn.add_acl = mock.Mock()
+        with utils.nested(
+            mock.patch.object(self.plugin, 'get_subnet',
+                              return_value=self.fake_subnet)
+        ):
+            self.plugin._add_acl_dhcp(self.context, self.fake_port,
+                                      mock.Mock(), {})
+
+        expected_match = (
+            'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
+            '&& udp.dst == 68') % (self.fake_port['id'],
+                                   self.fake_subnet['cidr'])
+        self.plugin._ovn.add_acl.assert_has_calls(
+            [mock.call(action='allow', direction='to-lport',
+                       external_ids={'neutron:lport': 'fake_port_id1'},
+                       log=False, lport='fake_port_id1',
+                       lswitch='neutron-network_id1',
+                       match=expected_match, priority=1002)])
+
+    def test__add_acl_dhcp_cache(self):
+        self.plugin._ovn.add_acl = mock.Mock()
+        self.plugin._add_acl_dhcp(self.context, self.fake_port, mock.Mock(),
+                                  {'subnet_id1': self.fake_subnet})
+        expected_match = (
+            'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
+            '&& udp.dst == 68') % (self.fake_port['id'],
+                                   self.fake_subnet['cidr'])
+        self.plugin._ovn.add_acl.assert_has_calls(
+            [mock.call(action='allow', direction='to-lport',
+                       external_ids={'neutron:lport': 'fake_port_id1'},
+                       log=False, lport='fake_port_id1',
+                       lswitch='neutron-network_id1',
+                       match=expected_match, priority=1002)])
+
+    def test__add_acls_no_sec_group(self):
+        remote_sgs = self.plugin._add_acls(
+            self.context,
+            port={'security_groups': []},
+            txn=mock.Mock())
+        self.assertEqual(remote_sgs, set())
+
+
 class TestOvnPluginL3(OVNPluginTestCase):
 
     def setUp(self,
