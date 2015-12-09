@@ -227,8 +227,11 @@ function install_ovn {
     sudo modprobe -r vport_geneve
     sudo modprobe -r openvswitch
     sudo modprobe libcrc32c
+    sudo modprobe nf_defrag_ipv6
+    sudo modprobe ip_tunnel
+    sudo modprobe gre
     # Be super explicit that we want our custom modules loaded ...
-    sudo insmod datapath/linux/openvswitch.ko
+    sudo insmod datapath/linux/openvswitch.ko || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")
     sudo insmod datapath/linux/vport-geneve.ko || (echo "FAILED TO LOAD vport_geneve" && dmesg)
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
