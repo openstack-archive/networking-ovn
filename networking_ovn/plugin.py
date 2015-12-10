@@ -57,15 +57,6 @@ from networking_ovn.ovsdb import impl_idl_ovn
 LOG = log.getLogger(__name__)
 
 
-# OVN ACLs have priorities.  The highest priority ACL that matches is the one
-# that takes effect.  Our choice of priority numbers is arbitrary, but it
-# leaves room above and below the ACLs we create.  We only need two priorities.
-# The first is for all the things we allow.  The second is for dropping traffic
-# by default.
-ACL_PRIORITY_ALLOW = 1002
-ACL_PRIORITY_DROP = 1001
-
-
 class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 securitygroups_db.SecurityGroupDbMixin,
                 l3_agentschedulers_db.L3AgentSchedulerDbMixin,
@@ -529,7 +520,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         cmd = self._ovn.add_acl(
             lswitch=utils.ovn_name(port['network_id']),
             lport=port['id'],
-            priority=ACL_PRIORITY_ALLOW,
+            priority=ovn_const.ACL_PRIORITY_ALLOW,
             action='allow-related',
             log=False,
             direction=dir_map[r['direction']],
@@ -567,7 +558,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             txn.add(self._ovn.add_acl(
                 lswitch=utils.ovn_name(port['network_id']),
                 lport=port['id'],
-                priority=ACL_PRIORITY_ALLOW,
+                priority=ovn_const.ACL_PRIORITY_ALLOW,
                 action='allow',
                 log=False,
                 direction='to-lport',
@@ -582,7 +573,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             txn.add(self._ovn.add_acl(
                 lswitch=utils.ovn_name(port['network_id']),
                 lport=port['id'],
-                priority=ACL_PRIORITY_DROP,
+                priority=ovn_const.ACL_PRIORITY_DROP,
                 action='drop',
                 log=False,
                 direction=direction,

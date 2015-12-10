@@ -24,3 +24,11 @@ OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},
                                    {'vtep_physical_switch': six.string_types,
                                     'vtep_logical_switch': six.string_types}]
+
+# OVN ACLs have priorities.  The highest priority ACL that matches is the one
+# that takes effect.  Our choice of priority numbers is arbitrary, but it
+# leaves room above and below the ACLs we create.  We only need two priorities.
+# The first is for all the things we allow.  The second is for dropping traffic
+# by default.
+ACL_PRIORITY_ALLOW = 1002
+ACL_PRIORITY_DROP = 1001
