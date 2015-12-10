@@ -18,7 +18,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
 
-
 from neutron.agent.ovsdb.native import idlutils
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.agentnotifiers import l3_rpc_agent_api
@@ -54,7 +53,6 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
-
 
 LOG = log.getLogger(__name__)
 
