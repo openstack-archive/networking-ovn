@@ -18,6 +18,8 @@ import mock
 from oslo_config import cfg
 from webob import exc
 
+from neutron.common import exceptions as n_exc
+from neutron import context
 from neutron.tests import tools
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
@@ -53,7 +55,27 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
-    pass
+
+    def test_create_lswitch_exception(self):
+        data = {'network': {'name': 'private',
+                            'admin_state_up': True,
+                            'shared': False,
+                            'tenant_id': 'fake-id'}}
+        self.plugin._ovn.create_lswitch = mock.MagicMock()
+        self.plugin._ovn.create_lswitch.side_effect = RuntimeError('ovn')
+        self.assertRaises(n_exc.ServiceUnavailable,
+                          self.plugin.create_network,
+                          context.get_admin_context(),
+                          data)
+
+    def test_delete_lswitch_exception(self):
+        self.plugin._ovn.delete_lswitch = mock.MagicMock()
+        self.plugin._ovn.delete_lswitch.side_effect = RuntimeError('ovn')
+        res = self._create_network(self.fmt, 'net1', True)
+        net = self.deserialize(self.fmt, res)
+        req = self.new_delete_request('networks', net['network']['id'])
+        res = req.get_response(self.api)
+        self.assertEqual(res.status_int, exc.HTTPNoContent.code)
 
 
 class TestPortsV2(test_plugin.TestPortsV2, OVNPluginTestCase):

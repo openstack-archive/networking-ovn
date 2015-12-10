@@ -47,7 +47,7 @@ from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
 
-from networking_ovn._i18n import _, _LI
+from networking_ovn._i18n import _, _LE, _LI
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -194,7 +194,13 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                            network)
             self._process_l3_create(context, result, net)
 
-        return self.create_network_in_ovn(result, ext_ids)
+        try:
+            return self.create_network_in_ovn(result, ext_ids)
+        except Exception:
+            LOG.exception(_LE('Unable to create lswitch for %s'),
+                          result['id'])
+            self.delete_network(context, result['id'])
+            raise n_exc.ServiceUnavailable()
 
     def create_network_in_ovn(self, network, ext_ids):
         # Create a logical switch with a name equal to the Neutron network
@@ -204,7 +210,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name']
         })
 
-        # TODO(arosen): Undo logical switch creation on failure
         self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
                                  external_ids=ext_ids).execute(
                                      check_error=True)
@@ -214,9 +219,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             super(OVNPlugin, self).delete_network(context,
                                                   network_id)
-        self._ovn.delete_lswitch(
-            utils.ovn_name(network_id), if_exists=True).execute(
-                check_error=True)
+        try:
+            self._ovn.delete_lswitch(
+                utils.ovn_name(network_id), if_exists=True).execute(
+                    check_error=True)
+        except Exception:
+            LOG.exception(_LE('Unable to delete lswitch for %s'), network_id)
 
     def _set_network_name(self, network_id, name):
         ext_id = [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, name]
