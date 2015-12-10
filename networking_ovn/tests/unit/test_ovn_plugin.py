@@ -330,7 +330,8 @@ class TestOvnPluginL3(OVNPluginTestCase):
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
                        'get_port', return_value=self.fake_router_port),
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_subnet', return_value=self.fake_subnet)):
+                       'get_subnet', return_value=self.fake_subnet)
+        ):
             self.plugin.add_router_interface(self.context, router_id,
                                              interface_info)
 
@@ -354,7 +355,8 @@ class TestOvnPluginL3(OVNPluginTestCase):
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
                        'get_port', return_value=self.fake_router_port),
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_ports', return_value=[self.fake_router_port])):
+                       'get_ports', return_value=[self.fake_router_port])
+        ):
             self.plugin.remove_router_interface(self.context, router_id,
                                                 interface_info)
 
