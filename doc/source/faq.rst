@@ -61,4 +61,4 @@ getting the core networking features working through the whole system.  We
 expect development in the next year to have more of a focus on scaling,
 including the issues discussed here.
 
-See readme_ for links to more details on OVN's architecture.
+See :doc:`readme` for links to more details on OVN's architecture.
