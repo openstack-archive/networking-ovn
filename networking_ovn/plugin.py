@@ -248,7 +248,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_portbindings_create_and_update(context,
                                                          port['port'],
                                                          updated_port)
-            self.update_security_group_on_port(
+            sg_updated = self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
             self._update_extra_dhcp_opts_on_port(context, id, port,
@@ -257,12 +257,24 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_type, options, addresses, allowed_macs, parent_name, tag = \
             self._get_ovn_port_options(binding_profile, updated_port)
 
-        return self._update_port_in_ovn(context, updated_port, addresses,
-                                        parent_name, tag, port_type, options,
-                                        allowed_macs)
+        return self._update_port_in_ovn(context, sg_updated, original_port,
+                                        updated_port, addresses, parent_name,
+                                        tag, port_type, options, allowed_macs)
 
-    def _update_port_in_ovn(self, context, port, addresses, parent_name, tag,
-                            port_type, options, allowed_macs):
+    def _get_remote_groups_in_sg(self, context, sg_id):
+        remote_group_sgs = set()
+
+        sg = self.get_security_group(context, sg_id)
+
+        for r in sg['security_group_rules']:
+            if r['remote_group_id']:
+                remote_group_sgs.add(r['remote_group_id'])
+
+        return remote_group_sgs
+
+    def _update_port_in_ovn(self, context, sg_updated, original_port, port,
+                            addresses, parent_name, tag, port_type, options,
+                            allowed_macs):
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         with self._ovn.transaction(check_error=True) as txn:
@@ -279,7 +291,37 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']),
                     port['id']))
-            self._add_acls(context, port, txn)
+            sg_ports_cache = {}
+            subnet_cache = {}
+            remote_group_sgs = self._add_acls(context, port, txn,
+                                              sg_ports_cache=sg_ports_cache,
+                                              subnet_cache=subnet_cache)
+
+        if sg_updated:
+            # Update acls for old security group with remote-group rules
+            old_sg_ids = original_port.get('security_groups', [])
+            new_sg_ids = port.get('security_groups', [])
+            removed_sg_ids = set(old_sg_ids) - set(new_sg_ids)
+            for sg_id in removed_sg_ids:
+                remote_group_sgs_old = self._get_remote_groups_in_sg(
+                    context, sg_id)
+                if sg_id in remote_group_sgs_old:
+                    # TODO(zhouhan): in fact all the remote groups with rules
+                    # that referencing the old group need to be updated, which
+                    # is addressed by bug #1525363
+                    self._update_acls_for_security_group(
+                        context, sg_id,
+                        sg_ports_cache,
+                        exclude_ports=[port['id']],
+                        subnet_cache=subnet_cache)
+
+            # Update acls for new security group with remote-group rules
+            for sg_id in remote_group_sgs:
+                self._update_acls_for_security_group(
+                    context, sg_id,
+                    sg_ports_cache,
+                    exclude_ports=[port['id']],
+                    subnet_cache=subnet_cache)
         return port
 
     def _get_data_from_binding_profile(self, context, port):
