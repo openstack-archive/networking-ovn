@@ -32,3 +32,7 @@ OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
 # by default.
 ACL_PRIORITY_ALLOW = 1002
 ACL_PRIORITY_DROP = 1001
+
+ACL_ACTION_DROP = 'drop'
+ACL_ACTION_ALLOW_RELATED = 'allow-related'
+ACL_ACTION_ALLOW = 'allow'
