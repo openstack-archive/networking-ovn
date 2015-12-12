@@ -289,11 +289,12 @@ class TestOvnPluginACLs(OVNPluginTestCase):
                        match=expected_match, priority=1002)])
 
     def test__add_acls_no_sec_group(self):
-        remote_sgs = self.plugin._add_acls(
+        self.plugin._ovn.add_acl = mock.Mock()
+        self.plugin._add_acls(
             self.context,
             port={'security_groups': []},
             txn=mock.Mock())
-        self.assertEqual(remote_sgs, set())
+        self.plugin._ovn.add_acl.assert_not_called()
 
 
 class TestOvnPluginL3(OVNPluginTestCase):
