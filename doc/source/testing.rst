@@ -298,8 +298,6 @@ Once both VMs have been started, they will have a status of ``ACTIVE``::
     | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
     +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
 
-::
-
 Create floating-ip for the vm. You can create a new floating-ip by just typing
 this command if default local.conf mentioned above was used::
 
@@ -604,9 +602,9 @@ Neutron L3 agent.
 Troubleshooting
 ---------------
 
-If you run into any problems, take a look at our troubleshooting_ page.
+If you run into any problems, take a look at our :doc:`troubleshooting` page.
 
 Additional Resources
 --------------------
 
-See the documentation and other references linked from the readme_ page.
+See the documentation and other references linked from the :doc:`readme` page.
