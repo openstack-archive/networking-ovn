@@ -15,7 +15,7 @@
 
 
 import mock
-
+from oslo_config import cfg
 from webob import exc
 
 from neutron.tests import tools
@@ -23,12 +23,9 @@ from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 
-
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.tests import utils
-
-from oslo_config import cfg
 
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 
