@@ -20,7 +20,9 @@ from webob import exc
 
 from neutron.common import exceptions as n_exc
 from neutron import context
+from neutron.extensions import portbindings
 from neutron.tests import tools
+from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
@@ -78,8 +80,13 @@ class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
         self.assertEqual(res.status_int, exc.HTTPNoContent.code)
 
 
-class TestPortsV2(test_plugin.TestPortsV2, OVNPluginTestCase):
-    pass
+class TestPortsV2(test_plugin.TestPortsV2, OVNPluginTestCase,
+                  test_bindings.PortBindingsTestCase,
+                  test_bindings.PortBindingsHostTestCaseMixin,
+                  test_bindings.PortBindingsVnicTestCaseMixin):
+
+    VIF_TYPE = portbindings.VIF_TYPE_OVS
+    HAS_PORT_FILTER = True
 
 
 class TestBasicGet(test_plugin.TestBasicGet, OVNPluginTestCase):
