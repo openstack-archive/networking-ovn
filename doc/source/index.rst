@@ -14,6 +14,7 @@ General Information and Other Project References:
    readme
    contributing
    faq
+   deployment_integration_guide
 
 Testing and Usage Information:
 
