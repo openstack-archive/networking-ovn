@@ -222,6 +222,7 @@ function install_ovn {
     sudo modprobe -r openvswitch
     sudo modprobe openvswitch || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")
     sudo modprobe vport-geneve || (echo "FAILED TO LOAD vport_geneve" && dmesg)
+    dmesg | tail
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
 
