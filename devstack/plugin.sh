@@ -252,6 +252,9 @@ function start_ovs {
         sleep 1
     done
     echo "done."
+    # TODO remove this line once this bug with monitor2 is resolved:
+    # http://openvswitch.org/pipermail/dev/2015-December/063406.html
+    ovs-appctl -t ovsdb-server ovsdb-server/disable-monitor2
     ovs-vsctl --no-wait init
     ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
     ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
