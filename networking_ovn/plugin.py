@@ -269,17 +269,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                         updated_port, addresses, parent_name,
                                         tag, port_type, options, allowed_macs)
 
-    def _get_remote_groups_in_sg(self, context, sg_id):
-        remote_group_sgs = set()
-
-        sg = self.get_security_group(context, sg_id)
-
-        for r in sg['security_group_rules']:
-            if r['remote_group_id']:
-                remote_group_sgs.add(r['remote_group_id'])
-
-        return remote_group_sgs
-
     def _update_port_in_ovn(self, context, sg_updated, original_port, port,
                             addresses, parent_name, tag, port_type, options,
                             allowed_macs):
@@ -301,35 +290,32 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     port['id']))
             sg_ports_cache = {}
             subnet_cache = {}
-            remote_group_sgs = self._add_acls(context, port, txn,
-                                              sg_ports_cache=sg_ports_cache,
-                                              subnet_cache=subnet_cache)
+            self._add_acls(context, port, txn,
+                           sg_ports_cache=sg_ports_cache,
+                           subnet_cache=subnet_cache)
 
         if sg_updated:
-            # Update acls for old security group with remote-group rules
+            # Refresh remote security groups for detached security groups
             old_sg_ids = original_port.get('security_groups', [])
             new_sg_ids = port.get('security_groups', [])
-            removed_sg_ids = set(old_sg_ids) - set(new_sg_ids)
-            for sg_id in removed_sg_ids:
-                remote_group_sgs_old = self._get_remote_groups_in_sg(
-                    context, sg_id)
-                if sg_id in remote_group_sgs_old:
-                    # TODO(zhouhan): in fact all the remote groups with rules
-                    # that referencing the old group need to be updated, which
-                    # is addressed by bug #1525363
-                    self._update_acls_for_security_group(
-                        context, sg_id,
-                        sg_ports_cache,
-                        exclude_ports=[port['id']],
-                        subnet_cache=subnet_cache)
-
-            # Update acls for new security group with remote-group rules
-            for sg_id in remote_group_sgs:
-                self._update_acls_for_security_group(
-                    context, sg_id,
+            detached_sg_ids = set(old_sg_ids) - set(new_sg_ids)
+            for sg_id in detached_sg_ids:
+                self._refresh_remote_security_group(
+                    context,
+                    sg_id,
                     sg_ports_cache,
                     exclude_ports=[port['id']],
                     subnet_cache=subnet_cache)
+
+            # Refresh remote security groups for attached security groups
+            attached_sg_ids = set(new_sg_ids) - set(old_sg_ids)
+            for sg_id in attached_sg_ids:
+                self._refresh_remote_security_group(
+                    context, sg_id,
+                    sg_ports_cache=sg_ports_cache,
+                    exclude_ports=[port['id']],
+                    subnet_cache=subnet_cache)
+
         return port
 
     def _get_data_from_binding_profile(self, context, port):
@@ -632,15 +618,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _add_acls(self, context, port, txn,
                   sg_cache=None, sg_ports_cache=None, subnet_cache=None):
-        # Return a list of security groups applied to this port that have a
-        # rule that matches on a remote_group_id.  This helps us figure out
-        # which security groups need a full ACL refresh when a port gets
-        # created.
-        remote_group_sgs = set()
-
         sec_groups = port.get('security_groups', [])
         if not sec_groups:
-            return remote_group_sgs
+            return
 
         # Drop all IP traffic to and from the logical port by default.
         self._drop_all_ip_traffic_for_port(port, txn)
@@ -666,16 +646,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 if sg_cache is not None:
                     sg_cache[sg_id] = sg
             for r in sg['security_group_rules']:
-                if r['remote_group_id']:
-                    remote_group_sgs.add(r['remote_group_id'])
                 cmd = self._add_sg_rule_acl_for_port(context, port, r,
                                                      sg_ports_cache)
                 self._add_acl_cmd(acls, cmd)
 
         for cmd in six.itervalues(acls):
             txn.add(cmd)
-
-        return remote_group_sgs
 
     def _create_port_in_ovn(self, context, port, macs, parent_name, tag,
                             port_type, options, allowed_macs):
@@ -741,19 +717,32 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     port_security=allowed_macs))
             sg_ports_cache = {}
             subnet_cache = {}
-            remote_group_sgs = self._add_acls(context, port, txn,
-                                              sg_ports_cache=sg_ports_cache,
-                                              subnet_cache=subnet_cache)
-        for sg_id in remote_group_sgs:
-            # Update ACLs for all other ports on a security group with this
-            # port that includes a remote_group_id match.  We can skip updating
-            # ACLs for this port though, because we just did it.
-            self._update_acls_for_security_group(context, sg_id,
-                                                 sg_ports_cache,
-                                                 exclude_ports=[port['id']],
-                                                 subnet_cache=subnet_cache)
+            self._add_acls(context, port, txn,
+                           sg_ports_cache=sg_ports_cache,
+                           subnet_cache=subnet_cache)
+
+        for sg_id in port.get('security_group', []):
+            self._refresh_remote_security_group(context, sg_id,
+                                                sg_ports_cache=sg_ports_cache,
+                                                exclude_ports=[port['id']],
+                                                subnet_cache=subnet_cache)
 
         return port
+
+    def _refresh_remote_security_group(self, context, sec_group,
+                                       sg_ports_cache, exclude_ports,
+                                       subnet_cache):
+        # For sec_group, refresh acls for all other security groups that have
+        # rules referencing sec_group as 'remote_group'.
+        filters = {'remote_group_id': [sec_group]}
+        refering_rules = self.get_security_group_rules(
+            context, filters, fields=['security_group_id'])
+        sg_ids = set(r['security_group_id'] for r in refering_rules)
+        for sg_id in sg_ids:
+            self._update_acls_for_security_group(context, sg_id,
+                                                 sg_ports_cache,
+                                                 exclude_ports,
+                                                 subnet_cache=subnet_cache)
 
     def delete_port(self, context, port_id, l3_port_check=True):
         port = self.get_port(context, port_id)
