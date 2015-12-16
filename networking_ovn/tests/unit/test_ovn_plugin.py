@@ -29,7 +29,6 @@ from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import impl_idl_ovn
-from networking_ovn.tests import utils
 
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 
@@ -284,10 +283,8 @@ class TestOvnPluginACLs(OVNPluginTestCase):
 
     def test__add_acl_dhcp_no_cache(self):
         self.plugin._ovn.add_acl = mock.Mock()
-        with utils.nested(
-            mock.patch.object(self.plugin, 'get_subnet',
-                              return_value=self.fake_subnet)
-        ):
+        with mock.patch.object(self.plugin, 'get_subnet',
+                               return_value=self.fake_subnet):
             self.plugin._add_acl_dhcp(self.context, self.fake_port,
                                       mock.Mock(), {})
 
@@ -388,12 +385,10 @@ class TestOvnPluginL3(OVNPluginTestCase):
 
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
-        with utils.nested(
+        with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                        'get_port', return_value=self.fake_router_port),\
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_port', return_value=self.fake_router_port),
-            mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_subnet', return_value=self.fake_subnet)
-        ):
+                       'get_subnet', return_value=self.fake_subnet):
             self.plugin.add_router_interface(self.context, router_id,
                                              interface_info)
 
@@ -413,14 +408,12 @@ class TestOvnPluginL3(OVNPluginTestCase):
 
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
-        with utils.nested(
+        with mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                        'get_port', return_value=self.fake_router_port),\
             mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_port', return_value=self.fake_router_port),
-            mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
-                       'get_ports', return_value=[self.fake_router_port])
-        ):
-            self.plugin.remove_router_interface(self.context, router_id,
-                                                interface_info)
+                       'get_ports', return_value=[self.fake_router_port]):
+            self.plugin.remove_router_interface(
+                self.context, router_id, interface_info)
 
         self.plugin._ovn.delete_lrouter_port.assert_called_once_with(
             'lrp-router-port-id', 'neutron-router-id', if_exists=False)
