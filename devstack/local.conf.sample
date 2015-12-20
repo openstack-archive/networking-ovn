@@ -51,3 +51,9 @@ disable_service q-agt
 #OVN_L3_MODE=False
 enable_service q-l3
 #disable_service q-l3
+
+# Whether or not to build custom openvswitch kernel modules from the ovs git
+# tree. This is enabled by default.  This is required unless your distro kernel
+# includes ovs+conntrack support.  This support was first released in Linux 4.3,
+# and will likely be backported by some distros.
+#OVN_BUILD_MODULES=True
