@@ -1,161 +1,242 @@
-..
-    Convention for heading levels:
-    =======  Heading 0 (reserved for the title in a document)
-    -------  Heading 1
-    ~~~~~~~  Heading 2
-    +++++++  Heading 3
-    '''''''  Heading 4
-    (Avoid deeper levels because they do not render well.)
+Deployment tool integration
+===========================
 
+The ``networking-ovn`` repository includes integration with DevStack that
+enables creation of a simple Open Virtual Network (OVN) development and test
+environment. Deploying OVN in a realistic deployment requires integration
+with various OpenStack deployment tools such as Fuel, OpenStack Ansible,
+and TripleO. This guide provides general instructions for developers of these
+tools to integrate OVN into conventional architectures that include the
+following types of nodes:
 
-Deployment Tool Integration
-==============================
+* Controller - Runs OpenStack control plane services such as REST APIs
+  and databases.
 
-The networking-ovn git repository includes integration with DevStack, which
-enables the creation of simple development and test environments with OVN.  The
-use of OVN in a realstic deployment requires integration with OpenStack
-deployment tooling.
+* Network - Runs the layer-2, layer-3 (routing), DHCP, and metadata agents
+  for the Networking service. Some agents optional. Usually provides
+  connectivity between provider (public) and project (private) networks
+  via NAT and floating IP addresses.
 
-The purpose of this guide is to document what’s required to integrate OVN into
-an OpenStack deployment tool.  It discusses OpenStack nodes of 3 different
-types:
+  .. note::
 
-* **Controller Node** - A node that runs OpenStack control services such as REST
-  APIs and databases.
+     Some tools deploy these services on controller nodes.
 
-* **Network Node** - A node that runs the Neutron L3 agent and provides routing
-  between tenant networks, as well as connectivity to an external network.
-  This node may also be running the Neutron DHCP agent to provide DHCP services
-  to tenant networks.
+* Compute - Runs the hypervisor and layer-2 agent for the Networking
+  service.
 
-* **Compute Node** - A hypervisor.
+Packaging
+---------
 
-New Packages
----------------
+Open vSwitch (OVS) includes OVN beginning with version 2.5 and considers
+it experimental. The Networking service integration for OVN uses an
+independent package, typically ``networking-ovn``.
 
-The Neutron integration for OVN is an independent package, ``networking-ovn``.
+Building OVS from source automatically installs OVN. For deployment tools
+using distribution packages, the ``openvswitch-ovn`` package for RHEL/CentOS
+and compatible distributions automatically installs ``openvswitch`` as a
+dependency. Ubuntu/Debian and compatible distributions do not offer OVN
+packages yet.
 
-OVN is a part of OVS.  The first release that includes OVN is OVS 2.5, though
-OVN is technically experimental in that release.  OVN gets installed
-automatically if you install OVS from source.  The OVS RPM includes OVN as a
-sub-package called ``openvswitch-ovn``.  The Debian/Ubuntu packaging has not
-been updated for OVN yet.
-
-Controller Nodes
--------------------
-
-Controller nodes should have both the ``networking-ovn`` and ``openvswitch-ovn``
-packages installed.
-
-ovn-northd and ovsdb-server
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-OVN has two databases both managed by ``ovsdb-server``.  It also has a control
-service, ``ovn-northd``.
-
-To start both ``ovsdb-server`` and ``ovn-northd``, you can use the ovn-northd
-systemd unit::
-
-    $ sudo systemctl start ovn-northd
-
-Or you can start it using the ``ovn-ctl`` script::
-
-    $ sudo /usr/share/openvswitch/scripts/ovn-ctl start_northd
-
-There should only be a single instance of ``ovn-northd`` and ``ovsdb-server``
-running. For HA, you can run them in an active/passive mode.  See the HA section
-of the networking-ovn :doc:`faq` for more information about the current state
-and future plans around HA for the control services.
-
-``ovsdb-server`` must be told to listen via TCP so that compute nodes will be
-able to connect to the database.  You can enable that with the following
-command::
-
-    $ sudo ovs-appctl -t ovsdb-server ovsdb-server/add-remote ptcp:6640:IP_ADDRESS
-
-``IP_ADDRESS`` should be the address that remote services use to connect to
-``ovsdb-server`` running on this node.  TCP port 6640 must be made accessible if a
-firewall is in use.
-
-neutron-server
-~~~~~~~~~~~~~~~~~
-
-OVN has its own Neutron core plugin.  ``neutron-server`` must be configured to
-use this new plugin.  The following settings should be applied to
-``/etc/neutron/neutron.conf``::
-
-    [DEFAULT]
-    core_plugin = networking_ovn.plugin.OVNPlugin
-    service_plugins =
-
-The following options should be set in
-``/etc/neutron/plugins/networking-ovn/networking-ovn.ini``::
-
-    [ovn]
-    # This setting must always be specified.
-    ovsdb_connection = tcp:IP_ADDRESS:6640
-
-    # If running in an active/passive HA mode, you’ll want to add this setting:
-    #neutron_sync_mode = repair
-
-    # Set to true if using OVN native L3 support.
-    #ovn_l3_mode = true
-
-``IP_ADDRESS`` should match the one used when configuring ``ovsdb-server``
-earlier.
-
-Network Nodes
+Controller nodes
 ----------------
 
-OVN with OpenStack can currently be used in two different modes.
+Each controller node runs the OVS service (including dependent services such
+as ``ovsdb-server``) and the ``ovn-northd`` service. However, only a single
+instance of the ``ovsdb-server`` and ``ovn-northd`` services can operate in
+a deployment. However, deployment tools can implement active/passive
+high-availability using a management tool that monitors service health
+and automatically starts these services on another node after failure of the
+primary node. See the :ref:`faq` for more information.
 
-1. **Neutron L3 Agent** - Use a network node running the Neutron L3 agent to
-   provide routing between networks.
-2. **OVN native L3** - Use OVN's native distributed L3 routing support.
+#. Install the ``openvswitch-ovn`` and ``networking-ovn`` packages.
 
-There's some more detailed commentary about the difference between these two
-modes in the ``networking-ovn`` :doc:`faq`.  The critically important feature
-gap is that OVN native L3 does not yet support NAT.
+#. Start the OVS service. The central OVS service starts the ``ovsdb-server``
+   service that manages OVN databases.
 
-In OVN native L3 mode, you don't need network nodes.  L3 routing is fully
-distributed among hypervisors.  Connectivity to external networks is provided
-either by direct connectivity to each hypervisor as a provider network, or via a
-top-of-rack switch acting as an OVN VTEP gateway.
+   Using the *systemd* unit:
 
-In both modes, you also need to run the Neutron DHCP agent.  That can run on the
-network node.  If you're using OVN native L3, you'll need to run the DHCP agent
-elsewhere since you won't need a network node.  This is temporary until OVN
-native support for DHCP is completed and then the DHCP agent will no longer be
-needed.
+   .. code-block:: console
 
-Compute Nodes
+      # systemctl start openvswitch
+
+   Using the ``ovs-ctl`` script:
+
+   .. code-block:: console
+
+      # /usr/share/openvswitch/scripts/ovs-ctl start
+
+#. Configure the ``ovsdb-server`` component. By default, the ``ovsdb-server``
+   service only permits local access to databases via Unix socket. However,
+   OVN services on compute nodes require access to these databases.
+
+   * Permit remote database access.
+
+     .. code-block:: console
+
+        # ovs-appctl -t ovsdb-server ovsdb-server/add-remote ptcp:6640:IP_ADDRESS
+
+     Replace ``IP_ADDRESS`` with the IP address of the management network
+     interface on the controller node.
+
+     .. note::
+
+        Permit remote access to TCP port 6640 on any host firewall.
+
+#. Start the ``ovn-northd`` service.
+
+   Using the *systemd* unit:
+
+   .. code-block:: console
+
+      # systemctl start ovn-northd
+
+   Using the ``ovn-ctl`` script:
+
+   .. code-block:: console
+
+      # /usr/share/openvswitch/scripts/ovn-ctl start_northd
+
+#. Configure the Networking server component. The Networking service
+   implements OVN as a core plug-in similar to ML2. Edit the
+   ``/etc/neutron/neutron.conf`` file:
+
+   * Enable the OVN core plug-in and disable any service plug-ins.
+
+     .. code-block:: ini
+
+        [DEFAULT]
+        ...
+        core_plugin = networking_ovn.plugin.OVNPlugin
+        service_plugins =
+
+     .. note::
+
+        Disabling any service plug-ins applies to deployments using
+        the OVN native layer-3 service or conventional layer-3 agent.
+
+#. Configure the OVN plug-in. Edit the
+   ``/etc/neutron/plugins/networking-ovn/networking-ovn.ini`` file:
+
+   * Configure OVS database access.
+
+     .. code-block:: ini
+
+        [ovn]
+        ...
+        ovsdb_connection = tcp:IP_ADDRESS:6640
+
+     Replace ``IP_ADDRESS`` with the IP address of the controller node
+     that runs the ``ovsdb-server`` service.
+
+   * (Optional) Enable native layer-3 services.
+
+     .. code-block:: ini
+
+        [ovn]
+        ...
+        ovn_l3_mode = True
+
+     .. note::
+
+        See :ref:`features` and :ref:`faq` for more information.
+
+#. Start the ``neutron-server`` service.
+
+   .. code-block:: console
+
+      # systemctl start neutron-server
+
+Network nodes
+-------------
+
+Deployments using native layer-3 services do not require conventional
+network nodes because connectivity to external networks (including VTEP
+gateways) and routing occurs on compute nodes. OVN currently relies on
+conventional DHCP and metadata agents that typically operate on network
+nodes. However, you can deploy these agents on controller nodes.
+
+Compute nodes
+-------------
+
+Each compute node runs the OVS and ``ovn-controller`` services. The
+``ovn-controller`` service replaces the conventional OVS layer-2 agent.
+
+#. Install the ``openvswitch-ovn`` and ``networking-ovn`` packages.
+
+#. Start the OVS service.
+
+   Using the *systemd* unit:
+
+   .. code-block:: console
+
+      # systemctl start openvswitch
+
+   Using the ``ovs-ctl`` script:
+
+   .. code-block:: console
+
+      # /usr/share/openvswitch/scripts/ovs-ctl start
+
+#. Configure the OVS service.
+
+   * Use OVS databases on the controller node.
+
+     .. code-block:: console
+
+        # ovs-vsctl set open . external-ids:ovn-remote=tcp:IP_ADDRESS:6640
+
+     Replace ``IP_ADDRESS`` with the IP address of the controller node
+     that runs the ``ovsdb-server`` service.
+
+   * Enable one or more overlay network protocols. At a minimum, OVN requires
+     enabling the ``geneve`` protocol. Deployments using VTEP gateways should
+     also enable the ``vxlan`` protocol.
+
+     .. code-block:: console
+
+        # ovs-vsctl set open . external-ids:ovn-encap-type=geneve,vxlan
+
+     .. note::
+
+        Deployments without VTEP gateways can safely enable both protocols.
+
+     .. note::
+
+        Overlay network protocols generally require reducing MTU on VM
+        interfaces to account for additional packet overhead. See the
+        DHCP agent configuration in the
+        `Installation Guide <http://docs.openstack.org/liberty/install-guide-ubuntu/neutron-controller-install-option2.html>`_
+        for more information.
+
+   * Configure the overlay network local endpoint IP address.
+
+     .. code-block:: console
+
+        # ovs-vsctl set open . external-ids:ovn-encap-ip=IP_ADDRESS
+
+     Replace ``IP_ADDRESS`` with the IP address of the overlay network
+     interface on the compute node.
+
+#. Start the ``ovn-controller`` service.
+
+   Using the *systemd* unit:
+
+   .. code-block:: console
+
+      # systemctl start ovn-controller
+
+   Using the ``ovn-ctl`` script:
+
+   .. code-block:: console
+
+      # /usr/share/openvswitch/scripts/ovn-ctl start_controller
+
+Verify operation
 ----------------
 
-Every compute node must run OVN's local controller, the ``ovn-controller``
-service.  This replaces the use of the Neutron OVS agent.
+#. Each compute node should contain an ``ovn-controller`` instance.
 
-To start ``ovn-controller`` with systemd, use this command::
+   .. code-block:: console
 
-    $ sudo systemctl start ovn-controller
-
-If systemd is not in use, you can start it with the ``ovn-ctl`` command.
-
-    $ sudo /usr/share/openvswitch/scripts/ovn-ctl start_controller
-
-``ovn-controller`` requires a few cofiguration values.  The first option,
-``ovn-remote``, should be set to point ``ovn-controller`` at the location of the
-OVN databases.  This should be the controller node IP address used when setting
-up ``ovsdb-server`` earlier.
-
-    ovs-vsctl set open . external-ids:ovn-remote=tcp:IP_ADDRESS:6640
-
-The ``ovn-encap-type`` option should always include ``geneve``.  If an OVN VTEP
-gateway is in use, it should be ``geneve,vxlan``.  It should actually be safe to
-always set this to ``geneve,vxlan``, even if a VTEP gateway is not in use.
-
-    ovs-vsctl set open . external-ids:ovn-encap-type=geneve,vxlan
-
-The ``ovn-encap-ip`` option is the IP address that other compute nodes should
-use for creating Geneve tunnels to this compute node.
-
-    ovs-vsctl set open . external-ids:ovn-encap-ip=LOCAL_IP_ADDRESS
+      # ovn-sbctl show
+        <output>

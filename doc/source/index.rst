@@ -12,6 +12,7 @@ General Information and Other Project References:
    :maxdepth: 1
 
    readme
+   features
    contributing
    faq
    deployment_integration_guide
