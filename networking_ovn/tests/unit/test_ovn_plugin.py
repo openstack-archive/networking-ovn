@@ -53,6 +53,7 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
 
         self.plugin._ovn.transaction = _fake
         self.context = mock.Mock()
+        self.port_create_status = 'DOWN'
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
