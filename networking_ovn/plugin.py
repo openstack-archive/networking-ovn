@@ -714,7 +714,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     addresses=macs,
                     external_ids=external_ids,
                     parent_name=parent_name, tag=tag,
-                    enabled=port.get('admin_state_up', None),
+                    enabled=port.get('admin_state_up'),
                     options=options,
                     type=port_type,
                     port_security=allowed_macs))
