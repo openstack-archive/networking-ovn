@@ -156,7 +156,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def create_network(self, context, network):
         net = network['network']  # obviously..
-        if self._get_attribute(net, pnet.PHYSICAL_NETWORK):
+        ext_ids = {}
+        physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
+        if physnet:
             # If this is a provider network, validate that it's a type we
             # support. (flat or vlan)
             nettype = self._get_attribute(net, pnet.NETWORK_TYPE)
@@ -165,9 +167,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                         'networks (only flat or vlan).') % nettype
                 raise n_exc.InvalidInput(error_message=msg)
 
-        ext_ids = {}
-        physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
-        if physnet:
             # NOTE(russellb) This is the provider network case.  We stash the
             # provider networks fields on OVN Logical Switch.  This logical
             # switch isn't actually used for anything else because a special
@@ -178,7 +177,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # but there's no common code and table for other plugins.  Stashing
             # them here is the easy solution for now, but a common Neutron db
             # table and YAM (yet another mixin) would be better eventually.
-            nettype = self._get_attribute(net, pnet.NETWORK_TYPE)
             segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
             ext_ids.update({
                 ovn_const.OVN_PHYSNET_EXT_ID_KEY: physnet,
