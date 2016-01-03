@@ -65,13 +65,13 @@ class OvnNbSynchronizer(object):
                                     network['id']), None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
-                        LOG.warn(_LW("Network found in Neutron but not in OVN "
-                                     "DB, network_id=%s"),
-                                 network['id'])
+                        LOG.warning(_LW("Network found in Neutron but not in "
+                                        "OVN DB, network_id=%s"),
+                                    network['id'])
 
             except RuntimeError:
-                LOG.warn(_LW("Create network failed for "
-                             "network %s"), network['id'])
+                LOG.warning(_LW("Create network failed for "
+                                "network %s"), network['id'])
 
         # Only delete logical switch if it was previously created by neutron
         with self.ovn_api.transaction() as txn:
@@ -80,10 +80,10 @@ class OvnNbSynchronizer(object):
                     if self.mode == SYNC_MODE_REPAIR:
                         txn.add(self.ovn_api.delete_lswitch(lswitch))
                     if self.mode == SYNC_MODE_LOG:
-                        LOG.warn(_LW("Network found in OVN but not in Neutron,"
-                                     " network_name=%s"),
-                                 (ext_ids
-                                  [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY]))
+                        LOG.warning(_LW("Network found in OVN but not in "
+                                        "Neutron, network_name=%s"),
+                                    (ext_ids
+                                     [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY]))
 
         LOG.debug("OVN-NB Sync networks finished")
 
@@ -99,13 +99,12 @@ class OvnNbSynchronizer(object):
                 res = lports.pop(port['id'], None)
                 if self.mode == SYNC_MODE_LOG:
                     if res is None:
-                        LOG.warn(_LW("Port found in Neutron but not in OVN "
-                                     "DB, port_id=%s"),
-                                 port['id'])
+                        LOG.warning(_LW("Port found in Neutron but not in OVN "
+                                        "DB, port_id=%s"),
+                                    port['id'])
 
             except RuntimeError:
-                LOG.warn(_LW("Create port failed for"
-                             " port %s"), port['id'])
+                LOG.warning(_LW("Create port failed for port %s"), port['id'])
 
         # Only delete logical port if it was previously created by neutron
         with self.ovn_api.transaction() as txn:
@@ -114,8 +113,9 @@ class OvnNbSynchronizer(object):
                     if self.mode == SYNC_MODE_REPAIR:
                         txn.add(self.ovn_api.delete_lport(lport))
                     if self.mode == SYNC_MODE_LOG:
-                        LOG.warn(_LW("Port found in OVN but not in Neutron,"
-                                     " port_name=%s"),
-                                 ext_ids[ovn_const.OVN_PORT_NAME_EXT_ID_KEY])
+                        LOG.warning(
+                            _LW("Port found in OVN but not in "
+                                "Neutron, port_name=%s"),
+                            ext_ids[ovn_const.OVN_PORT_NAME_EXT_ID_KEY])
 
         LOG.debug("OVN-NB Sync ports finished")
