@@ -325,6 +325,41 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             txn=mock.Mock())
         self.plugin._ovn.add_acl.assert_not_called()
 
+    def _test__add_sg_rule_acl_for_port(self, sg_rule, direction, match):
+        port = {'id': 'port-id',
+                'network_id': 'network-id'}
+        self.plugin._ovn.add_acl = mock.Mock()
+        self.plugin._add_sg_rule_acl_for_port(
+            self.context,
+            port,
+            sg_rule,
+            sg_ports_cache=[])
+        self.plugin._ovn.add_acl.assert_called_once_with(
+            lswitch='neutron-network-id',
+            lport='port-id',
+            priority=ovn_const.ACL_PRIORITY_ALLOW,
+            action=ovn_const.ACL_ACTION_ALLOW_RELATED,
+            log=False,
+            direction=direction,
+            match=match,
+            external_ids={'neutron:lport': 'port-id'})
+
+    def test__add_sg_rule_acl_for_port_remote_ip_prefix(self):
+        sg_rule = {'direction': 'ingress',
+                   'ethertype': 'IPv4',
+                   'remote_group_id': None,
+                   'remote_ip_prefix': '1.1.1.0/24',
+                   'protocol': None}
+        match = 'outport == "port-id" && ip4 && ip4.src == 1.1.1.0/24'
+        self._test__add_sg_rule_acl_for_port(sg_rule,
+                                             'to-lport',
+                                             match)
+        sg_rule['direction'] = 'egress'
+        match = 'inport == "port-id" && ip4 && ip4.dst == 1.1.1.0/24'
+        self._test__add_sg_rule_acl_for_port(sg_rule,
+                                             'from-lport',
+                                             match)
+
 
 class TestOvnPluginL3(OVNPluginTestCase):
 
