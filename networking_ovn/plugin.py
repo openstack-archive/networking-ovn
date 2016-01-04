@@ -11,6 +11,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
+
 import netaddr
 import six
 
@@ -55,6 +57,11 @@ from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 
 LOG = log.getLogger(__name__)
+
+OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
+                                                     'addresses',
+                                                     'port_security',
+                                                     'parent_name', 'tag'])
 
 
 class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
@@ -263,27 +270,25 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                          port['port'],
                                                          updated_port)
 
-        port_type, options, addresses, allowed_macs, parent_name, tag = \
-            self._get_ovn_port_options(binding_profile, updated_port)
-
+        ovn_port_info = self._get_ovn_port_options(binding_profile,
+                                                   updated_port)
         return self._update_port_in_ovn(context, sg_updated, original_port,
-                                        updated_port, addresses, parent_name,
-                                        tag, port_type, options, allowed_macs)
+                                        updated_port, ovn_port_info)
 
     def _update_port_in_ovn(self, context, sg_updated, original_port, port,
-                            addresses, parent_name, tag, port_type, options,
-                            allowed_macs):
+                            ovn_port_info):
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.set_lport(lport_name=port['id'],
-                    addresses=addresses,
+                    addresses=ovn_port_info.addresses,
                     external_ids=external_ids,
-                    parent_name=parent_name, tag=tag,
-                    type=port_type,
-                    options=options,
+                    parent_name=ovn_port_info.parent_name,
+                    tag=ovn_port_info.tag,
+                    type=ovn_port_info.type,
+                    options=ovn_port_info.options,
                     enabled=port['admin_state_up'],
-                    port_security=allowed_macs))
+                    port_security=ovn_port_info.port_security))
             # Note that the ovsdb IDL suppresses the transaction down to what
             # has actually changed.
             txn.add(self._ovn.delete_acl(
@@ -408,12 +413,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
 
-        port_type, options, addresses, allowed_macs, parent_name, tag = \
-            self._get_ovn_port_options(binding_profile, db_port)
-
-        return self._create_port_in_ovn(context, db_port, addresses,
-                                        parent_name, tag, port_type, options,
-                                        allowed_macs)
+        ovn_port_info = self._get_ovn_port_options(binding_profile, db_port)
+        return self._create_port_in_ovn(context, db_port, ovn_port_info)
 
     def _get_ovn_port_options(self, binding_profile, port):
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
@@ -440,7 +441,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 addresses = [port['mac_address']]
             allowed_macs = self._get_allowed_mac_addresses_from_port(port)
 
-        return (port_type, options, addresses, allowed_macs, parent_name, tag)
+        return OvnPortInfo(port_type, options, addresses, allowed_macs,
+                           parent_name, tag)
 
     def _acl_direction(self, r, port):
         if r['direction'] == 'ingress':
@@ -654,8 +656,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         for cmd in six.itervalues(acls):
             txn.add(cmd)
 
-    def _create_port_in_ovn(self, context, port, macs, parent_name, tag,
-                            port_type, options, allowed_macs):
+    def _create_port_in_ovn(self, context, port, ovn_port_info):
         # When we create a port on a provider network, the mapping to
         # OVN_Northbound is a bit different.  Every port on a provider network
         # is modeled as a special OVN logical switch.
@@ -709,13 +710,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             txn.add(self._ovn.create_lport(
                     lport_name=port['id'],
                     lswitch_name=lswitch_name,
-                    addresses=macs,
+                    addresses=ovn_port_info.addresses,
                     external_ids=external_ids,
-                    parent_name=parent_name, tag=tag,
+                    parent_name=ovn_port_info.parent_name,
+                    tag=ovn_port_info.tag,
                     enabled=port.get('admin_state_up'),
-                    options=options,
-                    type=port_type,
-                    port_security=allowed_macs))
+                    options=ovn_port_info.options,
+                    type=ovn_port_info.type,
+                    port_security=ovn_port_info.port_security))
             sg_ports_cache = {}
             subnet_cache = {}
             self._add_acls(context, port, txn,
