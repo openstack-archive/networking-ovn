@@ -471,7 +471,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def _acl_remote_ip_prefix(self, r, ip):
         if not r['remote_ip_prefix']:
             return ''
-        return ' && %s.dst == %s' % (ip, r['remote_ip_prefix'])
+        src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
+        return ' && %s.%s == %s' % (ip, src_or_dst, r['remote_ip_prefix'])
 
     def _acl_remote_group_id(self, context, r, sg_ports_cache, port,
                              remote_portdir):
