@@ -61,6 +61,9 @@ OVN_UUID=${OVN_UUID:-}
 # Openstack will use q-l3 functionality.
 OVN_L3_MODE=$(trueorfalse False OVN_L3_MODE)
 
+# Whether or not to build the openvswitch kernel module from ovs.  This is required
+# unless the distro kernel includes ovs+conntrack support.
+OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 
 # Utility Functions
 # -----------------
@@ -213,13 +216,19 @@ function install_ovn {
         ./boot.sh
     fi
     if [ ! -f config.status ] || [ configure -nt config.status ] ; then
-        ./configure --with-linux=/lib/modules/`uname -r`/build
+        if [[ "$OVN_BUILD_MODULES" == "True" ]]; then
+            ./configure --with-linux=/lib/modules/`uname -r`/build
+        else
+            ./configure
+        fi
     fi
     make -j$[$(nproc) + 1]
     sudo make install
-    sudo make INSTALL_MOD_DIR=kernel/net/openvswitch modules_install
-    sudo modprobe -r vport_geneve
-    sudo modprobe -r openvswitch
+    if [[ "$OVN_BUILD_MODULES" == "True" ]]; then
+        sudo make INSTALL_MOD_DIR=kernel/net/openvswitch modules_install
+        sudo modprobe -r vport_geneve
+        sudo modprobe -r openvswitch
+    fi
     sudo modprobe openvswitch || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")
     sudo modprobe vport-geneve || (echo "FAILED TO LOAD vport_geneve" && dmesg)
     dmesg | tail
