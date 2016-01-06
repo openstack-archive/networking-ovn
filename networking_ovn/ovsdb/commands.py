@@ -105,7 +105,7 @@ class AddLogicalPortCommand(BaseCommand):
         port.name = self.lport
         for col, val in self.columns.items():
             setattr(port, col, val)
-        # add the newly created port to exiting lswitch
+        # add the newly created port to existing lswitch
         ports.append(port.uuid)
         setattr(lswitch, 'ports', ports)
         lswitch.verify('ports')

@@ -30,12 +30,8 @@ from neutron.api.v2 import attributes as attr
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import exceptions as n_exc
-from neutron.extensions import extra_dhcp_opt as edo_ext
-from neutron.extensions import portbindings
-from neutron.extensions import providernet as pnet
-
 from neutron.common import constants as const
+from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import agents_db
@@ -48,6 +44,9 @@ from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
+from neutron.extensions import extra_dhcp_opt as edo_ext
+from neutron.extensions import portbindings
+from neutron.extensions import providernet as pnet
 
 from networking_ovn._i18n import _, _LE, _LI
 from networking_ovn.common import config
@@ -367,10 +366,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # Make sure we can successfully look up the port indicated by
         # parent_name.  Just let it raise the right exception if there is a
         # problem.
-        if 'parent_name' in param_set.keys():
+        if 'parent_name' in param_set:
             self.get_port(context, param_dict['parent_name'])
 
-        if 'tag' in param_set.keys():
+        if 'tag' in param_set:
             tag = int(param_dict['tag'])
             if tag < 0 or tag > 4095:
                 msg = _('Invalid binding:profile. tag "%s" must be '
@@ -402,7 +401,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                          db_port)
 
             db_port[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
-            # NOTE(arosen): _process_port_bindings_create_and_update
+            # NOTE(arosen): _process_portbindings_create_and_update
             # does not set the binding on the port so we do it here.
             if (ovn_const.OVN_PORT_BINDING_PROFILE in port['port'] and
                 attr.is_attr_set(
@@ -930,7 +929,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here.  We put the rule in the Neutron db above and then update all
         # affected ports next.  If updating ports fails somehow, we're out of
-        # sync until another change causes another refresh attmept.
+        # sync until another change causes another refresh attempt.
         self._update_acls_for_security_group(context, group_id)
         return res
 
@@ -938,7 +937,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         security_group_rule = self.get_security_group_rule(context, id)
         group_id = security_group_rule['security_group_id']
         super(OVNPlugin, self).delete_security_group_rule(context, id)
-        # TODO(russellb) It's possible for Neutorn and OVN to get out of sync
+        # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here.  We delete the rule from the Neutron db first and then do an
         # ACL update to reflect the current state in OVN.  If updating OVN
         # fails, we'll be out of sync until another change happens that

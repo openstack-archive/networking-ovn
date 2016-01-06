@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
 
@@ -19,8 +17,6 @@ from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
-
-LOG = logging.getLogger(__name__)
 
 
 class OvsdbOvnIdl(ovn_api.API):
@@ -50,7 +46,7 @@ class OvsdbOvnIdl(ovn_api.API):
                                      may_exist, **columns)
 
     def delete_lswitch(self, lswitch_name=None, ext_id=None, if_exists=True):
-        if (lswitch_name is not None):
+        if lswitch_name is not None:
             return cmd.DelLSwitchCommand(self, lswitch_name, if_exists)
         else:
             raise RuntimeError(_("Currently only supports delete "
@@ -72,7 +68,7 @@ class OvsdbOvnIdl(ovn_api.API):
 
     def delete_lport(self, lport_name=None, lswitch=None,
                      ext_id=None, if_exists=True):
-        if (lport_name is not None):
+        if lport_name is not None:
             return cmd.DelLogicalPortCommand(self, lport_name,
                                              lswitch, if_exists)
         else:
