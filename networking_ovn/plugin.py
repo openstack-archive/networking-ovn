@@ -457,23 +457,24 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _acl_ethertype(self, r):
         match = ''
-        ip = None
+        ip_version = None
         icmp = None
         if r['ethertype'] == 'IPv4':
             match = ' && ip4'
-            ip = 'ip4'
+            ip_version = 'ip4'
             icmp = 'icmp4'
         elif r['ethertype'] == 'IPv6':
             match = ' && ip6'
-            ip = 'ip6'
+            ip_version = 'ip6'
             icmp = 'icmp6'
-        return match, ip, icmp
+        return match, ip_version, icmp
 
-    def _acl_remote_ip_prefix(self, r, ip):
+    def _acl_remote_ip_prefix(self, r, ip_version):
         if not r['remote_ip_prefix']:
             return ''
         src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-        return ' && %s.%s == %s' % (ip, src_or_dst, r['remote_ip_prefix'])
+        return ' && %s.%s == %s' % (ip_version, src_or_dst,
+                                    r['remote_ip_prefix'])
 
     def _acl_get_subnet_from_cache(self, context, subnet_cache, subnet_id):
         if subnet_id in subnet_cache:
@@ -485,7 +486,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             return subnet
 
     def _acl_remote_match_ip(self, context, sg_ports, subnet_cache,
-                             ip, src_or_dst):
+                             ip_version, src_or_dst):
         ip_version_map = {'ip4': 4,
                           'ip6': 6}
         match = ''
@@ -496,8 +497,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 subnet = self._acl_get_subnet_from_cache(context,
                                                          subnet_cache,
                                                          fixed_ip['subnet_id'])
-                if subnet['ip_version'] == ip_version_map.get(ip):
-                    match += '%s.%s == %s || ' % (ip,
+                if subnet['ip_version'] == ip_version_map.get(ip_version):
+                    match += '%s.%s == %s || ' % (ip_version,
                                                   src_or_dst,
                                                   fixed_ip['ip_address'])
 
@@ -508,7 +509,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return match
 
     def _acl_remote_group_id(self, context, r, sg_ports_cache, subnet_cache,
-                             port, remote_portdir, ip):
+                             port, remote_portdir, ip_version):
         if not r['remote_group_id']:
             return '', False
         match = ''
@@ -531,7 +532,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         remote_group_match = self._acl_remote_match_ip(elevated_context,
                                                        sg_ports,
                                                        subnet_cache,
-                                                       ip,
+                                                       ip_version,
                                                        src_or_dst)
 
         match += remote_group_match
@@ -566,18 +567,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         match, remote_portdir = self._acl_direction(r, port)
 
         # Update the match for IPv4 vs IPv6.
-        ip_match, ip, icmp = self._acl_ethertype(r)
+        ip_match, ip_version, icmp = self._acl_ethertype(r)
         match += ip_match
 
         # Update the match if an IPv4 or IPv6 prefix was specified.
-        match += self._acl_remote_ip_prefix(r, ip)
+        match += self._acl_remote_ip_prefix(r, ip_version)
 
         group_match, empty_match = self._acl_remote_group_id(context, r,
                                                              sg_ports_cache,
                                                              subnet_cache,
                                                              port,
                                                              remote_portdir,
-                                                             ip)
+                                                             ip_version)
         if empty_match:
             # If there are no other ports on this security group, then this
             # rule can never match, so no ACL row will be created for this
