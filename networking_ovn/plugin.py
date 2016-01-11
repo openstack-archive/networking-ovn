@@ -24,9 +24,13 @@ from sqlalchemy.orm import exc as sa_exc
 from neutron.agent.ovsdb.native import idlutils
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.agentnotifiers import l3_rpc_agent_api
+from neutron.api.rpc.callbacks.consumer import registry as callbacks_registry
+from neutron.api.rpc.callbacks import events as callbacks_events
+from neutron.api.rpc.callbacks import resources as callbacks_resources
 from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.api.rpc.handlers import l3_rpc
 from neutron.api.rpc.handlers import metadata_rpc
+from neutron.api.rpc.handlers import resources_rpc
 from neutron.api.v2 import attributes as attr
 from neutron.callbacks import events
 from neutron.callbacks import registry
@@ -36,8 +40,11 @@ from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as n_context
+from neutron.core_extensions import base as base_core
+from neutron.core_extensions import qos as qos_core
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
+from neutron.db import api as db_api
 from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import extradhcpopt_db
@@ -52,6 +59,9 @@ from neutron.extensions import availability_zone as az_ext
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
 from neutron.extensions import providernet as pnet
+from neutron.objects.qos import policy as qos_policy
+from neutron.objects.qos import rule as qos_rule
+from neutron.services.qos import qos_consts
 
 from networking_ovn._i18n import _, _LE, _LI, _LW
 from networking_ovn.common import config
@@ -98,14 +108,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                    "availability_zone",
                                    "network_availability_zone",
                                    "net-mtu"]
+    supported_qos_rule_types = [qos_consts.RULE_TYPE_BANDWIDTH_LIMIT]
 
     def __init__(self):
         super(OVNPlugin, self).__init__()
         LOG.info(_LI("Starting OVNPlugin"))
         self._setup_base_binding_dict()
 
+        self.core_ext_handler = qos_core.QosCoreResourceExtension()
         registry.subscribe(self.post_fork_initialize, resources.PROCESS,
                            events.AFTER_CREATE)
+        callbacks_registry.subscribe(self._handle_qos_notification,
+                                     callbacks_resources.QOS_POLICY)
         self._setup_dhcp()
         self._start_rpc_notifiers()
 
@@ -191,7 +205,43 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         topic = topics.REPORTS if hasattr(topics, 'REPORTS') else topics.PLUGIN
         self.conn.create_consumer(topic, [agents_db.AgentExtRpcCallback()],
                                   fanout=False)
+        qos_topic = resources_rpc.resource_type_versioned_topic(
+            callbacks_resources.QOS_POLICY)
+        self.conn.create_consumer(
+            qos_topic, [resources_rpc.ResourcesPushRpcCallback()],
+            fanout=False)
         return self.conn.consume_in_threads()
+
+    def _handle_qos_notification(self, qos_policy, event_type):
+        if event_type == callbacks_events.UPDATED:
+            if hasattr(qos_policy, "rules"):
+                # rules updated
+                context = n_context.get_admin_context()
+                network_bindings = self._model_query(
+                    context,
+                    qos_policy.network_binding_model).filter(
+                    qos_policy.network_binding_model.policy_id ==
+                    qos_policy.id)
+                for binding in network_bindings:
+                    self._update_network_qos(
+                        context, binding.network_id, qos_policy.id)
+
+                port_bindings = self._model_query(
+                    context,
+                    qos_policy.port_binding_model).filter(
+                    qos_policy.port_binding_model.policy_id == qos_policy.id)
+                for binding in port_bindings:
+                    port = self.get_port(context, binding.port_id)
+                    qos_options = self._qos_get_ovn_port_options(
+                        context, port)
+
+                    binding_profile = self._get_data_from_binding_profile(
+                        context, port)
+                    ovn_port_info = self._get_ovn_port_options(binding_profile,
+                                                               qos_options,
+                                                               port)
+                    self._update_port_in_ovn(context, port,
+                                             port, ovn_port_info)
 
     def _get_attribute(self, obj, attribute):
         res = obj.get(attribute)
@@ -236,6 +286,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             result = super(OVNPlugin, self).create_network(context,
                                                            network)
             self._process_l3_create(context, result, net)
+            self.core_ext_handler.process_fields(
+                context, base_core.NETWORK, net, result)
             if az_ext.AZ_HINTS in net:
                 self.validate_availability_zones(context, 'network',
                                                  net[az_ext.AZ_HINTS])
@@ -324,39 +376,143 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             utils.ovn_name(network_id),
             ext_id).execute(check_error=True)
 
+    def _qos_get_ovn_options(self, context, policy_id):
+        all_rules = qos_rule.get_rules(context, policy_id)
+        options = {}
+        for rule in all_rules:
+            if isinstance(rule, qos_rule.QosBandwidthLimitRule):
+                if rule.max_kbps:
+                    options['policing_rate'] = str(rule.max_kbps)
+                if rule.max_burst_kbps:
+                    options['policing_burst'] = str(rule.max_burst_kbps)
+
+        return options
+
+    def _get_network_ports_for_policy(self, context, network_id, policy_id):
+        all_rules = qos_rule.get_rules(context, policy_id)
+        ports = super(OVNPlugin, self).get_ports(
+            context, filters={"network_id": [network_id]})
+        port_ids = []
+
+        for port in ports:
+            include = True
+            for rule in all_rules:
+                if not rule.should_apply_to_port(port):
+                    include = False
+                    break
+
+            if include:
+                port_ids.append(port['id'])
+
+        return port_ids
+
+    def _ovn_extend_network_attributes(self, result, netdb):
+        session = db_api.get_session()
+        with session.begin(subtransactions=True):
+            result.update(self.core_ext_handler.extract_fields(
+                base_core.NETWORK, netdb))
+
+    db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+        attr.NETWORKS, ['_ovn_extend_network_attributes'])
+
+    def _update_network_qos(self, context, network_id, policy_id):
+        port_ids = self._get_network_ports_for_policy(
+            context, network_id, policy_id)
+        qos_rule_options = self._qos_get_ovn_options(
+            context, policy_id)
+
+        if qos_rule_options is not None:
+            with self._ovn.transaction(check_error=True) as txn:
+                for port_id in port_ids:
+                    txn.add(self._ovn.set_lport(
+                        lport_name=port_id,
+                        options=qos_rule_options))
+
     def update_network(self, context, network_id, network):
         pnet._raise_if_updates_provider_attributes(network['network'])
         # FIXME(arosen) - rollback...
         if 'name' in network['network']:
             self._set_network_name(network_id, network['network']['name'])
+
+        net_dict = network['network']
         with context.session.begin(subtransactions=True):
-            result = super(OVNPlugin, self).update_network(context, network_id,
-                                                           network)
-            self._process_l3_update(context, result, network['network'])
-            return result
+            updated_network = super(OVNPlugin, self).update_network(
+                context, network_id, network)
+            self._process_l3_update(
+                context, updated_network, network['network'])
+            if 'qos_policy_id' in net_dict:
+                self.core_ext_handler.process_fields(
+                    context, base_core.NETWORK, net_dict, updated_network)
+
+        if 'qos_policy_id' in net_dict:
+            self._update_network_qos(
+                context, network_id, net_dict['qos_policy_id'])
+
+        return updated_network
+
+    def _qos_get_ovn_port_options(self, context, port):
+        port_policy_id = port.get("qos_policy_id", None)
+        nw_policy = qos_policy.QosPolicy.get_network_policy(
+            context, port['network_id'])
+        nw_policy_id = nw_policy.id if nw_policy else None
+
+        for policy_id in [port_policy_id, nw_policy_id, None]:
+            if not policy_id:
+                continue
+
+            should_apply = True
+
+            all_rules = qos_rule.get_rules(
+                context, policy_id)
+            for rule in all_rules:
+                if not rule.should_apply_to_port(port):
+                    should_apply = False
+                    break
+
+            if should_apply:
+                break
+
+        if policy_id:
+            return self._qos_get_ovn_options(context, policy_id)
+        return {}
+
+    def _ovn_extend_port_attributes(self, result, portdb):
+        session = db_api.get_session()
+        with session.begin(subtransactions=True):
+            result.update(self.core_ext_handler.extract_fields(
+                base_core.PORT, portdb))
+
+    db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+        attr.PORTS, ['_ovn_extend_port_attributes'])
 
     def update_port(self, context, id, port):
+        pdict = port['port']
         with context.session.begin(subtransactions=True):
             # FIXME(arosen): if binding data isn't passed in here
             # we should fetch it from the db instead and not set it to
             # None since neutron implements patch sematics for updates
             binding_profile = self.get_data_from_binding_profile(
-                context, port['port'])
+                context, pdict)
 
             original_port = self.get_port(context, id)
             updated_port = super(OVNPlugin, self).update_port(context, id,
                                                               port)
 
             self._process_portbindings_create_and_update(context,
-                                                         port['port'],
+                                                         pdict,
                                                          updated_port)
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
             self._update_extra_dhcp_opts_on_port(context, id, port,
                                                  updated_port=updated_port)
+            self.core_ext_handler.process_fields(
+                context, base_core.PORT, pdict, updated_port)
+            qos_options = self._qos_get_ovn_port_options(
+                context, updated_port)
 
         ovn_port_info = self.get_ovn_port_options(binding_profile,
+                                                  qos_options,
                                                   updated_port)
         return self._update_port_in_ovn(context, original_port,
                                         updated_port, ovn_port_info)
@@ -484,43 +640,49 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 })
 
     def create_port(self, context, port):
+        pdict = port['port']
         with context.session.begin(subtransactions=True):
             binding_profile = self.get_data_from_binding_profile(
-                context, port['port'])
+                context, pdict)
 
             # set the status of the port to down by default
             port['port']['status'] = const.PORT_STATUS_DOWN
 
             dhcp_opts = port['port'].get(edo_ext.EXTRADHCPOPTS, [])
             db_port = super(OVNPlugin, self).create_port(context, port)
+            self.core_ext_handler.process_fields(
+                context, base_core.PORT, pdict, db_port)
             sgids = self._get_security_groups_on_port(context, port)
             self._process_port_create_security_group(context, db_port,
                                                      sgids)
             self._process_portbindings_create_and_update(context,
-                                                         port['port'],
+                                                         pdict,
                                                          db_port)
             self._update_port_binding(db_port)
 
             # NOTE(arosen): _process_portbindings_create_and_update
             # does not set the binding on the port so we do it here.
-            if (ovn_const.OVN_PORT_BINDING_PROFILE in port['port'] and
+            if (ovn_const.OVN_PORT_BINDING_PROFILE in pdict and
                 attr.is_attr_set(
-                    port['port'][ovn_const.OVN_PORT_BINDING_PROFILE])):
+                    pdict[ovn_const.OVN_PORT_BINDING_PROFILE])):
                 db_port[ovn_const.OVN_PORT_BINDING_PROFILE] = \
-                    port['port'][ovn_const.OVN_PORT_BINDING_PROFILE]
+                    pdict[ovn_const.OVN_PORT_BINDING_PROFILE]
 
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
+            qos_options = self._qos_get_ovn_port_options(
+                context, db_port)
 
         # This extra lookup is necessary to get the latest db model
         # for the extension functions.
         port_model = self._get_port(context, db_port['id'])
         self._apply_dict_extend_functions('ports', db_port, port_model)
 
-        ovn_port_info = self.get_ovn_port_options(binding_profile, db_port)
+        ovn_port_info = self.get_ovn_port_options(
+            binding_profile, qos_options, db_port)
         return self.create_port_in_ovn(context, db_port, ovn_port_info)
 
-    def get_ovn_port_options(self, binding_profile, port):
+    def get_ovn_port_options(self, binding_profile, qos_options, port):
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
         vtep_logical_switch = None
         parent_name = None
@@ -536,6 +698,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             addresses = ["unknown"]
             allowed_macs = []
         else:
+            options = qos_options
             parent_name = binding_profile.get('parent_name')
             tag = binding_profile.get('tag')
             fixed_ips = port.get('fixed_ips')

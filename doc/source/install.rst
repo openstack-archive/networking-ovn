@@ -106,7 +106,7 @@ primary node. See the :ref:`faq` for more information.
         [DEFAULT]
         ...
         core_plugin = networking_ovn.plugin.OVNPlugin
-        service_plugins =
+        service_plugins = qos
 
      .. note::
 
