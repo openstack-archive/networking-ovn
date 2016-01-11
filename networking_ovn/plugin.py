@@ -21,7 +21,6 @@ from oslo_log import log
 from oslo_utils import importutils
 from sqlalchemy.orm import exc as sa_exc
 
-from neutron.agent.ovsdb.native import idlutils
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.agentnotifiers import l3_rpc_agent_api
 from neutron.api.rpc.callbacks.consumer import registry as callbacks_registry
@@ -253,6 +252,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         net = network['network']  # obviously..
         ext_ids = {}
         physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
+        segid = None
         if physnet:
             # If this is a provider network, validate that it's a type we
             # support. (flat or vlan)
@@ -262,25 +262,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                         'networks (only flat or vlan).') % nettype
                 raise n_exc.InvalidInput(error_message=msg)
 
-            # NOTE(russellb) This is the provider network case.  We stash the
-            # provider networks fields on OVN Logical Switch.  This logical
-            # switch isn't actually used for anything else because a special
-            # switch is created for every port attached to the provider
-            # network.  The reason we stash them is because these fields are
-            # not actually stored in the Neutron database anywhere. :-(
-            # They are stored in an ML2 specific db table by the ML2 plugin,
-            # but there's no common code and table for other plugins.  Stashing
-            # them here is the easy solution for now, but a common Neutron db
-            # table and YAM (yet another mixin) would be better eventually.
             segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
-            ext_ids.update({
-                ovn_const.OVN_PHYSNET_EXT_ID_KEY: physnet,
-                ovn_const.OVN_NETTYPE_EXT_ID_KEY: nettype,
-            })
-            if segid:
-                ext_ids.update({
-                    ovn_const.OVN_SEGID_EXT_ID_KEY: str(segid),
-                })
 
         with context.session.begin(subtransactions=True):
             result = super(OVNPlugin, self).create_network(context,
@@ -305,14 +287,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self._apply_dict_extend_functions('networks', result, net_model)
 
         try:
-            return self.create_network_in_ovn(result, ext_ids)
+            return self.create_network_in_ovn(result, ext_ids,
+                                              physnet, segid)
+
         except Exception:
             LOG.exception(_LE('Unable to create lswitch for %s'),
                           result['id'])
             self.delete_network(context, result['id'])
             raise n_exc.ServiceUnavailable()
 
-    def create_network_in_ovn(self, network, ext_ids):
+    def create_network_in_ovn(self, network, ext_ids,
+                              physnet=None, segid=None):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
@@ -320,9 +305,23 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name']
         })
 
-        self._ovn.create_lswitch(lswitch_name=utils.ovn_name(network['id']),
-                                 external_ids=ext_ids).execute(
-                                     check_error=True)
+        lswitch_name = utils.ovn_name(network['id'])
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.create_lswitch(
+                lswitch_name=lswitch_name,
+                external_ids=ext_ids))
+            if physnet:
+                vlan_id = None
+                if segid is not None:
+                    vlan_id = int(segid)
+                txn.add(self._ovn.create_lport(
+                    lport_name='provnet-%s' % network['id'],
+                    lswitch_name=lswitch_name,
+                    addresses=['unknown'],
+                    external_ids=None,
+                    type='localnet',
+                    tag=vlan_id,
+                    options={'network_name': physnet}))
         return network
 
     def delete_network(self, context, network_id):
@@ -973,53 +972,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             txn.add(cmd)
 
     def create_port_in_ovn(self, context, port, ovn_port_info):
-        # When we create a port on a provider network, the mapping to
-        # OVN_Northbound is a bit different.  Every port on a provider network
-        # is modeled as a special OVN logical switch.
-        #
-        #    Logical Switch
-        #      Logical Port LP1 (maps to the neutron port)
-        #      Logical Port LP2 (type=localnet, models connection to the
-        #                        physical network)
-        #
-        # There is a logical switch associated with the network itself, but
-        # it's only used to stash the provider network attributes as
-        # external_ids.
-
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         lswitch_name = utils.ovn_name(port['network_id'])
-        try:
-            lswitch = idlutils.row_by_value(self._ovn.idl, 'Logical_Switch',
-                                            'name', lswitch_name)
-        except idlutils.RowNotFound:
-            msg = _("Logical Switch %s does not exist") % lswitch_name
-            LOG.error(msg)
-            raise RuntimeError(msg)
-        net_ext_ids = getattr(lswitch, 'external_ids', {})
-
-        physnet = net_ext_ids.get(ovn_const.OVN_PHYSNET_EXT_ID_KEY)
-        if physnet:
-            # TODO(russellb) We should be able to do this all in 1 transaction,
-            # but our API wrappers aren't making that easy...
-            lswitch_name = utils.ovn_name(port['id'])
-            with self._ovn.transaction(check_error=True) as txn:
-                txn.add(self._ovn.create_lswitch(
-                    lswitch_name=lswitch_name,
-                    external_ids=external_ids))
 
         with self._ovn.transaction(check_error=True) as txn:
-            if physnet:
-                vlan_id = net_ext_ids.get(ovn_const.OVN_SEGID_EXT_ID_KEY)
-                if vlan_id is not None:
-                    vlan_id = int(vlan_id)
-                txn.add(self._ovn.create_lport(
-                    lport_name='provnet-%s' % port['id'],
-                    lswitch_name=lswitch_name,
-                    addresses=['unknown'],
-                    external_ids=external_ids,
-                    type='localnet',
-                    tag=vlan_id,
-                    options={'network_name': physnet}))
             # The port name *must* be port['id'].  It must match the iface-id
             # set in the Interfaces table of the Open_vSwitch database, which
             # nova sets to be the port ID.
@@ -1069,25 +1025,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def delete_port(self, context, port_id, l3_port_check=True):
         port = self.get_port(context, port_id)
-        try:
-            # If this is a port on a provider network, we just need to delete
-            # the special logical switch for this port, and the 2 ports on the
-            # switch will get garbage collected.  Note that if the switch
-            # doesn't exist, we'll get an exception without actually having to
-            # execute a transaction with the remote db.  The check is local.
-            with self._ovn.transaction(check_error=True) as txn:
-                txn.add(self._ovn.delete_lswitch(
-                    utils.ovn_name(port['id']), if_exists=False))
-                txn.add(self._ovn.delete_acl(
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.delete_lport(port_id,
+                    utils.ovn_name(port['network_id'])))
+            txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']), port['id']))
-        except RuntimeError:
-            # If the switch doesn't exist, we'll get a RuntimeError, meaning
-            # we just need to delete a port.
-            with self._ovn.transaction(check_error=True) as txn:
-                txn.add(self._ovn.delete_lport(port_id,
-                        utils.ovn_name(port['network_id'])))
-                txn.add(self._ovn.delete_acl(
-                        utils.ovn_name(port['network_id']), port['id']))
 
         sg_ids = port.get('security_groups', [])
 

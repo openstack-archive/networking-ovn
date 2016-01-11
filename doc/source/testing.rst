@@ -539,6 +539,26 @@ Alternatively, you can define connectivity to a VLAN instead of a flat network:
     --provider:network_type vlan \
     --provider:segmentation_id 101
 
+Observe that the OVN plugin created a special logical port of type localnet on
+the logical switch to model the connection to the physical network.
+
+::
+
+    $ ovn-nbctl show
+    ...
+     lswitch 5bbccbbd-f5ca-411b-bad9-01095d6f1316 (neutron-729dbbee-db84-4a3d-afc3-82c0b3701074)
+         lport provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+             addresses: ["unknown"]
+    ...
+
+    $ ovn-nbctl lport-get-type provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    localnet
+
+    $ ovn-nbctl lport-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    network_name=providernet
+
+If VLAN is used, there will be a VLAN tag shown on the localnet port as well.
+
 Finally, create a Neutron port on the provider network.
 
 ::
@@ -550,27 +570,6 @@ or if you followed the VLAN example, it would be:
 ::
 
     $ neutron port-create provider-101
-
-Observe that the OVN plugin created a special logical switch that models
-the connection between this port and the provider network.
-
-::
-
-    $ ovn-nbctl show
-    ...
-     lswitch 5bbccbbd-f5ca-411b-bad9-01095d6f1316 (neutron-729dbbee-db84-4a3d-afc3-82c0b3701074)
-         lport provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
-             macs: unknown
-         lport 729dbbee-db84-4a3d-afc3-82c0b3701074
-             macs: fa:16:3e:20:38:d1
-    ...
-
-    $ ovn-nbctl lport-get-type provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
-    localnet
-
-    $ ovn-nbctl lport-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
-    network_name=providernet
-
 
 OVN L3
 ------
