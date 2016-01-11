@@ -483,7 +483,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         else:
             filters = {'security_group_id': [r['remote_group_id']]}
             sg_ports = self._get_port_security_group_bindings(
-                context, filters)
+                context.elevated(), filters)
             sg_ports_cache[r['remote_group_id']] = sg_ports
         sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
         if not sg_ports:
@@ -738,11 +738,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # For sec_group, refresh acls for all other security groups that have
         # rules referencing sec_group as 'remote_group'.
         filters = {'remote_group_id': [sec_group]}
+        # Elevate the context so that we can see sec-groups and port-sg
+        # bindings that do not belong to the current tenant.
+        elevated_context = context.elevated()
         refering_rules = self.get_security_group_rules(
-            context, filters, fields=['security_group_id'])
+            elevated_context, filters, fields=['security_group_id'])
         sg_ids = set(r['security_group_id'] for r in refering_rules)
         for sg_id in sg_ids:
-            self._update_acls_for_security_group(context, sg_id,
+            self._update_acls_for_security_group(elevated_context, sg_id,
                                                  sg_ports_cache,
                                                  exclude_ports,
                                                  subnet_cache=subnet_cache)
