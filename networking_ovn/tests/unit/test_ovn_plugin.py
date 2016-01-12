@@ -52,7 +52,7 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
             return mock.MagicMock()
 
         self.plugin._ovn.transaction = _fake
-        self.context = _fake
+        self.context = mock.Mock()
 
 
 class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
@@ -330,7 +330,8 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             self.context,
             port,
             sg_rule,
-            sg_ports_cache=[])
+            sg_ports_cache={},
+            subnet_cache={})
         self.plugin._ovn.add_acl.assert_called_once_with(
             lswitch='neutron-network-id',
             lport='port-id',
@@ -356,6 +357,61 @@ class TestOvnPluginACLs(OVNPluginTestCase):
         self._test__add_sg_rule_acl_for_port(sg_rule,
                                              'from-lport',
                                              match)
+
+    def test__add_sg_rule_acl_for_port_remote_group(self):
+        sg_rule = {'direction': 'ingress',
+                   'ethertype': 'IPv4',
+                   'remote_group_id': 'sg1',
+                   'remote_ip_prefix': None,
+                   'protocol': None}
+        sg_ports = [{'security_group_id': 'sg1',
+                     'port_id': 'port-id1'},
+                    {'security_group_id': 'sg1',
+                     'port_id': 'port-id2'}]
+        port1 = {'id': 'port-id1',
+                 'fixed_ips': [{'subnet_id': 'subnet-id',
+                                'ip_address': '1.1.1.100'},
+                               {'subnet_id': 'subnet-id',
+                                'ip_address': '1.1.1.101'}]}
+        port2 = {'id': 'port-id1',
+                 'fixed_ips': [{'subnet_id': 'subnet-id',
+                                'ip_address': '1.1.1.102'},
+                               {'subnet_id': 'subnet-id-v6',
+                                'ip_address': '2001:0db8::1:0:0:1'}]}
+        ports = [port1, port2]
+
+        subnet = {'id': 'subnet-id',
+                  'ip_version': 4}
+        subnet_v6 = {'id': 'subnet-id-v6',
+                     'ip_version': 6}
+        subnets = {'subnet-id': subnet,
+                   'subnet-id-v6': subnet_v6}
+
+        def _get_subnet(context, id):
+            return subnets[id]
+
+        with mock.patch('neutron.db.securitygroups_db.SecurityGroupDbMixin.'
+                        '_get_port_security_group_bindings',
+                        return_value=sg_ports), \
+            mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                       'get_ports', return_value=ports), \
+            mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.'
+                       'get_subnet', side_effect=_get_subnet):
+
+            match = 'outport == "port-id" && ip4 && (ip4.src == 1.1.1.100' \
+                    ' || ip4.src == 1.1.1.101' \
+                    ' || ip4.src == 1.1.1.102)'
+
+            self._test__add_sg_rule_acl_for_port(sg_rule,
+                                                 'to-lport',
+                                                 match)
+            sg_rule['direction'] = 'egress'
+            match = 'inport == "port-id" && ip4 && (ip4.dst == 1.1.1.100' \
+                    ' || ip4.dst == 1.1.1.101' \
+                    ' || ip4.dst == 1.1.1.102)'
+            self._test__add_sg_rule_acl_for_port(sg_rule,
+                                                 'from-lport',
+                                                 match)
 
 
 class TestOvnPluginL3(OVNPluginTestCase):

@@ -260,7 +260,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_portbindings_create_and_update(context,
                                                          port['port'],
                                                          updated_port)
-            sg_updated = self.update_security_group_on_port(
+            self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
 
             self._update_extra_dhcp_opts_on_port(context, id, port,
@@ -271,10 +271,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         ovn_port_info = self._get_ovn_port_options(binding_profile,
                                                    updated_port)
-        return self._update_port_in_ovn(context, sg_updated, original_port,
+        return self._update_port_in_ovn(context, original_port,
                                         updated_port, ovn_port_info)
 
-    def _update_port_in_ovn(self, context, sg_updated, original_port, port,
+    def _update_port_in_ovn(self, context, original_port, port,
                             ovn_port_info):
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
@@ -299,22 +299,24 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                            sg_ports_cache=sg_ports_cache,
                            subnet_cache=subnet_cache)
 
-        if sg_updated:
-            # Refresh remote security groups for detached security groups
-            old_sg_ids = original_port.get('security_groups', [])
-            new_sg_ids = port.get('security_groups', [])
-            detached_sg_ids = set(old_sg_ids) - set(new_sg_ids)
-            for sg_id in detached_sg_ids:
-                self._refresh_remote_security_group(
-                    context,
-                    sg_id,
-                    sg_ports_cache,
-                    exclude_ports=[port['id']],
-                    subnet_cache=subnet_cache)
+        # Refresh remote security groups for changed security groups
+        old_sg_ids = set(original_port.get('security_groups', []))
+        new_sg_ids = set(port.get('security_groups', []))
+        detached_sg_ids = old_sg_ids - new_sg_ids
+        attached_sg_ids = new_sg_ids - old_sg_ids
+        for sg_id in (attached_sg_ids | detached_sg_ids):
+            self._refresh_remote_security_group(
+                context, sg_id,
+                sg_ports_cache=sg_ports_cache,
+                exclude_ports=[port['id']],
+                subnet_cache=subnet_cache)
 
-            # Refresh remote security groups for attached security groups
-            attached_sg_ids = set(new_sg_ids) - set(old_sg_ids)
-            for sg_id in attached_sg_ids:
+        # Refresh remote security groups if remote_group_match_ip is set
+        if original_port.get('fixed_ips') != port.get('fixed_ips'):
+            # We have refreshed attached and detached security groups, so
+            # now we only need to take care of unchanged security groups.
+            unchanged_sg_ids = new_sg_ids & old_sg_ids
+            for sg_id in unchanged_sg_ids:
                 self._refresh_remote_security_group(
                     context, sg_id,
                     sg_ports_cache=sg_ports_cache,
@@ -473,17 +475,50 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
         return ' && %s.%s == %s' % (ip, src_or_dst, r['remote_ip_prefix'])
 
-    def _acl_remote_group_id(self, context, r, sg_ports_cache, port,
-                             remote_portdir):
+    def _acl_get_subnet_from_cache(self, context, subnet_cache, subnet_id):
+        if subnet_id in subnet_cache:
+            return subnet_cache[subnet_id]
+        else:
+            subnet = self.get_subnet(context, subnet_id)
+            if subnet:
+                subnet_cache[subnet_id] = subnet
+            return subnet
+
+    def _acl_remote_match_ip(self, context, sg_ports, subnet_cache,
+                             ip, src_or_dst):
+        ip_version_map = {'ip4': 4,
+                          'ip6': 6}
+        match = ''
+        port_ids = [sg_port['port_id'] for sg_port in sg_ports]
+        ports = self.get_ports(context, filters={'id': port_ids})
+        for port in ports:
+            for fixed_ip in port['fixed_ips']:
+                subnet = self._acl_get_subnet_from_cache(context,
+                                                         subnet_cache,
+                                                         fixed_ip['subnet_id'])
+                if subnet['ip_version'] == ip_version_map.get(ip):
+                    match += '%s.%s == %s || ' % (ip,
+                                                  src_or_dst,
+                                                  fixed_ip['ip_address'])
+
+        if match:
+            match = match[:-4]  # Remove the last ' || '
+            match = ' && (%s)' % match
+
+        return match
+
+    def _acl_remote_group_id(self, context, r, sg_ports_cache, subnet_cache,
+                             port, remote_portdir, ip):
         if not r['remote_group_id']:
             return '', False
         match = ''
+        elevated_context = context.elevated()
         if r['remote_group_id'] in sg_ports_cache:
             sg_ports = sg_ports_cache[r['remote_group_id']]
         else:
             filters = {'security_group_id': [r['remote_group_id']]}
             sg_ports = self._get_port_security_group_bindings(
-                context.elevated(), filters)
+                elevated_context, filters)
             sg_ports_cache[r['remote_group_id']] = sg_ports
         sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
         if not sg_ports:
@@ -491,16 +526,16 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # rule can never match, so no ACL row will be created for this
             # rule.
             return '', True
-        # TODO(russellb) This doesn't actually work for ports on a provider
-        # network.  In that case, the ports aren't on the same OVN logical
-        # switch so referring to them by port ID doesn't work.  In that case,
-        # we should instead just match on src IP addresses.
-        match += ' && %s == {' % remote_portdir
-        for p in sg_ports:
-            match += '"%s",' % p['port_id']
-        if match[-1] == ',':
-            match = match[:-1]
-        match += '}'
+
+        src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
+        remote_group_match = self._acl_remote_match_ip(elevated_context,
+                                                       sg_ports,
+                                                       subnet_cache,
+                                                       ip,
+                                                       src_or_dst)
+
+        match += remote_group_match
+
         return match, False
 
     def _acl_protocol_and_ports(self, r, icmp):
@@ -524,7 +559,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                            r['port_range_max'])
         return match
 
-    def _add_sg_rule_acl_for_port(self, context, port, r, sg_ports_cache):
+    def _add_sg_rule_acl_for_port(self, context, port, r, sg_ports_cache,
+                                  subnet_cache):
         # Update the match based on which direction this rule is for (ingress
         # or egress).
         match, remote_portdir = self._acl_direction(r, port)
@@ -538,8 +574,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         group_match, empty_match = self._acl_remote_group_id(context, r,
                                                              sg_ports_cache,
+                                                             subnet_cache,
                                                              port,
-                                                             remote_portdir)
+                                                             remote_portdir,
+                                                             ip)
         if empty_match:
             # If there are no other ports on this security group, then this
             # rule can never match, so no ACL row will be created for this
@@ -587,11 +625,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # review already.
         # TODO(russellb) Remove this once OVN native DHCP support is merged.
         for ip in port['fixed_ips']:
-            if ip['subnet_id'] in subnet_cache:
-                subnet = subnet_cache[ip['subnet_id']]
-            else:
-                subnet = self.get_subnet(context, ip['subnet_id'])
-                subnet_cache[ip['subnet_id']] = subnet
+            subnet = self._acl_get_subnet_from_cache(context, subnet_cache,
+                                                     ip['subnet_id'])
             if subnet['ip_version'] != 4:
                 continue
             txn.add(self._ovn.add_acl(
@@ -650,7 +685,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     sg_cache[sg_id] = sg
             for r in sg['security_group_rules']:
                 cmd = self._add_sg_rule_acl_for_port(context, port, r,
-                                                     sg_ports_cache)
+                                                     sg_ports_cache,
+                                                     subnet_cache)
                 self._add_acl_cmd(acls, cmd)
 
         for cmd in six.itervalues(acls):
@@ -733,8 +769,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return port
 
     def _refresh_remote_security_group(self, context, sec_group,
-                                       sg_ports_cache, exclude_ports,
-                                       subnet_cache):
+                                       sg_ports_cache=None,
+                                       exclude_ports=None,
+                                       subnet_cache=None):
         # For sec_group, refresh acls for all other security groups that have
         # rules referencing sec_group as 'remote_group'.
         filters = {'remote_group_id': [sec_group]}
@@ -770,17 +807,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 txn.add(self._ovn.delete_acl(
                         utils.ovn_name(port['network_id']), port['id']))
 
-        # NOTE(russellb): If this port had a security group applied with a rule
-        # that used "remote_group_id", technically we could update the ACLs for
-        # all ports on that security group to remove references to this port
-        # we're deleting.  However, it's harmless to leave it for now and saves
-        # some additional churn in the OVN db.  References to this port will
-        # get automatically removed the next time something else triggers a
-        # refresh of ACLs for ports on that security group.
+        sg_ids = port.get('security_groups', [])
 
         with context.session.begin(subtransactions=True):
             self.disassociate_floatingips(context, port_id)
             super(OVNPlugin, self).delete_port(context, port_id)
+
+        for sg_id in sg_ids:
+            self._refresh_remote_security_group(context, sg_id)
 
     def extend_port_dict_binding(self, port_res, port_db):
         super(OVNPlugin, self).extend_port_dict_binding(port_res, port_db)
