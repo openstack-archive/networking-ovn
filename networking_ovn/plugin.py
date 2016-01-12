@@ -760,7 +760,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                            sg_ports_cache=sg_ports_cache,
                            subnet_cache=subnet_cache)
 
-        for sg_id in port.get('security_group', []):
+        for sg_id in port.get('security_groups', []):
             self._refresh_remote_security_group(context, sg_id,
                                                 sg_ports_cache=sg_ports_cache,
                                                 exclude_ports=[port['id']],
