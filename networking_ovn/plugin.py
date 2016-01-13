@@ -19,6 +19,7 @@ import six
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
+from sqlalchemy.orm import exc as sa_exc
 
 from neutron.agent.ovsdb.native import idlutils
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
@@ -34,6 +35,7 @@ from neutron.common import constants as const
 from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
+from neutron import context as n_context
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import db_base_plugin_v2
@@ -54,6 +56,7 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
+from networking_ovn.ovsdb import ovsdb_monitor
 
 LOG = log.getLogger(__name__)
 
@@ -108,7 +111,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self._start_rpc_notifiers()
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        self._ovn = impl_idl_ovn.OvsdbOvnIdl()
+        self._ovn = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
 
         # Call the synchronization task, this sync neutron DB to OVN-NB DB
         # only in inconsistent states
@@ -392,6 +395,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             binding_profile = self._get_data_from_binding_profile(
                 context, port['port'])
+
+            # set the status of the port to down by default
+            port['port']['status'] = const.PORT_STATUS_DOWN
 
             dhcp_opts = port['port'].get(edo_ext.EXTRADHCPOPTS, [])
             db_port = super(OVNPlugin, self).create_port(context, port)
@@ -981,3 +987,28 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # fails, we'll be out of sync until another change happens that
         # triggers a refresh.
         self._update_acls_for_security_group(context, group_id)
+
+    def get_workers(self):
+        # See doc/source/design/ovn_worker.rst for more details.
+        return [ovsdb_monitor.OvnWorker()]
+
+    def _update_port_status(self, ctx, port_id, status):
+        try:
+            with ctx.session.begin(subtransactions=True):
+                db_port = self._get_port(ctx, port_id)
+                if db_port.status != status:
+                    LOG.debug("Updating port status of port - %s to %s",
+                              port_id, status)
+                    db_port.status = status
+        except (n_exc.PortNotFound, sa_exc.StaleDataError):
+            # Its possible that port could have been deleted
+            # or being deleted concurrently
+            LOG.debug("Port update unsuccessful - %s", port_id)
+
+    def set_port_status_up(self, port_id):
+        ctx = n_context.get_admin_context()
+        self._update_port_status(ctx, port_id, const.PORT_STATUS_ACTIVE)
+
+    def set_port_status_down(self, port_id):
+        ctx = n_context.get_admin_context()
+        self._update_port_status(ctx, port_id, const.PORT_STATUS_DOWN)

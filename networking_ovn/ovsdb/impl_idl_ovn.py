@@ -17,17 +17,32 @@ from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
+from networking_ovn.ovsdb import ovsdb_monitor
+
+
+def get_connection(trigger):
+    # The trigger is the start() method of the NeutronWorker class
+    if trigger.im_class == ovsdb_monitor.OvnWorker:
+        cls = ovsdb_monitor.OvnConnection
+    else:
+        cls = connection.Connection
+    return cls(cfg.get_ovn_ovsdb_connection(),
+               cfg.get_ovn_ovsdb_timeout(), 'OVN_Northbound')
 
 
 class OvsdbOvnIdl(ovn_api.API):
 
-    ovsdb_connection = connection.Connection(cfg.get_ovn_ovsdb_connection(),
-                                             cfg.get_ovn_ovsdb_timeout(),
-                                             'OVN_Northbound')
+    ovsdb_connection = None
 
-    def __init__(self):
+    def __init__(self, plugin, trigger):
         super(OvsdbOvnIdl, self).__init__()
-        OvsdbOvnIdl.ovsdb_connection.start()
+        if OvsdbOvnIdl.ovsdb_connection is None:
+            OvsdbOvnIdl.ovsdb_connection = get_connection(trigger)
+        if isinstance(OvsdbOvnIdl.ovsdb_connection,
+                      ovsdb_monitor.OvnConnection):
+            OvsdbOvnIdl.ovsdb_connection.start(plugin)
+        else:
+            OvsdbOvnIdl.ovsdb_connection.start()
         self.idl = OvsdbOvnIdl.ovsdb_connection.idl
         self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
