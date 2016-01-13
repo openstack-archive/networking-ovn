@@ -191,6 +191,8 @@ function install_ovn {
     fi
 
     setup_package $DEST/networking-ovn
+    # Install tox, used to generate the config (see devstack/override-defaults)
+    pip_install tox
 
     cd $DEST
     if [ ! -d $OVN_REPO_NAME ] ; then
@@ -208,9 +210,6 @@ function install_ovn {
         # is_fedora covers Fedora, RHEL, CentOS, etc...
         install_package kernel-devel
     fi
-
-    # Install tox, used to generate the config
-    pip_install tox
 
     if [ ! -f configure ] ; then
         ./boot.sh
