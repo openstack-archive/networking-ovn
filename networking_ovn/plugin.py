@@ -833,11 +833,16 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         router_name = utils.ovn_name(router['id'])
         external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
                         router.get('name', 'no_router_name')}
-        self._ovn.create_lrouter(router_name,
-                                 external_ids=external_ids
-                                 ).execute(check_error=True)
+        try:
+            self._ovn.create_lrouter(router_name,
+                                     external_ids=external_ids
+                                     ).execute(check_error=True)
+        except Exception:
+            LOG.exception(_LE('Unable to create lrouter for %s'),
+                          router['id'])
+            super(OVNPlugin, self).delete_router(context, router['id'])
+            raise n_exc.ServiceUnavailable()
 
-        # TODO(gsagie) rollback router creation on OVN failure
         return router
 
     def delete_router(self, context, router_id):
@@ -848,17 +853,25 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return ret_val
 
     def update_router(self, context, id, router):
-        router = super(OVNPlugin, self).update_router(
+        original_router = self.get_router(context, id)
+        result = super(OVNPlugin, self).update_router(
             context, id, router)
-        router_name = utils.ovn_name(router['id'])
-        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                        router.get('name', 'no_router_name')}
-        self._ovn.update_lrouter(router_name,
-                                 external_ids=external_ids
-                                 ).execute(check_error=True)
+        if 'name' in router['router']:
+            router_name = utils.ovn_name(id)
+            external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                            router['router']['name']}
+            try:
+                self._ovn.update_lrouter(router_name,
+                                         external_ids=external_ids
+                                         ).execute(check_error=True)
+            except Exception:
+                LOG.exception(_LE('Unable to update lrouter for %s'), id)
+                super(OVNPlugin, self).update_router(context,
+                                                     id,
+                                                     original_router)
+                raise n_exc.ServiceUnavailable()
 
-        # TODO(Sisir) Rollback router update on OVN NB DB Update Failure.
-        return router
+        return result
 
     def add_router_interface(self, context, router_id, interface_info):
         router_interface_info = super(OVNPlugin, self).add_router_interface(
