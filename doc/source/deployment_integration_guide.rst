@@ -50,6 +50,22 @@ primary node. See the :ref:`faq` for more information.
 
 #. Install the ``openvswitch-ovn`` and ``networking-ovn`` packages.
 
+#. OVN requires two databases, Northbound (NB) and Southbound (SB),
+   that the ``ovn-northd`` service accesses via the ``ovsdb-server``
+   service.
+
+   * Create the OVN databases.
+
+     .. code-block:: console
+
+        # ovsdb-tool create /etc/openvswitch/ovnsb.db /usr/share/openvswitch/ovn-sb.ovsschema
+        # ovsdb-tool create /etc/openvswitch/ovnnb.db /usr/share/openvswitch/ovn-nb.ovsschema
+
+   .. note::
+
+      You likely need to modify the OVS service initialization script to
+      include the ``ovnnb.db`` and ``ovnsb.db`` databases.
+
 #. Start the OVS service. The central OVS service starts the ``ovsdb-server``
    service that manages OVN databases.
 
