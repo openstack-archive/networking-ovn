@@ -34,6 +34,7 @@ from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron.tests.unit.extensions import test_availability_zone as test_az
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
+from neutron.tests.unit.extensions import test_portsecurity
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands as cmd
@@ -159,11 +160,13 @@ class TestOvnPlugin(OVNPluginTestCase):
     def test_create_port_security(self):
         self.plugin._ovn.create_lport = mock.Mock()
         self.plugin._ovn.set_lport = mock.Mock()
-        kwargs = {'mac_address': '00:00:00:00:00:01'}
+        kwargs = {'mac_address': '00:00:00:00:00:01',
+                  'fixed_ips': [{'ip_address': '10.0.0.2'},
+                                {'ip_address': '10.0.0.4'}]}
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
-                               arg_list=('mac_address',),
+                               arg_list=('mac_address', 'fixed_ips'),
                                set_context=True, tenant_id='test',
                                **kwargs) as port:
                     self.assertTrue(
@@ -171,7 +174,7 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.create_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(['00:00:00:00:00:01'],
+                    self.assertEqual(['00:00:00:00:00:01 10.0.0.2 10.0.0.4'],
                                      called_args_dict.get('port_security'))
 
                     data = {'port': {'mac_address': '00:00:00:00:00:02'}}
@@ -184,11 +187,10 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(['00:00:00:00:00:02'],
+                    self.assertEqual(['00:00:00:00:00:02 10.0.0.2 10.0.0.4'],
                                      called_args_dict.get('port_security'))
 
     def test_create_port_with_disabled_security(self):
-        self.skipTest("Fix this after port-security extension is supported")
         self.plugin._ovn.create_lport = mock.Mock()
         self.plugin._ovn.set_lport = mock.Mock()
         kwargs = {'port_security_enabled': False}
@@ -744,3 +746,9 @@ class TestAZNetworkTestCase(test_az.TestAZNetworkCase, OVNPluginTestCase):
         ext_mgr = test_az.AZExtensionManager()
         super(test_az.TestAZNetworkCase, self).setUp(
             plugin=PLUGIN_NAME, ext_mgr=ext_mgr)
+
+
+class TestOvnPortSecurity(test_portsecurity.TestPortSecurity,
+                          OVNPluginTestCase):
+    def setUp(self, plugin=PLUGIN_NAME):
+        super(TestOvnPortSecurity, self).setUp(plugin=plugin)

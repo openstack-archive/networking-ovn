@@ -54,10 +54,12 @@ from neutron.db import l3_hascheduler_db
 from neutron.db import models_v2
 from neutron.db import netmtu_db
 from neutron.db import portbindings_db
+from neutron.db import portsecurity_db_common as ps_db_common
 from neutron.db import securitygroups_db
 from neutron.extensions import availability_zone as az_ext
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
+from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
@@ -90,7 +92,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 extradhcpopt_db.ExtraDhcpOptMixin,
                 extraroute_db.ExtraRoute_db_mixin,
                 agentschedulers_db.AZDhcpAgentSchedulerDbMixin,
-                netmtu_db.Netmtu_db_mixin):
+                netmtu_db.Netmtu_db_mixin,
+                ps_db_common.PortSecurityDbCommon):
 
     __native_bulk_support = True
     __native_pagination_support = True
@@ -277,6 +280,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             result = super(OVNPlugin, self).create_network(context,
                                                            network)
+            if psec.PORTSECURITY not in net:
+                net[psec.PORTSECURITY] = (
+                    psec.EXTENDED_ATTRIBUTES_2_0['networks']
+                    [psec.PORTSECURITY]['default'])
+            self._process_network_port_security_create(context, net, result)
             self._process_l3_create(context, result, net)
             self.core_ext_handler.process_fields(
                 context, base_core.NETWORK, net, result)
@@ -466,6 +474,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 context, network_id, network)
             self._process_l3_update(
                 context, updated_network, network['network'])
+            self._process_network_port_security_update(
+                context, network['network'], updated_network)
             if 'qos_policy_id' in net_dict:
                 self.core_ext_handler.process_fields(
                     context, base_core.NETWORK, net_dict, updated_network)
@@ -546,7 +556,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
             updated_port = super(OVNPlugin, self).update_port(context, id,
                                                               port)
-
+            self._process_port_port_security_update(context, port['port'],
+                                                    updated_port)
+            self._portsec_ext_port_update_processing(updated_port, context,
+                                                     port)
             self._process_portbindings_create_and_update(context,
                                                          pdict,
                                                          updated_port)
@@ -565,6 +578,38 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                   updated_port)
         return self._update_port_in_ovn(context, original_port,
                                         updated_port, ovn_port_info)
+
+    def _portsec_ext_port_create_processing(self, context, port_data, port):
+        # This function  is borrowed from ml2 plugin
+        port_security = ((port_data.get(psec.PORTSECURITY) is None) or
+                         port_data[psec.PORTSECURITY])
+
+        if port_security:
+            self._ensure_default_security_group_on_port(context, port)
+        elif self._check_update_has_security_groups(port):
+            raise psec.PortSecurityAndIPRequiredForSecurityGroups()
+
+    def _portsec_ext_port_update_processing(self, updated_port, context, port):
+        # This function  is borrowed from ml2 plugin
+        port_security = ((updated_port.get(psec.PORTSECURITY) is None) or
+                         updated_port[psec.PORTSECURITY])
+
+        if port_security:
+            return
+
+        # checks if security groups were updated adding/modifying
+        # security groups, port security is set
+        if self._check_update_has_security_groups(port):
+            raise psec.PortSecurityAndIPRequiredForSecurityGroups()
+        elif (not self._check_update_deletes_security_groups(port)):
+            # Update did not have security groups passed in. Check
+            # that port does not have any security groups already on it.
+            filters = {'port_id': [updated_port['id']]}
+            security_groups = self._get_port_security_group_bindings(
+                context, filters)
+
+            if security_groups:
+                raise psec.PortSecurityPortHasSecurityGroup()
 
     def _update_port_in_ovn(self, context, original_port, port,
                             ovn_port_info):
@@ -681,13 +726,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return param_dict
 
-    def _get_allowed_mac_addresses_from_port(self, port):
-        allowed_macs = set()
-        allowed_macs.add(port['mac_address'])
-        allowed_address_pairs = port.get('allowed_address_pairs', [])
-        for allowed_address in allowed_address_pairs:
-            allowed_macs.add(allowed_address['mac_address'])
-        return list(allowed_macs)
+    def _get_allowed_addresses_from_port(self, port):
+        if not port.get(psec.PORTSECURITY):
+            return []
+
+        allowed_addresses = set()
+        addresses = port['mac_address']
+        for ip in port.get('fixed_ips', []):
+            addresses += ' ' + ip['ip_address']
+
+        allowed_addresses.add(addresses)
+
+        return list(allowed_addresses)
 
     def _update_port_binding(self, port_res):
         port_res[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
@@ -710,6 +760,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             db_port = super(OVNPlugin, self).create_port(context, port)
             self.core_ext_handler.process_fields(
                 context, base_core.PORT, pdict, db_port)
+            port['port'][psec.PORTSECURITY] = self._determine_port_security(
+                context, port['port'])
+            self._process_port_port_security_create(context, port['port'],
+                                                    db_port)
+            self._portsec_ext_port_create_processing(context, db_port, port)
             sgids = self._get_security_groups_on_port(context, port)
             self._process_port_create_security_group(context, db_port,
                                                      sgids)
@@ -754,7 +809,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             options = {'vtep_physical_switch': vtep_physical_switch,
                        'vtep_logical_switch': vtep_logical_switch}
             addresses = "unknown"
-            allowed_macs = []
+            port_security = []
         else:
             options = qos_options
             parent_name = binding_profile.get('parent_name')
@@ -762,10 +817,36 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             addresses = port['mac_address']
             for ip in port.get('fixed_ips', []):
                 addresses += ' ' + ip['ip_address']
-            allowed_macs = self._get_allowed_mac_addresses_from_port(port)
+            port_security = self._get_allowed_addresses_from_port(port)
 
-        return OvnPortInfo(port_type, options, [addresses], allowed_macs,
+        return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
+
+    def _determine_port_security(self, context, port):
+        """Returns a boolean (port_security_enabled).
+
+        This function is borrowed from ml2 port security extension driver.
+        Port_security is the value associated with the port if one is present
+        otherwise the value associated with the network is returned.
+        """
+        # we don't apply port security for dhcp, router
+        if port.get('device_owner') and port['device_owner'].startswith(
+            const.DEVICE_OWNER_NETWORK_PREFIX):
+            return False
+
+        if attr.is_attr_set(port.get(psec.PORTSECURITY)):
+            port_security_enabled = port[psec.PORTSECURITY]
+        else:
+            try:
+                port_security_enabled = self._get_network_security_binding(
+                    context, port['network_id'])
+            except psec.PortSecurityBindingNotFound:
+                # If Network security binding doesn't exist return True.
+                # This could happen for networks created prior to port
+                # security extension support in the plugin.
+                port_security_enabled = True
+
+        return port_security_enabled
 
     def _acl_direction(self, r, port):
         if r['direction'] == 'ingress':
@@ -1099,6 +1180,28 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def extend_port_dict_binding(self, port_res, port_db):
         super(OVNPlugin, self).extend_port_dict_binding(port_res, port_db)
         self._update_port_binding(port_res)
+
+    # Register extend dict methods for network and port resources.
+    db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+        attr.NETWORKS, ['_extend_network_dict'])
+
+    db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+        attr.PORTS, ['_extend_port_dict'])
+
+    def _extend_network_dict(self, net_result, net_db):
+        self._extend_port_security_dict(net_result, net_db)
+
+    def _extend_port_dict(self, port_result, port_db):
+        self._extend_port_security_dict(port_result, port_db)
+
+    def _extend_port_security_dict(self, response_data, db_data):
+        if db_data.get('port_security') is None:
+            response_data[psec.PORTSECURITY] = (
+                psec.EXTENDED_ATTRIBUTES_2_0['networks']
+                [psec.PORTSECURITY]['default'])
+        else:
+            response_data[psec.PORTSECURITY] = (
+                db_data['port_security'][psec.PORTSECURITY])
 
     def create_router(self, context, router):
         router = super(OVNPlugin, self).create_router(

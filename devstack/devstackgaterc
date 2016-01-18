@@ -56,9 +56,6 @@ r="$r|(?:tempest\.api\.compute\.volumes*)"
 # https://bugs.launchpad.net/networking-ovn/+bug/1470615
 r="$r|(?:tempest\.api\.network.test_allowed_address_pair.*)"
 
-# https://bugs.launchpad.net/networking-ovn/+bug/1496595
-r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_port_security_disable_security_group*)"
-
 # End list of exclusions.
 r="$r)"
 

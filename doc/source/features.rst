@@ -61,6 +61,8 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Port Binding                     | binding                   |
 +----------------------------------+---------------------------+
+| Port Security                    | port-security             |
++----------------------------------+---------------------------+
 | Provider Network                 | provider                  |
 +----------------------------------+---------------------------+
 | Quality of Service               | qos                       |
@@ -73,5 +75,6 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Subnet Allocation                | subnet_allocation         |
 +----------------------------------+---------------------------+
+
 
 (\*) Only applicable when conventional layer-3 agent enabled.
