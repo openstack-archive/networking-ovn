@@ -152,8 +152,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         if not config.is_ovn_l3():
             self.conn.create_consumer(topics.L3PLUGIN, self.endpoints,
                                       fanout=False)
-        self.conn.create_consumer(topics.REPORTS,
-                                  [agents_db.AgentExtRpcCallback()],
+
+        # topics.REPORTS was added for the Mitaka release, therefore, to
+        # work with stable/liberty, check to see if topics.REPORTS exists
+        # if it does, use it. If not, use topics.PLUGIN instead
+        topic = topics.REPORTS if hasattr(topics, 'REPORTS') else topics.PLUGIN
+        self.conn.create_consumer(topic, [agents_db.AgentExtRpcCallback()],
                                   fanout=False)
         return self.conn.consume_in_threads()
 
