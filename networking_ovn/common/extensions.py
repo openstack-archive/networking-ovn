@@ -35,4 +35,5 @@ SUPPORTED_API_EXTENSIONS = [
     'security-group',
     'subnet_allocation',
     'port-security',
+    'allowed-address-pairs',
 ]

@@ -42,6 +42,7 @@ from neutron.core_extensions import base as base_core
 from neutron.core_extensions import qos as qos_core
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
+from neutron.db import allowedaddresspairs_db as addr_pair_db
 from neutron.db import api as db_api
 from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
@@ -56,6 +57,7 @@ from neutron.db import netmtu_db
 from neutron.db import portbindings_db
 from neutron.db import portsecurity_db_common as ps_db_common
 from neutron.db import securitygroups_db
+from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import availability_zone as az_ext
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
@@ -93,7 +95,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 extraroute_db.ExtraRoute_db_mixin,
                 agentschedulers_db.AZDhcpAgentSchedulerDbMixin,
                 netmtu_db.Netmtu_db_mixin,
-                ps_db_common.PortSecurityDbCommon):
+                ps_db_common.PortSecurityDbCommon,
+                addr_pair_db.AllowedAddressPairsMixin):
 
     __native_bulk_support = True
     __native_pagination_support = True
@@ -558,13 +561,20 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                               port)
             self._process_port_port_security_update(context, port['port'],
                                                     updated_port)
+
             self._portsec_ext_port_update_processing(updated_port, context,
                                                      port)
+
             self._process_portbindings_create_and_update(context,
                                                          pdict,
                                                          updated_port)
             self.update_security_group_on_port(
                 context, id, port, original_port, updated_port)
+
+            if addr_pair.ADDRESS_PAIRS in port['port']:
+                self.update_address_pairs_on_port(context, id, port,
+                                                  original_port,
+                                                  updated_port)
 
             self._update_extra_dhcp_opts_on_port(context, id, port,
                                                  updated_port=updated_port)
@@ -584,6 +594,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_security = ((port_data.get(psec.PORTSECURITY) is None) or
                          port_data[psec.PORTSECURITY])
 
+        # allowed address pair checks
+        if self._check_update_has_allowed_address_pairs(port):
+            if not port_security:
+                raise addr_pair.AddressPairAndPortSecurityRequired()
+        else:
+            # remove ATTR_NOT_SPECIFIED
+            port['port'][addr_pair.ADDRESS_PAIRS] = []
+
         if port_security:
             self._ensure_default_security_group_on_port(context, port)
         elif self._check_update_has_security_groups(port):
@@ -596,6 +614,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         if port_security:
             return
+
+        # check the address-pairs
+        if self._check_update_has_allowed_address_pairs(port):
+            #  has address pairs in request
+            raise addr_pair.AddressPairAndPortSecurityRequired()
+        elif (not self._check_update_deletes_allowed_address_pairs(port)):
+            # not a request for deleting the address-pairs
+            updated_port[addr_pair.ADDRESS_PAIRS] = (
+                self.get_allowed_address_pairs(context, updated_port['id']))
+
+            if updated_port[addr_pair.ADDRESS_PAIRS]:
+                raise addr_pair.AddressPairAndPortSecurityRequired()
 
         # checks if security groups were updated adding/modifying
         # security groups, port security is set
@@ -735,6 +765,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         for ip in port.get('fixed_ips', []):
             addresses += ' ' + ip['ip_address']
 
+        for allowed_address in port.get('allowed_address_pairs', []):
+            # If allowed address pair has same mac as the port mac,
+            # append the allowed ip address to the 'addresses'.
+            # Else we will have multiple entries for the same mac in
+            # 'Logical_Port.port_security'.
+            if allowed_address['mac_address'] == port['mac_address']:
+                addresses += ' ' + allowed_address['ip_address']
+            else:
+                allowed_addresses.add(allowed_address['mac_address'] + ' ' +
+                                      allowed_address['ip_address'])
+
         allowed_addresses.add(addresses)
 
         return list(allowed_addresses)
@@ -781,6 +822,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 db_port[ovn_const.OVN_PORT_BINDING_PROFILE] = \
                     pdict[ovn_const.OVN_PORT_BINDING_PROFILE]
 
+            db_port[addr_pair.ADDRESS_PAIRS] = (
+                self._process_create_allowed_address_pairs(
+                    context, db_port,
+                    port['port'].get(addr_pair.ADDRESS_PAIRS)))
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
             qos_options = self._qos_get_ovn_port_options(

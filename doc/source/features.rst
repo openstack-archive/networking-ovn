@@ -37,6 +37,8 @@ The following Neutron API extensions are supported with OVN:
 +==================================+===========================+
 | agent                            | agent                     |
 +----------------------------------+---------------------------+
+| Allowed Address Pairs            | allowed-address-pairs     |
++----------------------------------+---------------------------+
 | Auto Allocated Topology Services | auto-allocated-topology   |
 +----------------------------------+---------------------------+
 | Availability Zone                | availability_zone         |
