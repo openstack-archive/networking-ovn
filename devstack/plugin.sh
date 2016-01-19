@@ -253,7 +253,8 @@ function start_ovs {
 
     ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
-                 --pidfile --detach -vconsole:off --log-file $OVSDB_REMOTE \
+                 --pidfile --detach -vconsole:off \
+                 --log-file=$DEST/logs/ovs-vswitchd.log $OVSDB_REMOTE \
                  conf.db ${EXTRA_DBS}
 
     echo -n "Waiting for ovsdb-server to start ... "
