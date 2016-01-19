@@ -304,6 +304,13 @@ function stop_ovn {
     sudo killall ovsdb-server
 }
 
+# stop_ovs_dp() - Stop OVS datapath
+function stop_ovs_dp {
+    sudo ovs-dpctl dump-dps | sudo xargs -n1 ovs-dpctl del-dp
+    sudo rmmod vport_geneve
+    sudo rmmod openvswitch
+}
+
 function disable_libvirt_apparmor {
     if ! sudo aa-status --enabled ; then
         return 0
@@ -340,6 +347,7 @@ if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; t
 
     if [[ "$1" == "unstack" ]]; then
         stop_ovn
+        stop_ovs_dp
         cleanup_ovn
     fi
 fi
