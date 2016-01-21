@@ -48,9 +48,9 @@ disable_service q-agt
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
 # Openstack will use the q-l3 functionality.  If you set OVN_L3_MODE to True,
 # you must also disable the q-l3 service.
-#OVN_L3_MODE=False
-enable_service q-l3
-#disable_service q-l3
+OVN_L3_MODE=True
+#enable_service q-l3
+disable_service q-l3
 
 # Whether or not to build custom openvswitch kernel modules from the ovs git
 # tree. This is enabled by default.  This is required unless your distro kernel

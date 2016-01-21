@@ -272,7 +272,8 @@ function start_ovs {
         _neutron_ovs_base_setup_bridge br-int
         ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
-        sudo ovs-vswitchd --pidfile --detach -vconsole:off --log-file
+        # Bump up the max number of open files ovs-vswitchd can have
+        sudo sh -c "ulimit -n 32000 && exec ovs-vswitchd --pidfile --detach -vconsole:off --log-file"
     fi
 
     cd $_pwd
