@@ -32,6 +32,7 @@ Design Notes:
    :maxdepth: 1
 
    design/data_model
+   design/ovn_worker
 
 Indices and tables
 ==================
