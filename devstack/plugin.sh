@@ -284,11 +284,11 @@ function start_ovn {
     echo "Starting OVN"
 
     if is_ovn_service_enabled ovn-controller ; then
-        run_process ovn-controller "sudo ovn-controller --log-file unix:/usr/local/var/run/openvswitch/db.sock"
+        run_process ovn-controller "sudo ovn-controller --pidfile --log-file unix:/usr/local/var/run/openvswitch/db.sock"
     fi
 
     if is_ovn_service_enabled ovn-northd ; then
-        run_process ovn-northd "ovn-northd --log-file"
+        run_process ovn-northd "ovn-northd --pidfile --log-file"
     fi
 }
 
