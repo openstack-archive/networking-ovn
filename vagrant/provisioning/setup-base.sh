@@ -8,6 +8,8 @@ DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy python-dev
 DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy build-essential
 echo export LC_ALL=en_US.UTF-8 >> ~/.bash_profile
 echo export LANG=en_US.UTF-8 >> ~/.bash_profile
+# FIXME(mestery): Remove once Vagrant boxes allow apt-get to work again
+sudo rm -rf /var/lib/apt/lists/*
 sudo apt-get install -y git
 if [ ! -d "devstack" ]; then
     git clone https://github.com/openstack-dev/devstack
