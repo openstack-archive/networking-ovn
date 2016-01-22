@@ -695,21 +695,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             port_type = 'vtep'
             options = {'vtep_physical_switch': vtep_physical_switch,
                        'vtep_logical_switch': vtep_logical_switch}
-            addresses = ["unknown"]
+            addresses = "unknown"
             allowed_macs = []
         else:
             options = qos_options
             parent_name = binding_profile.get('parent_name')
             tag = binding_profile.get('tag')
-            fixed_ips = port.get('fixed_ips')
-            if fixed_ips:
-                addresses = [port['mac_address'] + ' ' + ip['ip_address'] for
-                             ip in fixed_ips]
-            else:
-                addresses = [port['mac_address']]
+            addresses = port['mac_address']
+            for ip in port.get('fixed_ips', []):
+                addresses += ' ' + ip['ip_address']
             allowed_macs = self._get_allowed_mac_addresses_from_port(port)
 
-        return OvnPortInfo(port_type, options, addresses, allowed_macs,
+        return OvnPortInfo(port_type, options, [addresses], allowed_macs,
                            parent_name, tag)
 
     def _acl_direction(self, r, port):
