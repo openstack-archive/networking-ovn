@@ -155,6 +155,7 @@ Security Groups
        port_range_min
        port_range_max
        remote_ip_prefix
+
 ...
 
 ::
@@ -190,46 +191,46 @@ but all options are kept here for future reference
 
 1) For every <neutron port, security rule> pair, define an ACL entry::
 
-   Leads to many ACL entries.
-   acl.match = sg_rule converted
-   example: ((inport==port.id) && (ip.proto == "tcp") &&
-            (1024 &lt;= tcp.src &lt;= 4095) && (ip.src==192.168.0.1/16))
+     Leads to many ACL entries.
+     acl.match = sg_rule converted
+     example: ((inport==port.id) && (ip.proto == "tcp") &&
+              (1024 &lt;= tcp.src &lt;= 4095) && (ip.src==192.168.0.1/16))
 
-   external_ids: {'neutron:port_id': port.id}
-                 {'neutron:security_rule_id': security_rule.id}
+     external_ids: {'neutron:port_id': port.id}
+                   {'neutron:security_rule_id': security_rule.id}
 
 2) For every <neutron port, security group> pair, define an ACL entry::
 
-   Reduce the number of ACL entries.
-   Means we have to manage the match field in case specific rule changes
-   example: (((inport==port.id) && (ip.proto == "tcp") &&
-            (1024 &lt;= tcp.src &lt;= 4095) && (ip.src==192.168.0.1/16)) ||
-            ((outport==port.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
-            ((inport==port.id) && (ip.proto == 6) ) ||
-            ((inport==port.id) && (eth.type == 0x86dd)))
+     Reduce the number of ACL entries.
+     Means we have to manage the match field in case specific rule changes
+     example: (((inport==port.id) && (ip.proto == "tcp") &&
+              (1024 &lt;= tcp.src &lt;= 4095) && (ip.src==192.168.0.1/16)) ||
+              ((outport==port.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
+              ((inport==port.id) && (ip.proto == 6) ) ||
+              ((inport==port.id) && (eth.type == 0x86dd)))
 
-            (This example is a security group with four security rules)
+              (This example is a security group with four security rules)
 
-   external_ids: {'neutron:port_id': port.id}
-                 {'neutron:security_group_id': security_group.id}
+     external_ids: {'neutron:port_id': port.id}
+                   {'neutron:security_group_id': security_group.id}
 
 3) For every <lswitch, security group> pair, define an ACL entry::
 
-   Reduce even more the number of ACL entries.
-   Manage complexity increase
-   example: (((inport==port.id) && (ip.proto == "tcp") && (1024 &lt;= tcp.src &lt;= 4095)
-             && (ip.src==192.168.0.1/16)) ||
-            ((outport==port.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
-            ((inport==port.id) && (ip.proto == 6) ) ||
-            ((inport==port.id) && (eth.type == 0x86dd))) ||
+     Reduce even more the number of ACL entries.
+     Manage complexity increase
+     example: (((inport==port.id) && (ip.proto == "tcp") && (1024 &lt;= tcp.src &lt;= 4095)
+               && (ip.src==192.168.0.1/16)) ||
+              ((outport==port.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
+              ((inport==port.id) && (ip.proto == 6) ) ||
+              ((inport==port.id) && (eth.type == 0x86dd))) ||
 
-            (((inport==port2.id) && (ip.proto == "tcp") && (1024 &lt;= tcp.src &lt;= 4095)
-            && (ip.src==192.168.0.1/16)) ||
-            ((outport==port2.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
-            ((inport==port2.id) && (ip.proto == 6) ) ||
-            ((inport==port2.id) && (eth.type == 0x86dd)))
+              (((inport==port2.id) && (ip.proto == "tcp") && (1024 &lt;= tcp.src &lt;= 4095)
+              && (ip.src==192.168.0.1/16)) ||
+              ((outport==port2.id) && (ip.proto == "udp") && (1024 &lt;= tcp.src &lt;= 4095)) ||
+              ((inport==port2.id) && (ip.proto == 6) ) ||
+              ((inport==port2.id) && (eth.type == 0x86dd)))
 
-   external_ids: {'neutron:security_group': security_group.id}
+     external_ids: {'neutron:security_group': security_group.id}
 
 
 Which option to pick depends on OVN match field length capabilities, and the
