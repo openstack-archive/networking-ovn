@@ -11,13 +11,15 @@ fi
 # Get the IP address
 ipaddress=$(/sbin/ifconfig eth1 | grep 'inet addr' | awk -F' ' '{print $2}' | awk -F':' '{print $2}')
 
+# Fixup HOST_IP with the local IP address
+sed -i -e 's/<IP address of current host>/'$ipaddress'/g' devstack/local.conf
+
 # Adjust some things in local.conf
 cat << DEVSTACKEOF >> devstack/local.conf
 
 # Set this to the address of the main DevStack host running the rest of the
 # OpenStack services.
 Q_HOST=$1
-HOST_IP=$ipaddress
 HOSTNAME=$(hostname)
 OVN_REMOTE=tcp:$ovnip:6640
 DEVSTACKEOF
