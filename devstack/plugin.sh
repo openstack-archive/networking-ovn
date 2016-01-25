@@ -241,6 +241,10 @@ function start_ovs {
     echo "Starting OVS"
 
     local _pwd=$(pwd)
+
+    local ovsdb_logfile="ovsdb-server.log.${CURRENT_LOG_TIME}"
+    bash -c "cd '$LOGDIR' && touch '$ovsdb_logfile' && ln -sf '$ovsdb_logfile' ovsdb-server.log"
+
     cd $DATA_DIR/ovs
 
     EXTRA_DBS=""
@@ -250,10 +254,18 @@ function start_ovs {
         OVSDB_REMOTE="--remote=ptcp:6640:$HOST_IP"
     fi
 
+    # TODO (regXboi): it would be nice to run the following with run_process
+    # and have it end up under the control of screen.  However, at the point
+    # this is called, screen isn't running, so we'd have to overload
+    # USE_SCREEN to get the process to start, but testing shows that the
+    # resulting process doesn't want to create br-int, which leaves things
+    # rather broken.  So, stay with this for now and somebody more tenacious
+    # than I can figure out how to make it work...
+
     ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
                  --pidfile --detach -vconsole:off \
-                 --log-file=$DEST/logs/ovs-vswitchd.log $OVSDB_REMOTE \
+                 --log-file=$LOGDIR/ovsdb-server.log $OVSDB_REMOTE \
                  conf.db ${EXTRA_DBS}
 
     echo -n "Waiting for ovsdb-server to start ... "
@@ -273,8 +285,11 @@ function start_ovs {
         _neutron_ovs_base_setup_bridge br-int
         ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
+        local ovswd_logfile="ovs-switchd.log.${CURRENT_LOG_TIME}"
+        bash -c "cd '$LOGDIR' && touch '$ovswd_logfile' && ln -sf '$ovswd_logfile' ovs-vswitchd.log"
+
         # Bump up the max number of open files ovs-vswitchd can have
-        sudo sh -c "ulimit -n 32000 && exec ovs-vswitchd --pidfile --detach -vconsole:off --log-file"
+        sudo sh -c "ulimit -n 32000 && exec ovs-vswitchd --pidfile --detach -vconsole:off --log-file=$LOGDIR/ovs-vswitchd.log"
     fi
 
     cd $_pwd
@@ -285,11 +300,25 @@ function start_ovn {
     echo "Starting OVN"
 
     if is_ovn_service_enabled ovn-controller ; then
+        # (regXboi) pulling out --log-file to avoid double logging
+        # appears to break devstack, so let's not do that
         run_process ovn-controller "sudo ovn-controller --pidfile --log-file unix:/usr/local/var/run/openvswitch/db.sock"
+
+        # This makes sure that the console logs have time stamps to
+        # the millisecond, but we need to make sure ovs-appctl has
+        # a pid file to work with, so ...
+        echo -n "Waiting for ovn-controller to start ... "
+        while ! test -e /usr/local/var/run/openvswitch/ovn-controller.pid ; do
+            sleep 1
+        done
+        echo "done."
+        sudo ovs-appctl -t ovn-controller vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
 
     if is_ovn_service_enabled ovn-northd ; then
-        run_process ovn-northd "ovn-northd --pidfile --log-file"
+        # TODO (regXboi) ovn-northd doesn't appear to log to console at
+        # all - revisit this after that is fixed
+        run_process ovn-northd "ovn-northd --pidfile --log-file=$LOGDIR/ovn-northd.log"
     fi
 }
 
