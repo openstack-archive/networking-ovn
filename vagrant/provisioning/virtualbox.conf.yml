@@ -6,21 +6,25 @@ ovndb:
   prov-ip: "192.168.66.101"
   memory: 2048
   cpus: 2
+  mtu: 1500
 ovncontroller:
   host_name: ovn-controller.devstack.dev
   ip: "192.168.33.102"
   prov-ip: "192.168.66.102"
   memory: 6144
   cpus: 2
+  mtu: 1500
 ovncompute1:
   host_name: ovn-compute1.devstack.dev
   ip: "192.168.33.103"
   prov-ip: "192.168.66.103"
   memory: 1024
   cpus: 1
+  mtu: 1500
 ovncompute2:
   host_name: ovn-compute2.devstack.dev
   ip: "192.168.33.104"
   prov-ip: "192.168.66.104"
   memory: 1024
   cpus: 1
+  mtu: 1500

@@ -1,4 +1,11 @@
 #!/bin/sh
+
+MTU=1500
+
+if [ "$1" != "" ]; then
+    MTU=$1
+fi
+
 DEBIAN_FRONTEND=noninteractive sudo apt-get -qqy update
 DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy git
 DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy bridge-utils
@@ -27,3 +34,8 @@ sudo chown root:root /swapfile1
 sudo chmod 0600 /swapfile1
 sudo mkswap /swapfile1
 sudo swapon /swapfile1
+
+# Configure MTU on VM interfaces. Also requires manually configuring the same MTU on
+# the equivalent 'vboxnet' interfaces on the host.
+sudo ip link set dev eth1 mtu $MTU
+sudo ip link set dev eth2 mtu $MTU

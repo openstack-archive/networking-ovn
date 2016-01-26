@@ -21,7 +21,7 @@ Vagrant.configure(2) do |config|
     ovndb.vm.host_name = vagrant_config['ovndb']['host_name']
     ovndb.vm.network "private_network", ip: vagrant_config['ovndb']['ip']
     ovndb.vm.network "private_network", ip: vagrant_config['ovndb']['prov-ip']
-    ovndb.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false
+    ovndb.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false, :args => "#{vagrant_config['ovndb']['mtu']}"
     ovndb.vm.provision "shell", path: "provisioning/setup-db.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['ip']}"
     config.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovndb']['memory']
@@ -38,7 +38,7 @@ Vagrant.configure(2) do |config|
     ovncontroller.vm.host_name = vagrant_config['ovncontroller']['host_name']
     ovncontroller.vm.network "private_network", ip: vagrant_config['ovncontroller']['ip']
     ovncontroller.vm.network "private_network", ip: vagrant_config['ovncontroller']['prov-ip']
-    ovncontroller.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false
+    ovncontroller.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['mtu']}"
     ovncontroller.vm.provision "shell", path: "provisioning/setup-controller.sh", privileged: false, :args => "#{vagrant_config['ovndb']['ip']}"
 
     config.vm.provider "virtualbox" do |vb|
@@ -56,7 +56,7 @@ Vagrant.configure(2) do |config|
     ovncompute1.vm.host_name = vagrant_config['ovncompute1']['host_name']
     ovncompute1.vm.network "private_network", ip: vagrant_config['ovncompute1']['ip']
     ovncompute1.vm.network "private_network", ip: vagrant_config['ovncompute1']['prov-ip']
-    ovncompute1.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false
+    ovncompute1.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false, :args => "#{vagrant_config['ovncompute1']['mtu']}"
     ovncompute1.vm.provision "shell", path: "provisioning/setup-compute.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['ip']} #{vagrant_config['ovndb']['ip']}"
     config.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovncompute1']['memory']
@@ -73,7 +73,7 @@ Vagrant.configure(2) do |config|
     ovncompute2.vm.host_name = vagrant_config['ovncompute2']['host_name']
     ovncompute2.vm.network "private_network", ip: vagrant_config['ovncompute2']['ip']
     ovncompute2.vm.network "private_network", ip: vagrant_config['ovncompute2']['prov-ip']
-    ovncompute2.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false
+    ovncompute2.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false, :args => "#{vagrant_config['ovncompute2']['mtu']}"
     ovncompute2.vm.provision "shell", path: "provisioning/setup-compute.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['ip']} #{vagrant_config['ovndb']['ip']}"
     config.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovncompute2']['memory']

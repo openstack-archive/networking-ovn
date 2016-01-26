@@ -35,6 +35,14 @@ Quick Start
    IP range, if not, the script most likely will fail when it tries to
    access the VMs.
 
+   For evaluating large MTUs, set the 'mtu' option for each VM to the
+   appropriate value. You must also set the MTU on the equivalent
+   ``vboxnet`` interfaces on the host to the same value after Vagrant
+   creates them. For example, using a 9000 MTU::
+
+    ip link set dev vboxnet0 mtu 9000
+    ip link set dev vboxnet1 mtu 9000
+
 4. Build up three VirtualBox VMs using vagrant, the process can take
    one hour::
 
