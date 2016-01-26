@@ -6,7 +6,7 @@ if [ "$1" != "" ]; then
 fi
 
 # Get the IP address
-ipaddress=$(/sbin/ifconfig eth1 | grep 'inet addr' | awk -F' ' '{print $2}' | awk -F':' '{print $2}')
+ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
 
 # Adjust some things in local.conf
 cat << DEVSTACKEOF >> devstack/local.conf

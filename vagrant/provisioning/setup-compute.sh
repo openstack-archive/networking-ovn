@@ -9,7 +9,7 @@ fi
 
 
 # Get the IP address
-ipaddress=$(/sbin/ifconfig eth1 | grep 'inet addr' | awk -F' ' '{print $2}' | awk -F':' '{print $2}')
+ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
 
 # Fixup HOST_IP with the local IP address
 sed -i -e 's/<IP address of current host>/'$ipaddress'/g' devstack/local.conf
