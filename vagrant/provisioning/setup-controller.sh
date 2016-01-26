@@ -11,8 +11,9 @@ ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
 # Adjust some things in local.conf
 cat << DEVSTACKEOF >> devstack/local.conf
 
-# Adjust this in case we're running on a cloud which may use 10.0.0.x
-# for VM IP addresses
+# Until OVN supports NAT, the private network IP address range
+# must not conflict with IP address ranges on the host. Change
+# as necessary for your environment.
 NETWORK_GATEWAY=10.100.100.100
 FIXED_RANGE=10.100.100.0/24
 
@@ -35,8 +36,21 @@ provider_setup
 # Actually create the provider network
 # FIXME(mestery): Make the subnet-create parameters configurable via virtualbox.conf.yml.
 source devstack/openrc admin admin
-neutron net-create provider --shared --provider:physical_network providernet --provider:network_type flat
-neutron subnet-create provider 192.168.66.0/24 --name provider-subnet --gateway 192.168.66.1 --allocation-pool start=192.168.66.20,end=192.168.66.99 --ip-version 4
+neutron net-create provider --shared --router:external --provider:physical_network provider --provider:network_type flat
+neutron subnet-create provider --name provider-subnet-v4 --gateway 192.168.66.102 --allocation-pool start=192.168.66.20,end=192.168.66.99 --ip-version 4 192.168.66.0/24
+
+# Create a router for the private network.
+source devstack/openrc demo demo
+neutron router-create router
+neutron router-interface-add router private-subnet
+neutron router-gateway-set router provider
+
+# Add host route for private network, at least until the native L3 agent
+# supports NAT.
+# FIXME(mkassawara): Add support for IPv6.
+source devstack/openrc admin admin
+ROUTER_GATEWAY=`neutron port-list -c fixed_ips -c device_owner | grep router_gateway | awk -F'ip_address'  '{ print $2 }' | cut -f3 -d\"`
+sudo ip route add $FIXED_RANGE via $ROUTER_GATEWAY
 
 # Set the OVN_*_DB variables to enable OVN commands using a remote database.
 echo -e "\n# Enable OVN commands using a remote database.
