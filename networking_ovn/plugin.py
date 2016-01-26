@@ -228,6 +228,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def delete_network(self, context, network_id):
         with context.session.begin(subtransactions=True):
+            self._process_l3_delete(context, network_id)
             super(OVNPlugin, self).delete_network(context,
                                                   network_id)
         try:
@@ -249,8 +250,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         if 'name' in network['network']:
             self._set_network_name(network_id, network['network']['name'])
         with context.session.begin(subtransactions=True):
-            return super(OVNPlugin, self).update_network(context, network_id,
-                                                         network)
+            result = super(OVNPlugin, self).update_network(context, network_id,
+                                                           network)
+            self._process_l3_update(context, result, network['network'])
+            return result
 
     def update_port(self, context, id, port):
         with context.session.begin(subtransactions=True):
