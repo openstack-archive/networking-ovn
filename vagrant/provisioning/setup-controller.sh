@@ -37,3 +37,8 @@ provider_setup
 source devstack/openrc admin admin
 neutron net-create provider --shared --provider:physical_network providernet --provider:network_type flat
 neutron subnet-create provider 192.168.66.0/24 --name provider-subnet --gateway 192.168.66.1 --allocation-pool start=192.168.66.20,end=192.168.66.99 --ip-version 4
+
+# Set the OVN_*_DB variables to enable OVN commands using a remote database.
+echo -e "\n# Enable OVN commands using a remote database.
+export OVN_NB_DB=$OVN_REMOTE
+export OVN_SB_DB=$OVN_REMOTE" >> ~/.bash_profile

@@ -30,3 +30,8 @@ devstack/stack.sh
 source /vagrant/provisioning/provider-setup.sh
 
 provider_setup
+
+# Set the OVN_*_DB variables to enable OVN commands using a remote database.
+echo -e "\n# Enable OVN commands using a remote database.
+export OVN_NB_DB=$OVN_REMOTE
+export OVN_SB_DB=$OVN_REMOTE" >> ~/.bash_profile
