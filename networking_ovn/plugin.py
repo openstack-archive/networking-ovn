@@ -89,7 +89,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                    "extraroute",
                                    "external-net",
                                    "router",
-                                   "provider"]
+                                   "provider",
+                                   "subnet_allocation"]
 
     def __init__(self):
         super(OVNPlugin, self).__init__()
