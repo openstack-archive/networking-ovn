@@ -14,7 +14,7 @@
 
 import oslo_i18n
 
-DOMAIN = "networking-ovn"
+DOMAIN = "networking_ovn"
 
 _translators = oslo_i18n.TranslatorFactory(domain=DOMAIN)
 
