@@ -24,6 +24,7 @@ from neutron.extensions import portbindings
 from neutron.tests import tools
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
+from neutron.tests.unit.extensions import test_availability_zone as test_az
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 
@@ -486,3 +487,11 @@ class DHCPOptsTestCase(test_dhcpopts.TestExtraDhcpOpt, OVNPluginTestCase):
     def setUp(self, plugin=None):
         super(test_dhcpopts.ExtraDhcpOptDBTestCase, self).setUp(
             plugin=PLUGIN_NAME)
+
+
+class TestAZNetworkTestCase(test_az.TestAZNetworkCase, OVNPluginTestCase):
+
+    def setUp(self, plugin=None):
+        ext_mgr = test_az.AZExtensionManager()
+        super(test_az.TestAZNetworkCase, self).setUp(
+            plugin=PLUGIN_NAME, ext_mgr=ext_mgr)

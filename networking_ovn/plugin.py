@@ -46,6 +46,7 @@ from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
+from neutron.extensions import availability_zone as az_ext
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
 from neutron.extensions import providernet as pnet
@@ -74,7 +75,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 portbindings_db.PortBindingMixin,
                 extradhcpopt_db.ExtraDhcpOptMixin,
                 extraroute_db.ExtraRoute_db_mixin,
-                agentschedulers_db.DhcpAgentSchedulerDbMixin):
+                agentschedulers_db.AZDhcpAgentSchedulerDbMixin):
 
     __native_bulk_support = True
     __native_pagination_support = True
@@ -90,7 +91,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                    "external-net",
                                    "router",
                                    "provider",
-                                   "subnet_allocation"]
+                                   "subnet_allocation",
+                                   "availability_zone",
+                                   "network_availability_zone"]
 
     def __init__(self):
         super(OVNPlugin, self).__init__()
@@ -210,6 +213,16 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             result = super(OVNPlugin, self).create_network(context,
                                                            network)
             self._process_l3_create(context, result, net)
+            if az_ext.AZ_HINTS in net:
+                self.validate_availability_zones(context, 'network',
+                                                 net[az_ext.AZ_HINTS])
+                az_hints = az_ext.convert_az_list_to_string(
+                    net[az_ext.AZ_HINTS])
+                super(OVNPlugin, self).update_network(
+                    context,
+                    result['id'],
+                    {'network': {az_ext.AZ_HINTS: az_hints}})
+                result[az_ext.AZ_HINTS] = az_hints
 
         try:
             return self.create_network_in_ovn(result, ext_ids)

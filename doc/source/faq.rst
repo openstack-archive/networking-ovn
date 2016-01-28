@@ -34,7 +34,9 @@ overlays for that purpose.
 
 Typically, multiple copies of neutron-server are run across multiple servers
 and uses a load balancer.  The neutron plugin provided by networking-ovn
-supports this deployment model.
+supports this deployment model.  In addition, multiple copies of
+neutron-dhcp-agent and neutron-metadata-agent can be run with the option of
+configuring neutron-dhcp-agent availability zones.
 
 The network controller portion of OVN is distributed - an instance of the
 ovn-controller service runs on every hypervisor.  OVN also includes some
