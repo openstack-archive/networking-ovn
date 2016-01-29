@@ -83,8 +83,10 @@ an OS prefix::
 Default Network Configuration
 -----------------------------
 
-DevStack creates two networks by default, called ``public`` and ``private``.
-Run the following command to see the two default networks::
+By default, DevStack creates a network called ``private`` and if Neutron's L3
+agent is enabled (instead of OVN distributed L3 support), DevStack also creates
+a network called ``public``. See the `OVN L3`_ section for details on OVN's L3
+support. Run the following command to see the networks created::
 
     $ neutron net-list
     +--------------------------------------+---------+----------------------------------------------------------+
@@ -192,15 +194,15 @@ It's a very small test image.
 ::
 
     $ glance image-list
-    +--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
-    | ID                                   | Name                            | Disk Format | Container Format | Size     | Status |
-    +--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
-    | 2698bd5b-e493-4ea7-8d4a-e30c14df5c80 | cirros-0.3.2-x86_64-uec         | ami         | ami              | 25165824 | active |
-    | 498648c1-6778-47cb-a16d-245b6905a9e8 | cirros-0.3.2-x86_64-uec-kernel  | aki         | aki              | 4969360  | active |
-    | 40f13663-142c-4e6c-ac1f-5df5ebe090c0 | cirros-0.3.2-x86_64-uec-ramdisk | ari         | ari              | 3723817  | active |
-    +--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
+    +--------------------------------------+---------------------------------+
+    | ID                                   | Name                            |
+    +--------------------------------------+---------------------------------+
+    | 990e80d3-5260-40c4-8ece-e5a428e1b6d7 | cirros-0.3.4-x86_64-uec         |
+    | 1a76e6c3-857a-4975-bdff-1ebe6f3ce193 | cirros-0.3.4-x86_64-uec-kernel  |
+    | 11fa05eb-c88a-4de7-b2f7-1da203eafc9c | cirros-0.3.4-x86_64-uec-ramdisk |
+    +--------------------------------------+---------------------------------+
 
-    $ IMAGE_ID=2698bd5b-e493-4ea7-8d4a-e30c14df5c80
+    $ IMAGE_ID=990e80d3-5260-40c4-8ece-e5a428e1b6d7
 
 5. Setup a security rule so that we can access the VMs we will boot up next.
 
@@ -243,7 +245,7 @@ Now we will boot two VMs.  We'll name them ``test1`` and ``test2``.
     | flavor                               | m1.nano (42)                                                   |
     | hostId                               |                                                                |
     | id                                   | 571f622e-8f65-4617-9b39-6a04438f394f                           |
-    | image                                | cirros-0.3.2-x86_64-uec (2698bd5b-e493-4ea7-8d4a-e30c14df5c80) |
+    | image                                | cirros-0.3.4-x86_64-uec (990e80d3-5260-40c4-8ece-e5a428e1b6d7) |
     | key_name                             | demo                                                           |
     | metadata                             | {}                                                             |
     | name                                 | test1                                                          |
@@ -275,7 +277,7 @@ Now we will boot two VMs.  We'll name them ``test1`` and ``test2``.
     | flavor                               | m1.nano (42)                                                   |
     | hostId                               |                                                                |
     | id                                   | 7a8c12da-54b3-4adf-bba5-74df9fd2e907                           |
-    | image                                | cirros-0.3.2-x86_64-uec (2698bd5b-e493-4ea7-8d4a-e30c14df5c80) |
+    | image                                | cirros-0.3.4-x86_64-uec (990e80d3-5260-40c4-8ece-e5a428e1b6d7) |
     | key_name                             | demo                                                           |
     | metadata                             | {}                                                             |
     | name                                 | test2                                                          |
@@ -298,8 +300,8 @@ Once both VMs have been started, they will have a status of ``ACTIVE``::
     | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
     +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
 
-Create floating-ip for the vm. You can create a new floating-ip by just typing
-this command if default local.conf mentioned above was used::
+If the Neutron's L3 agent is enabled, create floating-ip for the vm on the
+``public`` network. You can create a new floating-ip by just typing this command::
 
     $ neutron floatingip-create c1f33146-1b82-48fb-aad6-493d08fbe492
     Created a new floatingip:
@@ -317,7 +319,7 @@ this command if default local.conf mentioned above was used::
     +---------------------+--------------------------------------+
 
 Check id of the port to associate the floating ip (see port-list below).
-Then associate as followe::
+Then associate as follows::
 
     $ neutron floatingip-associate --fixed-ip-address 10.0.0.3 \
     > a163264c-9394-4f6b-a1cd-0dd848f33ddd e3800c90-24d4-49ad-abb2-041a2e3dd259
@@ -574,15 +576,11 @@ the connection between this port and the provider network.
 
 
 OVN L3
--------
+------
 
-The default sample local.conf uses Neutron's L3 agent in order to implement L3
-connectivity across subnets.  In this setup, all L3 traffic in this mode
-traverses the virtual router namespace on the network node running Neutron's L3
-agent.
-
-If you would like to use OVN distributed L3 support you must add the
-following line to your local.conf
+The default sample local.conf does not use Neutron's L3 agent in order to
+implement L3 connectivity across subnets. Instead, it uses OVN distributed
+L3 support by adding the following line to the local.conf
 ::
 
    OVN_L3_MODE=True
@@ -595,9 +593,14 @@ If you use OVN L3 mode you must also disable q-l3 service
 OVN implements distributed virtual routing using OVS flows and
 does not require any namespaces.
 
-Keep in mind that OVN doesnt yet support SNAT/DNAT, in order
+Keep in mind that OVN doesn't yet support SNAT/DNAT, in order
 to have public network (north/south traffic) you must still use
-Neutron L3 agent.
+Neutron's L3 agent. With Neutron's L3 agent, all L3 traffic traverses
+the virtual router namespace on the network node running Neutron's
+L3 agent.
+
+To enable Neutron's L3 agent, you must set OVN_L3_MODE to False and
+enable the q-l3 service.
 
 Troubleshooting
 ---------------

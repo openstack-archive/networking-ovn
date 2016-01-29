@@ -29,7 +29,7 @@ enable_service ovn-controller
 # Use Neutron instead of nova-network
 disable_service n-net
 enable_service q-svc
-# OVN uses the DHCP and L3 agents for now.  They will be dropped once the
+# OVN uses the DHCP and metadata agents for now.  They will be dropped once the
 # corresponding functionality is available in OVN.
 enable_service q-dhcp
 enable_service q-meta
