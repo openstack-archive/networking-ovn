@@ -376,19 +376,20 @@ that the additional hypervisor has been added to the deployment::
 
 You can also look at OVN and OVS to see that the second host has shown up.  For
 example, there will be a second entry in the Chassis table of the OVN_Southbound
-database::
+database.  You can use the ``ovn-sbctl`` utility to list chassis, their
+configuration, and the ports bound to each of them::
 
-    $ ovsdb-client dump OVN_Southbound
+    $ ovn-sbctl show
 
-    ...
-
-    Chassis table
-    _uuid                                encaps                                 gateway_ports name
-    ------------------------------------ -------------------------------------- ------------- --------------------------------------
-    68933e4a-7a1e-4a41-af77-6cd1bfdc953a [e3a766c2-bec0-4f65-b9d7-72a89df87e95] {}            "719834e5-dd0f-482f-985d-442aca51180f"
-    518702e9-ffc2-4e27-8057-8ebd155ea436 [b8793b59-195c-4e8e-8898-399f52139870] {}            "ac780a06-76a3-4b85-859a-450de7170201"
-
-    ...
+    Chassis "9f844100-bf55-445a-8107-8f1cba584ac5"
+        Encap geneve
+            ip: "172.16.189.3"
+        Port_Binding "e3800c90-24d4-49ad-abb2-041a2e3dd259"
+        Port_Binding "d660a917-5095-4bd0-92c5-d0abdffb600b"
+        Port_Binding "51f98e51-143b-4968-a7a9-e2d8d419b246"
+    Chassis "52fd2e32-f9ca-4abd-a8e4-fdf1842079d2"
+        Encap geneve
+            ip: "172.16.189.10"
 
 You can also see a tunnel created to the other compute node::
 
