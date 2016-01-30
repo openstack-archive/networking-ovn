@@ -449,9 +449,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         else:
             parent_name = binding_profile.get('parent_name')
             tag = binding_profile.get('tag')
-            if 'fixed_ips' in port:
+            fixed_ips = port.get('fixed_ips')
+            if fixed_ips:
                 addresses = [port['mac_address'] + ' ' + ip['ip_address'] for
-                             ip in port['fixed_ips']]
+                             ip in fixed_ips]
             else:
                 addresses = [port['mac_address']]
             allowed_macs = self._get_allowed_mac_addresses_from_port(port)
