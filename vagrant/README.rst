@@ -83,7 +83,17 @@ Quick Start
 6. The networking-ovn folder is shared between the host and the three nodes
    (at /home/vagrant/networking-ovn).
 
-7. After you finished your work with the VMs, you can choose to destroy,
+7. On Linux hosts, you can enable instances to access external networks such
+   as the Internet by enabling IP forwarding and configuring SNAT from the IP
+   address range of the provider network interface (typically vboxnet1) on
+   the host to the external network interface on the host. For example, if
+   the ``eth0`` network interface on the host provides external network
+   connectivity::
+
+    # sysctl -w net.ipv4.ip_forward=1
+    # iptables -t nat -A POSTROUTING -s 192.168.66.0/24 -o eth0 -j MASQUERADE
+
+8. After you finished your work with the VMs, you can choose to destroy,
    suspend and later resume the VMs by using the following commands:
 
     vagrant suspend

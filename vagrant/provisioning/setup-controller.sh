@@ -33,6 +33,13 @@ source /vagrant/provisioning/provider-setup.sh
 
 provider_setup
 
+# You can enable instances to access external networks such as the Internet
+# by using the IP address of the host vboxnet interface for the provider
+# network (typically vboxnet1) as the gateway for the subnet on the neutron
+# provider network. Also requires enabling IP forwarding and configuring SNAT
+# on the host. See the README for more information.
+PROVIDER_GATEWAY_V4=192.168.66.1
+
 # Actually create the provider network
 # FIXME(mestery): Make the subnet-create parameters configurable via virtualbox.conf.yml.
 source devstack/openrc admin admin
@@ -41,7 +48,7 @@ neutron net-create provider --shared --router:external --provider:physical_netwo
 # Provider network allocation pool defaults to values from upstream
 # documentation. Change as necessary for your environment, exercising
 # caution to avoid interference with existing IP addresses on the network.
-neutron subnet-create provider --name provider-v4 --ip-version 4 --allocation-pool start=192.168.66.101,end=192.168.66.200 --gateway 192.168.66.1 192.168.66.0/24
+neutron subnet-create provider --name provider-v4 --ip-version 4 --allocation-pool start=192.168.66.101,end=192.168.66.200 --gateway $PROVIDER_GATEWAY_V4 192.168.66.0/24
 
 # Create a router for the private network.
 source devstack/openrc demo demo
