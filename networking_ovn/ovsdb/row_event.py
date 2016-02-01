@@ -48,33 +48,19 @@ class RowEvent(object):
 
     def matches(self, event, row, old=None):
         if event not in self.events:
-            LOG.debug("%s : Event %s not in %s", self.event_name, event,
-                      self.events)
             return False
         if row._table.name != self.table:
-            LOG.debug("%s : Table %s != %s", self.event_name, row._table.name,
-                      self.table)
             return False
         if self.conditions and not idlutils.row_match(row, self.conditions):
-            LOG.debug("%s : For event : %s conditions did not match %s",
-                      self.event_name, event, str(self.conditions))
             return False
         if self.old_conditions:
             if not old:
-                LOG.debug("%s : For event : %s conditions did not match"
-                          " %s %s", self.event_name, event,
-                          str(self.conditions), str(self.old_conditions))
                 return False
             try:
                 if not idlutils.row_match(old, self.old_conditions):
-                    LOG.debug("%s : For event : %s old conditions did not"
-                              " match %s", self.event_name, event,
-                              str(self.old_conditions))
                     return False
             except (KeyError, AttributeError):
                 # Its possible that old row may not have all columns in it
-                LOG.debug("%s : Old Conditions did not match %s",
-                          self.event_name, str(self.old_conditions))
                 return False
 
         LOG.debug("%s : Matched %s, %s, %s %s", self.event_name, self.table,
