@@ -74,7 +74,7 @@ Quick Start
 
    You can point your browser to `http://<<ovn-controller ip address>>` to
    access the horizon dashboard. By default the ip address of ovn-controller
-   was set to 192.168.33.101 in `provisioning/virtualbox.conf.yml` file. Use
+   was set to 192.168.33.12 in `provisioning/virtualbox.conf.yml` file. Use
    admin/password to log in once you see the Horizon login screen. You can
    certainly change the user name and password in file
    `networking-ovn/devstack/local.conf.sample` before you run vagrant up if
