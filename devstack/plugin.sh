@@ -319,6 +319,16 @@ function start_ovn {
         # TODO (regXboi) ovn-northd doesn't appear to log to console at
         # all - revisit this after that is fixed
         run_process ovn-northd "ovn-northd --pidfile --log-file=$LOGDIR/ovn-northd.log"
+
+        # This makes sure that the console logs have time stamps to
+        # the millisecond, but we need to make sure ovs-appctl has
+        # a pid file to work with, so ...
+        echo -n "Waiting for ovn-northd to start ... "
+        while ! test -e /usr/local/var/run/openvswitch/ovn-northd.pid ; do
+            sleep 1
+        done
+        echo "done."
+        sudo ovs-appctl -t ovn-northd vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
 }
 
