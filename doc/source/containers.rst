@@ -9,12 +9,12 @@ containers to use.
 
 The second mode is very interesting in the context of OpenStack.  OVN makes
 special accommodation for running containers inside of VMs when the networking
-for those VMs is already being managed by OVN.  You can create a special type of
-port in OVN for these containers and have them directly connected to virtual
+for those VMs is already being managed by OVN.  You can create a special type
+of port in OVN for these containers and have them directly connected to virtual
 networks managed by OVN.  There are two major benefits of this:
 
-* It allows containers to use virtual networks without creating another layer of
-  overlay networks.  This reduces networking complexity and increases
+* It allows containers to use virtual networks without creating another layer
+  of overlay networks.  This reduces networking complexity and increases
   performance.
 
 * It allows arbitrary connections between any VMs and any containers running
@@ -28,17 +28,17 @@ Neutron port.  First, you must specify the parent port that the VM is using.
 Second, you must specify a tag.  This tag is a VLAN ID today, though that may
 change in the future.  Traffic from the container must be tagged with this VLAN
 ID by open vSwitch running inside the VM.  Traffic destined for the container
-will arrive on the parent VM port with this VLAN ID.  Open vSwitch inside the VM
-will forward this traffic to the container.
+will arrive on the parent VM port with this VLAN ID.  Open vSwitch inside the
+VM will forward this traffic to the container.
 
 These two attributes are not currently supported in the Neutron API.  As a
 result, we are initially allowing these attributes to be set in the
-'binding:profile' extension for ports.  If this approach gains traction and more
-general support, we will revisit making this a real extension to the Neutron
-API.
+'binding:profile' extension for ports.  If this approach gains traction and
+more general support, we will revisit making this a real extension to the
+Neutron API.
 
-Note that the default /etc/neutron/policy.json does not allow a regular user to
-set a 'binding:profile'.  If you want to allow this, you must update
+Note that the default /etc/neutron/policy.json does not allow a regular user
+to set a 'binding:profile'.  If you want to allow this, you must update
 policy.json.  To do so, change::
 
     "create_port:binding:profile": "rule:admin_only",

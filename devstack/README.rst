@@ -16,8 +16,8 @@
      > enable_service ovn
      > EOF
 
-You can also use the provided example local.conf, or look at its contents to add
-to your own::
+You can also use the provided example local.conf, or look at its contents to
+add to your own::
 
      cd devstack
      cp ../networking-ovn/devstack/local.conf.sample local.conf

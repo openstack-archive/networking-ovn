@@ -21,7 +21,8 @@ Network
         status
         tenant_id
 
-Once a network is created, we should create an entry in the Logical Switch table.
+Once a network is created, we should create an entry in the Logical Switch
+table.
 
 ::
 
@@ -186,8 +187,8 @@ Security Groups
 Security groups maps between three neutron objects to one OVN-NB object, this
 enable us to do the mapping in various ways, depending on OVN capabilities
 
-The current implementation will use the first option in this list for simplicity,
-but all options are kept here for future reference
+The current implementation will use the first option in this list for
+simplicity, but all options are kept here for future reference
 
 1) For every <neutron port, security rule> pair, define an ACL entry::
 
@@ -234,11 +235,11 @@ but all options are kept here for future reference
 
 
 Which option to pick depends on OVN match field length capabilities, and the
-trade off between better performance due to less ACL entries compared to the complexity
-to manage them
+trade off between better performance due to less ACL entries compared to the
+complexity to manage them.
 
-If the default behaviour is not "drop" for unmatched entries, a rule with lowest priority must
-be added to drop all traffic ("match==1")
+If the default behaviour is not "drop" for unmatched entries, a rule with
+lowest priority must be added to drop all traffic ("match==1")
 
-Spoofing protection rules are being added by OVN internally and we need to ignore
-the automatically added rules in Neutron
+Spoofing protection rules are being added by OVN internally and we need to
+ignore the automatically added rules in Neutron
