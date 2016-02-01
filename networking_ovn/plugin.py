@@ -114,13 +114,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
 
-        # Call the synchronization task, this sync neutron DB to OVN-NB DB
-        # only in inconsistent states
-        self.synchronizer = (
-            ovn_nb_sync.OvnNbSynchronizer(self,
-                                          self._ovn,
-                                          config.get_ovn_neutron_sync_mode()))
-        self.synchronizer.sync()
+        if trigger.im_class == ovsdb_monitor.OvnWorker:
+            # Call the synchronization task if its ovn worker
+            # This sync neutron DB to OVN-NB DB only in inconsistent states
+            self.synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+                self, self._ovn, config.get_ovn_neutron_sync_mode())
+            self.synchronizer.sync()
 
     def _setup_rpc(self):
         self.endpoints = [dhcp_rpc.DhcpRpcCallback(),
