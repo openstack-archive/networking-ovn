@@ -50,7 +50,7 @@ from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
 from neutron.extensions import providernet as pnet
 
-from networking_ovn._i18n import _, _LE, _LI
+from networking_ovn._i18n import _, _LE, _LI, _LW
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -95,17 +95,36 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def __init__(self):
         super(OVNPlugin, self).__init__()
         LOG.info(_LI("Starting OVNPlugin"))
-        self.base_binding_dict = {
-            portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS,
-            portbindings.VIF_DETAILS: {
-                # TODO(rkukura): Replace with new VIF security details
-                portbindings.CAP_PORT_FILTER:
-                'security-group' in self.supported_extension_aliases}}
+        self._setup_base_binding_dict()
 
         registry.subscribe(self.post_fork_initialize, resources.PROCESS,
                            events.AFTER_CREATE)
         self._setup_dhcp()
         self._start_rpc_notifiers()
+
+    def _setup_base_binding_dict(self):
+        if config.get_ovn_vif_type() == portbindings.VIF_TYPE_VHOST_USER:
+            self.base_binding_dict = {
+                portbindings.VIF_TYPE: portbindings.VIF_TYPE_VHOST_USER,
+                portbindings.VIF_DETAILS: {
+                    portbindings.CAP_PORT_FILTER: False,
+                    portbindings.VHOST_USER_MODE:
+                    portbindings.VHOST_USER_MODE_CLIENT,
+                    portbindings.VHOST_USER_OVS_PLUG: True,
+                }
+            }
+        else:
+            if config.get_ovn_vif_type() != portbindings.VIF_TYPE_OVS:
+                LOG.warn(_LW('VIF type should be one of %(ovs)s, %(vhu)s') % {
+                    "vhu": portbindings.VIF_TYPE_VHOST_USER,
+                    "ovs": portbindings.VIF_TYPE_OVS})
+            self.base_binding_dict = {
+                portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS,
+                portbindings.VIF_DETAILS: {
+                    portbindings.CAP_PORT_FILTER:
+                    'security-group' in self.supported_extension_aliases
+                }
+            }
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
@@ -391,6 +410,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             allowed_macs.add(allowed_address['mac_address'])
         return list(allowed_macs)
 
+    def _update_port_binding(self, port_res):
+        port_res[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
+        if config.get_ovn_vif_type() == portbindings.VIF_TYPE_VHOST_USER:
+            port_res[portbindings.VIF_DETAILS].update({
+                portbindings.VHOST_USER_SOCKET: utils.ovn_vhu_sockpath(
+                    cfg.CONF.ovn.vhost_sock_dir, port_res['id'])
+                })
+
     def create_port(self, context, port):
         with context.session.begin(subtransactions=True):
             binding_profile = self._get_data_from_binding_profile(
@@ -407,8 +434,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_portbindings_create_and_update(context,
                                                          port['port'],
                                                          db_port)
+            self._update_port_binding(db_port)
 
-            db_port[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
             # NOTE(arosen): _process_portbindings_create_and_update
             # does not set the binding on the port so we do it here.
             if (ovn_const.OVN_PORT_BINDING_PROFILE in port['port'] and
@@ -826,7 +853,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def extend_port_dict_binding(self, port_res, port_db):
         super(OVNPlugin, self).extend_port_dict_binding(port_res, port_db)
-        port_res[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
+        self._update_port_binding(port_res)
 
     def create_router(self, context, router):
         router = super(OVNPlugin, self).create_router(
