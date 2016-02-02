@@ -21,10 +21,16 @@ Quick Start
 
 2. Configure::
 
-    git clone https://git.openstack.org/openstack/networking-ovn
+    git clone https://git.openstack.org/openstack-dev/devstack.git
+    git clone https://git.openstack.org/openstack/networking-ovn.git
     cd networking-ovn/vagrant
     vagrant plugin install vagrant-cachier
     vagrant plugin install vagrant-vbguest
+
+   Note: Clone the repositories into your home directory because Vagrant
+         shares them with the VMs it launches. Also, consider updating these
+         repositories prior to launching VMs so they deploy the latest
+         versions.
 
 3. Adjust the settings in `virtualbox.conf.yml` if needed. Notice that
    5GB RAM is the minimum to get 1 VM running on the controller node.
@@ -80,10 +86,7 @@ Quick Start
    `networking-ovn/devstack/local.conf.sample` before you run vagrant up if
    you want different user name and password.
 
-6. The networking-ovn folder is shared between the host and the three nodes
-   (at /home/vagrant/networking-ovn).
-
-7. On Linux hosts, you can enable instances to access external networks such
+6. On Linux hosts, you can enable instances to access external networks such
    as the Internet by enabling IP forwarding and configuring SNAT from the IP
    address range of the provider network interface (typically vboxnet1) on
    the host to the external network interface on the host. For example, if
@@ -93,7 +96,7 @@ Quick Start
     # sysctl -w net.ipv4.ip_forward=1
     # iptables -t nat -A POSTROUTING -s 192.168.66.0/24 -o eth0 -j MASQUERADE
 
-8. After you finished your work with the VMs, you can choose to destroy,
+7. After you finished your work with the VMs, you can choose to destroy,
    suspend and later resume the VMs by using the following commands:
 
     vagrant suspend
