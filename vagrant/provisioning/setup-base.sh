@@ -19,14 +19,14 @@ echo export LANG=en_US.UTF-8 >> ~/.bash_profile
 sudo rm -rf /var/lib/apt/lists/*
 sudo apt-get install -y git
 
+if [ ! -d "devstack" ]; then
+    git clone https://git.openstack.org/openstack-dev/devstack.git
+fi
+
 # If available, use repositories on host to facilitate testing local changes.
 # Vagrant requires that shared folders exist on the host, so additionally
 # check for the ".git" directory in case the parent exists but lacks
 # repository contents.
-
-if [ ! -d "devstack/.git" ]; then
-    git clone https://git.openstack.org/openstack-dev/devstack.git
-fi
 
 if [ ! -d "networking-ovn/.git" ]; then
     git clone https://git.openstack.org/openstack/networking-ovn.git

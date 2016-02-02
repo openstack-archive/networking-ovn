@@ -21,7 +21,6 @@ Quick Start
 
 2. Configure::
 
-    git clone https://git.openstack.org/openstack-dev/devstack.git
     git clone https://git.openstack.org/openstack/networking-ovn.git
     cd networking-ovn/vagrant
     vagrant plugin install vagrant-cachier
