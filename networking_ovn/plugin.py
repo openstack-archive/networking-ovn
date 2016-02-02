@@ -94,7 +94,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def __init__(self):
         super(OVNPlugin, self).__init__()
         LOG.info(_LI("Starting OVNPlugin"))
-        self.vif_type = portbindings.VIF_TYPE_OVS
         self.base_binding_dict = {
             portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS,
             portbindings.VIF_DETAILS: {
@@ -102,9 +101,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 portbindings.CAP_PORT_FILTER:
                 'security-group' in self.supported_extension_aliases}}
 
-        # When set to True, Nova plugs the VIF directly into the ovs bridge
-        # instead of using the hybrid mode.
-        self.vif_details = {portbindings.CAP_PORT_FILTER: True}
         registry.subscribe(self.post_fork_initialize, resources.PROCESS,
                            events.AFTER_CREATE)
         self._setup_dhcp()
@@ -268,9 +264,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
             self._update_extra_dhcp_opts_on_port(context, id, port,
                                                  updated_port=updated_port)
-            self._process_portbindings_create_and_update(context,
-                                                         port['port'],
-                                                         updated_port)
 
         ovn_port_info = self._get_ovn_port_options(binding_profile,
                                                    updated_port)
