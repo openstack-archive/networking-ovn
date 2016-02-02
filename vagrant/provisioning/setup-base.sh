@@ -18,12 +18,18 @@ echo export LANG=en_US.UTF-8 >> ~/.bash_profile
 # FIXME(mestery): Remove once Vagrant boxes allow apt-get to work again
 sudo rm -rf /var/lib/apt/lists/*
 sudo apt-get install -y git
-if [ ! -d "devstack" ]; then
-    git clone https://github.com/openstack-dev/devstack
+
+# If available, use repositories on host to facilitate testing local changes.
+# Vagrant requires that shared folders exist on the host, so additionally
+# check for the ".git" directory in case the parent exists but lacks
+# repository contents.
+
+if [ ! -d "devstack/.git" ]; then
+    git clone https://git.openstack.org/openstack-dev/devstack.git
 fi
-# for a local deployment, this repo folder is shared between the host and the guests
-if [ ! -d "networking-ovn" ]; then
-    git clone http://git.openstack.org/openstack/networking-ovn.git
+
+if [ ! -d "networking-ovn/.git" ]; then
+    git clone https://git.openstack.org/openstack/networking-ovn.git
 fi
 
 # We need swap space to do any sort of scale testing with the Vagrant config.
