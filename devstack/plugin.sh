@@ -65,6 +65,10 @@ OVN_L3_MODE=$(trueorfalse False OVN_L3_MODE)
 # unless the distro kernel includes ovs+conntrack support.
 OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 
+# MTU of the native (underlying) physical network infrastructure. Defaults
+# to 1500 bytes.
+OVN_NATIVE_MTU=${OVN_NATIVE_MTU:-1500}
+
 # Utility Functions
 # -----------------
 
@@ -127,19 +131,24 @@ function configure_ovn_plugin {
 
     if is_service_enabled q-dhcp ; then
         #
-        # OVN uses tunnels between hypervisors to create virtual networks.  These tunnels add
-        # some headers to each packet.  You may need to force a smaller MTU inside your
-        # VMs to ensure that once the additional headers are added that the resulting
-        # packets do not exceed the MTU of the underlying network.  Otherwise, packets will
-        # just get dropped.
+        # Similar to other virtual networking mechanisms, OVN implements
+        # overlay networks among nodes running OVS. Overlay network protocols
+        # add overhead that effectively reduces the MTU available to
+        # instances. MTU disparities can lead to packet loss and performance
+        # issues.
         #
-        # The following dnsmasq option just tells VMs to use an MTU of 1400, which will avoid
-        # the most common instance of this problem, where the VMs and the underlying network
-        # both have an MTU of 1500.
+        # Calculate MTU for self-service/private networks accounting for
+        # GENEVE overlay protocol overhead of 42 bytes and configure the
+        # DHCP agent to provide it to instances. Only effective on neutron
+        # subnets with DHCP.
         #
+        # TODO (mkassawara): Temporary workaround for larger MTU problems
+        # in neutron. Ideally, provider networks should use the native
+        # (underlying) physical network infrastructure MTU.
+
         iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file "/etc/neutron/dnsmasq.conf"
         if ! grep "dhcp-option=26" /etc/neutron/dnsmasq.conf ; then
-            echo "dhcp-option=26,1400" | sudo tee -a /etc/neutron/dnsmasq.conf
+            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - 42))" | sudo tee -a /etc/neutron/dnsmasq.conf
         fi
     fi
 }
