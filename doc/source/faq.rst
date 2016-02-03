@@ -53,14 +53,11 @@ OVS and is used everywhere OVS is used.  The OVN project has also been clear
 from the beginning that if ovsdb-server doesn't work out, we'll switch. Someone
 is looking at making ovsdb-server distributed for both scale and HA reasons.  In
 the meantime, you can run this instance of ovsdb-server in an active/passive HA
-mode.  Instead of having to put the database on some kind of shared storage,
-neutron-server can rebuild the contents of the OVN database as a part of
-the recovery process.  neutron-server will do this at startup if you configure
-it with neutron_sync_mode=repair.
+mode.  This requires having the database reside on shared storage.
 
-Development in 2015 has largely been focused on the initial architecture and
-getting the core networking features working through the whole system.  We
-expect development in the next year to have more of a focus on scaling,
-including the issues discussed here.
+Development in 2015 was largely focused on the initial architecture and
+getting the core networking features working through the whole system.  There is
+now active work on improving scale and HA, including addressing the issues
+discussed here.
 
 See :doc:`readme` for links to more details on OVN's architecture.
