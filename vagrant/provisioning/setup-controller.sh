@@ -49,7 +49,7 @@ provider_setup
 # network (typically vboxnet1) as the gateway for the subnet on the neutron
 # provider network. Also requires enabling IP forwarding and configuring SNAT
 # on the host. See the README for more information.
-PROVIDER_GATEWAY_V4=192.168.66.1
+PROVIDER_GATEWAY_V4=10.10.0.1
 
 # Actually create the provider network
 # FIXME(mestery): Make the subnet-create parameters configurable via virtualbox.conf.yml.
@@ -59,7 +59,7 @@ neutron net-create provider --shared --router:external --provider:physical_netwo
 # Provider network allocation pool defaults to values from upstream
 # documentation. Change as necessary for your environment, exercising
 # caution to avoid interference with existing IP addresses on the network.
-neutron subnet-create provider --name provider-v4 --ip-version 4 --allocation-pool start=192.168.66.101,end=192.168.66.200 --gateway $PROVIDER_GATEWAY_V4 192.168.66.0/24
+neutron subnet-create provider --name provider-v4 --ip-version 4 --allocation-pool start=10.10.0.51,end=10.10.254.254 --gateway $PROVIDER_GATEWAY_V4 10.10.0.0/16
 
 # Create a router for the private network.
 source devstack/openrc demo demo
