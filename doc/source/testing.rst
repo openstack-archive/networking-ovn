@@ -83,17 +83,13 @@ an OS prefix::
 Default Network Configuration
 -----------------------------
 
-By default, DevStack creates a network called ``private`` and if Neutron's L3
-agent is enabled (instead of OVN distributed L3 support), DevStack also creates
-a network called ``public``. See the `OVN L3`_ section for details on OVN's L3
-support. Run the following command to see the networks created::
+By default, DevStack creates a network called ``private``. Run the following
+command to see the existing networks::
 
     $ neutron net-list
     +--------------------------------------+---------+----------------------------------------------------------+
     | id                                   | name    | subnets                                                  |
     +--------------------------------------+---------+----------------------------------------------------------+
-    | c1f33146-1b82-48fb-aad6-493d08fbe492 | public  | f4542319-516e-4d16-af1d-289b9ca999f0                     |
-    |                                      |         | 6ae7ac12-f353-4e86-a948-e43a6a94c6aa                     |
     | 266371ca-904e-4433-b653-866f9204d22e | private | 64bc14c2-52a6-4188-aaeb-d24922125c2c fde5:95da:6b50::/64 |
     |                                      |         | 299d182b-2f2c-44e2-9bc9-d094b9ea317b 10.0.0.0/24         |
     +--------------------------------------+---------+----------------------------------------------------------+
@@ -105,17 +101,12 @@ their names correlate with the output from ``neutron net-list``::
 
     $ ovn-nbctl lswitch-list
     c628c46a-372f-412b-8edf-eb3408b021ca (neutron-266371ca-904e-4433-b653-866f9204d22e)
-    f4e6e393-a8a3-4066-b6c5-eb1ac253d02f (neutron-c1f33146-1b82-48fb-aad6-493d08fbe492)
 
     $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
     {"neutron:network_name"=private}
 
-    $ ovn-nbctl get Logical_Switch neutron-c1f33146-1b82-48fb-aad6-493d08fbe492 external_ids
-    {"neutron:network_name"=public}
-
-Some Neutron ports are created by default, as well.  These ports are actually an
-implementation detail of the Neutron DHCP and L3 agents that are currently in
-use.
+There will be one port created automatically.  This port corresponds to the
+Neutron DHCP agent that is providing DHCP services to the ``private`` network.
 
 ::
 
@@ -123,10 +114,8 @@ use.
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips |
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | 23c42fca-fa51-4e06-9d4e-2bf2888604eb |      | fa:16:3e:ba:f3:0c | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50::1"}                    |
     | 51f98e51-143b-4968-a7a9-e2d8d419b246 |      | fa:16:3e:6e:63:b1 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.2"}                             |
     |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe6e:63b1"} |
-    | 9920b86a-a7fe-4fd5-a162-9a619d79c2d8 |      | fa:16:3e:4f:d2:c7 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.1"}                             |
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
 
 ..
@@ -207,16 +196,18 @@ It's a very small test image.
 5. Setup a security rule so that we can access the VMs we will boot up next.
 
 By default, DevStack does not allow users to access VMs, to enable that, we will need to
-add a rule.
+add a rule.  We will allow both ICMP and SSH.
 
 ::
 
     $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --port-range-min 22 --port-range-max 22 --protocol tcp default
+    $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --protocol ICMP default
     $ neutron security-group-rule-list
     +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
     | id                                   | security_group | direction | ethertype | protocol/port | remote          |
     +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
     | 8b2edbe6-790e-40ef-af54-c7b64ced8240 | default        | ingress   | IPv4      | 22/tcp        | any             |
+    | 5bee0179-807b-41d7-ab16-6de6ac051335 | default        | ingress   | IPv4      | icmp          | any             |
     ...
     +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
 
@@ -300,52 +291,6 @@ Once both VMs have been started, they will have a status of ``ACTIVE``::
     | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
     +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
 
-If the Neutron's L3 agent is enabled, create floating-ip for the vm on the
-``public`` network. You can create a new floating-ip by just typing this command::
-
-    $ neutron floatingip-create c1f33146-1b82-48fb-aad6-493d08fbe492
-    Created a new floatingip:
-    +---------------------+--------------------------------------+
-    | Field               | Value                                |
-    +---------------------+--------------------------------------+
-    | fixed_ip_address    |                                      |
-    | floating_ip_address | 172.24.4.3                           |
-    | floating_network_id | c1f33146-1b82-48fb-aad6-493d08fbe492
-    | id                  | a163264c-9394-4f6b-a1cd-0dd848f33ddd |
-    | port_id             |                                      |
-    | router_id           |                                      |
-    | status              | ACTIVE                               |
-    | tenant_id           | b398e4a01b2c4a719bfd2e928358b4d3     |
-    +---------------------+--------------------------------------+
-
-Check id of the port to associate the floating ip (see port-list below).
-Then associate as follows::
-
-    $ neutron floatingip-associate --fixed-ip-address 10.0.0.3 \
-    > a163264c-9394-4f6b-a1cd-0dd848f33ddd e3800c90-24d4-49ad-abb2-041a2e3dd259
-
-SSH into one VM and ping the other::
-
-    $ ssh -i id_rsa_demo cirros@172.24.4.3
-
-    (cirros)$ ping 10.0.0.4
-    PING 10.0.0.4 (10.0.0.4): 56 data bytes
-    64 bytes from 10.0.0.4: seq=0 ttl=64 time=0.803 ms
-
-If we look at the console log of one of the VMs, we can see that it got its
-address using DHCP::
-
-    $ nova console-log test1
-    ...
-    Starting network...
-    udhcpc (v1.20.1) started
-    Sending discover...
-    Sending select for 10.0.0.3...
-    Lease of 10.0.0.3 obtained, lease time 86400
-    deleting routers
-    adding dns 10.0.0.2
-    ...
-
 Our two VMs have addresses of ``10.0.0.3`` and ``10.0.0.4``.  If we list Neutron
 ports again, there are two new ports with these addresses associated with the::
 
@@ -353,10 +298,8 @@ ports again, there are two new ports with these addresses associated with the::
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips                                                                                                   |
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | 23c42fca-fa51-4e06-9d4e-2bf2888604eb |      | fa:16:3e:ba:f3:0c | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50::1"}                    |
     | 51f98e51-143b-4968-a7a9-e2d8d419b246 |      | fa:16:3e:6e:63:b1 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.2"}                             |
     |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe6e:63b1"} |
-    | 9920b86a-a7fe-4fd5-a162-9a619d79c2d8 |      | fa:16:3e:4f:d2:c7 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.1"}                             |
     | d660a917-5095-4bd0-92c5-d0abdffb600b |      | fa:16:3e:42:cb:c7 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.4"}                             |
     |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe42:cbc7"} |
     | e3800c90-24d4-49ad-abb2-041a2e3dd259 |      | fa:16:3e:92:57:9a | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.3"}                             |
@@ -375,19 +318,10 @@ Neutron sets the logical port name equal to the Neutron port ID.
 
     $ ovn-nbctl lport-list neutron-$PRIVATE_NET_ID
     1117ac4e-1c83-4fd5-bb16-6c9c11150446 (e3800c90-24d4-49ad-abb2-041a2e3dd259)
-    e8ceb496-c2ee-4f9d-81d5-4c06a9754ed3 (9920b86a-a7fe-4fd5-a162-9a619d79c2d8)
-    baa38f9a-b5e4-46d7-8a5d-f264ccfa28f7 (23c42fca-fa51-4e06-9d4e-2bf2888604eb)
     9be0ab27-1565-4b92-b2d2-c4578e90c46d (d660a917-5095-4bd0-92c5-d0abdffb600b)
     1e81abcf-574b-4533-8202-da182491724c (51f98e51-143b-4968-a7a9-e2d8d419b246)
 
-We noted before that the default network setup created 3 ports.  2 more ports
-have been added after we booted our two test VMs::
-
-    1117ac4e-1c83-4fd5-bb16-6c9c11150446 (e3800c90-24d4-49ad-abb2-041a2e3dd259)
-    9be0ab27-1565-4b92-b2d2-c4578e90c46d (d660a917-5095-4bd0-92c5-d0abdffb600b)
-
-..
-    TODO: Show how to look at the corresponding configuration of OVS.
+These three ports correspond to the DHCP agent plus the two VMs we created.
 
 Adding Another Compute Node
 ---------------------------
@@ -578,29 +512,24 @@ the connection between this port and the provider network.
 OVN L3
 ------
 
-The default sample local.conf does not use Neutron's L3 agent in order to
-implement L3 connectivity across subnets. Instead, it uses OVN distributed
-L3 support by adding the following line to the local.conf
-::
+This document focuses on testing OVN with its native distributed L3 support
+enabled.  OVN implements distributed virtual routing using OVS flows and does
+not require any namespaces.
 
-   OVN_L3_MODE=True
+If you'd like to switch to using the Neutron L3 agent, you must set
+the following in local.conf::
 
-If you use OVN L3 mode you must also disable q-l3 service
-::
+   OVN_L3_MODE=False
 
-   change 'enable_service q-l3' ==> to 'disable_service q-l3'
+If you turn off OVN L3 support, you must enable the Neutron L3 agent::
 
-OVN implements distributed virtual routing using OVS flows and
-does not require any namespaces.
+   change 'disable_service q-l3' ==> to 'enable_service q-l3'
 
 Keep in mind that OVN doesn't yet support SNAT/DNAT, in order
 to have public network (north/south traffic) you must still use
 Neutron's L3 agent. With Neutron's L3 agent, all L3 traffic traverses
 the virtual router namespace on the network node running Neutron's
 L3 agent.
-
-To enable Neutron's L3 agent, you must set OVN_L3_MODE to False and
-enable the q-l3 service.
 
 Troubleshooting
 ---------------
