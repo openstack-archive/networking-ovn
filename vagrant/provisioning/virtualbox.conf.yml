@@ -3,28 +3,28 @@ box: "ubuntu/trusty64"
 ovndb:
   host_name: ovn-db.devstack.dev
   ip: "192.168.33.11"
-  prov-ip: "192.168.66.11"
+  prov-ip: "10.10.0.11"
   memory: 2048
   cpus: 2
   mtu: 1500
 ovncontroller:
   host_name: ovn-controller.devstack.dev
   ip: "192.168.33.12"
-  prov-ip: "192.168.66.12"
+  prov-ip: "10.10.0.12"
   memory: 6144
   cpus: 2
   mtu: 1500
 ovncompute1:
   host_name: ovn-compute1.devstack.dev
   ip: "192.168.33.31"
-  prov-ip: "192.168.66.31"
+  prov-ip: "10.10.0.31"
   memory: 1024
   cpus: 1
   mtu: 1500
 ovncompute2:
   host_name: ovn-compute2.devstack.dev
   ip: "192.168.33.32"
-  prov-ip: "192.168.66.32"
+  prov-ip: "10.10.0.32"
   memory: 1024
   cpus: 1
   mtu: 1500
