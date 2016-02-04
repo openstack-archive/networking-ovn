@@ -19,6 +19,18 @@ echo export LANG=en_US.UTF-8 >> ~/.bash_profile
 sudo rm -rf /var/lib/apt/lists/*
 sudo apt-get install -y git
 
+# FIXME(mestery): By default, Ubuntu ships with /bin/sh pointing to
+# the dash shell.
+# ..
+# ..
+# The dots above represent a pause as you pick yourself up off the
+# floor. This means the latest version of "install_docker.sh" to load
+# docker fails because dash can't interpret some of it's bash-specific
+# things. It's a bug in install_docker.sh that it relies on those and
+# uses a shebang of /bin/sh, but that doesn't help us if we want to run
+# docker and specifically Kuryr. So, this works around that.
+sudo update-alternatives --install /bin/sh sh /bin/bash 100
+
 if [ ! -d "devstack" ]; then
     git clone https://git.openstack.org/openstack-dev/devstack.git
 fi
