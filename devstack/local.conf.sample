@@ -42,8 +42,11 @@ enable_service q-meta
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
 disable_service q-agt
 
-# How to connect to ovsdb-server hosting the OVN databases.
-#OVN_REMOTE=tcp:$SERVICE_HOST:6640
+# How to connect to ovsdb-server hosting the OVN NB database.
+#OVN_NB_REMOTE=tcp:$SERVICE_HOST:6641
+
+# How to connect to ovsdb-server hosting the OVN SB database.
+#OVN_SB_REMOTE=tcp:$SERVICE_HOST:6642
 
 # A UUID to uniquely identify this system.  If one is not specified, a random
 # one will be generated and saved in the file 'ovn-uuid' for re-use in future

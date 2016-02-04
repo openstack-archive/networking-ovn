@@ -44,8 +44,8 @@ SERVICE_HOST=<IP address of host running everything else>
 RABBIT_HOST=$SERVICE_HOST
 Q_HOST=$SERVICE_HOST
 
-# How to connect to ovsdb-server hosting the OVN databases.
-OVN_REMOTE=tcp:$SERVICE_HOST:6640
+# How to connect to ovsdb-server hosting the OVN SB database
+OVN_SB_REMOTE=tcp:$SERVICE_HOST:6642
 
 # A UUID to uniquely identify this system.  If one is not specified, a random
 # one will be generated and saved in the file 'ovn-uuid' for re-use in future

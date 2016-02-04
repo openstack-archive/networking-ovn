@@ -49,8 +49,11 @@ NETWORKING_OVN_DIR=$DEST/networking-ovn
 # The branch to use from $OVN_REPO
 OVN_BRANCH=${OVN_BRANCH:-origin/master}
 
-# How to connect to ovsdb-server hosting the OVN databases.
-OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
+# How to connect to ovsdb-server hosting the OVN SB database.
+OVN_SB_REMOTE=${OVN_SB_REMOTE:-tcp:$HOST_IP:6642}
+
+# How to connect to ovsdb-server hosting the OVN NB database
+OVN_NB_REMOTE=${OVN_NB_REMOTE:-tcp:$HOST_IP:6641}
 
 # A UUID to uniquely identify this system.  If one is not specified, a random
 # one will be generated.  A randomly generated UUID will be saved in a file
@@ -130,7 +133,7 @@ function configure_ovn_plugin {
 
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins "qos"
-        iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_REMOTE"
+        iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_NB_REMOTE"
         iniset $Q_PLUGIN_CONF_FILE ovn ovn_l3_mode "$OVN_L3_MODE"
     fi
 
@@ -226,13 +229,45 @@ function start_ovs {
     local ovsdb_logfile="ovsdb-server.log.${CURRENT_LOG_TIME}"
     bash -c "cd '$LOGDIR' && touch '$ovsdb_logfile' && ln -sf '$ovsdb_logfile' ovsdb-server.log"
 
+    local ovsdb_nb_logfile="ovsdb-server-nb.log.${CURRENT_LOG_TIME}"
+    bash -c "cd '$LOGDIR' && touch '$ovsdb_nb_logfile' && ln -sf '$ovsdb_nb_logfile' ovsdb-server-nb.log"
+
+    local ovsdb_sb_logfile="ovsdb-server-sb.log.${CURRENT_LOG_TIME}"
+    bash -c "cd '$LOGDIR' && touch '$ovsdb_sb_logfile' && ln -sf '$ovsdb_sb_logfile' ovsdb-server-sb.log"
+
     cd $DATA_DIR/ovs
 
     EXTRA_DBS=""
-    OVSDB_REMOTE=""
+    OVSDB_SB_REMOTE=""
     if is_ovn_service_enabled ovn-northd ; then
-        EXTRA_DBS="ovnsb.db ovnnb.db"
-        OVSDB_REMOTE="--remote=ptcp:6640:$HOST_IP"
+
+        # TODO (regXboi): change ovn-ctl so that we can use something
+        # other than --db-nb-port for port and ip address
+        DB_NB_PORT="6641:$HOST_IP"
+        DB_NB_SOCK="/usr/local/var/run/openvswitch/nb_db.sock"
+        DB_NB_PID="/usr/local/var/run/openvswitch/ovsdb-server-nb.pid"
+        DB_NB_FILE="$DATA_DIR/ovs/ovnnb.db"
+        OVN_NB_LOGFILE="$LOGDIR/ovsdb-server-nb.log"
+
+        # TODO (regXboi): change ovn-ctl so that we can use something
+        # other than --db-sb-port for port and ip address
+        DB_SB_PORT="6642:$HOST_IP"
+        DB_SB_SOCK="/usr/local/var/run/openvswitch/sb_db.sock"
+        DB_SB_PID="/usr/local/var/run/openvswitch/ovsdb-server-sb.pid"
+        DB_SB_FILE="$DATA_DIR/ovs/ovnsb.db"
+        OVN_SB_LOGFILE="$LOGDIR/ovsdb-server-sb.log"
+
+        /usr/local/share/openvswitch/scripts/ovn-ctl start_ovsdb \
+              --db-nb-port=$DB_NB_PORT --db-nb-sock=$DB_NB_SOCK \
+              --db-nb-pid=$DB_NB_PID --db-nb-file=$DB_NB_FILE \
+              --ovn-nb-logfile=$OVN_NB_LOGFILE --db-sb-port=$DB_SB_PORT \
+              --db-sb-sock=$DB_SB_SOCK --db-sb-pid=$DB_SB_PID \
+              --db-sb-file=$DB_SB_FILE --ovn-sb-logfile=$OVN_SB_LOGFILE
+
+        echo "Waiting for ovn ovsdb servers to start ... "
+        local testcmd="test -e $DB_NB_SOCK -a -e $DB_SB_SOCK"
+        test_with_retry "$testcmd" "nb ovsdb-server did not start" $SERVICE_TIMEOUT 1
+        echo "done."
     fi
 
     # TODO (regXboi): it would be nice to run the following with run_process
@@ -243,12 +278,12 @@ function start_ovs {
     # rather broken.  So, stay with this for now and somebody more tenacious
     # than I can figure out how to make it work...
 
-    if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
+    if is_ovn_service_enabled ovn-controller; then
         ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                      --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
                      --pidfile --detach -vconsole:off \
-                     --log-file=$LOGDIR/ovsdb-server.log $OVSDB_REMOTE \
-                     conf.db ${EXTRA_DBS}
+                     --log-file=$LOGDIR/ovsdb-server.log \
+                     conf.db
 
         echo -n "Waiting for ovsdb-server to start ... "
         local testcmd="test -e /usr/local/var/run/openvswitch/db.sock"
@@ -260,7 +295,7 @@ function start_ovs {
     fi
 
     if is_ovn_service_enabled ovn-controller ; then
-        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_REMOTE"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_SB_REMOTE"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$HOST_IP"
@@ -298,9 +333,21 @@ function start_ovn {
     fi
 
     if is_ovn_service_enabled ovn-northd ; then
-        # TODO (regXboi) ovn-northd doesn't appear to log to console at
-        # all - revisit this after that is fixed
-        run_process ovn-northd "ovn-northd --pidfile --log-file"
+
+        DB_NB_PID="/usr/local/var/run/openvswitch/ovsdb-server-nb.pid"
+        DB_NB_SOCK="/usr/local/var/run/openvswitch/nb_db.sock"
+        DB_SB_PID="/usr/local/var/run/openvswitch/ovsdb-server-sb.pid"
+        DB_SB_SOCK="/usr/local/var/run/openvswitch/sb_db.sock"
+        # TODO (regXboi): change ovn-ctl so that we can just use
+        # OVN_NORTHD_LOG=$LOGDIR/ovn-northd.log here
+        OVN_NORTHD_LOG="--log-file=$LOGDIR/ovn-northd.log"
+
+        NORTHD_CMD= /usr/local/share/openvswitch/scripts/ovn-ctl start_northd \
+            --db-nb-sock=$DB_NB_SOCK --db-sb-sock=$DB_SB_SOCK \
+            --db-nb-pid=$DB_NB_PID --db-sb-pid=$DB_SB_PID \
+            --ovn-northd-log=$OVN_NORTHD_LOG
+
+        run_process ovn-northd "$NORTHD_CMD"
 
         # This makes sure that the console logs have time stamps to
         # the millisecond, but we need to make sure ovs-appctl has
@@ -320,7 +367,7 @@ function stop_ovn {
         sudo killall ovs-vswitchd
     fi
     if is_ovn_service_enabled ovn-northd ; then
-        stop_process ovn-northd
+        /usr/local/share/openvswitch/scripts/ovn-ctl stop_northd
     fi
     sudo killall ovsdb-server
 }
