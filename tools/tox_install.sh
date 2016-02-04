@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Many of neutron's repos suffer from the problem of depending on neutron,
 # but it not existing on pypi.
@@ -13,12 +13,12 @@
 # default:
 # pip install {opts} {packages}
 
+set -ex
+
 ZUUL_CLONER=/usr/zuul-env/bin/zuul-cloner
 neutron_installed=$(echo "import neutron" | python 2>/dev/null ; echo $?)
 
-set -ex
-
-cwd=$(/bin/pwd)
+cwd=$PWD
 
 if [ $neutron_installed -eq 0 ]; then
     echo "ALREADY INSTALLED" > /tmp/tox_install.txt
