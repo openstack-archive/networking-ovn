@@ -117,6 +117,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 self, self._ovn, config.get_ovn_neutron_sync_mode())
             self.synchronizer.sync()
 
+            # start periodic check task to monitor the dhcp agents.
+            # This task is created in the Ovn Worker and not in the parent
+            # neutron process because
+            # - dhcp agent scheduler calls port_update to reschedule a network
+            #   from a dead dhcp agent to active one and idl object
+            #   (self._ovn) is not created in the main neutron process plugin
+            #   object.
+            # - Its created only in the worker processes.
+            # - Ovn worker seems to be the right candidate.
+            self.start_periodic_dhcp_agent_status_check()
+
     def _setup_rpc(self):
         self.endpoints = [dhcp_rpc.DhcpRpcCallback(),
                           agents_db.AgentExtRpcCallback(),
@@ -129,7 +140,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         self.network_scheduler = importutils.import_object(
             cfg.CONF.network_scheduler_driver
         )
-        self.start_periodic_dhcp_agent_status_check()
 
     def _start_rpc_notifiers(self):
         """Initialize RPC notifiers for agents."""
