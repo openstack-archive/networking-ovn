@@ -45,6 +45,7 @@ from neutron.db import extraroute_db
 from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
 from neutron.db import models_v2
+from neutron.db import netmtu_db
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
 from neutron.extensions import availability_zone as az_ext
@@ -76,7 +77,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 portbindings_db.PortBindingMixin,
                 extradhcpopt_db.ExtraDhcpOptMixin,
                 extraroute_db.ExtraRoute_db_mixin,
-                agentschedulers_db.AZDhcpAgentSchedulerDbMixin):
+                agentschedulers_db.AZDhcpAgentSchedulerDbMixin,
+                netmtu_db.Netmtu_db_mixin):
 
     __native_bulk_support = True
     __native_pagination_support = True
@@ -94,7 +96,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                    "provider",
                                    "subnet_allocation",
                                    "availability_zone",
-                                   "network_availability_zone"]
+                                   "network_availability_zone",
+                                   "net-mtu"]
 
     def __init__(self):
         super(OVNPlugin, self).__init__()
