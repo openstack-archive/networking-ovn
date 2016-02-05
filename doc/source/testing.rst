@@ -44,8 +44,8 @@ of git repos, and installs everything from these git repos.
 
     $ ./stack.sh
 
-Once DevStack completes successfully, you should see output that looks something
-like this::
+Once DevStack completes successfully, you should see output that looks
+something like this::
 
     This is your host ip: 192.168.122.8
     Horizon is now available at http://192.168.122.8/
@@ -120,22 +120,26 @@ Neutron DHCP agent that is providing DHCP services to the ``private`` network.
 
 ..
 
-One can determine the DHCP port by running: ``neutron port-list --device-owner 'network:dhcp'``. This
-will return the DHCP port that was created by Neutron.
+One can determine the DHCP port by running:
 
-The owner of the port, that is, the 'device_owner', will have details of the port owner.
-For example the port owner by a Nova instance  with will have device_owner 'compute:None'.
+``neutron port-list --device-owner 'network:dhcp'``
+
+This will return the DHCP port that was created by Neutron.
+
+The owner of the port, that is, the 'device_owner', will have details of the
+port owner. For example the port owner by a Nova instance with will have
+device_owner 'compute:None'.
 
 Booting VMs
 -----------
 
-In this section we'll go through the steps to create two VMs that have a virtual
-NIC attached to the ``private`` Neutron network.
+In this section we'll go through the steps to create two VMs that have a
+virtual NIC attached to the ``private`` Neutron network.
 
 DevStack uses libvirt as the Nova backend by default.  If KVM is available, it
 will be used.  Otherwise, it will just run qemu emulated guests.  This is
-perfectly fine for our testing, as we only need these VMs to be able to send and
-receive a small amount of traffic so performance is not very important.
+perfectly fine for our testing, as we only need these VMs to be able to send
+and receive a small amount of traffic so performance is not very important.
 
 1. Get the Network UUID.
 
@@ -156,7 +160,8 @@ the public key be put in the VM so we can SSH into it.
 
 3. Choose a flavor.
 
-We need minimal resources for these test VMs, so the ``m1.nano`` flavor is sufficient.
+We need minimal resources for these test VMs, so the ``m1.nano`` flavor is
+sufficient.
 
 ::
 
@@ -195,8 +200,8 @@ It's a very small test image.
 
 5. Setup a security rule so that we can access the VMs we will boot up next.
 
-By default, DevStack does not allow users to access VMs, to enable that, we will need to
-add a rule.  We will allow both ICMP and SSH.
+By default, DevStack does not allow users to access VMs, to enable that, we
+will need to add a rule.  We will allow both ICMP and SSH.
 
 ::
 
@@ -291,8 +296,9 @@ Once both VMs have been started, they will have a status of ``ACTIVE``::
     | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
     +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
 
-Our two VMs have addresses of ``10.0.0.3`` and ``10.0.0.4``.  If we list Neutron
-ports again, there are two new ports with these addresses associated with the::
+Our two VMs have addresses of ``10.0.0.3`` and ``10.0.0.4``.  If we list
+Neutron ports again, there are two new ports with these addresses associated
+with the::
 
     $ neutron port-list
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
@@ -384,8 +390,8 @@ controller node.
 
    Replace ``IFACE_ID`` with the UUID of the neutron port.
 
-#. Configure the MAC and IP address of the OVS port to use the same values as the
-   neutron port in step 1 and bring it up.
+#. Configure the MAC and IP address of the OVS port to use the same values as
+   the neutron port in step 1 and bring it up.
 
    .. code-block:: console
 
@@ -405,8 +411,8 @@ controller node.
 Adding Another Compute Node
 ---------------------------
 
-After completing the earlier instructions for setting up devstack, you can use a
-second VM to emulate an additional compute node.  This is important for OVN
+After completing the earlier instructions for setting up devstack, you can use
+a second VM to emulate an additional compute node.  This is important for OVN
 testing as it exercises the tunnels created by OVN between the hypervisors.
 
 Just as before, create a throwaway VM but make sure that this VM has a
@@ -419,8 +425,8 @@ Once the VM is setup, create a user with sudo access and install git.
      $ git clone http://git.openstack.org/openstack-dev/devstack.git
      $ git clone http://git.openstack.org/openstack/networking-ovn.git
 
-networking-ovn comes with another sample configuration file that can be used for
-this::
+networking-ovn comes with another sample configuration file that can be used
+for this::
 
      $ cd devstack
      $ cp ../networking-ovn/devstack/computenode-local.conf.sample local.conf
@@ -439,8 +445,8 @@ ovsdb-server).  The final output will look something like this::
     This is your host ip: 172.16.189.10
     2015-05-09 01:21:49.565 | stack.sh completed in 308 seconds.
 
-Now go back to your main DevStack host.  You can use admin credentials to verify
-that the additional hypervisor has been added to the deployment::
+Now go back to your main DevStack host.  You can use admin credentials to
+verify that the additional hypervisor has been added to the deployment::
 
     $ cd devstack
     $ . openrc admin
@@ -454,9 +460,9 @@ that the additional hypervisor has been added to the deployment::
     +----+------------------------------------+-------+---------+
 
 You can also look at OVN and OVS to see that the second host has shown up.  For
-example, there will be a second entry in the Chassis table of the OVN_Southbound
-database.  You can use the ``ovn-sbctl`` utility to list chassis, their
-configuration, and the ports bound to each of them::
+example, there will be a second entry in the Chassis table of the
+OVN_Southbound database.  You can use the ``ovn-sbctl`` utility to list
+chassis, their configuration, and the ports bound to each of them::
 
     $ ovn-sbctl show
 
