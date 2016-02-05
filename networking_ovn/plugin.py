@@ -44,6 +44,7 @@ from neutron.db import extradhcpopt_db
 from neutron.db import extraroute_db
 from neutron.db import l3_agentschedulers_db
 from neutron.db import l3_gwmode_db
+from neutron.db import models_v2
 from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
 from neutron.extensions import extra_dhcp_opt as edo_ext
@@ -233,10 +234,43 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return network
 
     def delete_network(self, context, network_id):
-        with context.session.begin(subtransactions=True):
-            self._process_l3_delete(context, network_id)
-            super(OVNPlugin, self).delete_network(context,
-                                                  network_id)
+        first_try = True
+        while True:
+            try:
+                with context.session.begin(subtransactions=True):
+                    self._process_l3_delete(context, network_id)
+                    super(OVNPlugin, self).delete_network(context,
+                                                          network_id)
+                break
+            except n_exc.NetworkInUse:
+                # There is a race condition in delete_network() that we need
+                # to work around here.  delete_network() issues a query to
+                # automatically delete DHCP ports and then checks to see if any
+                # ports exist on the network.  If a network is created and
+                # deleted quickly, such as when running tempest, the DHCP agent
+                # may be creating its port for the network around the same time
+                # that the network is deleted.  This can result in the DHCP
+                # port getting created in between these two queries in
+                # delete_network().  To work around that, we'll call
+                # delete_network() a second time if we get a NetworkInUse
+                # exception but the only port(s) that exist are ones that
+                # delete_network() is supposed to automatically delete.
+                if not first_try:
+                    # We tried once to work around the known race condition,
+                    # but we still got the exception, so something else is
+                    # wrong that we can't recover from.
+                    raise
+                first_try = False
+                ports_in_use = context.session.query(models_v2.Port).filter_by(
+                    network_id=network_id).all()
+                if not all([p.device_owner in
+                            db_base_plugin_v2.AUTO_DELETE_PORT_OWNERS
+                            for p in ports_in_use]):
+                    # There is a port on the network that is not going to be
+                    # automatically deleted (such as a tenant created port), so
+                    # we have nothing else to do but raise the exception.
+                    raise
+
         try:
             self._ovn.delete_lswitch(
                 utils.ovn_name(network_id), if_exists=True).execute(
