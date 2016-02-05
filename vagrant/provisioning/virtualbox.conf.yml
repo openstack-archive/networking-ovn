@@ -1,5 +1,9 @@
 ---
 box: "ubuntu/trusty64"
+provider_network: "10.10.0.0/16"
+provider_gateway: "10.10.0.1"
+provider_start_ip: "10.10.0.101"
+provider_end_ip: "10.10.255.250"
 ovndb:
   host_name: ovn-db.devstack.dev
   ip: "192.168.33.11"
