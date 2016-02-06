@@ -21,9 +21,9 @@ from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
 
 
-def get_connection(trigger):
+def get_connection(trigger=None):
     # The trigger is the start() method of the NeutronWorker class
-    if trigger.im_class == ovsdb_monitor.OvnWorker:
+    if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
         cls = ovsdb_monitor.OvnConnection
     else:
         cls = connection.Connection
@@ -35,7 +35,7 @@ class OvsdbOvnIdl(ovn_api.API):
 
     ovsdb_connection = None
 
-    def __init__(self, plugin, trigger):
+    def __init__(self, plugin, trigger=None):
         super(OvsdbOvnIdl, self).__init__()
         if OvsdbOvnIdl.ovsdb_connection is None:
             OvsdbOvnIdl.ovsdb_connection = get_connection(trigger)
