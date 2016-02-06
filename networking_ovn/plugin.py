@@ -321,7 +321,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # FIXME(arosen): if binding data isn't passed in here
             # we should fetch it from the db instead and not set it to
             # None since neutron implements patch sematics for updates
-            binding_profile = self._get_data_from_binding_profile(
+            binding_profile = self.get_data_from_binding_profile(
                 context, port['port'])
 
             original_port = self.get_port(context, id)
@@ -337,8 +337,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self._update_extra_dhcp_opts_on_port(context, id, port,
                                                  updated_port=updated_port)
 
-        ovn_port_info = self._get_ovn_port_options(binding_profile,
-                                                   updated_port)
+        ovn_port_info = self.get_ovn_port_options(binding_profile,
+                                                  updated_port)
         return self._update_port_in_ovn(context, original_port,
                                         updated_port, ovn_port_info)
 
@@ -393,7 +393,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return port
 
-    def _get_data_from_binding_profile(self, context, port):
+    def get_data_from_binding_profile(self, context, port):
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
                 not attr.is_attr_set(
                     port[ovn_const.OVN_PORT_BINDING_PROFILE])):
@@ -458,7 +458,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def create_port(self, context, port):
         with context.session.begin(subtransactions=True):
-            binding_profile = self._get_data_from_binding_profile(
+            binding_profile = self.get_data_from_binding_profile(
                 context, port['port'])
 
             # set the status of the port to down by default
@@ -490,10 +490,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_model = self._get_port(context, db_port['id'])
         self._apply_dict_extend_functions('ports', db_port, port_model)
 
-        ovn_port_info = self._get_ovn_port_options(binding_profile, db_port)
-        return self._create_port_in_ovn(context, db_port, ovn_port_info)
+        ovn_port_info = self.get_ovn_port_options(binding_profile, db_port)
+        return self.create_port_in_ovn(context, db_port, ovn_port_info)
 
-    def _get_ovn_port_options(self, binding_profile, port):
+    def get_ovn_port_options(self, binding_profile, port):
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
         vtep_logical_switch = None
         parent_name = None
@@ -770,7 +770,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         for cmd in six.itervalues(acls):
             txn.add(cmd)
 
-    def _create_port_in_ovn(self, context, port, ovn_port_info):
+    def create_port_in_ovn(self, context, port, ovn_port_info):
         # When we create a port on a provider network, the mapping to
         # OVN_Northbound is a bit different.  Every port on a provider network
         # is modeled as a special OVN logical switch.

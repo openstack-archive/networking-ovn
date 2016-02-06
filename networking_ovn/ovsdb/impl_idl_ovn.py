@@ -15,6 +15,7 @@ from neutron.agent.ovsdb.native import connection
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -100,6 +101,20 @@ class OvsdbOvnIdl(ovn_api.API):
         result = {}
         for row in self._tables['Logical_Port'].rows.values():
             result[row.name] = row.external_ids
+        return result
+
+    def get_all_logical_switches_with_ports(self):
+        result = []
+        for lswitch in self._tables['Logical_Switch'].rows.values():
+            if ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY not in (
+                lswitch.external_ids):
+                continue
+            ports = []
+            for lport in getattr(lswitch, 'ports', []):
+                if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in lport.external_ids:
+                    ports.append(lport.name)
+            result.append({'name': lswitch.name,
+                           'ports': ports})
         return result
 
     def create_lrouter(self, name, may_exist=True, **columns):
