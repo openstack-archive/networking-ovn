@@ -46,7 +46,7 @@ disable_service q-agt
 #OVN_UUID=
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
-# Openstack will use the q-l3 functionality.  If you set OVN_L3_MODE to True,
+# OpenStack will use the q-l3 functionality.  If you set OVN_L3_MODE to True,
 # you must also disable the q-l3 service.
 OVN_L3_MODE=True
 #enable_service q-l3

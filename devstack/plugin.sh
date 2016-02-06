@@ -58,7 +58,7 @@ OVN_REMOTE=${OVN_REMOTE:-tcp:$HOST_IP:6640}
 OVN_UUID=${OVN_UUID:-}
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
-# Openstack will use q-l3 functionality.
+# OpenStack will use q-l3 functionality.
 OVN_L3_MODE=$(trueorfalse False OVN_L3_MODE)
 
 # Whether or not to build the openvswitch kernel module from ovs.  This is required
