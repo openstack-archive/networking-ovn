@@ -19,7 +19,7 @@ services:
 
 * DHCP
 
-  Currently uses conventional DHCP agent.
+  Currently uses conventional DHCP agent which supports availability zones.
 
 * Metadata
 

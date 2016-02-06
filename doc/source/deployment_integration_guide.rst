@@ -153,7 +153,8 @@ Deployments using native layer-3 services do not require conventional
 network nodes because connectivity to external networks (including VTEP
 gateways) and routing occurs on compute nodes. OVN currently relies on
 conventional DHCP and metadata agents that typically operate on network
-nodes. However, you can deploy these agents on controller nodes.
+nodes. However, you can deploy these agents on controller or compute
+nodes.
 
 Compute nodes
 -------------
