@@ -69,12 +69,21 @@ OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 # to 1500 bytes.
 OVN_NATIVE_MTU=${OVN_NATIVE_MTU:-1500}
 
+# Neutron directory
+NEUTRON_DIR=$DEST/neutron
+
+# Set variables for building OVS from source
+OVS_REPO=$OVN_REPO
+OVS_REPO_NAME=$OVN_REPO_NAME
+OVS_BRANCH=$OVN_BRANCH
+
 # Utility Functions
 # -----------------
 
 # There are some ovs functions OVN depends on that must be sourced from these
 source $TOP_DIR/lib/neutron_plugins/ovs_base
 source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
+source $NEUTRON_DIR/devstack/lib/ovs
 
 function is_ovn_service_enabled {
     ovn_service=$1
@@ -182,7 +191,6 @@ function init_ovn {
 
 # install_ovn() - Collect source and prepare
 function install_ovn {
-    local _pwd=$(pwd)
     echo "Installing OVN and dependent packages"
 
     # If OVS is already installed, remove it, because we're about to re-install
@@ -202,48 +210,9 @@ function install_ovn {
     setup_package $DEST/networking-ovn
     # Install tox, used to generate the config (see devstack/override-defaults)
     pip_install tox
-
-    cd $DEST
-    if [ ! -d $OVN_REPO_NAME ] ; then
-        git clone $OVN_REPO
-        cd $OVN_REPO_NAME
-        git checkout $OVN_BRANCH
-    else
-        cd $OVN_REPO_NAME
-    fi
-
-    # TODO: Can you create package list files like you can inside devstack?
-    install_package autoconf automake libtool gcc patch make
-
-    if is_fedora ; then
-        # is_fedora covers Fedora, RHEL, CentOS, etc...
-        install_package kernel-devel
-    fi
-
-    if [ ! -f configure ] ; then
-        ./boot.sh
-    fi
-    if [ ! -f config.status ] || [ configure -nt config.status ] ; then
-        if [[ "$OVN_BUILD_MODULES" == "True" ]]; then
-            ./configure --with-linux=/lib/modules/`uname -r`/build
-        else
-            ./configure
-        fi
-    fi
-    make -j$[$(nproc) + 1]
-    sudo make install
-    if [[ "$OVN_BUILD_MODULES" == "True" ]]; then
-        sudo make INSTALL_MOD_DIR=kernel/net/openvswitch modules_install
-        sudo modprobe -r vport_geneve
-        sudo modprobe -r openvswitch
-    fi
-    sudo modprobe openvswitch || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")
-    sudo modprobe vport-geneve || (echo "FAILED TO LOAD vport_geneve" && dmesg)
-    dmesg | tail
+    compile_ovs $OVN_BUILD_MODULES
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
-
-    cd $_pwd
 }
 
 function start_ovs {
