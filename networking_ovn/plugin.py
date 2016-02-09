@@ -228,6 +228,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     {'network': {az_ext.AZ_HINTS: az_hints}})
                 result[az_ext.AZ_HINTS] = az_hints
 
+        # This extra lookup is necessary to get the latest db model
+        # for the extension functions.
+        net_model = self._get_network(context, result['id'])
+        self._apply_dict_extend_functions('networks', result, net_model)
+
         try:
             return self.create_network_in_ovn(result, ext_ids)
         except Exception:
@@ -479,6 +484,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
+
+        # This extra lookup is necessary to get the latest db model
+        # for the extension functions.
+        port_model = self._get_port(context, db_port['id'])
+        self._apply_dict_extend_functions('ports', db_port, port_model)
 
         ovn_port_info = self._get_ovn_port_options(binding_profile, db_port)
         return self._create_port_in_ovn(context, db_port, ovn_port_info)
