@@ -83,7 +83,6 @@ OVS_BRANCH=$OVN_BRANCH
 # There are some ovs functions OVN depends on that must be sourced from these
 source $TOP_DIR/lib/neutron_plugins/ovs_base
 source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
-source $NEUTRON_DIR/devstack/lib/ovs
 
 function is_ovn_service_enabled {
     ovn_service=$1
@@ -210,6 +209,7 @@ function install_ovn {
     setup_package $DEST/networking-ovn
     # Install tox, used to generate the config (see devstack/override-defaults)
     pip_install tox
+    source $NEUTRON_DIR/devstack/lib/ovs
     compile_ovs $OVN_BUILD_MODULES
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
