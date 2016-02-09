@@ -521,30 +521,6 @@ to the bridge 'br-provider".
     $ ovs-vsctl set open . \
     external-ids:ovn-bridge-mappings=providernet:br-provider
 
-At this point you should be able to observe that ovn-controller
-automatically created patch ports between br-int and br-provider.
-
-::
-
-    $ ovs-vsctl show
-    ...
-    Bridge br-provider
-        Port br-provider
-            Interface br-provider
-                type: internal
-        Port patch-br-provider-to-br-int
-            Interface patch-br-provider-to-br-int
-                type: patch
-                options: {peer=patch-br-int-to-br-provider}
-    Bridge br-int
-        ...
-        Port patch-br-int-to-br-provider
-            Interface patch-br-int-to-br-provider
-                type: patch
-                options: {peer=patch-br-provider-to-br-int}
-        ...
-
-
 Now create a Neutron provider network.
 
 ::
