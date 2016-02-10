@@ -25,15 +25,14 @@ OVN_REMOTE=tcp:$ovnip:6640
 enable_service q-dhcp q-meta
 DEVSTACKEOF
 
-# Using a separate 'cat' with single quotes around EOF to prevent
-# interpretation of variables such as $Q_DHCP_CONF_FILE.
+# Add unique post-config for DevStack here using a separate 'cat' with
+# single quotes around EOF to prevent interpretation of variables such
+# as $Q_DHCP_CONF_FILE.
 
-cat << 'DEVSTACKEOF' >> devstack/local.conf
+#cat << 'DEVSTACKEOF' >> devstack/local.conf
 
-[[post-config|/$Q_DHCP_CONF_FILE]]
-[DEFAULT]
-enable_isolated_metadata = True
-DEVSTACKEOF
+#[[post-config|/$ITEM]]
+#DEVSTACKEOF
 
 devstack/stack.sh
 

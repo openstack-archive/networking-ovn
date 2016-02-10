@@ -32,10 +32,14 @@ disable_service ovn-northd
 disable_service c-api c-sch c-vol n-cpu q-dhcp q-meta tempest
 DEVSTACKEOF
 
-# Using a separate 'cat' with single quotes around EOF to prevent
-# interpretation of variables such as $NEUTRON_CONF.
+# Add unique post-config for DevStack here using a separate 'cat' with
+# single quotes around EOF to prevent interpretation of variables such
+# as $NEUTRON_CONF.
 
 cat << 'DEVSTACKEOF' >> devstack/local.conf
+
+# Enable two DHCP agents per neutron subnet. Requires two or more compute
+# nodes.
 
 [[post-config|/$NEUTRON_CONF]]
 [DEFAULT]
