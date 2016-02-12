@@ -13,6 +13,7 @@
 from oslo_config import cfg
 
 from networking_ovn._i18n import _
+from neutron.extensions import portbindings
 
 
 ovn_opts = [
@@ -40,6 +41,18 @@ ovn_opts = [
     cfg.BoolOpt('ovn_l3_mode',
                 default=False,
                 help=_('Whether to use OVN L3 support')),
+    cfg.StrOpt("vif_type",
+               default=portbindings.VIF_TYPE_OVS,
+               help=_("Type of VIF to be used for ports valid values are"
+                      "(%(ovs)s, %(dpdk)s) default %(ovs)s") % {
+                          "ovs": portbindings.VIF_TYPE_OVS,
+                          "dpdk": portbindings.VIF_TYPE_VHOST_USER},
+               choices=[portbindings.VIF_TYPE_OVS,
+                        portbindings.VIF_TYPE_VHOST_USER]),
+    cfg.StrOpt("vhost_sock_dir",
+               default="/var/run/openvswitch",
+               help=_("The directory in which vhost virtio socket"
+                      "is created by all the vswitch daemons"))
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -65,3 +78,11 @@ def get_ovn_neutron_sync_mode():
 
 def is_ovn_l3():
     return cfg.CONF.ovn.ovn_l3_mode
+
+
+def get_ovn_vif_type():
+    return cfg.CONF.ovn.vif_type
+
+
+def get_ovn_vhost_sock_dir():
+    return cfg.CONF.ovn.vhost_sock_dir

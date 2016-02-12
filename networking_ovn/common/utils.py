@@ -10,6 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+
+from neutron.common import constants as const
+
 
 def ovn_name(id):
     # The name of the OVN entry will be neutron-<UUID>
@@ -29,3 +33,12 @@ def ovn_lrouter_port_name(id):
     #   - patch-<UUID>-to-lrp-<UUID>
     # lrp stands for Logical Router Port
     return 'lrp-%s' % id
+
+
+def ovn_vhu_sockpath(sock_dir, port_id):
+    # Frame the socket path of a virtio socket
+    return os.path.join(
+        sock_dir,
+        # this parameter will become the virtio port name,
+        # so it should not exceed IFNAMSIZ(16).
+        (const.VHOST_USER_DEVICE_PREFIX + port_id)[:14])
