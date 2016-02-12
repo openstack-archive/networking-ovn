@@ -432,7 +432,8 @@ for this::
      $ cp ../networking-ovn/devstack/computenode-local.conf.sample local.conf
 
 You must set SERVICE_HOST in local.conf.  The value should be the IP address of
-the main DevStack host.  See the text in the sample configuration file for more
+the main DevStack host.  You must also set HOST_IP to the IP address of this
+new host.  See the text in the sample configuration file for more
 information.  Once that is complete, run DevStack::
 
     $ cd devstack
