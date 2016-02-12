@@ -25,6 +25,11 @@ services:
 
   Currently uses conventional metadata agent.
 
+* DPDK
+
+  OVN and networking-ovn may be used with OVS using either the Linux kernel
+  datapath or the DPDK datapath.
+
 The following Neutron API extensions are supported with OVN:
 
 +---------------------------+---------------------------+
