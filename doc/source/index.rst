@@ -15,7 +15,7 @@ General Information and Other Project References:
    features
    contributing
    faq
-   deployment_integration_guide
+   install
 
 Testing and Usage Information:
 

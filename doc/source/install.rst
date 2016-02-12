@@ -1,13 +1,11 @@
-Deployment tool integration
-===========================
+Installation
+============
 
 The ``networking-ovn`` repository includes integration with DevStack that
 enables creation of a simple Open Virtual Network (OVN) development and test
-environment. Deploying OVN in a realistic deployment requires integration
-with various OpenStack deployment tools such as Fuel, OpenStack Ansible,
-and TripleO. This guide provides general instructions for developers of these
-tools to integrate OVN into conventional architectures that include the
-following types of nodes:
+environment. This document discusses what is required for manual installation
+or integration into a production OpenStack deployment tool of conventional
+architectures that include the following types of nodes:
 
 * Controller - Runs OpenStack control plane services such as REST APIs
   and databases.
@@ -34,8 +32,9 @@ independent package, typically ``networking-ovn``.
 Building OVS from source automatically installs OVN. For deployment tools
 using distribution packages, the ``openvswitch-ovn`` package for RHEL/CentOS
 and compatible distributions automatically installs ``openvswitch`` as a
-dependency. Ubuntu/Debian and compatible distributions do not offer OVN
-packages yet.
+dependency. Ubuntu/Debian includes ``ovn-central``, ``ovn-host``,
+``ovn-docker``, and ``ovn-common`` packages that pull in the appropriate Open
+vSwitch dependencies as needed.
 
 Controller nodes
 ----------------
