@@ -240,20 +240,23 @@ function start_ovs {
     # rather broken.  So, stay with this for now and somebody more tenacious
     # than I can figure out how to make it work...
 
-    ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
-                 --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
-                 --pidfile --detach -vconsole:off \
-                 --log-file=$LOGDIR/ovsdb-server.log $OVSDB_REMOTE \
-                 conf.db ${EXTRA_DBS}
+    if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
+        ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
+                     --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+                     --pidfile --detach -vconsole:off \
+                     --log-file=$LOGDIR/ovsdb-server.log $OVSDB_REMOTE \
+                     conf.db ${EXTRA_DBS}
 
-    echo -n "Waiting for ovsdb-server to start ... "
-    while ! test -e /usr/local/var/run/openvswitch/db.sock ; do
-        sleep 1
-    done
-    echo "done."
-    ovs-vsctl --no-wait init
-    ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
-    ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
+        echo -n "Waiting for ovsdb-server to start ... "
+        while ! test -e /usr/local/var/run/openvswitch/db.sock ; do
+            sleep 1
+        done
+        echo "done."
+        ovs-vsctl --no-wait init
+        ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
+    fi
+
     if is_ovn_service_enabled ovn-controller ; then
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_REMOTE"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
@@ -342,7 +345,7 @@ function disable_libvirt_apparmor {
 }
 
 # main loop
-if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
+if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
         if [[ "$OFFLINE" != "True" ]]; then
             install_ovn
@@ -361,6 +364,11 @@ if is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; t
         fi
 
         start_ovn
+
+        # If not previously set by another process, set the OVN_*_DB
+        # variables to enable OVN commands from any node.
+        grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_REMOTE\nexport OVN_SB_DB=$OVN_REMOTE" >> ~/.bash_profile
+
     fi
 
     if [[ "$1" == "unstack" ]]; then
