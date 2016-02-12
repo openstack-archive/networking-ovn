@@ -5,7 +5,8 @@
 # to your test environment.  It runs a very minimal set of services.
 #
 # For this configuration to work, you *must* set the SERVICE_HOST option to the
-# IP address of the main DevStack host.
+# IP address of the main DevStack host.  You must also set HOST_IP to the IP
+# address of this host.
 #
 
 [[local|localrc]]
