@@ -73,6 +73,8 @@ class LSwitchSetExternalIdCommand(BaseCommand):
             msg = _("Logical Switch %s does not exist") % self.name
             raise RuntimeError(msg)
 
+        lswitch.verify('external_ids')
+
         external_ids = getattr(lswitch, 'external_ids', {})
         external_ids[self.field] = self.value
         lswitch.external_ids = external_ids
@@ -101,6 +103,8 @@ class AddLogicalPortCommand(BaseCommand):
             if port:
                 return
 
+        lswitch.verify('ports')
+
         port = txn.insert(self.api._tables['Logical_Port'])
         port.name = self.lport
         for col, val in self.columns.items():
@@ -108,7 +112,6 @@ class AddLogicalPortCommand(BaseCommand):
         # add the newly created port to existing lswitch
         ports.append(port.uuid)
         setattr(lswitch, 'ports', ports)
-        lswitch.verify('ports')
 
 
 class SetLogicalPortCommand(BaseCommand):
@@ -152,8 +155,9 @@ class DelLogicalPortCommand(BaseCommand):
             msg = _("Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
-        ports.remove(lport)
         lswitch.verify('ports')
+
+        ports.remove(lport)
         setattr(lswitch, 'ports', ports)
         self.api._tables['Logical_Port'].rows[lport.uuid].delete()
 
@@ -246,6 +250,7 @@ class AddLRouterPortCommand(BaseCommand):
             lrouter_port.name = self.name
             for col, val in self.columns.items():
                 setattr(lrouter_port, col, val)
+            lrouter.verify('ports')
             lrouter_ports = getattr(lrouter, 'ports', [])
             if lrouter_port not in lrouter_ports:
                 lrouter_ports.append(lrouter_port)
@@ -276,6 +281,7 @@ class DelLRouterPortCommand(BaseCommand):
             msg = _("Logical Router %s does not exist") % self.lrouter
             raise RuntimeError(msg)
 
+        lrouter.verify('ports')
         lrouter_ports = getattr(lrouter, 'ports', [])
         if (lrouter_port in lrouter_ports):
             lrouter_ports.remove(lrouter_port)
@@ -320,10 +326,10 @@ class AddACLCommand(BaseCommand):
         for col, val in self.columns.items():
             setattr(row, col, val)
         row.external_ids = {'neutron:lport': self.lport}
+        lswitch.verify('acls')
         acls = getattr(lswitch, 'acls', [])
         acls.append(row.uuid)
         setattr(lswitch, 'acls', acls)
-        lswitch.verify('acls')
 
 
 class DelACLCommand(BaseCommand):
@@ -343,6 +349,8 @@ class DelACLCommand(BaseCommand):
             msg = _("Logical Switch %s does not exist") % self.lswitch
             raise RuntimeError(msg)
 
+        lswitch.verify('acls')
+
         acls_to_del = []
         acls = getattr(lswitch, 'acls', [])
         for acl in acls:
@@ -353,4 +361,3 @@ class DelACLCommand(BaseCommand):
             acls.remove(acl)
             acl.delete()
         setattr(lswitch, 'acls', acls)
-        lswitch.verify('acls')
