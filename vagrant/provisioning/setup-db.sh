@@ -15,6 +15,10 @@ cat << DEVSTACKEOF >> devstack/local.conf
 Q_HOST=$1
 HOST_IP=$ipaddress
 HOSTNAME=$(hostname)
+
+# Enable logging to files.
+LOGFILE=/opt/stack/log/stack.sh.log
+SCREEN_LOGDIR=/opt/stack/log/data
 DEVSTACKEOF
 
 devstack/stack.sh
