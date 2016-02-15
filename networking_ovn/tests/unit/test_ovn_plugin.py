@@ -16,11 +16,18 @@
 
 import mock
 from oslo_config import cfg
+from oslo_utils import uuidutils
 from webob import exc
 
 from neutron.common import exceptions as n_exc
 from neutron import context
+from neutron.core_extensions.qos import QosCoreResourceExtension
+from neutron.db.qos import api as qos_api
 from neutron.extensions import portbindings
+from neutron.objects.qos import policy as qos_policy
+from neutron.objects.qos import rule as qos_rule
+from neutron.services.qos.notification_drivers import manager as driver_mgr
+from neutron.services.qos import qos_consts
 from neutron.tests import tools
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
@@ -42,7 +49,8 @@ class OVNPluginTestCase(test_plugin.NeutronDbPluginV2TestCase):
               service_plugins=None):
         impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
         super(OVNPluginTestCase, self).setUp(plugin=plugin,
-                                             ext_mgr=ext_mgr)
+                                             ext_mgr=ext_mgr,
+                                             service_plugins=service_plugins)
         self.plugin._ovn = mock.MagicMock()
         patcher = mock.patch(
             'neutron.agent.ovsdb.native.idlutils.row_by_value',
@@ -247,6 +255,114 @@ class TestOvnPlugin(OVNPluginTestCase):
                     self.assertEqual(tools.UnorderedList("22:22:22:22:22:22",
                                                          "00:00:00:00:00:01"),
                                      called_args_dict.get('port_security'))
+
+
+class TestQosOvnPlugin(OVNPluginTestCase):
+    def setUp(self,
+              plugin=PLUGIN_NAME,
+              ext_mgr=None,
+              service_plugins=None):
+        driver_mgr.QosServiceNotificationDriverManager = mock.Mock()
+        super(TestQosOvnPlugin, self).setUp(
+            plugin=plugin,
+            ext_mgr=ext_mgr,
+            service_plugins={"qos": "qos"})
+
+        self.qos_policy_id1 = uuidutils.generate_uuid()
+        self.tenant_id = "tenant_id"
+        self.ctxt = context.Context("", self.tenant_id)
+        self.policy1 = self._create_qos_policy(self.ctxt, self.qos_policy_id1)
+        qos_policy.QosPolicy.get_by_id = mock.MagicMock(
+            return_value=self.policy1)
+        qos_api.create_policy_network_binding = mock.Mock()
+        qos_api.delete_policy_network_binding = mock.Mock()
+        qos_api.create_policy_port_binding = mock.Mock()
+        qos_api.delete_policy_port_binding = mock.Mock()
+        QosCoreResourceExtension.extract_fields = mock.MagicMock(
+            side_effect=lambda resource_type, resource: {
+                qos_consts.QOS_POLICY_ID: self.policy1.id})
+
+        qos_rule.get_rules = mock.MagicMock(side_effect=self._rules_of_policy)
+
+    def _rules_of_policy(self, context, policy_id):
+        if policy_id == self.qos_policy_id1:
+            return self.policy1.rules
+
+        return []
+
+    def _create_qos_bw_limit_rule(self, policy_id):
+        ret = qos_rule.QosBandwidthLimitRule()
+        ret.id = 'rule-uuid'
+        ret.max_kbps = 50
+        ret.max_burst_kbps = 500
+        ret.obj_reset_changes()
+        ret.qos_policy_id = policy_id
+        return ret
+
+    def _create_qos_policy(self, context, id):
+        ret = qos_policy.QosPolicy()
+        ret.id = id
+        ret.rules = [self._create_qos_bw_limit_rule(id)]
+        ret.name = "test-policy"
+        ret._context = context
+        return ret
+
+    def _validate_port_create(self, options):
+        self.assertTrue(
+            self.plugin._ovn.create_lport.called)
+        args, kwargs = self.plugin._ovn.create_lport.call_args
+        self.assertIn("options", kwargs)
+        unmatched = set(options.items()) ^ set(kwargs['options'].items())
+        self.assertEqual(len(unmatched), 0)
+
+    @mock.patch('neutron.objects.qos.policy.QosPolicy.get_network_policy')
+    def test_qos_create_network(self, mock_get_nw_policy):
+        mock_get_nw_policy.return_value = self.policy1
+
+        data = {"network": {"name": "test-net",
+                            "admin_state_up": True,
+                            "tenant_id": self.tenant_id,
+                            "qos_policy_id": self.qos_policy_id1}}
+        req = self.new_create_request(
+            "networks", data, self.fmt,
+            context=self.ctxt)
+        res = req.get_response(self.api)
+        net1 = self.deserialize(self.fmt, res)
+        self.assertIn('qos_policy_id', net1['network'])
+        self.assertEqual(net1['network']['qos_policy_id'], self.qos_policy_id1)
+        self.assertTrue(qos_api.create_policy_network_binding.called)
+
+        with self.subnet(network=net1) as subnet1:
+            with self.port(subnet=subnet1,
+                           set_context=True,
+                           device_owner="network:",
+                           tenant_id=self.tenant_id):
+                self._validate_port_create({})
+
+            with self.port(subnet=subnet1,
+                           set_context=True,
+                           device_owner="compute:",
+                           tenant_id=self.tenant_id):
+                self._validate_port_create({'policing_rate': '50',
+                                            'policing_burst': '500'})
+
+        self.new_delete_request("networks", net1['network']['id'])
+
+    @mock.patch('neutron.objects.qos.policy.QosPolicy.get_network_policy')
+    def test_qos_create_port(self, mock_get_nw_policy):
+        mock_get_nw_policy.return_value = self.policy1
+
+        with self.network(set_context=True, tenant_id=self.tenant_id) as net1:
+            with self.subnet(network=net1):
+                data = {"port": {"network_id": net1['network']['id'],
+                                 "qos_policy_id": self.qos_policy_id1,
+                                 "tenant_id": self.tenant_id}}
+                req = self.new_create_request(
+                    "ports", data, self.fmt, context=self.ctxt)
+                res = req.get_response(self.api)
+                self.deserialize(self.fmt, res)
+                self._validate_port_create({'policing_rate': '50',
+                                            'policing_burst': '500'})
 
 
 class TestOvnPluginACLs(OVNPluginTestCase):

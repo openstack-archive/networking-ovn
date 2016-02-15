@@ -57,6 +57,8 @@ The following Neutron API extensions are supported with OVN:
 +---------------------------+---------------------------+
 | Provider Network          | provider                  |
 +---------------------------+---------------------------+
+| Quality of Service        | qos                       |
++---------------------------+---------------------------+
 | Quota management support  | quotas                    |
 +---------------------------+---------------------------+
 | RBAC Policies             | rbac-policies             |
