@@ -15,7 +15,6 @@
 
 
 import mock
-from oslo_config import cfg
 from oslo_utils import uuidutils
 from webob import exc
 
@@ -575,7 +574,6 @@ class TestOvnPluginL3(OVNPluginTestCase):
     def test_add_router_interface(self, func):
         self.plugin._ovn.add_lrouter_port = mock.Mock()
         self.plugin._ovn.set_lrouter_port_in_lport = mock.Mock()
-        cfg.CONF.set_override('ovn_l3_mode', True, 'ovn')
 
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
@@ -598,7 +596,6 @@ class TestOvnPluginL3(OVNPluginTestCase):
                 'remove_router_interface')
     def test_remove_router_interface(self, func):
         self.plugin._ovn.delete_lrouter_port = mock.Mock()
-        cfg.CONF.set_override('ovn_l3_mode', True, 'ovn')
 
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}

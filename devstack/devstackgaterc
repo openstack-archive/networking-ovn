@@ -18,6 +18,7 @@
 #
 
 export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,tempest,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-dhcp,q-l3
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_MODE=False"
 
 # Begin list of exclusions.
 r="^(?!.*"

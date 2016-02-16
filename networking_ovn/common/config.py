@@ -39,7 +39,7 @@ ovn_opts = [
                       ' Also remove resources from OVN'
                       ' that are no longer in Neutron.')),
     cfg.BoolOpt('ovn_l3_mode',
-                default=False,
+                default=True,
                 help=_('Whether to use OVN native L3 support. Do not change '
                        'the value for existing deployments that contain '
                        'routers.')),
