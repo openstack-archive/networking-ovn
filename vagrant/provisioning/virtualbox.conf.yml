@@ -22,13 +22,13 @@ ovncompute1:
   host_name: ovn-compute1.devstack.dev
   ip: "192.168.33.31"
   prov-ip: "10.10.0.31"
-  memory: 1024
+  memory: 1536
   cpus: 1
   mtu: 1500
 ovncompute2:
   host_name: ovn-compute2.devstack.dev
   ip: "192.168.33.32"
   prov-ip: "10.10.0.32"
-  memory: 1024
+  memory: 1536
   cpus: 1
   mtu: 1500
