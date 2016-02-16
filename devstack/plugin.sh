@@ -146,7 +146,7 @@ function configure_ovn_plugin {
         # issues.
         #
         # Calculate MTU for self-service/private networks accounting for
-        # GENEVE overlay protocol overhead of 42 bytes and configure the
+        # GENEVE overlay protocol overhead of 58 bytes and configure the
         # DHCP agent to provide it to instances. Only effective on neutron
         # subnets with DHCP.
         #
@@ -156,7 +156,7 @@ function configure_ovn_plugin {
 
         iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file "/etc/neutron/dnsmasq.conf"
         if ! grep "dhcp-option=26" /etc/neutron/dnsmasq.conf ; then
-            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - 42))" | sudo tee -a /etc/neutron/dnsmasq.conf
+            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - 58))" | sudo tee -a /etc/neutron/dnsmasq.conf
         fi
     fi
 }
