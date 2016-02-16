@@ -908,6 +908,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                        'udp && udp.src == 67 && udp.dst == 68'
                        ) % (port['id'], subnet['cidr']),
                 external_ids={'neutron:lport': port['id']}))
+            txn.add(self._ovn.add_acl(
+                lswitch=utils.ovn_name(port['network_id']),
+                lport=port['id'],
+                priority=ovn_const.ACL_PRIORITY_ALLOW,
+                action=ovn_const.ACL_ACTION_ALLOW,
+                log=False,
+                direction='from-lport',
+                match=('inport == "%s" && ip4 && '
+                       '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
+                       'udp && udp.src == 68 && udp.dst == 67'
+                       ) % (port['id'], subnet['cidr']),
+                external_ids={'neutron:lport': port['id']}))
 
     def _drop_all_ip_traffic_for_port(self, port, txn):
         for direction, p in (('from-lport', 'inport'),

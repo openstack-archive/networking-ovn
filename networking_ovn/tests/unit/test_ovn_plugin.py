@@ -406,31 +406,51 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             self.plugin._add_acl_dhcp(self.context, self.fake_port,
                                       mock.Mock(), {})
 
-        expected_match = (
+        expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
             '&& udp.dst == 68') % (self.fake_port['id'],
                                    self.fake_subnet['cidr'])
+        expected_match_from_lport = (
+            'inport == "%s" && ip4 && '
+            '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
+            'udp && udp.src == 68 && udp.dst == 67'
+        ) % (self.fake_port['id'], self.fake_subnet['cidr'])
         self.plugin._ovn.add_acl.assert_has_calls(
             [mock.call(action='allow', direction='to-lport',
                        external_ids={'neutron:lport': 'fake_port_id1'},
                        log=False, lport='fake_port_id1',
                        lswitch='neutron-network_id1',
-                       match=expected_match, priority=1002)])
+                       match=expected_match_to_lport, priority=1002),
+             mock.call(action='allow', direction='from-lport',
+                       external_ids={'neutron:lport': 'fake_port_id1'},
+                       log=False, lport='fake_port_id1',
+                       lswitch='neutron-network_id1',
+                       match=expected_match_from_lport, priority=1002)])
 
     def test__add_acl_dhcp_cache(self):
         self.plugin._ovn.add_acl = mock.Mock()
         self.plugin._add_acl_dhcp(self.context, self.fake_port, mock.Mock(),
                                   {'subnet_id1': self.fake_subnet})
-        expected_match = (
+        expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
             '&& udp.dst == 68') % (self.fake_port['id'],
                                    self.fake_subnet['cidr'])
+        expected_match_from_lport = (
+            'inport == "%s" && ip4 && '
+            '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
+            'udp && udp.src == 68 && udp.dst == 67'
+        ) % (self.fake_port['id'], self.fake_subnet['cidr'])
         self.plugin._ovn.add_acl.assert_has_calls(
             [mock.call(action='allow', direction='to-lport',
                        external_ids={'neutron:lport': 'fake_port_id1'},
                        log=False, lport='fake_port_id1',
                        lswitch='neutron-network_id1',
-                       match=expected_match, priority=1002)])
+                       match=expected_match_to_lport, priority=1002),
+             mock.call(action='allow', direction='from-lport',
+                       external_ids={'neutron:lport': 'fake_port_id1'},
+                       log=False, lport='fake_port_id1',
+                       lswitch='neutron-network_id1',
+                       match=expected_match_from_lport, priority=1002)])
 
     def test__add_acls_no_sec_group(self):
         self.plugin._ovn.add_acl = mock.Mock()
