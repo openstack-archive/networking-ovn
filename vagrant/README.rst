@@ -11,10 +11,12 @@ architecture:
 #. Controller node containing the Identity service, Image service, control
    plane portion of the Compute service, control plane portion of the
    Networking service including the ``networking-ovn`` plug-in, and the
-   dashboard.
+   dashboard. In addition, the controller node is configured as an NFS
+   server to support instance live migration between the two compute nodes.
 #. Two compute nodes containing the Compute hypervisor, ``ovn-controller``
    service for OVN, DHCP and metadata agents for the Networking service,
-   OVS services.
+   OVS services. In addition, the compute nodes are configured as NFS
+   clients to support instance live migration between them.
 
 During deployment, Vagrant creates three VirtualBox networks:
 

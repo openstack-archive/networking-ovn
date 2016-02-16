@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-cp networking-ovn/devstack/computenode-local.conf.sample devstack/local.conf
-if [ "$1" != "" ]; then
-    sed -i -e 's/<IP address of host running everything else>/'$1'/g' devstack/local.conf
-fi
-if [ "$2" != "" ]; then
-    ovnip=$2
-fi
 
+# Script Arguments:
+# $1 - ovn-controller IP address
+# $2 - ovn-db IP address
+OVN_CONTROLLER_IP=$1
+OVN_DB_IP=$2
+
+cp networking-ovn/devstack/computenode-local.conf.sample devstack/local.conf
+sed -i -e 's/<IP address of host running everything else>/'$OVN_CONTROLLER_IP'/g' devstack/local.conf
+
+sudo umount /opt/stack/data/nova/instances
 
 # Get the IP address
 ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
@@ -21,7 +24,7 @@ cat << DEVSTACKEOF >> devstack/local.conf
 # OpenStack services.
 Q_HOST=$1
 HOSTNAME=$(hostname)
-OVN_REMOTE=tcp:$ovnip:6640
+OVN_REMOTE=tcp:$OVN_DB_IP:6640
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
@@ -68,3 +71,20 @@ provider_setup
 source devstack/openrc admin admin
 ROUTER_GATEWAY=`neutron port-list -c fixed_ips -c device_owner | grep router_gateway | awk -F'ip_address'  '{ print $2 }' | cut -f3 -d\"`
 sudo ip route add $FIXED_RANGE via $ROUTER_GATEWAY
+
+# NFS Setup
+sudo apt-get update
+sudo apt-get install -y nfs-common
+sudo mkdir -p /opt/stack/data/nova/instances
+sudo chmod o+x /opt/stack/data/nova/instances
+sudo chown vagrant:vagrant /opt/stack/data/nova/instances
+sudo sh -c "echo \"$OVN_CONTROLLER_IP:/opt/stack/data/nova/instances /opt/stack/data/nova/instances nfs defaults 0 0\" >> /etc/fstab"
+sudo mount /opt/stack/data/nova/instances
+sudo chown vagrant:vagrant /opt/stack/data/nova/instances
+sudo sh -c "echo \"listen_tls = 0\" >> /etc/libvirt/libvirtd.conf"
+sudo sh -c "echo \"listen_tcp = 1\" >> /etc/libvirt/libvirtd.conf"
+sudo sh -c "echo -n \"auth_tcp =\" >> /etc/libvirt/libvirtd.conf"
+sudo sh -c 'echo " \"none\"" >> /etc/libvirt/libvirtd.conf'
+sudo sh -c "sed -i 's/env libvirtd_opts\=\"\-d\"/env libvirtd_opts\=\"-d -l\"/g' /etc/init/libvirt-bin.conf"
+sudo sh -c "sed -i 's/libvirtd_opts\=\"\-d\"/libvirtd_opts\=\"\-d \-l\"/g' /etc/default/libvirt-bin"
+sudo /etc/init.d/libvirt-bin restart
