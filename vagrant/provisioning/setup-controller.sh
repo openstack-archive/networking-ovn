@@ -59,11 +59,13 @@ DEVSTACKEOF
 
 cat << 'DEVSTACKEOF' >> devstack/local.conf
 
-# Enable two DHCP agents per neutron subnet. Requires two or more compute
-# nodes.
+# Enable two DHCP agents per neutron subnet with support for availability
+# zones. Requires two or more compute nodes.
 
 [[post-config|/$NEUTRON_CONF]]
 [DEFAULT]
+network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
+dhcp_load_type = networks
 dhcp_agents_per_network = 2
 DEVSTACKEOF
 

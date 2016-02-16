@@ -67,3 +67,17 @@ disable_service q-l3
 # If you enable the DHCP agent, configure it to provide a route for
 # metadata to instances.
 ENABLE_ISOLATED_METADATA=True
+
+# Enable two DHCP agents per neutron subnet with support for availability
+# zones. Requires a multi-node deployment.
+#[[post-config|/$NEUTRON_CONF]]
+#[DEFAULT]
+#network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
+#dhcp_load_type = networks
+#dhcp_agents_per_network = 2
+
+# If you enable the DHCP agent, you can configure the availability
+# zone name (default is nova).
+#[[post-config|$Q_DHCP_CONF_FILE]]
+#[AGENT]
+#availability_zone = nova
