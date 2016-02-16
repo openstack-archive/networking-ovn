@@ -40,7 +40,9 @@ ovn_opts = [
                       ' that are no longer in Neutron.')),
     cfg.BoolOpt('ovn_l3_mode',
                 default=False,
-                help=_('Whether to use OVN L3 support')),
+                help=_('Whether to use OVN native L3 support. Do not change '
+                       'the value for existing deployments that contain '
+                       'routers.')),
     cfg.StrOpt("vif_type",
                default=portbindings.VIF_TYPE_OVS,
                help=_("Type of VIF to be used for ports valid values are"
