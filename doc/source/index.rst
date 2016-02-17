@@ -23,6 +23,7 @@ Testing and Usage Information:
    :maxdepth: 1
 
    testing
+   dpdk
    containers
    troubleshooting
 
