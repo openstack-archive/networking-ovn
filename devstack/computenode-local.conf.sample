@@ -67,3 +67,9 @@ VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
 # If you enable the DHCP agent, configure it to provide a route for
 # metadata to instances.
 ENABLE_ISOLATED_METADATA=True
+
+# If you enable the DHCP agent, you can configure the availability
+# zone name (default is nova).
+#[[post-config|$Q_DHCP_CONF_FILE]]
+#[AGENT]
+#availability_zone = nova

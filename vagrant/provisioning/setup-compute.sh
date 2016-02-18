@@ -41,10 +41,13 @@ DEVSTACKEOF
 # single quotes around EOF to prevent interpretation of variables such
 # as $Q_DHCP_CONF_FILE.
 
-#cat << 'DEVSTACKEOF' >> devstack/local.conf
+cat << 'DEVSTACKEOF' >> devstack/local.conf
 
-#[[post-config|/$ITEM]]
-#DEVSTACKEOF
+# Set the availablity zone name (default is nova) for the DHCP service.
+[[post-config|$Q_DHCP_CONF_FILE]]
+[AGENT]
+availability_zone = nova
+DEVSTACKEOF
 
 devstack/stack.sh
 
