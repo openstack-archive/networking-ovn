@@ -15,6 +15,7 @@ General Information and Other Project References:
    features
    contributing
    faq
+   refarch
    install
 
 Testing and Usage Information:
