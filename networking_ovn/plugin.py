@@ -14,7 +14,6 @@
 import collections
 
 import netaddr
-import six
 
 from neutron_lib import constants as const
 from oslo_config import cfg
@@ -140,9 +139,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             }
         else:
             if config.get_ovn_vif_type() != portbindings.VIF_TYPE_OVS:
-                LOG.warn(_LW('VIF type should be one of %(ovs)s, %(vhu)s') % {
-                    "vhu": portbindings.VIF_TYPE_VHOST_USER,
-                    "ovs": portbindings.VIF_TYPE_OVS})
+                LOG.warning(_LW('VIF type should be one of %(ovs)s, %(vhu)s') %
+                            {"vhu": portbindings.VIF_TYPE_VHOST_USER,
+                             "ovs": portbindings.VIF_TYPE_OVS})
             self.base_binding_dict = {
                 portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS,
                 portbindings.VIF_DETAILS: {
@@ -572,15 +571,24 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     port['id']))
             sg_ports_cache = {}
             subnet_cache = {}
-            self._add_acls(context, port, txn,
-                           sg_ports_cache=sg_ports_cache,
-                           subnet_cache=subnet_cache)
+            acls_new = self._add_acls(context, port,
+                                      sg_ports_cache=sg_ports_cache,
+                                      subnet_cache=subnet_cache)
+            for acl in acls_new:
+                txn.add(self._ovn.add_acl(**acl))
 
         # Refresh remote security groups for changed security groups
         old_sg_ids = set(original_port.get('security_groups', []))
         new_sg_ids = set(port.get('security_groups', []))
         detached_sg_ids = old_sg_ids - new_sg_ids
         attached_sg_ids = new_sg_ids - old_sg_ids
+
+        if (len(port.get('fixed_ips')) == 0 and
+                len(original_port.get('fixed_ips')) == 0):
+            # No need to process remote security group if the port
+            # didn't have any IP Addresses.
+            return port
+
         for sg_id in (attached_sg_ids | detached_sg_ids):
             self._refresh_remote_security_group(
                 context, sg_id,
@@ -896,29 +904,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             'ingress': 'to-lport',
             'egress': 'from-lport',
         }
-        cmd = self._ovn.add_acl(
-            lswitch=utils.ovn_name(port['network_id']),
-            lport=port['id'],
-            priority=ovn_const.ACL_PRIORITY_ALLOW,
-            action=ovn_const.ACL_ACTION_ALLOW_RELATED,
-            log=False,
-            direction=dir_map[r['direction']],
-            match=match,
-            external_ids={'neutron:lport': port['id']})
-        return cmd
+        acl = {"lswitch": utils.ovn_name(port['network_id']),
+               "lport": port['id'],
+               "priority": ovn_const.ACL_PRIORITY_ALLOW,
+               "action": ovn_const.ACL_ACTION_ALLOW_RELATED,
+               "log": False,
+               "direction": dir_map[r['direction']],
+               "match": match,
+               "external_ids": {'neutron:lport': port['id']}}
+        return acl
 
-    def _add_acl_cmd(self, acls, cmd):
-        if not cmd:
-            return
-        key = (cmd.columns['direction'],
-               cmd.columns['priority'],
-               cmd.columns['action'],
-               cmd.columns['match'])
-        if key not in acls:
-            # Make sure we don't create duplicate ACL rows.
-            acls[key] = cmd
-
-    def _add_acl_dhcp(self, context, port, txn, subnet_cache):
+    def _add_acl_dhcp(self, context, port, subnet_cache):
         # Allow DHCP responses through from source IPs on the local subnet.
         # We do this even if DHCP isn't enabled.  It could be enabled later.
         # We could hook into handling when it's enabled/disabled for a subnet,
@@ -926,60 +922,67 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # once OVN native DHCP support merges, which is under development and
         # review already.
         # TODO(russellb) Remove this once OVN native DHCP support is merged.
+        acl_list = []
         for ip in port['fixed_ips']:
             subnet = self._acl_get_subnet_from_cache(context, subnet_cache,
                                                      ip['subnet_id'])
             if subnet['ip_version'] != 4:
                 continue
-            txn.add(self._ovn.add_acl(
-                lswitch=utils.ovn_name(port['network_id']),
-                lport=port['id'],
-                priority=ovn_const.ACL_PRIORITY_ALLOW,
-                action=ovn_const.ACL_ACTION_ALLOW,
-                log=False,
-                direction='to-lport',
-                match=('outport == "%s" && ip4 && ip4.src == %s && '
-                       'udp && udp.src == 67 && udp.dst == 68'
-                       ) % (port['id'], subnet['cidr']),
-                external_ids={'neutron:lport': port['id']}))
-            txn.add(self._ovn.add_acl(
-                lswitch=utils.ovn_name(port['network_id']),
-                lport=port['id'],
-                priority=ovn_const.ACL_PRIORITY_ALLOW,
-                action=ovn_const.ACL_ACTION_ALLOW,
-                log=False,
-                direction='from-lport',
-                match=('inport == "%s" && ip4 && '
-                       '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
-                       'udp && udp.src == 68 && udp.dst == 67'
-                       ) % (port['id'], subnet['cidr']),
-                external_ids={'neutron:lport': port['id']}))
+            acl = {"lswitch": utils.ovn_name(port['network_id']),
+                   "lport": port['id'],
+                   "priority": ovn_const.ACL_PRIORITY_ALLOW,
+                   "action": ovn_const.ACL_ACTION_ALLOW,
+                   "log": False,
+                   "direction": 'to-lport',
+                   "match": ('outport == "%s" && ip4 && ip4.src == %s && '
+                             'udp && udp.src == 67 && udp.dst == 68'
+                             ) % (port['id'], subnet['cidr']),
+                   "external_ids": {'neutron:lport': port['id']}}
+            acl_list.append(acl)
+            acl = {"lswitch": utils.ovn_name(port['network_id']),
+                   "lport": port['id'],
+                   "priority": ovn_const.ACL_PRIORITY_ALLOW,
+                   "action": ovn_const.ACL_ACTION_ALLOW,
+                   "log": False,
+                   "direction": 'from-lport',
+                   "match": ('inport == "%s" && ip4 && '
+                             '(ip4.dst == 255.255.255.255 || '
+                             'ip4.dst == %s) && '
+                             'udp && udp.src == 68 && udp.dst == 67'
+                             ) % (port['id'], subnet['cidr']),
+                   "external_ids": {'neutron:lport': port['id']}}
+            acl_list.append(acl)
+        return acl_list
 
-    def _drop_all_ip_traffic_for_port(self, port, txn):
+    def _drop_all_ip_traffic_for_port(self, port):
+        acl_list = []
         for direction, p in (('from-lport', 'inport'),
                              ('to-lport', 'outport')):
-            txn.add(self._ovn.add_acl(
-                lswitch=utils.ovn_name(port['network_id']),
-                lport=port['id'],
-                priority=ovn_const.ACL_PRIORITY_DROP,
-                action=ovn_const.ACL_ACTION_DROP,
-                log=False,
-                direction=direction,
-                match='%s == "%s" && ip' % (p, port['id']),
-                external_ids={'neutron:lport': port['id']}))
+            lswitch = utils.ovn_name(port['network_id'])
+            lport = port['id']
+            acl = {"lswitch": lswitch, "lport": lport,
+                   "priority": ovn_const.ACL_PRIORITY_DROP,
+                   "action": ovn_const.ACL_ACTION_DROP,
+                   "log": False,
+                   "direction": direction,
+                   "match": '%s == "%s" && ip' % (p, port['id']),
+                   "external_ids": {'neutron:lport': port['id']}}
+            acl_list.append(acl)
+        return acl_list
 
-    def _add_acls(self, context, port, txn,
+    def _add_acls(self, context, port,
                   sg_cache=None, sg_ports_cache=None, subnet_cache=None):
+        acl_list = []
         sec_groups = port.get('security_groups', [])
         if not sec_groups:
-            return
+            return acl_list
 
         # Drop all IP traffic to and from the logical port by default.
-        self._drop_all_ip_traffic_for_port(port, txn)
+        acl_list += self._drop_all_ip_traffic_for_port(port)
 
         if subnet_cache is None:
             subnet_cache = {}
-        self._add_acl_dhcp(context, port, txn, subnet_cache)
+        acl_list += self._add_acl_dhcp(context, port, subnet_cache)
 
         # We often need a list of all ports on a security group.  Cache these
         # results so we only do the query once throughout this processing.
@@ -988,8 +991,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         # We create an ACL entry for each rule on each security group applied
         # to this port.
-        acls = {}
-
         for sg_id in sec_groups:
             if sg_cache and sg_id in sg_cache:
                 sg = sg_cache[sg_id]
@@ -998,13 +999,13 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 if sg_cache is not None:
                     sg_cache[sg_id] = sg
             for r in sg['security_group_rules']:
-                cmd = self._add_sg_rule_acl_for_port(context, port, r,
+                acl = self._add_sg_rule_acl_for_port(context, port, r,
                                                      sg_ports_cache,
                                                      subnet_cache)
-                self._add_acl_cmd(acls, cmd)
+                if acl and acl not in acl_list:
+                    acl_list.append(acl)
 
-        for cmd in six.itervalues(acls):
-            txn.add(cmd)
+        return acl_list
 
     def create_port_in_ovn(self, context, port, ovn_port_info):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
@@ -1027,15 +1028,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     port_security=ovn_port_info.port_security))
             sg_ports_cache = {}
             subnet_cache = {}
-            self._add_acls(context, port, txn,
-                           sg_ports_cache=sg_ports_cache,
-                           subnet_cache=subnet_cache)
+            acls_new = self._add_acls(context, port,
+                                      sg_ports_cache=sg_ports_cache,
+                                      subnet_cache=subnet_cache)
+            for acl in acls_new:
+                txn.add(self._ovn.add_acl(**acl))
 
-        for sg_id in port.get('security_groups', []):
-            self._refresh_remote_security_group(context, sg_id,
-                                                sg_ports_cache=sg_ports_cache,
-                                                exclude_ports=[port['id']],
-                                                subnet_cache=subnet_cache)
+        if len(port.get('fixed_ips')):
+            for sg_id in port.get('security_groups', []):
+                self._refresh_remote_security_group(
+                    context, sg_id, sg_ports_cache=sg_ports_cache,
+                    exclude_ports=[port['id']], subnet_cache=subnet_cache)
 
         return port
 
@@ -1060,6 +1063,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
     def delete_port(self, context, port_id, l3_port_check=True):
         port = self.get_port(context, port_id)
+        num_fixed_ips = len(port.get('fixed_ips'))
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.delete_lport(port_id,
                     utils.ovn_name(port['network_id'])))
@@ -1072,8 +1076,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             self.disassociate_floatingips(context, port_id)
             super(OVNPlugin, self).delete_port(context, port_id)
 
-        for sg_id in sg_ids:
-            self._refresh_remote_security_group(context, sg_id)
+        if num_fixed_ips:
+            for sg_id in sg_ids:
+                self._refresh_remote_security_group(context, sg_id)
 
     def extend_port_dict_binding(self, port_res, port_db):
         super(OVNPlugin, self).extend_port_dict_binding(port_res, port_db)
@@ -1197,27 +1202,34 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                         sg_ports_cache=None,
                                         exclude_ports=None,
                                         subnet_cache=None):
-        # Update ACLs for all ports using this security group.  Note that the
-        # ovsdb IDL suppresses the transaction down to what has actually
-        # changed.
         if exclude_ports is None:
             exclude_ports = []
         filters = {'security_group_id': [security_group_id]}
         sg_ports = self._get_port_security_group_bindings(context, filters)
-        with self._ovn.transaction(check_error=True) as txn:
-            sg_cache = {}
-            if sg_ports_cache is None:
-                sg_ports_cache = {}
-            if subnet_cache is None:
-                subnet_cache = {}
-            for binding in sg_ports:
-                if binding['port_id'] in exclude_ports:
-                    continue
-                port = self.get_port(context, binding['port_id'])
-                txn.add(self._ovn.delete_acl(
-                        utils.ovn_name(port['network_id']), port['id']))
-                self._add_acls(context, port, txn, sg_cache, sg_ports_cache,
-                               subnet_cache)
+        sg_cache = {}
+        if sg_ports_cache is None:
+            sg_ports_cache = {}
+        if subnet_cache is None:
+            subnet_cache = {}
+        port_list = []
+
+        # ACLs associated with a security group may span logical switches
+        lswitch_names = set([])
+        for binding in sg_ports:
+            if binding['port_id'] in exclude_ports:
+                continue
+            port = self.get_port(context, binding['port_id'])
+            port_list.append(port)
+            lswitch_names.add(port['network_id'])
+        acl_new_values_dict = {}
+        for port in port_list:
+            acls_new = self._add_acls(context, port, sg_cache,
+                                      sg_ports_cache, subnet_cache)
+            acl_new_values_dict[port['id']] = acls_new
+
+        self._ovn.update_acls(list(lswitch_names),
+                              iter(port_list),
+                              acl_new_values_dict).execute(check_error=True)
 
     def update_security_group(self, context, id, security_group):
         res = super(OVNPlugin, self).update_security_group(context, id,

@@ -16,6 +16,7 @@
 
 import mock
 from oslo_utils import uuidutils
+import six
 from webob import exc
 
 from neutron.common import exceptions as n_exc
@@ -35,6 +36,7 @@ from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import impl_idl_ovn
 
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
@@ -383,101 +385,108 @@ class TestOvnPluginACLs(OVNPluginTestCase):
                             'cidr': '1.1.1.0/24'}
 
     def test__drop_all_ip_traffic_for_port(self):
-        self.plugin._ovn.add_acl = mock.Mock()
-        self.plugin._drop_all_ip_traffic_for_port(self.fake_port, mock.Mock())
-        self.plugin._ovn.add_acl.assert_has_calls(
-            [mock.call(action='drop', direction='from-lport',
-                       external_ids={'neutron:lport': self.fake_port['id']},
-                       log=False, lport=self.fake_port['id'],
-                       lswitch='neutron-network_id1',
-                       match='inport == "fake_port_id1" && ip', priority=1001),
-             mock.call(action='drop', direction='to-lport',
-                       external_ids={'neutron:lport': self.fake_port['id']},
-                       log=False, lport=self.fake_port['id'],
-                       lswitch='neutron-network_id1',
-                       match='outport == "fake_port_id1" && ip',
-                       priority=1001)])
+        acls = self.plugin._drop_all_ip_traffic_for_port(self.fake_port)
+        acl_to_lport = {'action': 'drop', 'direction': 'to-lport',
+                        'external_ids': {'neutron:lport':
+                                         self.fake_port['id']},
+                        'log': False, 'lport': self.fake_port['id'],
+                        'lswitch': 'neutron-network_id1',
+                        'match': 'outport == "fake_port_id1" && ip',
+                        'priority': 1001}
+        acl_from_lport = {'action': 'drop', 'direction': 'from-lport',
+                          'external_ids': {'neutron:lport':
+                                           self.fake_port['id']},
+                          'log': False, 'lport': self.fake_port['id'],
+                          'lswitch': 'neutron-network_id1',
+                          'match': 'inport == "fake_port_id1" && ip',
+                          'priority': 1001}
+        for acl in acls:
+            if 'to-lport' in acl.values():
+                self.assertEqual(acl_to_lport, acl)
+            if 'from-lport' in acl.values():
+                self.assertEqual(acl_from_lport, acl)
 
     def test__add_acl_dhcp_no_cache(self):
         self.plugin._ovn.add_acl = mock.Mock()
         with mock.patch.object(self.plugin, 'get_subnet',
                                return_value=self.fake_subnet):
-            self.plugin._add_acl_dhcp(self.context, self.fake_port,
-                                      mock.Mock(), {})
+            acls = self.plugin._add_acl_dhcp(self.context, self.fake_port, {})
 
         expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
             '&& udp.dst == 68') % (self.fake_port['id'],
                                    self.fake_subnet['cidr'])
+        acl_to_lport = {'action': 'allow', 'direction': 'to-lport',
+                        'external_ids': {'neutron:lport': 'fake_port_id1'},
+                        'log': False, 'lport': 'fake_port_id1',
+                        'lswitch': 'neutron-network_id1',
+                        'match': expected_match_to_lport, 'priority': 1002}
         expected_match_from_lport = (
             'inport == "%s" && ip4 && '
             '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
             'udp && udp.src == 68 && udp.dst == 67'
         ) % (self.fake_port['id'], self.fake_subnet['cidr'])
-        self.plugin._ovn.add_acl.assert_has_calls(
-            [mock.call(action='allow', direction='to-lport',
-                       external_ids={'neutron:lport': 'fake_port_id1'},
-                       log=False, lport='fake_port_id1',
-                       lswitch='neutron-network_id1',
-                       match=expected_match_to_lport, priority=1002),
-             mock.call(action='allow', direction='from-lport',
-                       external_ids={'neutron:lport': 'fake_port_id1'},
-                       log=False, lport='fake_port_id1',
-                       lswitch='neutron-network_id1',
-                       match=expected_match_from_lport, priority=1002)])
+        acl_from_lport = {'action': 'allow', 'direction': 'from-lport',
+                          'external_ids': {'neutron:lport': 'fake_port_id1'},
+                          'log': False, 'lport': 'fake_port_id1',
+                          'lswitch': 'neutron-network_id1',
+                          'match': expected_match_from_lport, 'priority': 1002}
+        for acl in acls:
+            if 'to-lport' in acl.values():
+                self.assertEqual(acl_to_lport, acl)
+            if 'from-lport' in acl.values():
+                self.assertEqual(acl_from_lport, acl)
 
     def test__add_acl_dhcp_cache(self):
-        self.plugin._ovn.add_acl = mock.Mock()
-        self.plugin._add_acl_dhcp(self.context, self.fake_port, mock.Mock(),
-                                  {'subnet_id1': self.fake_subnet})
+        acls = self.plugin._add_acl_dhcp(self.context, self.fake_port,
+                                         {'subnet_id1': self.fake_subnet})
         expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
             '&& udp.dst == 68') % (self.fake_port['id'],
                                    self.fake_subnet['cidr'])
+        acl_to_lport = {'action': 'allow', 'direction': 'to-lport',
+                        'external_ids': {'neutron:lport': 'fake_port_id1'},
+                        'log': False, 'lport': 'fake_port_id1',
+                        'lswitch': 'neutron-network_id1',
+                        'match': expected_match_to_lport, 'priority': 1002}
         expected_match_from_lport = (
             'inport == "%s" && ip4 && '
             '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
             'udp && udp.src == 68 && udp.dst == 67'
         ) % (self.fake_port['id'], self.fake_subnet['cidr'])
-        self.plugin._ovn.add_acl.assert_has_calls(
-            [mock.call(action='allow', direction='to-lport',
-                       external_ids={'neutron:lport': 'fake_port_id1'},
-                       log=False, lport='fake_port_id1',
-                       lswitch='neutron-network_id1',
-                       match=expected_match_to_lport, priority=1002),
-             mock.call(action='allow', direction='from-lport',
-                       external_ids={'neutron:lport': 'fake_port_id1'},
-                       log=False, lport='fake_port_id1',
-                       lswitch='neutron-network_id1',
-                       match=expected_match_from_lport, priority=1002)])
+        acl_from_lport = {'action': 'allow', 'direction': 'from-lport',
+                          'external_ids': {'neutron:lport': 'fake_port_id1'},
+                          'log': False, 'lport': 'fake_port_id1',
+                          'lswitch': 'neutron-network_id1',
+                          'match': expected_match_from_lport, 'priority': 1002}
+        for acl in acls:
+            if 'to-lport' in acl.values():
+                self.assertEqual(acl_to_lport, acl)
+            if 'from-lport' in acl.values():
+                self.assertEqual(acl_from_lport, acl)
 
     def test__add_acls_no_sec_group(self):
-        self.plugin._ovn.add_acl = mock.Mock()
-        self.plugin._add_acls(
-            self.context,
-            port={'security_groups': []},
-            txn=mock.Mock())
-        self.plugin._ovn.add_acl.assert_not_called()
+        acls = self.plugin._add_acls(self.context,
+                                     port={'security_groups': []})
+        self.assertEqual(acls, [])
 
     def _test__add_sg_rule_acl_for_port(self, sg_rule, direction, match):
         port = {'id': 'port-id',
                 'network_id': 'network-id'}
         self.plugin._ovn.add_acl = mock.Mock()
-        self.plugin._add_sg_rule_acl_for_port(
-            self.context,
-            port,
-            sg_rule,
-            sg_ports_cache={},
-            subnet_cache={})
-        self.plugin._ovn.add_acl.assert_called_once_with(
-            lswitch='neutron-network-id',
-            lport='port-id',
-            priority=ovn_const.ACL_PRIORITY_ALLOW,
-            action=ovn_const.ACL_ACTION_ALLOW_RELATED,
-            log=False,
-            direction=direction,
-            match=match,
-            external_ids={'neutron:lport': 'port-id'})
+        acl = self.plugin._add_sg_rule_acl_for_port(self.context,
+                                                    port,
+                                                    sg_rule,
+                                                    sg_ports_cache={},
+                                                    subnet_cache={})
+        self.assertEqual(acl, {'lswitch': 'neutron-network-id',
+                               'lport': 'port-id',
+                               'priority': ovn_const.ACL_PRIORITY_ALLOW,
+                               'action': ovn_const.ACL_ACTION_ALLOW_RELATED,
+                               'log': False,
+                               'direction': direction,
+                               'match': match,
+                               'external_ids': {'neutron:lport': 'port-id'}})
 
     def test__add_sg_rule_acl_for_port_remote_ip_prefix(self):
         sg_rule = {'direction': 'ingress',
@@ -549,6 +558,113 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             self._test__add_sg_rule_acl_for_port(sg_rule,
                                                  'from-lport',
                                                  match)
+
+    def test__update_acls_compute_difference(self):
+        lswitch_name = 'lswitch-1'
+        port1 = {'id': 'port-id1',
+                 'network_id': lswitch_name,
+                 'fixed_ips': [{'subnet_id': 'subnet-id',
+                                'ip_address': '1.1.1.101'},
+                               {'subnet_id': 'subnet-id-v6',
+                                'ip_address': '2001:0db8::1:0:0:1'}]}
+        port2 = {'id': 'port-id2',
+                 'network_id': lswitch_name,
+                 'fixed_ips': [{'subnet_id': 'subnet-id',
+                                'ip_address': '1.1.1.102'},
+                               {'subnet_id': 'subnet-id-v6',
+                                'ip_address': '2001:0db8::1:0:0:2'}]}
+        ports = [port1, port2]
+        # OLD ACLs, allow IPv4 communication
+        aclport1_old1 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip4 && (ip.src == %s)' %
+                         (port1['id'], port1['fixed_ips'][0]['ip_address'])}
+        aclport1_old2 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip6 && (ip.src == %s)' %
+                         (port1['id'], port1['fixed_ips'][1]['ip_address'])}
+        aclport1_old3 = {'priority': 1002, 'direction': 'to-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'ip4 && (ip.src == %s)' %
+                         (port2['fixed_ips'][0]['ip_address'])}
+        port1_acls_old = [aclport1_old1, aclport1_old2, aclport1_old3]
+        aclport2_old1 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip4 && (ip.src == %s)' %
+                         (port2['id'], port2['fixed_ips'][0]['ip_address'])}
+        aclport2_old2 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip6 && (ip.src == %s)' %
+                         (port2['id'], port2['fixed_ips'][1]['ip_address'])}
+        aclport2_old3 = {'priority': 1002, 'direction': 'to-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'ip4 && (ip.src == %s)' %
+                         (port1['fixed_ips'][0]['ip_address'])}
+        port2_acls_old = [aclport2_old1, aclport2_old2, aclport2_old3]
+        acls_old_dict = {'%s' % (port1['id']): port1_acls_old,
+                         '%s' % (port2['id']): port2_acls_old}
+        acl_obj_dict = {str(aclport1_old1): 'row1',
+                        str(aclport1_old2): 'row2',
+                        str(aclport1_old3): 'row3',
+                        str(aclport2_old1): 'row4',
+                        str(aclport2_old2): 'row5',
+                        str(aclport2_old3): 'row6'}
+        # NEW ACLs, allow IPv6 communication
+        aclport1_new1 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip4 && (ip.src == %s)' %
+                         (port1['id'], port1['fixed_ips'][0]['ip_address'])}
+        aclport1_new2 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip6 && (ip.src == %s)' %
+                         (port1['id'], port1['fixed_ips'][1]['ip_address'])}
+        aclport1_new3 = {'priority': 1002, 'direction': 'to-lport',
+                         'lport': port1['id'], 'lswitch': lswitch_name,
+                         'match': 'ip6 && (ip.src == %s)' %
+                         (port2['fixed_ips'][1]['ip_address'])}
+        port1_acls_new = [aclport1_new1, aclport1_new2, aclport1_new3]
+        aclport2_new1 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip4 && (ip.src == %s)' %
+                         (port2['id'], port2['fixed_ips'][0]['ip_address'])}
+        aclport2_new2 = {'priority': 1002, 'direction': 'from-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'inport == %s && ip6 && (ip.src == %s)' %
+                         (port2['id'], port2['fixed_ips'][1]['ip_address'])}
+        aclport2_new3 = {'priority': 1002, 'direction': 'to-lport',
+                         'lport': port2['id'], 'lswitch': lswitch_name,
+                         'match': 'ip6 && (ip.src == %s)' %
+                         (port1['fixed_ips'][1]['ip_address'])}
+        port2_acls_new = [aclport2_new1, aclport2_new2, aclport2_new3]
+        acls_new_dict = {'%s' % (port1['id']): port1_acls_new,
+                         '%s' % (port2['id']): port2_acls_new}
+        # Invoke _compute_acl_differences
+        update_cmd = cmd.UpdateACLsCommand(self.plugin._ovn,
+                                           [lswitch_name],
+                                           iter(ports),
+                                           acls_new_dict
+                                           )
+        acl_dels, acl_adds =\
+            update_cmd._compute_acl_differences(iter(ports),
+                                                acls_old_dict,
+                                                acls_new_dict,
+                                                acl_obj_dict)
+        # Sort the results for comparison
+        for row in six.itervalues(acl_dels):
+            row.sort()
+        for row in six.itervalues(acl_adds):
+            row.sort()
+        # Expected Difference (Sorted)
+        acl_del_exp = {lswitch_name: ['row3', 'row6']}
+        acl_adds_exp = {lswitch_name:
+                        [{'priority': 1002, 'direction': 'to-lport',
+                          'match': 'ip6 && (ip.src == %s)' %
+                          (port1['fixed_ips'][1]['ip_address'])},
+                         {'priority': 1002, 'direction': 'to-lport',
+                          'match': 'ip6 && (ip.src == %s)' %
+                          (port2['fixed_ips'][1]['ip_address'])}]}
+        self.assertEqual(acl_dels, acl_del_exp)
+        self.assertEqual(acl_adds, acl_adds_exp)
 
 
 class TestOvnPluginL3(OVNPluginTestCase):
