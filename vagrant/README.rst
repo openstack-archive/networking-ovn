@@ -1,103 +1,116 @@
-============================================
- Automated setup using Vagrant + Virtualbox
-============================================
+=================================================
+Automatic deployment using Vagrant and VirtualBox
+=================================================
 
-Automate the setup described here
-http://docs.openstack.org/developer/networking-ovn/testing.html.
+The Vagrant scripts deploy OpenStack with Open Virtual Network (OVN)
+using four nodes to implement a minimal variant of the reference
+architecture:
 
-This will create a 3-node devstack (1 controller node + 2 compute nodes), where
-OVN is used as the OpenStack Neutron backend.
+#. Database node containing the OVN northbound (NB) and southbound (SB)
+   databases via the Open vSwitch (OVS) database and ``ovn-northd`` services.
+#. Controller node containing the Identity service, Image service, control
+   plane portion of the Compute service, control plane portion of the
+   Networking service including the ``networking-ovn`` plug-in, and the
+   dashboard.
+#. Two compute nodes containing the Compute hypervisor, ``ovn-controller``
+   service for OVN, DHCP and metadata agents for the Networking service,
+   OVS services.
 
-Vagrant allows to configure the provider on which the virtual machines are
-created. Virtualbox is the default provider used to launch the VM's on a
-developer computer, but other providers can be used: VMWare, AWS, OpenStack,
-containers stuff, ...
+During deployment, Vagrant creates three VirtualBox networks:
 
-Quick Start
------------
+#. Vagrant management network for deployment and VM access to external
+   networks such as the Internet. Becomes the VM ``eth0`` network interface.
+#. OpenStack management network for the OpenStack control plane, OVN
+   control plane, and OVN overlay networks. Becomes the VM ``eth1`` network
+   interface.
+#. OVN provider network that connects OpenStack instances to external networks
+   such as the Internet. Becomes the VM ``eth2`` network interface.
 
-1. Install Virtualbox (https://www.virtualbox.org/wiki/Downloads) and Vagrant
-   (http://downloads.vagrantup.com).
+Requirements
+------------
 
-2. Configure::
+The default configuration requires approximately 12 GB of RAM and supports
+launching approximately four OpenStack instances using the ``m1.tiny``
+flavor. You can change the amount of resources for each VM in the
+``virtualbox.conf.yml`` file.
 
-    git clone https://git.openstack.org/openstack/networking-ovn.git
-    cd networking-ovn/vagrant
-    vagrant plugin install vagrant-cachier
-    vagrant plugin install vagrant-vbguest
+Deployment
+----------
 
-   Note: Clone the repositories into your home directory because Vagrant
-         shares them with the VMs it launches. Also, consider updating these
-         repositories prior to launching VMs so they deploy the latest
-         versions.
+#. Install `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_ and
+   `Vagrant <http://downloads.vagrantup.com>`_.
 
-3. Adjust the settings in `virtualbox.conf.yml` if needed. Notice that
-   5GB RAM is the minimum to get 1 VM running on the controller node.
-   If other provider is used, then you will need to create a conf file
-   similar to `virtualbox.conf.yml`, then adjusted the file Vagrantfile
-   to load that file. In `virtualbox.conf.yml` file, make sure that the
-   IP addresses for the VMs fall into your VirtualBox Host-Only network
-   IP range, if not, the script most likely will fail when it tries to
-   access the VMs.
+#. Clone the ``networking-ovn`` repository into your home directory and
+   change to the ``vagrant`` directory::
 
-   For evaluating large MTUs, set the 'mtu' option for each VM to the
-   appropriate value. You must also set the MTU on the equivalent
-   ``vboxnet`` interfaces on the host to the same value after Vagrant
-   creates them. For example, using a 9000 MTU::
+     $ cd ~
+     $ git clone https://git.openstack.org/openstack/networking-ovn.git
+     $ cd networking-ovn/vagrant
 
-    ip link set dev vboxnet0 mtu 9000
-    ip link set dev vboxnet1 mtu 9000
+   Note: Clone the ``networking-ovn`` repository into your home directory
+         because Vagrant shares it with the VMs.
 
-4. Build up three VirtualBox VMs using vagrant, the process can take
-   one hour::
+#. Install plug-ins for Vagrant::
 
-    vagrant up
+     $ vagrant plugin install vagrant-cachier
+     $ vagrant plugin install vagrant-vbguest
 
-5. Once the process is done successfully, you can use vagrant status and
-   ssh command to see VM status and ssh to each of the VMs::
+#. If necessary, adjust any configuration in the ``virtualbox.conf.yml`` file.
 
-    vagrant status
+   * If you change any IP addresses or networks, avoid conflicts with the
+     host.
+   * For evaluating large MTUs, adjust the ``mtu`` option. You must also
+     change the MTU on the equivalent ``vboxnet`` interfaces on the host
+     to the same value after Vagrant creates them. For example::
 
-   The above command will show vagrant project VMs and status, you may see
-   things like the following::
+       # ip link set dev vboxnet0 mtu 9000
+       # ip link set dev vboxnet1 mtu 9000
 
-    Current machine states:
+#. Launch the VMs and grab some coffee::
 
-    ovn-controller            running (virtualbox)
-    ovn-compute1              running (virtualbox)
-    ovn-compute2              running (virtualbox)
-    ...
+     $ vagrant up
 
-   You can now ssh to these machines by using the following command::
+#. After the process completes, you can use the ``vagrant status`` command
+   to determine the VM status::
 
-    vagrant ssh ovn-controller
-    vagrant ssh ovn-compute1
-    vagrant ssh ovn-compute2
+     $ vagrant status
+     Current machine states:
 
-   If you like to log in from the console of the VMs, the password for the
-   root user is vagrant.
+     ovn-db                    running (virtualbox)
+     ovn-controller            running (virtualbox)
+     ovn-compute1              running (virtualbox)
+     ovn-compute2              running (virtualbox)
 
-   You can point your browser to `http://<<ovn-controller ip address>>` to
-   access the horizon dashboard. By default the ip address of ovn-controller
-   was set to 192.168.33.12 in `provisioning/virtualbox.conf.yml` file. Use
-   admin/password to log in once you see the Horizon login screen. You can
-   certainly change the user name and password in file
-   `networking-ovn/devstack/local.conf.sample` before you run vagrant up if
-   you want different user name and password.
+#. You can access the VMs using the following commands::
 
-6. On Linux hosts, you can enable instances to access external networks such
+     $ vagrant ssh ovn-db
+     $ vagrant ssh ovn-controller
+     $ vagrant ssh ovn-compute1
+     $ vagrant ssh ovn-compute2
+
+   Note: If you prefer to use the VM console, the password for the ``root``
+         account is ``vagrant``.
+
+#. Access OpenStack services via command-line tools on the ``ovn-controller``
+   node or via the dashboard from the host by pointing a web browser at the
+   IP address of the ``ovn-controller`` node.
+
+   Note: By default, OpenStack includes two accounts: ``admin`` and ``demo``,
+         both using password ``password``.
+
+#. On Linux hosts, you can enable instances to access external networks such
    as the Internet by enabling IP forwarding and configuring SNAT from the IP
    address range of the provider network interface (typically vboxnet1) on
    the host to the external network interface on the host. For example, if
    the ``eth0`` network interface on the host provides external network
    connectivity::
 
-    # sysctl -w net.ipv4.ip_forward=1
-    # iptables -t nat -A POSTROUTING -s 192.168.66.0/24 -o eth0 -j MASQUERADE
+     # sysctl -w net.ipv4.ip_forward=1
+     # sysctl -p
+     # iptables -t nat -A POSTROUTING -s 10.10.0.0/16 -o eth0 -j MASQUERADE
 
-7. After you finished your work with the VMs, you can choose to destroy,
-   suspend and later resume the VMs by using the following commands:
+   Note: These commands do not persist after rebooting the host.
 
-    vagrant suspend
-    vagrant resume
-    vagrant destroy
+#. After completing your tasks, you can destroy the VMs::
+
+     $ vagrant destroy
