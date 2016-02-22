@@ -1075,9 +1075,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # switch will get garbage collected.  Note that if the switch
             # doesn't exist, we'll get an exception without actually having to
             # execute a transaction with the remote db.  The check is local.
-            self._ovn.delete_lswitch(
-                utils.ovn_name(port['id']), if_exists=False).execute(
-                    check_error=True, log_errors=False)
+            with self._ovn.transaction(check_error=True) as txn:
+                txn.add(self._ovn.delete_lswitch(
+                    utils.ovn_name(port['id']), if_exists=False))
+                txn.add(self._ovn.delete_acl(
+                    utils.ovn_name(port['network_id']), port['id']))
         except RuntimeError:
             # If the switch doesn't exist, we'll get a RuntimeError, meaning
             # we just need to delete a port.
