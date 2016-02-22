@@ -51,15 +51,33 @@ active/active HA mode.
 
 OVN's northbound and sounthbound databases both reside in an instance of
 ovsdb-server.  OVN started out using this database because it already came with
-OVS and is used everywhere OVS is used.  The OVN project has also been clear
-from the beginning that if ovsdb-server doesn't work out, we'll switch. Someone
-is looking at making ovsdb-server distributed for both scale and HA reasons. In
+OVS and is used everywhere OVS is used.  If we aren't able to evolve
+ovsdb-server to suit our needs, OVN will switch to something else.  Someone is
+looking at making ovsdb-server distributed for both scale and HA reasons.  In
 the meantime, you can run this instance of ovsdb-server in an active/passive HA
 mode.  This requires having the database reside on shared storage.
 
-Development in 2015 was largely focused on the initial architecture and
-getting the core networking features working through the whole system.  There
-is now active work on improving scale and HA, including addressing the issues
-discussed here.
+If you don't want to use shared storage, Neutron is capable of rebuilding the
+OVN database after a failure.  This process can be completed without any impact
+to the data path, but new resources created via Neutron will not take effect
+until the recovery process is complete.  The recovery procedure would be
+roughly:
+
+1. Detect that the node running the OVN northbound database has failed.
+
+2. Enable the OVN northbound database on a new host, but prevent ovn-controller
+   processes on compute nodes from connecting to the OVN southbound database
+   while recovery is in progress. This can be done with either system firewall
+   rules, or by removing the configuration of ovsdb-server that tells it to
+   listen for connections on an address that ovn-controller instances are able
+   to reach (See ovs-vsctl get-manager/set-manager/del-manager commands).
+
+3. Restart ovn-northd pointed at the new database location(s) for the OVN
+   northbound and southbound databases.
+
+4. Run neutron-ovn-db-sync-util with "--ovn-neutron_sync_mode=repair".  When
+   this command completes, the OVN databases will have been restored and
+   ovsdb-server can be configured to allow connections from ovn-controller on
+   compute hosts (See ovs-vsctl get-manager/set-manager/del-manager commands).
 
 See :doc:`readme` for links to more details on OVN's architecture.
