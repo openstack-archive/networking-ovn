@@ -299,7 +299,7 @@ function start_ovn {
     if is_ovn_service_enabled ovn-northd ; then
         # TODO (regXboi) ovn-northd doesn't appear to log to console at
         # all - revisit this after that is fixed
-        run_process ovn-northd "ovn-northd --pidfile --log-file=$LOGDIR/ovn-northd.log"
+        run_process ovn-northd "ovn-northd --pidfile --log-file"
 
         # This makes sure that the console logs have time stamps to
         # the millisecond, but we need to make sure ovs-appctl has
