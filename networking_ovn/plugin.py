@@ -819,12 +819,15 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             match += ' && %s' % protocol
             # If min or max are set to -1, then we just treat it like it wasn't
             # specified at all and don't match on it.
-            if r['port_range_min'] and r['port_range_min'] != -1:
-                match += ' && %s >= %d' % (port_match,
-                                           r['port_range_min'])
-            if r['port_range_max'] and r['port_range_max'] != -1:
-                match += ' && %s <= %d' % (port_match,
-                                           r['port_range_max'])
+            min_port = r['port_range_min']
+            max_port = r['port_range_max']
+            if (min_port and min_port == max_port and min_port != -1):
+                match += ' && %s == %d' % (port_match, min_port)
+            else:
+                if min_port and min_port != -1:
+                    match += ' && %s >= %d' % (port_match, min_port)
+                if max_port and max_port != -1:
+                    match += ' && %s <= %d' % (port_match, max_port)
         return match
 
     def _add_sg_rule_acl_for_port(self, context, port, r, sg_ports_cache,
