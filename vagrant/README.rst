@@ -43,12 +43,8 @@ Deployment
 #. Clone the ``networking-ovn`` repository into your home directory and
    change to the ``vagrant`` directory::
 
-     $ cd ~
      $ git clone https://git.openstack.org/openstack/networking-ovn.git
      $ cd networking-ovn/vagrant
-
-   Note: Clone the ``networking-ovn`` repository into your home directory
-         because Vagrant shares it with the VMs.
 
 #. Install plug-ins for Vagrant::
 

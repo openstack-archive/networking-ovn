@@ -15,8 +15,8 @@ Vagrant.configure(2) do |config|
     config.cache.scope = :box
   end
 
-  #config.vm.synced_folder "~/devstack", "/home/vagrant/devstack"
-  config.vm.synced_folder "~/networking-ovn", "/home/vagrant/networking-ovn"
+  #config.vm.synced_folder File.expand_path("..") + "/devstack", "/home/vagrant/devstack"
+  config.vm.synced_folder File.expand_path(".."), "/home/vagrant/networking-ovn"
 
   # Use the ipaddr library to calculate the netmask of a given network
   net = IPAddr.new vagrant_config['provider_network']
