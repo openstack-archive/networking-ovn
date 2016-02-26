@@ -494,7 +494,30 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             binding_profile = self.get_data_from_binding_profile(
                 context, pdict)
 
-            original_port = self.get_port(context, id)
+            try:
+                original_port = self.get_port(context, id)
+            except n_exc.PortNotFound:
+                if port == {'port': {'id': id}}:
+                    # There is a race condition in create_subnet for
+                    # ipv6 auto address subnets. When
+                    # NeutronDbPluginV2._create_subnet tries to update the
+                    # internal ports of the network and if any of the internal
+                    # port is deleted by another worker, subnet creation
+                    # fails. This is seen for the
+                    # tempest.api.network.test_dhcp_ipv6.NetworksTestDHCPv6.*
+                    # tests in the CI.
+                    # This is a workaround until its fixed in the neutron.
+                    # Since NeutronDbPluginV2._create_subnet calls port_update
+                    # with port_info dict as {'port': {'id': id}}, we can
+                    # ignore this error.
+                    # Returning None as NeutronDbPluginV2._create_subnet
+                    # doesn't check for the return value.
+                    LOG.debug('Ignoring PortNotFound exception for port %s',
+                              ' as update_port is called by create_subnet',
+                              id)
+                    return
+                raise
+
             updated_port = super(OVNPlugin, self).update_port(context, id,
                                                               port)
 
