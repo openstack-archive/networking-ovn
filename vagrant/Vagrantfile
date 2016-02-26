@@ -40,7 +40,7 @@ Vagrant.configure(2) do |config|
   end
 
   # Bring up the Devstack controller node on Virtualbox
-  config.vm.define "ovn-controller" do |ovncontroller|
+  config.vm.define "ovn-controller", primary: true do |ovncontroller|
     ovncontroller.vm.host_name = vagrant_config['ovncontroller']['host_name']
     ovncontroller.vm.network "private_network", ip: vagrant_config['ovncontroller']['ip']
     ovncontroller.vm.network "private_network", ip: vagrant_config['ovncontroller']['prov-ip'], netmask: netmask

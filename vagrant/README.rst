@@ -85,7 +85,9 @@ Deployment
      $ vagrant ssh ovn-compute2
 
    Note: If you prefer to use the VM console, the password for the ``root``
-         account is ``vagrant``.
+         account is ``vagrant``. Since ovn-controller is set as the primary
+         in the Vagrantfile, the command ``vagrant ssh`` (without specifying
+         the name) will connect ssh to that virtual machine.
 
 #. Access OpenStack services via command-line tools on the ``ovn-controller``
    node or via the dashboard from the host by pointing a web browser at the
