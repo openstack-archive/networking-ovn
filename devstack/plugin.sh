@@ -248,9 +248,8 @@ function start_ovs {
                      conf.db ${EXTRA_DBS}
 
         echo -n "Waiting for ovsdb-server to start ... "
-        while ! test -e /usr/local/var/run/openvswitch/db.sock ; do
-            sleep 1
-        done
+        local testcmd="test -e /usr/local/var/run/openvswitch/db.sock"
+        test_with_retry "$testcmd" "ovsdb-server did not start" $SERVICE_TIMEOUT 1
         echo "done."
         ovs-vsctl --no-wait init
         ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
@@ -289,9 +288,8 @@ function start_ovn {
         # the millisecond, but we need to make sure ovs-appctl has
         # a pid file to work with, so ...
         echo -n "Waiting for ovn-controller to start ... "
-        while ! test -e /usr/local/var/run/openvswitch/ovn-controller.pid ; do
-            sleep 1
-        done
+        local testcmd="test -e /usr/local/var/run/openvswitch/ovn-controller.pid"
+        test_with_retry "$testcmd" "ovn-controller did not start" $SERVICE_TIMEOUT 1
         echo "done."
         sudo ovs-appctl -t ovn-controller vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
@@ -305,9 +303,8 @@ function start_ovn {
         # the millisecond, but we need to make sure ovs-appctl has
         # a pid file to work with, so ...
         echo -n "Waiting for ovn-northd to start ... "
-        while ! test -e /usr/local/var/run/openvswitch/ovn-northd.pid ; do
-            sleep 1
-        done
+        local testcmd="test -e /usr/local/var/run/openvswitch/ovn-northd.pid"
+        test_with_retry "$testcmd" "ovn-northd did not start" $SERVICE_TIMEOUT 1
         echo "done."
         sudo ovs-appctl -t ovn-northd vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
