@@ -127,8 +127,8 @@ One can determine the DHCP port by running:
 This will return the DHCP port that was created by Neutron.
 
 The owner of the port, that is, the 'device_owner', will have details of the
-port owner. For example the port owner by a Nova instance with will have
-device_owner 'compute:None'.
+port owner. For example the port owned by a Nova instance will have
+device_owner 'compute:None' when availability zone is not set.
 
 Booting VMs
 -----------
