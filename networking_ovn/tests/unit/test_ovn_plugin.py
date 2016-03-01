@@ -168,7 +168,7 @@ class TestOvnPlugin(OVNPluginTestCase):
                         self.plugin._ovn.create_lport.called)
                     called_args_dict = (
                         (self.plugin._ovn.create_lport
-                         ).call_args_list[1][1])
+                         ).call_args_list[0][1])
                     self.assertEqual(['00:00:00:00:00:01'],
                                      called_args_dict.get('port_security'))
 
