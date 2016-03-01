@@ -33,7 +33,6 @@ r="$r|(?:tempest\.scenario\.test_load_balancer.*)"
 r="$r|(?:tempest\.api\.network\.admin\.test_load_balancer.*)"
 r="$r|(?:tempest\.api\.network\.admin\.test_lbaas.*)"
 r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
-r="$r|(?:tempest\.api\.network\.test_vpnaas_extensions.*)"
 r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
 r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
 

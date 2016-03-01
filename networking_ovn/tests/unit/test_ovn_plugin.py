@@ -569,7 +569,7 @@ class TestOvnPluginL3(OVNPluginTestCase):
         self.fake_subnet = {'id': 'subnet-id',
                             'cidr': '10.0.0.1/24'}
 
-    @mock.patch('neutron.db.l3_gwmode_db.L3_NAT_db_mixin.'
+    @mock.patch('neutron.db.l3_dvr_db.L3_NAT_with_dvr_db_mixin.'
                 'add_router_interface')
     def test_add_router_interface(self, func):
         self.plugin._ovn.add_lrouter_port = mock.Mock()
@@ -592,7 +592,7 @@ class TestOvnPluginL3(OVNPluginTestCase):
         self.plugin._ovn.set_lrouter_port_in_lport.assert_called_once_with(
             'router-port-id', 'lrp-router-port-id')
 
-    @mock.patch('neutron.db.l3_gwmode_db.L3_NAT_db_mixin.'
+    @mock.patch('neutron.db.l3_dvr_db.L3_NAT_with_dvr_db_mixin.'
                 'remove_router_interface')
     def test_remove_router_interface(self, func):
         self.plugin._ovn.delete_lrouter_port = mock.Mock()

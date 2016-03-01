@@ -48,8 +48,10 @@ from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import extradhcpopt_db
 from neutron.db import extraroute_db
-from neutron.db import l3_agentschedulers_db
+from neutron.db import l3_db
 from neutron.db import l3_gwmode_db
+from neutron.db import l3_hamode_db
+from neutron.db import l3_hascheduler_db
 from neutron.db import models_v2
 from neutron.db import netmtu_db
 from neutron.db import portbindings_db
@@ -80,7 +82,8 @@ OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
 
 class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 securitygroups_db.SecurityGroupDbMixin,
-                l3_agentschedulers_db.L3AgentSchedulerDbMixin,
+                l3_hamode_db.L3_HA_NAT_db_mixin,
+                l3_hascheduler_db.L3_HA_scheduler_db_mixin,
                 l3_gwmode_db.L3_NAT_db_mixin,
                 external_net_db.External_net_db_mixin,
                 portbindings_db.PortBindingMixin,
@@ -98,6 +101,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                    "binding",
                                    "agent",
                                    "dhcp_agent_scheduler",
+                                   "l3-ha",
+                                   "l3_agent_scheduler",
                                    "security-group",
                                    "extraroute",
                                    "external-net",
@@ -167,6 +172,10 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # - Ovn worker seems to be the right candidate.
             self.start_periodic_dhcp_agent_status_check()
 
+            # start periodic check task for L3 agent
+            if not config.is_ovn_l3():
+                self.start_periodic_l3_agent_status_check()
+
     def _setup_rpc(self):
         self.endpoints = [dhcp_rpc.DhcpRpcCallback(),
                           agents_db.AgentExtRpcCallback(),
@@ -186,6 +195,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             dhcp_rpc_agent_api.DhcpAgentNotifyAPI()
         )
         if not config.is_ovn_l3():
+            self.router_scheduler = importutils.import_object(
+                cfg.CONF.router_scheduler_driver)
+            l3_db.subscribe()
             self.agent_notifiers[const.AGENT_TYPE_L3] = (
                 l3_rpc_agent_api.L3AgentNotifyAPI()
             )
