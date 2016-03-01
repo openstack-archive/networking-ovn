@@ -45,7 +45,7 @@ ovn_opts = [
                        'routers.')),
     cfg.StrOpt("vif_type",
                default=portbindings.VIF_TYPE_OVS,
-               help=_("Type of VIF to be used for ports valid values are"
+               help=_("Type of VIF to be used for ports valid values are "
                       "(%(ovs)s, %(dpdk)s) default %(ovs)s") % {
                           "ovs": portbindings.VIF_TYPE_OVS,
                           "dpdk": portbindings.VIF_TYPE_VHOST_USER},
@@ -53,7 +53,7 @@ ovn_opts = [
                         portbindings.VIF_TYPE_VHOST_USER]),
     cfg.StrOpt("vhost_sock_dir",
                default="/var/run/openvswitch",
-               help=_("The directory in which vhost virtio socket"
+               help=_("The directory in which vhost virtio socket "
                       "is created by all the vswitch daemons"))
 ]
 
