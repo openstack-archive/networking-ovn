@@ -38,6 +38,16 @@ dependency. Ubuntu/Debian includes ``ovn-central``, ``ovn-host``,
 ``ovn-docker``, and ``ovn-common`` packages that pull in the appropriate Open
 vSwitch dependencies as needed.
 
+A ``python-networking-ovn`` RPM may be obtained for Fedora or CentOS from
+the RDO project.  A package based on the ``master`` branch of
+``networking-ovn`` can be found at http://trunk.rdoproject.org/.
+
+Fedora and CentOS RPM builds of OVS and OVN from the ``master`` branch of
+``ovs`` can be found in this COPR repository:
+https://copr.fedorainfracloud.org/coprs/pmatilai/dpdk-snapshot/.  Note that
+this repository contains OVS built with DPDK support, but that should have no
+effect unless you choose to enable the use of DPDK.
+
 Controller nodes
 ----------------
 
