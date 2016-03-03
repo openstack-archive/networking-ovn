@@ -1,10 +1,24 @@
 #!/bin/sh
 
-MTU=1500
-
-if [ "$1" != "" ]; then
-    MTU=$1
-fi
+# Script Arguments:
+# $1 - MTU
+# $2 - ovn-db IP address
+# $3 - ovn-db short name
+# $4 - ovn-controller IP address
+# $5 - ovn-controller short name
+# $6 - ovn-compute1 IP address
+# $7 - ovn-compute1 short name
+# $8 - ovn-compute2 IP address
+# $9 - ovn-compute2 short name
+MTU=$1
+OVN_DB_IP=$2
+OVN_DB_NAME=$3
+OVN_CONTROLLER_IP=$4
+OVN_CONTROLLER_NAME=$5
+OVN_COMPUTE1_IP=$6
+OVN_COMPUTE1_NAME=$7
+OVN_COMPUTE2_IP=$8
+OVN_COMPUTE2_NAME=$9
 
 DEBIAN_FRONTEND=noninteractive sudo apt-get -qqy update
 DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy git
@@ -57,3 +71,20 @@ sudo swapon /swapfile1
 # the equivalent 'vboxnet' interfaces on the host.
 sudo ip link set dev eth1 mtu $MTU
 sudo ip link set dev eth2 mtu $MTU
+
+# Migration setup
+sudo sh -c "echo \"$OVN_DB_IP $OVN_DB_NAME\" >> /etc/hosts"
+sudo sh -c "echo \"$OVN_CONTROLLER_IP $OVN_CONTROLLER_NAME\" >> /etc/hosts"
+sudo sh -c "echo \"$OVN_COMPUTE1_IP $OVN_COMPUTE1_NAME\" >> /etc/hosts"
+sudo sh -c "echo \"$OVN_COMPUTE2_IP $OVN_COMPUTE2_NAME\" >> /etc/hosts"
+
+# Non-interactive SSH setup
+cp networking-ovn/vagrant/provisioning/id_rsa ~/.ssh/id_rsa
+cat networking-ovn/vagrant/provisioning/id_rsa.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/id_rsa
+echo "Host *" >> ~/.ssh/config
+echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+chmod 600 ~/.ssh/config
+sudo cp ~vagrant/.ssh/id_rsa /root/.ssh
+sudo cp ~vagrant/.ssh/authorized_keys /root/.ssh
+sudo cp ~vagrant/.ssh/config /root/.ssh/config
