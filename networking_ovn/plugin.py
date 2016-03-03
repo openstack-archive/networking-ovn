@@ -67,6 +67,7 @@ from neutron.services.qos import qos_consts
 from networking_ovn._i18n import _, _LE, _LI, _LW
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import extensions
 from networking_ovn.common import utils
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -96,22 +97,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     __native_pagination_support = True
     __native_sorting_support = True
 
-    supported_extension_aliases = ["quotas",
-                                   "extra_dhcp_opt",
-                                   "binding",
-                                   "agent",
-                                   "dhcp_agent_scheduler",
-                                   "l3-ha",
-                                   "l3_agent_scheduler",
-                                   "security-group",
-                                   "extraroute",
-                                   "external-net",
-                                   "router",
-                                   "provider",
-                                   "subnet_allocation",
-                                   "availability_zone",
-                                   "network_availability_zone",
-                                   "net-mtu"]
+    supported_extension_aliases = extensions.SUPPORTED_API_EXTENSIONS
     supported_qos_rule_types = [qos_consts.RULE_TYPE_BANDWIDTH_LIMIT]
 
     def __init__(self):

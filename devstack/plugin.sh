@@ -123,7 +123,10 @@ function configure_ovn_plugin {
 
     if is_service_enabled q-svc ; then
         # NOTE(arosen) needed for tempest
-        export NETWORK_API_EXTENSIONS='binding,quotas,agent,dhcp_agent_scheduler,external-net,router'
+        export NETWORK_API_EXTENSIONS=$(python -c \
+            'from networking_ovn.common import extensions ;\
+             print ",".join(extensions.SUPPORTED_API_EXTENSIONS)')
+
 
         iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
         iniset $NEUTRON_CONF DEFAULT service_plugins "qos"
