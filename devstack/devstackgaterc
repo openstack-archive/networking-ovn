@@ -58,9 +58,6 @@ r="$r|(?:tempest\.scenario\.test_network_v6\.TestGettingAddress\.test_dualnet_mu
 r="$r|(?:tempest\.scenario\.test_network_v6*)"
 r="$r|(?:tempest\.api\.network\.test_networks\.BulkNetworkOpsIpV6TestJSON*)"
 
-# https://bugs.launchpad.net/networking-ovn/+bug/1508256
-r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_cross_tenant_traffic*)"
-
 # https://bugs.launchpad.net/networking-ovn/+bug/1496595
 r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_port_security_disable_security_group*)"
 
