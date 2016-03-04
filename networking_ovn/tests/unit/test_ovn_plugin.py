@@ -271,7 +271,7 @@ class TestQosOvnPlugin(OVNPluginTestCase):
         self.tenant_id = "tenant_id"
         self.ctxt = context.Context("", self.tenant_id)
         self.policy1 = self._create_qos_policy(self.ctxt, self.qos_policy_id1)
-        qos_policy.QosPolicy.get_by_id = mock.MagicMock(
+        qos_policy.QosPolicy.get_object = mock.MagicMock(
             return_value=self.policy1)
         qos_api.create_policy_network_binding = mock.Mock()
         qos_api.delete_policy_network_binding = mock.Mock()
