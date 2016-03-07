@@ -11,8 +11,9 @@
 # under the License.
 
 #
-# This script is executed in the OpenStack CI job that runs DevStack + tempest.
-# It is also used by the rally job. You can find the CI job configuration here:
+# This script is executed in the tempest-dsvm-networking-ovn
+# OpenStack CI job that runs DevStack + tempest.  It is also used by the
+# rally job. You can find the CI job configuration here:
 #
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #

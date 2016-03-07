@@ -11,8 +11,9 @@
 # under the License.
 
 #
-# This script is executed in the OpenStack CI job that runs DevStack + kuryr.
-# You can find the CI job configuration here:
+# This script is executed in the install-dsvm-networking-ovn-kuryr
+# OpenStack CI job that runs DevStack + kuryr.  You can find the
+# CI job configuration here:
 #
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #
