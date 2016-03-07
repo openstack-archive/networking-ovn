@@ -125,6 +125,13 @@ class API(object):
         """
 
     @abc.abstractmethod
+    def get_logical_switch_ids(self, lswitch_name):
+        """Get external_ids for a Logical_Switch.
+
+        :returns: dict of external_ids.
+        """
+
+    @abc.abstractmethod
     def get_all_logical_ports_ids(self):
         """Returns all logical ports names and external ids
 
