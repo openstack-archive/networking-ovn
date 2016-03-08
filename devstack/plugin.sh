@@ -40,7 +40,7 @@ set +o xtrace
 # --------
 
 # The git repo to use
-OVN_REPO=${OVN_REPO:-http://github.com/openvswitch/ovs.git}
+OVN_REPO=${OVN_REPO:-https://github.com/openvswitch/ovs.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 
 # The project directory
