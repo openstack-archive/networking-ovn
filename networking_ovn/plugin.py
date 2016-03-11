@@ -126,9 +126,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             }
         else:
             if config.get_ovn_vif_type() != portbindings.VIF_TYPE_OVS:
-                LOG.warn(_LW('VIF type should be one of %(ovs)s, %(vhu)s') % {
-                    "vhu": portbindings.VIF_TYPE_VHOST_USER,
-                    "ovs": portbindings.VIF_TYPE_OVS})
+                LOG.warning(_LW('VIF type should be one of %(ovs)s, %(vhu)s') %
+                            {"vhu": portbindings.VIF_TYPE_VHOST_USER,
+                             "ovs": portbindings.VIF_TYPE_OVS})
             self.base_binding_dict = {
                 portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS,
                 portbindings.VIF_DETAILS: {
