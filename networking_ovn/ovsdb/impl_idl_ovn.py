@@ -97,6 +97,12 @@ class OvsdbOvnIdl(ovn_api.API):
             result[row.name] = row.external_ids
         return result
 
+    def get_logical_switch_ids(self, lswitch_name):
+        for row in self._tables['Logical_Switch'].rows.values():
+            if row.name == lswitch_name:
+                return row.external_ids
+        return {}
+
     def get_all_logical_ports_ids(self):
         result = {}
         for row in self._tables['Logical_Port'].rows.values():

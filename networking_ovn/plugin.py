@@ -251,6 +251,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         ext_ids = {}
         physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
         segid = None
+        nettype = None
         if physnet:
             # If this is a provider network, validate that it's a type we
             # support. (flat or vlan)
@@ -261,6 +262,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 raise n_exc.InvalidInput(error_message=msg)
 
             segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
+            # NOTE(russellb) These can be removed once we store this info in
+            # the Neutron db, which depends on
+            # https://review.openstack.org/#/c/242393/
+            ext_ids.update({
+                ovn_const.OVN_PHYSNET_EXT_ID_KEY: physnet,
+                ovn_const.OVN_NETTYPE_EXT_ID_KEY: nettype,
+            })
+            if segid:
+                ext_ids.update({
+                    ovn_const.OVN_SEGID_EXT_ID_KEY: str(segid),
+                })
 
         with context.session.begin(subtransactions=True):
             result = super(OVNPlugin, self).create_network(context,
@@ -283,6 +295,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # for the extension functions.
         net_model = self._get_network(context, result['id'])
         self._apply_dict_extend_functions('networks', result, net_model)
+        if physnet is not None:
+            result[pnet.PHYSICAL_NETWORK] = physnet
+        if nettype is not None:
+            result[pnet.NETWORK_TYPE] = nettype
+        if segid is not None:
+            result[pnet.SEGMENTATION_ID] = segid
 
         try:
             return self.create_network_in_ovn(result, ext_ids,
@@ -408,6 +426,17 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with session.begin(subtransactions=True):
             result.update(self.core_ext_handler.extract_fields(
                 base_core.NETWORK, netdb))
+        lswitch_name = utils.ovn_name(result['id'])
+        ext_ids = self._ovn.get_logical_switch_ids(lswitch_name)
+        physnet = ext_ids.get(ovn_const.OVN_PHYSNET_EXT_ID_KEY, None)
+        if physnet is not None:
+            result[pnet.PHYSICAL_NETWORK] = physnet
+        nettype = ext_ids.get(ovn_const.OVN_NETTYPE_EXT_ID_KEY, None)
+        if nettype is not None:
+            result[pnet.NETWORK_TYPE] = nettype
+        segid = ext_ids.get(ovn_const.OVN_SEGID_EXT_ID_KEY, None)
+        if segid is not None:
+            result[pnet.SEGMENTATION_ID] = int(segid)
 
     db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
         attr.NETWORKS, ['_ovn_extend_network_attributes'])
