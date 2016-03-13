@@ -652,7 +652,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 continue
             param_value = param_dict[param_key]
             if not isinstance(param_value, param_type):
-                msg = _('Invalid binding:profile. %(key)s %(value)s'
+                msg = _('Invalid binding:profile. %(key)s %(value)s '
                         'value invalid type') % {'key': param_key,
                                                  'value': param_value}
                 raise n_exc.InvalidInput(error_message=msg)
