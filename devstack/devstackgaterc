@@ -59,10 +59,6 @@ r="$r|(?:tempest\.api\.network.test_allowed_address_pair.*)"
 # https://bugs.launchpad.net/networking-ovn/+bug/1496595
 r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_port_security_disable_security_group*)"
 
-# Current list of failing tests that need to be triaged, have bugs filed, and
-# fixed as appropriate.
-# (none)
-
 # End list of exclusions.
 r="$r)"
 
