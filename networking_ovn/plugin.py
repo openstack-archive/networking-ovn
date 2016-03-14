@@ -198,10 +198,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         # topics.REPORTS was added for the Mitaka release, therefore, to
         # work with stable/liberty, check to see if topics.REPORTS exists
-        # if it does, use it. If not, use topics.PLUGIN instead
-        topic = topics.REPORTS if hasattr(topics, 'REPORTS') else topics.PLUGIN
-        self.conn.create_consumer(topic, [agents_db.AgentExtRpcCallback()],
-                                  fanout=False)
+        # if it does, use it.
+        if hasattr(topics, 'REPORTS'):
+            self.conn.create_consumer(
+                topics.REPORTS, [agents_db.AgentExtRpcCallback()],
+                fanout=False)
         qos_topic = resources_rpc.resource_type_versioned_topic(
             callbacks_resources.QOS_POLICY)
         self.conn.create_consumer(
