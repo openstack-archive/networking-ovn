@@ -244,4 +244,16 @@ class API(object):
         :param if_exists:    Do not fail if the ACL for this lport does not
                              exist
         :type if_exists:     bool
-    """
+        """
+
+    @abc.abstractmethod
+    def update_acls(self, lswitch_names, port_list, acl_new_values_dict):
+        """Update the list of acls on logical switches with new values.
+
+        :param lswitch_names:         List of logical switch names
+        :type lswitch_name:           []
+        :param port_list:             Iterator of list of ports
+        :type port_list:              []
+        :param acl_new_values_dict:   Dictionary of acls indexed by port id
+        :type acl_new_values_dict:    {}
+        """

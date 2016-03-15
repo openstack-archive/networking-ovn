@@ -10,8 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
+from neutron.agent.ovsdb.native import idlutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
@@ -123,6 +126,55 @@ class OvsdbOvnIdl(ovn_api.API):
                            'ports': ports})
         return result
 
+    def get_acls_for_lswitches(self, lswitch_names):
+        """Get the existing set of acls that belong to the logical switches
+
+        @param lswitch_names: List of logical switch names
+        @type lswitch_names: []
+        @var acl_values_dict: A dictionary indexed by port_id containing the
+                              list of acl values in string format that belong
+                              to that port
+        @var acl_obj_dict: A dictionary indexed by acl value containing the
+                           corresponding acl idl object.
+        @var lswitch_ovsdb_dict: A dictionary mapping from logical switch
+                                 name to lswitch idl object
+        @return: (acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict)
+        """
+        acl_values_dict = {}
+        acl_obj_dict = {}
+        lswitch_ovsdb_dict = {}
+        for lswitch_name in lswitch_names:
+            try:
+                lswitch = idlutils.row_by_value(self.idl,
+                                                'Logical_Switch',
+                                                'name',
+                                                'neutron-' + lswitch_name)
+            except idlutils.RowNotFound:
+                # It is possible for the logical switch to be deleted
+                # while we are searching for it by name in idl.
+                continue
+            lswitch_ovsdb_dict[lswitch_name] = lswitch
+            acls = getattr(lswitch, 'acls', [])
+
+            # Iterate over each acl in a lswitch and store the acl in
+            # a key:value representation for e.g. acl_string. This
+            # key:value representation can invoke the code -
+            # self._ovn.add_acl(**acl_string)
+            for acl in acls:
+                ext_ids = getattr(acl, 'external_ids', {})
+                port_id = ext_ids.get('neutron:lport')
+                acl_list = acl_values_dict.setdefault(port_id, [])
+                acl_string = {'lport': port_id,
+                              'lswitch': 'neutron-' + lswitch_name}
+                for acl_key in six.iterkeys(getattr(acl, "_data", {})):
+                    try:
+                        acl_string[acl_key] = getattr(acl, acl_key)
+                    except AttributeError:
+                        pass
+                acl_obj_dict[str(acl_string)] = acl
+                acl_list.append(acl_string)
+        return acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict
+
     def create_lrouter(self, name, may_exist=True, **columns):
         return cmd.AddLRouterCommand(self, name,
                                      may_exist, **columns)
@@ -149,3 +201,7 @@ class OvsdbOvnIdl(ovn_api.API):
 
     def delete_acl(self, lswitch, lport, if_exists=True):
         return cmd.DelACLCommand(self, lswitch, lport, if_exists)
+
+    def update_acls(self, lswitch_names, port_list, acl_new_values_dict):
+        return cmd.UpdateACLsCommand(self, lswitch_names,
+                                     port_list, acl_new_values_dict)
