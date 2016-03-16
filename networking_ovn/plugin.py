@@ -1365,7 +1365,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def _update_acls_for_security_group(self, context, security_group_id,
                                         sg_ports_cache=None,
                                         exclude_ports=None,
-                                        subnet_cache=None):
+                                        subnet_cache=None,
+                                        rule=None, is_add_acl=True):
         if exclude_ports is None:
             exclude_ports = []
         filters = {'security_group_id': [security_group_id]}
@@ -1378,22 +1379,39 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         port_list = []
 
         # ACLs associated with a security group may span logical switches
-        lswitch_names = set([])
-        for binding in sg_ports:
-            if binding['port_id'] in exclude_ports:
-                continue
-            port = self.get_port(context, binding['port_id'])
-            port_list.append(port)
-            lswitch_names.add(port['network_id'])
+        sg_port_ids = [binding['port_id'] for binding in sg_ports]
+        sg_port_ids = list(set(sg_port_ids) - set(exclude_ports))
+        port_list = self.get_ports(context, filters={'id': sg_port_ids})
+        lswitch_names = set([p['network_id'] for p in port_list])
         acl_new_values_dict = {}
-        for port in port_list:
-            acls_new = self._add_acls(context, port, sg_cache,
-                                      sg_ports_cache, subnet_cache)
-            acl_new_values_dict[port['id']] = acls_new
+
+        # NOTE(lizk): When a certain rule is given, we can directly locate
+        # the affected acl records, so no need to compare new acl values with
+        # existing acl objects, such as case create_security_group_rule or
+        # delete_security_group_rule is calling this. But for other cases,
+        # since we don't know which acl records need be updated, compare will
+        # be needed.
+        need_compare = True
+        if rule:
+            need_compare = False
+            for port in port_list:
+                acl = self._add_sg_rule_acl_for_port(
+                    context, port, rule, {}, {})
+                # Remove lport and lswitch since we don't need them
+                acl.pop('lport')
+                acl.pop('lswitch')
+                acl_new_values_dict[port['id']] = acl
+        else:
+            for port in port_list:
+                acls_new = self._add_acls(context, port, sg_cache,
+                                          sg_ports_cache, subnet_cache)
+                acl_new_values_dict[port['id']] = acls_new
 
         self._ovn.update_acls(list(lswitch_names),
                               iter(port_list),
-                              acl_new_values_dict).execute(check_error=True)
+                              acl_new_values_dict,
+                              need_compare=need_compare,
+                              is_add_acl=is_add_acl).execute(check_error=True)
 
     def update_security_group(self, context, id, security_group):
         res = super(OVNPlugin, self).update_security_group(context, id,
@@ -1415,7 +1433,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # here.  We put the rule in the Neutron db above and then update all
         # affected ports next.  If updating ports fails somehow, we're out of
         # sync until another change causes another refresh attempt.
-        self._update_acls_for_security_group(context, group_id)
+        self._update_acls_for_security_group(context, group_id, rule=rule,
+                                             is_add_acl=True)
         return res
 
     def delete_security_group_rule(self, context, id):
@@ -1427,7 +1446,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # ACL update to reflect the current state in OVN.  If updating OVN
         # fails, we'll be out of sync until another change happens that
         # triggers a refresh.
-        self._update_acls_for_security_group(context, group_id)
+        self._update_acls_for_security_group(context, group_id,
+                                             rule=security_group_rule,
+                                             is_add_acl=False)
 
     def get_workers(self):
         # See doc/source/design/ovn_worker.rst for more details.
