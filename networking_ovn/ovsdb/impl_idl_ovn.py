@@ -19,6 +19,7 @@ from neutron.agent.ovsdb.native import idlutils
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -148,7 +149,7 @@ class OvsdbOvnIdl(ovn_api.API):
                 lswitch = idlutils.row_by_value(self.idl,
                                                 'Logical_Switch',
                                                 'name',
-                                                'neutron-' + lswitch_name)
+                                                utils.ovn_name(lswitch_name))
             except idlutils.RowNotFound:
                 # It is possible for the logical switch to be deleted
                 # while we are searching for it by name in idl.
@@ -165,7 +166,7 @@ class OvsdbOvnIdl(ovn_api.API):
                 port_id = ext_ids.get('neutron:lport')
                 acl_list = acl_values_dict.setdefault(port_id, [])
                 acl_string = {'lport': port_id,
-                              'lswitch': 'neutron-' + lswitch_name}
+                              'lswitch': utils.ovn_name(lswitch_name)}
                 for acl_key in six.iterkeys(getattr(acl, "_data", {})):
                     try:
                         acl_string[acl_key] = getattr(acl, acl_key)
