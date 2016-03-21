@@ -57,6 +57,7 @@ from neutron.db import netmtu_db
 from neutron.db import portbindings_db
 from neutron.db import portsecurity_db_common as ps_db_common
 from neutron.db import securitygroups_db
+from neutron.db import segments_db
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import availability_zone as az_ext
 from neutron.extensions import extra_dhcp_opt as edo_ext
@@ -252,6 +253,35 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             res = None
         return res
 
+    def _extend_network_dict_provider(self, context, network):
+        """Extend network dict with provider network attributes"""
+        segments = segments_db.get_network_segments(
+            context.session, network['id'])
+        if segments:
+            # OVN plugin creates segments for provider networks only
+            segment = segments[0]
+            network[pnet.NETWORK_TYPE] = segment[segments_db.NETWORK_TYPE]
+            network[pnet.PHYSICAL_NETWORK] = segment[
+                segments_db.PHYSICAL_NETWORK]
+            network[pnet.SEGMENTATION_ID] = segment[
+                segments_db.SEGMENTATION_ID]
+
+    def get_network(self, context, id, fields=None):
+        result = super(OVNPlugin, self).get_network(context, id, None)
+        self._extend_network_dict_provider(context, result)
+        return self._fields(result, fields)
+
+    def get_networks(self, context, filters=None, fields=None,
+                     sorts=None, limit=None, marker=None,
+                     page_reverse=False):
+        with context.session.begin(subtransactions=True):
+            nets = super(OVNPlugin, self).get_networks(
+                context, filters, None, sorts, limit, marker, page_reverse)
+            for net in nets:
+                self._extend_network_dict_provider(context, net)
+
+        return [self._fields(net, fields) for net in nets]
+
     def create_network(self, context, network):
         net = network['network']  # obviously..
         ext_ids = {}
@@ -268,17 +298,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 raise n_exc.InvalidInput(error_message=msg)
 
             segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
-            # NOTE(russellb) These can be removed once we store this info in
-            # the Neutron db, which depends on
-            # https://review.openstack.org/#/c/242393/
-            ext_ids.update({
-                ovn_const.OVN_PHYSNET_EXT_ID_KEY: physnet,
-                ovn_const.OVN_NETTYPE_EXT_ID_KEY: nettype,
-            })
-            if segid:
-                ext_ids.update({
-                    ovn_const.OVN_SEGID_EXT_ID_KEY: str(segid),
-                })
 
         with context.session.begin(subtransactions=True):
             result = super(OVNPlugin, self).create_network(context,
@@ -289,6 +308,15 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     [psec.PORTSECURITY]['default'])
             self._process_network_port_security_create(context, net, result)
             self._process_l3_create(context, result, net)
+
+            if physnet:
+                segment = {segments_db.NETWORK_TYPE: nettype,
+                           segments_db.PHYSICAL_NETWORK: physnet,
+                           segments_db.SEGMENTATION_ID: segid}
+                segments_db.add_network_segment(
+                    context.session, result['id'], segment)
+                self._extend_network_dict_provider(context, result)
+
             self.core_ext_handler.process_fields(
                 context, base_core.NETWORK, net, result)
             if az_ext.AZ_HINTS in net:
@@ -306,13 +334,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # for the extension functions.
         net_model = self._get_network(context, result['id'])
         self._apply_dict_extend_functions('networks', result, net_model)
-        if physnet is not None:
-            result[pnet.PHYSICAL_NETWORK] = physnet
-        if nettype is not None:
-            result[pnet.NETWORK_TYPE] = nettype
-        if segid is not None:
-            result[pnet.SEGMENTATION_ID] = segid
-
         try:
             return self.create_network_in_ovn(result, ext_ids,
                                               physnet, segid)
@@ -437,17 +458,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with session.begin(subtransactions=True):
             result.update(self.core_ext_handler.extract_fields(
                 base_core.NETWORK, netdb))
-        lswitch_name = utils.ovn_name(result['id'])
-        ext_ids = self._ovn.get_logical_switch_ids(lswitch_name)
-        physnet = ext_ids.get(ovn_const.OVN_PHYSNET_EXT_ID_KEY, None)
-        if physnet is not None:
-            result[pnet.PHYSICAL_NETWORK] = physnet
-        nettype = ext_ids.get(ovn_const.OVN_NETTYPE_EXT_ID_KEY, None)
-        if nettype is not None:
-            result[pnet.NETWORK_TYPE] = nettype
-        segid = ext_ids.get(ovn_const.OVN_SEGID_EXT_ID_KEY, None)
-        if segid is not None:
-            result[pnet.SEGMENTATION_ID] = int(segid)
 
     db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
         attr.NETWORKS, ['_ovn_extend_network_attributes'])
@@ -475,6 +485,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             updated_network = super(OVNPlugin, self).update_network(
                 context, network_id, network)
+            self._extend_network_dict_provider(context, updated_network)
             self._process_l3_update(
                 context, updated_network, network['network'])
             self._process_network_port_security_update(

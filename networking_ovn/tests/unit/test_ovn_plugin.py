@@ -25,6 +25,7 @@ from neutron import context
 from neutron.core_extensions.qos import QosCoreResourceExtension
 from neutron.db.qos import api as qos_api
 from neutron.extensions import portbindings
+from neutron.extensions import providernet
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.services.qos.notification_drivers import manager as driver_mgr
@@ -91,6 +92,17 @@ class TestNetworksV2(test_plugin.TestNetworksV2, OVNPluginTestCase):
         req = self.new_delete_request('networks', net['network']['id'])
         res = req.get_response(self.api)
         self.assertEqual(res.status_int, exc.HTTPNoContent.code)
+
+    def test_create_provider_net(self):
+        net_data = {'network': {'name': 'provider',
+                                providernet.PHYSICAL_NETWORK: 'physnet1',
+                                providernet.NETWORK_TYPE: 'flat',
+                                providernet.SEGMENTATION_ID: 123,
+                                'tenant_id': self._tenant_id}}
+        network_req = self.new_create_request('networks', net_data, self.fmt)
+        net = self.deserialize(self.fmt, network_req.get_response(self.api))
+        for attr in providernet.ATTRIBUTES:
+            self.assertEqual(net_data['network'][attr], net['network'][attr])
 
 
 class TestPortsV2(test_plugin.TestPortsV2, OVNPluginTestCase,
