@@ -53,9 +53,6 @@ r="$r|(?:tempest\.api\.compute\.test_quotas*)"
 r="$r|(?:tempest\.api\.compute\.test_versions*)"
 r="$r|(?:tempest\.api\.compute\.volumes*)"
 
-# https://bugs.launchpad.net/networking-ovn/+bug/1470615
-r="$r|(?:tempest\.api\.network.test_allowed_address_pair.*)"
-
 # End list of exclusions.
 r="$r)"
 

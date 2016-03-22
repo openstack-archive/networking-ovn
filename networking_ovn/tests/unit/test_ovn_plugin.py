@@ -30,6 +30,7 @@ from neutron.services.qos.notification_drivers import manager as driver_mgr
 from neutron.services.qos import qos_consts
 from neutron.tests import tools
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
+from neutron.tests.unit.db import test_allowedaddresspairs_db as test_aap
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron.tests.unit.extensions import test_availability_zone as test_az
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
@@ -222,12 +223,11 @@ class TestOvnPlugin(OVNPluginTestCase):
                                      called_args_dict.get('port_security'))
 
     def test_create_port_security_allowed_address_pairs(self):
-        self.skipTest("Fix this after allowed-address-pairs"
-                      " extension is supported")
         self.plugin._ovn.create_lport = mock.Mock()
         self.plugin._ovn.set_lport = mock.Mock()
         kwargs = {'allowed_address_pairs':
-                  [{"ip_address": "1.1.1.1",
+                  [{"ip_address": "1.1.1.1"},
+                   {"ip_address": "2.2.2.2",
                     "mac_address": "22:22:22:22:22:22"}]}
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
@@ -241,10 +241,17 @@ class TestOvnPlugin(OVNPluginTestCase):
                         (self.plugin._ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual(
-                        tools.UnorderedList("22:22:22:22:22:22",
-                                            port['port']['mac_address']),
+                        tools.UnorderedList(
+                            ["22:22:22:22:22:22 2.2.2.2",
+                             port['port']['mac_address'] + ' ' + '10.0.0.2'
+                             + ' ' + '1.1.1.1']),
                         called_args_dict.get('port_security'))
 
+                    old_mac = port['port']['mac_address']
+
+                    # we are updating only the port mac address. So the
+                    # mac address of the allowed address pair ip 1.1.1.1
+                    # will have old mac address
                     data = {'port': {'mac_address': '00:00:00:00:00:01'}}
                     req = self.new_update_request(
                         'ports',
@@ -255,9 +262,11 @@ class TestOvnPlugin(OVNPluginTestCase):
                     called_args_dict = (
                         (self.plugin._ovn.set_lport
                          ).call_args_list[0][1])
-                    self.assertEqual(tools.UnorderedList("22:22:22:22:22:22",
-                                                         "00:00:00:00:00:01"),
-                                     called_args_dict.get('port_security'))
+                    self.assertEqual(tools.UnorderedList(
+                        ["22:22:22:22:22:22 2.2.2.2",
+                         "00:00:00:00:00:01 10.0.0.2",
+                         old_mac + " 1.1.1.1"]),
+                        called_args_dict.get('port_security'))
 
 
 class TestQosOvnPlugin(OVNPluginTestCase):
@@ -752,3 +761,10 @@ class TestOvnPortSecurity(test_portsecurity.TestPortSecurity,
                           OVNPluginTestCase):
     def setUp(self, plugin=PLUGIN_NAME):
         super(TestOvnPortSecurity, self).setUp(plugin=plugin)
+
+
+class TestOvnAllowedAddressPairs(test_aap.TestAllowedAddressPairs,
+                                 OVNPluginTestCase):
+    def setUp(self, plugin=PLUGIN_NAME, ext_mgr=None):
+        super(TestOvnAllowedAddressPairs, self).setUp(plugin=plugin,
+                                                      ext_mgr=ext_mgr)
