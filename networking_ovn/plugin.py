@@ -1028,9 +1028,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         lswitch_name = utils.ovn_name(port['network_id'])
 
         with self._ovn.transaction(check_error=True) as txn:
-            # The port name *must* be port['id'].  It must match the iface-id
-            # set in the Interfaces table of the Open_vSwitch database, which
-            # nova sets to be the port ID.
+            # The lport_name *must* be neutron port['id'].  It must match the
+            # iface-id set in the Interfaces table of the Open_vSwitch
+            # database which nova sets to be the port ID.
             txn.add(self._ovn.create_lport(
                     lport_name=port['id'],
                     lswitch_name=lswitch_name,
