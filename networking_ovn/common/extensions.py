@@ -34,4 +34,5 @@ SUPPORTED_API_EXTENSIONS = [
     'router',
     'security-group',
     'subnet_allocation',
+    'port-security',
 ]
