@@ -164,7 +164,8 @@ class OvnNbNotifyHandler(object):
             try:
                 match, event, row, updates = self.notifications.get()
                 if (not isinstance(match, row_event.RowEvent) and
-                        (match, event, row, updates) == OvnIdl.STOP_EVENT):
+                        (match, event, row, updates) == (
+                            OvnNbNotifyHandler.STOP_EVENT)):
                     self.notifications.task_done()
                     break
                 match.run(event, row, updates)
