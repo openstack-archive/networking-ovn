@@ -77,3 +77,13 @@ ENABLE_ISOLATED_METADATA=True
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git
 #enable_service skydive-agent
+
+# Provider Network
+# If you want to enable a provider network instead of the default private
+# network after your DevStack environment installation, you *must* set the
+# Q_USE_PROVIDER_NETWORKING to True, and give value to both PHYSICAL_NETWORK
+# and OVS_PHYSICAL_BRIDGE. Please note that this only works when Q_L3_ENABLED
+# is False and q-l3 is disabled.
+#Q_USE_PROVIDER_NETWORKING=True
+#PHYSICAL_NETWORK=providernet
+#OVS_PHYSICAL_BRIDGE=br-provider

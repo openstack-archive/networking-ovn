@@ -88,3 +88,19 @@ ENABLE_ISOLATED_METADATA=True
 #[[post-config|$Q_DHCP_CONF_FILE]]
 #[AGENT]
 #availability_zone = nova
+
+
+# If you want to enable a provider network instead of the default private
+# network after your DevStack environment installation, you *must* set
+# the Q_USE_PROVIDER_NETWORKING to True, and also give FIXED_RANGE,
+# NETWORK_GATEWAY and ALLOCATION_POOL option to the correct value that can
+# be used in your enviroment. Please note that this only works when Q_L3_ENABLED
+# is False and q-l3 is disabled.
+#Q_USE_PROVIDER_NETWORKING=True
+#PHYSICAL_NETWORK=providernet
+#PROVIDER_NETWORK_TYPE=flat
+#OVS_PHYSICAL_BRIDGE=br-provider
+#PROVIDER_SUBNET_NAME=provider-subnet
+#FIXED_RANGE=<CIDR for the Provider Network>
+#NETWORK_GATEWAY=<Provider Network Gateway>
+#ALLOCATION_POOL=<Provider Network Allocation Pool>

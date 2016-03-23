@@ -308,6 +308,11 @@ function start_ovs {
 
         # Bump up the max number of open files ovs-vswitchd can have
         sudo sh -c "ulimit -n 32000 && exec ovs-vswitchd --pidfile --detach -vconsole:off --log-file=$LOGDIR/ovs-vswitchd.log"
+
+        if is_provider_network; then
+            _neutron_ovs_base_setup_bridge $OVS_PHYSICAL_BRIDGE
+            ovs-vsctl set open . external-ids:ovn-bridge-mappings=${PHYSICAL_NETWORK}:${OVS_PHYSICAL_BRIDGE}
+        fi
     fi
 
     cd $_pwd
