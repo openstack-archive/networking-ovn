@@ -51,6 +51,8 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Network Availability Zone        | network_availability_zone |
 +----------------------------------+---------------------------+
+| Network IP Availability          | network-ip-availability   |
++----------------------------------+---------------------------+
 | Neutron external network         | external-net              |
 +----------------------------------+---------------------------+
 | Neutron Extra DHCP opts          | extra_dhcp_opt            |
@@ -76,6 +78,10 @@ The following Neutron API extensions are supported with OVN:
 | security-group                   | security-group            |
 +----------------------------------+---------------------------+
 | Subnet Allocation                | subnet_allocation         |
++----------------------------------+---------------------------+
+| Tag support                      | tag                       |
++----------------------------------+---------------------------+
+| Time Stamp Fields                | timestamp_core            |
 +----------------------------------+---------------------------+
 
 
