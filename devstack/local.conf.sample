@@ -79,6 +79,10 @@ ENABLE_ISOLATED_METADATA=True
 #dhcp_load_type = networks
 #dhcp_agents_per_network = 2
 
+# Skydive
+#enable_plugin skydive https://github.com/redhat-cip/skydive.git
+#enable_service skydive-analyzer
+
 # If you enable the DHCP agent, you can configure the availability
 # zone name (default is nova).
 #[[post-config|$Q_DHCP_CONF_FILE]]

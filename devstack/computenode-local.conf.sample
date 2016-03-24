@@ -73,3 +73,7 @@ ENABLE_ISOLATED_METADATA=True
 #[[post-config|$Q_DHCP_CONF_FILE]]
 #[AGENT]
 #availability_zone = nova
+
+# Skydive
+#enable_plugin skydive https://github.com/redhat-cip/skydive.git
+#enable_service skydive-agent
