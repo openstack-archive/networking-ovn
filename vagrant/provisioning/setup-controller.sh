@@ -27,7 +27,8 @@ HOST_IP=$ipaddress
 HOSTNAME=$(hostname)
 SERVICE_HOST_NAME=${HOST_NAME}
 SERVICE_HOST=$ipaddress
-OVN_REMOTE=tcp:$ovnip:6640
+OVN_SB_REMOTE=tcp:$ovnip:6642
+OVN_NB_REMOTE=tcp:$ovnip:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
@@ -100,3 +101,9 @@ sudo touch /etc/exports
 sudo sh -c "echo \"/opt/stack/data/nova/instances $ovn_vm_subnet(rw,sync,fsid=0,no_root_squash)\" >> /etc/exports"
 sudo service nfs-kernel-server restart
 sudo service idmapd restart
+
+# Set the OVN_*_DB variables to enable OVN commands using a remote database.
+echo -e "\n# Enable OVN commands using a remote database.
+export OVN_NB_DB=$OVN_NB_REMOTE
+export OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
+

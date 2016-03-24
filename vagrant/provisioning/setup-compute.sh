@@ -24,7 +24,8 @@ cat << DEVSTACKEOF >> devstack/local.conf
 # OpenStack services.
 Q_HOST=$1
 HOSTNAME=$(hostname)
-OVN_REMOTE=tcp:$OVN_DB_IP:6640
+OVN_SB_REMOTE=tcp:$ovnip:6642
+OVN_NB_REMOTE=tcp:$ovnip:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
@@ -88,3 +89,8 @@ sudo sh -c 'echo " \"none\"" >> /etc/libvirt/libvirtd.conf'
 sudo sh -c "sed -i 's/env libvirtd_opts\=\"\-d\"/env libvirtd_opts\=\"-d -l\"/g' /etc/init/libvirt-bin.conf"
 sudo sh -c "sed -i 's/libvirtd_opts\=\"\-d\"/libvirtd_opts\=\"\-d \-l\"/g' /etc/default/libvirt-bin"
 sudo /etc/init.d/libvirt-bin restart
+
+# Set the OVN_*_DB variables to enable OVN commands using a remote database.
+echo -e "\n# Enable OVN commands using a remote database.
+export OVN_NB_DB=$OVN_NB_REMOTE
+export OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
