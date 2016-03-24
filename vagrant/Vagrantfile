@@ -43,6 +43,10 @@ Vagrant.configure(2) do |config|
            'modifyvm', :id,
            '--nicpromisc3', "allow-all"
           ]
+       vb.customize [
+           "guestproperty", "set", :id,
+           "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
+          ]
     end
   end
 
@@ -63,6 +67,10 @@ Vagrant.configure(2) do |config|
            'modifyvm', :id,
            '--nicpromisc3', "allow-all"
           ]
+       vb.customize [
+           "guestproperty", "set", :id,
+           "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
+          ]
     end
   end
 
@@ -82,6 +90,10 @@ Vagrant.configure(2) do |config|
            'modifyvm', :id,
            '--nicpromisc3', "allow-all"
           ]
+       vb.customize [
+           "guestproperty", "set", :id,
+           "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
+          ]
     end
   end
 
@@ -100,6 +112,10 @@ Vagrant.configure(2) do |config|
        vb.customize [
            'modifyvm', :id,
            '--nicpromisc3', "allow-all"
+          ]
+       vb.customize [
+           "guestproperty", "set", :id,
+           "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
           ]
     end
   end
