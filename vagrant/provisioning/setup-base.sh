@@ -20,14 +20,9 @@ OVN_COMPUTE1_NAME=$7
 OVN_COMPUTE2_IP=$8
 OVN_COMPUTE2_NAME=$9
 
+BASE_PACKAGES="git bridge-utils ebtables python-pip python-dev build-essential ntp"
 DEBIAN_FRONTEND=noninteractive sudo apt-get -qqy update
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy git
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy bridge-utils
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy ebtables
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy python-pip
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy python-dev
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy build-essential
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy ntp
+DEBIAN_FRONTEND=noninteractive sudo apt-get install -qqy $BASE_PACKAGES
 echo export LC_ALL=en_US.UTF-8 >> ~/.bash_profile
 echo export LANG=en_US.UTF-8 >> ~/.bash_profile
 # FIXME(mestery): Remove once Vagrant boxes allow apt-get to work again
