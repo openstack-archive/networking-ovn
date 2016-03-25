@@ -24,8 +24,8 @@ cat << DEVSTACKEOF >> devstack/local.conf
 # OpenStack services.
 Q_HOST=$1
 HOSTNAME=$(hostname)
-OVN_SB_REMOTE=tcp:$ovnip:6642
-OVN_NB_REMOTE=tcp:$ovnip:6641
+OVN_SB_REMOTE=tcp:$OVN_DB_IP:6642
+OVN_NB_REMOTE=tcp:$OVN_DB_IP:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
