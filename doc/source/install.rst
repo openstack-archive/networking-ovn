@@ -107,6 +107,17 @@ primary node. See the :ref:`faq` for more information.
 
       # /usr/share/openvswitch/scripts/ovn-ctl start_northd
 
+   Options for *start_northd*:
+   .. code-block:: console
+
+      # /usr/share/openvswitch/scripts/ovn-ctl start_northd --help
+      # ...
+      # DB_NB_SOCK="/usr/local/etc/openvswitch/nb_db.sock"
+      # DB_NB_PID="/usr/local/etc/openvswitch/ovnnb_db.pid"
+      # DB_SB_SOCK="usr/local/etc/openvswitch/sb_db.sock"
+      # DB_SB_PID="/usr/local/etc/openvswitch/ovnsb_db.pid"
+      # ...
+
 #. Configure the Networking server component. The Networking service
    implements OVN as a core plug-in similar to ML2. Edit the
    ``/etc/neutron/neutron.conf`` file:

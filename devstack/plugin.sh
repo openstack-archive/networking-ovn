@@ -334,26 +334,19 @@ function start_ovn {
 
     if is_ovn_service_enabled ovn-northd ; then
 
-        DB_NB_PID="/usr/local/var/run/openvswitch/ovsdb-server-nb.pid"
         DB_NB_SOCK="/usr/local/var/run/openvswitch/nb_db.sock"
-        DB_SB_PID="/usr/local/var/run/openvswitch/ovsdb-server-sb.pid"
         DB_SB_SOCK="/usr/local/var/run/openvswitch/sb_db.sock"
-        # TODO (regXboi): change ovn-ctl so that we can just use
-        # OVN_NORTHD_LOG=$LOGDIR/ovn-northd.log here
-        OVN_NORTHD_LOG="--log-file=$LOGDIR/ovn-northd.log"
+        OVN_NORTHD_PID="/usr/local/var/run/openvswitch/ovn-northd.pid"
 
-        NORTHD_CMD= /usr/local/share/openvswitch/scripts/ovn-ctl start_northd \
-            --db-nb-sock=$DB_NB_SOCK --db-sb-sock=$DB_SB_SOCK \
-            --db-nb-pid=$DB_NB_PID --db-sb-pid=$DB_SB_PID \
-            --ovn-northd-log=$OVN_NORTHD_LOG
-
-        run_process ovn-northd "$NORTHD_CMD"
+        run_process ovn-northd "ovn-northd --log-file=$LOGDIR/ovn-northd.log \
+             --ovnnb-db=unix:$DB_NB_SOCK --ovnsb-db=unix:$DB_SB_SOCK \
+             --pidfile=$OVN_NORTHD_PID"
 
         # This makes sure that the console logs have time stamps to
         # the millisecond, but we need to make sure ovs-appctl has
         # a pid file to work with, so ...
         echo -n "Waiting for ovn-northd to start ... "
-        local testcmd="test -e /usr/local/var/run/openvswitch/ovn-northd.pid"
+        local testcmd="test -e $OVN_NORTH_PID"
         test_with_retry "$testcmd" "ovn-northd did not start" $SERVICE_TIMEOUT 1
         echo "done."
         sudo ovs-appctl -t ovn-northd vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
