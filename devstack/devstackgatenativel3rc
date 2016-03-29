@@ -24,8 +24,67 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
 
-#NOTE: For now just get this job running a few tests to make sure it is set up correctly
-#      In a future patch set more tests will be added
-r="^(tempest\.api\.network\.test_networks\.NetworksTest).*$"
+# Begin list of exclusions.
+r="^(?!.*"
+
+# exclude the slow tag (part of the default for 'full')
+r="$r(?:.*\[.*\bslow\b.*\])"
+
+# exclude things that aren't fully implemented yet in the OVN native L3 agent
+
+# NOTE: Re-enable floating ip tests once floating IPs are implemented
+# in OVN (bug 1514995).  This will require changes to
+# devstack install scripts to create a router and public network when
+# OVN native L3 agent is used.  Currently no router or public network
+# is created because the legacy L3 agent is disabled.
+r="$r|(?:tempest\.api\.compute\.floating_ips.*)"
+r="$r|(?:tempest\.api\.network\.admin\.test_floating_ips_admin_actions.*)"
+r="$r|(?:tempest\.api\.network\.test_floating_ips.*)"
+r="$r|(?:tempest\.scenario\.test_minimum_basic.*)"
+r="$r|(?:tempest\.scenario\.test_shelve_instance.*)"
+r="$r|(?:tempest\.scenario\.test_snapshot_pattern.*)"
+r="$r|(?:tempest\.scenario\.test_stamp_pattern.*)"
+r="$r|(?:tempest\.scenario\.test_volume_boot_pattern.*)"
+
+# NOTE: Re-enable the following tests once the devstack install
+# scripts are changed to create a router and public network even
+# when the neutron L3 agent is not enabled (bug 1567068).  Currently no
+# router or public network is created because the legacy L3 agent is disabled.
+r="$r|(?:tempest\.api\.compute\.servers.*)"
+r="$r|(?:tempest\.api\.network\.admin\.test_external_networks_negative.*)"
+r="$r|(?:tempest\.api\.network\.test_routers\.RoutersIpV6Test.*)"
+r="$r|(?:tempest\.api\.network\.test_routers\.RoutersTest.*)"
+r="$r|(?:tempest\.scenario\.test_aggregates_basic_ops.*)"
+r="$r|(?:tempest\.scenario\.test_encrypted_cinder_volumes.*)"
+r="$r|(?:tempest\.scenario\.test_server_basic_ops.*)"
+
+# exclude things that just aren't enabled with OVN
+r="$r|(?:tempest\.api\.network\.admin\.test_l3_agent_scheduler.*)"
+r="$r|(?:tempest\.api\.network\.admin\.test_quotas\.QuotasTest\.test_lbaas_quotas.*)"
+r="$r|(?:tempest\.api\.network\.test_load_balancer.*)"
+r="$r|(?:tempest\.scenario\.test_load_balancer.*)"
+r="$r|(?:tempest\.api\.network\.admin\.test_load_balancer.*)"
+r="$r|(?:tempest\.api\.network\.admin\.test_lbaas.*)"
+r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
+r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
+r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
+
+# exclude some unrelated stuff to make networking-ovn targeted runs go faster
+r="$r|(?:tempest\.api\.identity*)"
+r="$r|(?:tempest\.api\.image*)"
+r="$r|(?:tempest\.api\.volume*)"
+r="$r|(?:tempest\.api\.compute\.images*)"
+r="$r|(?:tempest\.api\.compute\.keypairs*)"
+r="$r|(?:tempest\.api\.compute\.certificates*)"
+r="$r|(?:tempest\.api\.compute\.flavors*)"
+r="$r|(?:tempest\.api\.compute\.test_quotas*)"
+r="$r|(?:tempest\.api\.compute\.test_versions*)"
+r="$r|(?:tempest\.api\.compute\.volumes*)"
+
+# End list of exclusions.
+r="$r)"
+
+# only run tempest.api/scenario/thirdparty tests (part of the default for 'full')
+r="$r(tempest\.(api|scenario|thirdparty)).*$"
 
 export DEVSTACK_GATE_TEMPEST_REGEX="$r"
