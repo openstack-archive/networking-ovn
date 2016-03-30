@@ -243,28 +243,24 @@ function start_ovs {
 
         # TODO (regXboi): change ovn-ctl so that we can use something
         # other than --db-nb-port for port and ip address
-        DB_NB_PORT="6641:$HOST_IP"
-        DB_NB_SOCK="/usr/local/var/run/openvswitch/nb_db.sock"
-        DB_NB_PID="/usr/local/var/run/openvswitch/ovsdb-server-nb.pid"
+        DB_NB_PORT="6641"
         DB_NB_FILE="$DATA_DIR/ovs/ovnnb.db"
         OVN_NB_LOGFILE="$LOGDIR/ovsdb-server-nb.log"
 
         # TODO (regXboi): change ovn-ctl so that we can use something
         # other than --db-sb-port for port and ip address
-        DB_SB_PORT="6642:$HOST_IP"
-        DB_SB_SOCK="/usr/local/var/run/openvswitch/sb_db.sock"
-        DB_SB_PID="/usr/local/var/run/openvswitch/ovsdb-server-sb.pid"
+        DB_SB_PORT="6642"
         DB_SB_FILE="$DATA_DIR/ovs/ovnsb.db"
         OVN_SB_LOGFILE="$LOGDIR/ovsdb-server-sb.log"
 
         /usr/local/share/openvswitch/scripts/ovn-ctl start_ovsdb \
-              --db-nb-port=$DB_NB_PORT --db-nb-sock=$DB_NB_SOCK \
-              --db-nb-pid=$DB_NB_PID --db-nb-file=$DB_NB_FILE \
-              --ovn-nb-logfile=$OVN_NB_LOGFILE --db-sb-port=$DB_SB_PORT \
-              --db-sb-sock=$DB_SB_SOCK --db-sb-pid=$DB_SB_PID \
+              --db-nb-port=$DB_NB_PORT --db-sb-port=$DB_SB_PORT \
+              --db-nb-file=$DB_NB_FILE --ovn-nb-logfile=$OVN_NB_LOGFILE \
               --db-sb-file=$DB_SB_FILE --ovn-sb-logfile=$OVN_SB_LOGFILE
 
         echo "Waiting for ovn ovsdb servers to start ... "
+        DB_NB_SOCK="/usr/local/var/run/openvswitch/ovnnb_db.sock"
+        DB_SB_SOCK="/usr/local/var/run/openvswitch/ovnsb_db.sock"
         local testcmd="test -e $DB_NB_SOCK -a -e $DB_SB_SOCK"
         test_with_retry "$testcmd" "nb ovsdb-server did not start" $SERVICE_TIMEOUT 1
         echo "done."
@@ -339,18 +335,14 @@ function start_ovn {
 
     if is_ovn_service_enabled ovn-northd ; then
 
-        DB_NB_SOCK="/usr/local/var/run/openvswitch/nb_db.sock"
-        DB_SB_SOCK="/usr/local/var/run/openvswitch/sb_db.sock"
-        OVN_NORTHD_PID="/usr/local/var/run/openvswitch/ovn-northd.pid"
 
-        run_process ovn-northd "ovn-northd --log-file=$LOGDIR/ovn-northd.log \
-             --ovnnb-db=unix:$DB_NB_SOCK --ovnsb-db=unix:$DB_SB_SOCK \
-             --pidfile=$OVN_NORTHD_PID"
+        run_process ovn-northd "ovn-northd --log-file=$LOGDIR/ovn-northd.log --pidfile"
 
         # This makes sure that the console logs have time stamps to
         # the millisecond, but we need to make sure ovs-appctl has
         # a pid file to work with, so ...
         echo -n "Waiting for ovn-northd to start ... "
+        OVN_NORTHD_PID="/usr/local/var/run/openvswitch/ovn-northd.pid"
         local testcmd="test -e $OVN_NORTH_PID"
         test_with_retry "$testcmd" "ovn-northd did not start" $SERVICE_TIMEOUT 1
         echo "done."
@@ -412,7 +404,7 @@ if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_servi
 
         # If not previously set by another process, set the OVN_*_DB
         # variables to enable OVN commands from any node.
-        grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_REMOTE\nexport OVN_SB_DB=$OVN_REMOTE" >> ~/.bash_profile
+        grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_NB_REMOTE\nexport OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
 
     fi
 
