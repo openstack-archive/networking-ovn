@@ -203,6 +203,9 @@ class OvsdbOvnIdl(ovn_api.API):
     def delete_acl(self, lswitch, lport, if_exists=True):
         return cmd.DelACLCommand(self, lswitch, lport, if_exists)
 
-    def update_acls(self, lswitch_names, port_list, acl_new_values_dict):
+    def update_acls(self, lswitch_names, port_list, acl_new_values_dict,
+                    need_compare=True, is_add_acl=True):
         return cmd.UpdateACLsCommand(self, lswitch_names,
-                                     port_list, acl_new_values_dict)
+                                     port_list, acl_new_values_dict,
+                                     need_compare=need_compare,
+                                     is_add_acl=is_add_acl)

@@ -16,6 +16,7 @@ from neutron.agent.ovsdb.native.commands import BaseCommand
 from neutron.agent.ovsdb.native import idlutils
 
 from networking_ovn._i18n import _
+from networking_ovn.common import utils
 
 
 class AddLSwitchCommand(BaseCommand):
@@ -366,7 +367,8 @@ class DelACLCommand(BaseCommand):
 
 
 class UpdateACLsCommand(BaseCommand):
-    def __init__(self, api, lswitch_names, port_list, acl_new_values_dict):
+    def __init__(self, api, lswitch_names, port_list, acl_new_values_dict,
+                 need_compare=True, is_add_acl=True):
         """This command updates the acl list for the logical switches
 
         @param lswitch_names: List of Logical Switch Names
@@ -375,12 +377,19 @@ class UpdateACLsCommand(BaseCommand):
         @type port_list: []
         @param acl_new_values_dict: Dictionary of acls indexed by port id
         @type acl_new_values_dict: {}
+        @need_compare: If acl_new_values_dict needs be compared with existing
+                       acls.
+        @type: Boolean.
+        @is_add_acl: If updating is caused by acl adding action.
+        @type: Boolean.
 
         """
         super(UpdateACLsCommand, self).__init__(api)
         self.lswitch_names = lswitch_names
         self.port_list = port_list
         self.acl_new_values_dict = acl_new_values_dict
+        self.need_compare = need_compare
+        self.is_add_acl = is_add_acl
 
     def _acl_list_sub(self, acl_list1, acl_list2):
         """Compute the elements in acl_list1 but not in acl_list2.
@@ -454,17 +463,53 @@ class UpdateACLsCommand(BaseCommand):
         for row in rows:
             acls.append(row.uuid)
 
+    def _get_update_data_without_compare(self):
+        lswitch_ovsdb_dict = {}
+        for switch_name in self.lswitch_names:
+            switch_name = utils.ovn_name(switch_name)
+            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
+                                            'name', switch_name)
+            lswitch_ovsdb_dict[switch_name] = lswitch
+        if self.is_add_acl:
+            acl_add_values_dict = {}
+            for port in self.port_list:
+                switch_name = utils.ovn_name(port['network_id'])
+                if switch_name not in acl_add_values_dict:
+                    acl_add_values_dict[switch_name] = []
+                acl_add_values_dict[switch_name].append(
+                    self.acl_new_values_dict[port['id']])
+            acl_del_objs_dict = {}
+        else:
+            acl_add_values_dict = {}
+            acl_del_objs_dict = {}
+            del_acl_matches = []
+            for acl_dict in self.acl_new_values_dict.values():
+                del_acl_matches.append(acl_dict['match'])
+            for switch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
+                if switch_name not in acl_del_objs_dict:
+                    acl_del_objs_dict[switch_name] = []
+                lswitch.verify('acls')
+                acls = getattr(lswitch, 'acls', [])
+                for acl in acls:
+                    if getattr(acl, 'match') in del_acl_matches:
+                        acl_del_objs_dict[switch_name].append(acl)
+        return lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict
+
     def run_idl(self, txn):
 
-        # Get all relevant ACLs in 1 shot
-        acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict = \
-            self.api.get_acls_for_lswitches(self.lswitch_names)
+        if self.need_compare:
+            # Get all relevant ACLs in 1 shot
+            acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict = \
+                self.api.get_acls_for_lswitches(self.lswitch_names)
 
-        # Compute the difference between the new and old set of ACLs
-        acl_del_objs_dict, acl_add_values_dict = \
-            self._compute_acl_differences(
-                self.port_list, acl_values_dict,
-                self.acl_new_values_dict, acl_obj_dict)
+            # Compute the difference between the new and old set of ACLs
+            acl_del_objs_dict, acl_add_values_dict = \
+                self._compute_acl_differences(
+                    self.port_list, acl_values_dict,
+                    self.acl_new_values_dict, acl_obj_dict)
+        else:
+            lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict = \
+                self._get_update_data_without_compare()
 
         for lswitch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
             lswitch.verify('acls')

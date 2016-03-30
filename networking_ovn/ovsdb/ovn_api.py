@@ -247,7 +247,8 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def update_acls(self, lswitch_names, port_list, acl_new_values_dict):
+    def update_acls(self, lswitch_names, port_list, acl_new_values_dict,
+                    need_compare=True, is_add_acl=True):
         """Update the list of acls on logical switches with new values.
 
         :param lswitch_names:         List of logical switch names
@@ -256,4 +257,9 @@ class API(object):
         :type port_list:              []
         :param acl_new_values_dict:   Dictionary of acls indexed by port id
         :type acl_new_values_dict:    {}
+        :param need_compare:          If acl_new_values_dict need compare
+                                      with existing acls
+        :type need_compare:           bool
+        :is_add_acl:                  If updating is caused by adding acl
+        :type is_add_acl:             bool
         """
