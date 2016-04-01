@@ -164,6 +164,8 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
 
         self.plugin.create_network_in_ovn = mock.Mock()
         self.plugin.create_port_in_ovn = mock.Mock()
+        self.plugin.qos_get_ovn_port_options = mock.Mock()
+        self.plugin.qos_get_ovn_port_options.return_value = mock.ANY
         self.plugin.get_ovn_port_options = mock.Mock()
         self.plugin.get_ovn_port_options.return_value = mock.ANY
         self.ovn_nb_sync.ovn_api.delete_lswitch = mock.Mock()

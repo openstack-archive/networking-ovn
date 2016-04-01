@@ -85,7 +85,10 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
     def _create_port_in_ovn(self, ctx, port):
         binding_profile = self.core_plugin.get_data_from_binding_profile(
             ctx, port)
+        qos_options = self.core_plugin.qos_get_ovn_port_options(
+            ctx, port)
         ovn_port_info = self.core_plugin.get_ovn_port_options(binding_profile,
+                                                              qos_options,
                                                               port)
         return self.core_plugin.create_port_in_ovn(ctx, port, ovn_port_info)
 
