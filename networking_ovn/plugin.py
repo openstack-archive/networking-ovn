@@ -236,7 +236,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     qos_policy.port_binding_model.policy_id == qos_policy.id)
                 for binding in port_bindings:
                     port = self.get_port(context, binding.port_id)
-                    qos_options = self._qos_get_ovn_port_options(
+                    qos_options = self.qos_get_ovn_port_options(
                         context, port)
 
                     binding_profile = self._get_data_from_binding_profile(
@@ -500,7 +500,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return updated_network
 
-    def _qos_get_ovn_port_options(self, context, port):
+    def qos_get_ovn_port_options(self, context, port):
         port_policy_id = port.get("qos_policy_id", None)
         nw_policy = qos_policy.QosPolicy.get_network_policy(
             context, port['network_id'])
@@ -591,7 +591,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                                  updated_port=updated_port)
             self.core_ext_handler.process_fields(
                 context, base_core.PORT, pdict, updated_port)
-            qos_options = self._qos_get_ovn_port_options(
+            qos_options = self.qos_get_ovn_port_options(
                 context, updated_port)
 
         ovn_port_info = self.get_ovn_port_options(binding_profile,
@@ -839,7 +839,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     port['port'].get(addr_pair.ADDRESS_PAIRS)))
             self._process_port_create_extra_dhcp_opts(context, db_port,
                                                       dhcp_opts)
-            qos_options = self._qos_get_ovn_port_options(
+            qos_options = self.qos_get_ovn_port_options(
                 context, db_port)
 
         # This extra lookup is necessary to get the latest db model
