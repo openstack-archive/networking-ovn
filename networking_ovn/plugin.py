@@ -221,19 +221,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             if hasattr(qos_policy, "rules"):
                 # rules updated
                 context = n_context.get_admin_context()
-                network_bindings = self._model_query(
-                    context,
-                    qos_policy.network_binding_model).filter(
-                    qos_policy.network_binding_model.policy_id ==
-                    qos_policy.id)
+                network_bindings = qos_policy.get_bound_networks()
                 for binding in network_bindings:
                     self._update_network_qos(
                         context, binding.network_id, qos_policy.id)
 
-                port_bindings = self._model_query(
-                    context,
-                    qos_policy.port_binding_model).filter(
-                    qos_policy.port_binding_model.policy_id == qos_policy.id)
+                port_bindings = qos_policy.get_bound_ports()
                 for binding in port_bindings:
                     port = self.get_port(context, binding.port_id)
                     qos_options = self.qos_get_ovn_port_options(
