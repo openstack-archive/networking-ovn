@@ -232,11 +232,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                     qos_options = self.qos_get_ovn_port_options(
                         context, port)
 
-                    binding_profile = self._get_data_from_binding_profile(
+                    binding_profile = self.get_data_from_binding_profile(
                         context, port)
-                    ovn_port_info = self._get_ovn_port_options(binding_profile,
-                                                               qos_options,
-                                                               port)
+                    ovn_port_info = self.get_ovn_port_options(binding_profile,
+                                                              qos_options,
+                                                              port)
                     self._update_port_in_ovn(context, port,
                                              port, ovn_port_info)
 
