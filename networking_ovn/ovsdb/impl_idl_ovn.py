@@ -15,6 +15,7 @@ import six
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import idlutils
+from neutron.common import utils as n_utils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
@@ -25,30 +26,40 @@ from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
 
 
-def get_connection(trigger=None):
+def get_ovn_idls(driver, trigger):
+    return OvsdbNbOvnIdl(driver, trigger), OvsdbSbOvnIdl(driver, trigger)
+
+
+def get_connection(db_class, trigger=None):
     # The trigger is the start() method of the NeutronWorker class
     if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
         cls = ovsdb_monitor.OvnConnection
     else:
         cls = connection.Connection
-    return cls(cfg.get_ovn_ovsdb_connection(),
-               cfg.get_ovn_ovsdb_timeout(), 'OVN_Northbound')
+
+    if db_class == OvsdbNbOvnIdl:
+        return cls(cfg.get_ovn_nb_connection(),
+                   cfg.get_ovn_ovsdb_timeout(), 'OVN_Northbound')
+    elif db_class == OvsdbSbOvnIdl:
+        return cls(cfg.get_ovn_sb_connection(),
+                   cfg.get_ovn_ovsdb_timeout(), 'OVN_Southbound')
 
 
-class OvsdbOvnIdl(ovn_api.API):
+class OvsdbNbOvnIdl(ovn_api.API):
 
     ovsdb_connection = None
 
     def __init__(self, driver, trigger=None):
-        super(OvsdbOvnIdl, self).__init__()
-        if OvsdbOvnIdl.ovsdb_connection is None:
-            OvsdbOvnIdl.ovsdb_connection = get_connection(trigger)
-        if isinstance(OvsdbOvnIdl.ovsdb_connection,
+        super(OvsdbNbOvnIdl, self).__init__()
+        if OvsdbNbOvnIdl.ovsdb_connection is None:
+            OvsdbNbOvnIdl.ovsdb_connection = get_connection(OvsdbNbOvnIdl,
+                                                            trigger)
+        if isinstance(OvsdbNbOvnIdl.ovsdb_connection,
                       ovsdb_monitor.OvnConnection):
-            OvsdbOvnIdl.ovsdb_connection.start(driver)
+            OvsdbNbOvnIdl.ovsdb_connection.start(driver)
         else:
-            OvsdbOvnIdl.ovsdb_connection.start()
-        self.idl = OvsdbOvnIdl.ovsdb_connection.idl
+            OvsdbNbOvnIdl.ovsdb_connection.start()
+        self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
         self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
     @property
@@ -57,7 +68,7 @@ class OvsdbOvnIdl(ovn_api.API):
 
     def transaction(self, check_error=False, log_errors=True, **kwargs):
         return impl_idl.Transaction(self,
-                                    OvsdbOvnIdl.ovsdb_connection,
+                                    OvsdbNbOvnIdl.ovsdb_connection,
                                     self.ovsdb_timeout,
                                     check_error, log_errors)
 
@@ -232,3 +243,29 @@ class OvsdbOvnIdl(ovn_api.API):
     def delete_static_route(self, lrouter, ip_prefix, nexthop, if_exists=True):
         return cmd.DelStaticRouteCommand(self, lrouter, ip_prefix, nexthop,
                                          if_exists)
+
+
+class OvsdbSbOvnIdl(ovn_api.SbAPI):
+
+    ovsdb_connection = None
+
+    def __init__(self, driver, trigger=None):
+        super(OvsdbSbOvnIdl, self).__init__()
+        if OvsdbSbOvnIdl.ovsdb_connection is None:
+            OvsdbSbOvnIdl.ovsdb_connection = get_connection(OvsdbSbOvnIdl,
+                                                            trigger)
+        if isinstance(OvsdbSbOvnIdl.ovsdb_connection,
+                      ovsdb_monitor.OvnConnection):
+            # We only need to know the content of Chassis in OVN_Southbound
+            OvsdbSbOvnIdl.ovsdb_connection.start(driver,
+                                                 table_name_list=['Chassis'])
+        self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
+        self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+
+    def get_chassis_hostname_and_physnets(self):
+        chassis_info_dict = {}
+        for ch in self.idl.tables['Chassis'].rows.values():
+            bridge_mappings = ch.external_ids.get('ovn-bridge-mappings', '')
+            mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
+            chassis_info_dict[ch.hostname] = mapping_dict.keys()
+        return chassis_info_dict

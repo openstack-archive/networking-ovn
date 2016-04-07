@@ -49,15 +49,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def __init__(self):
         LOG.info(_LI("Starting OVNL3RouterPlugin"))
         super(OVNL3RouterPlugin, self).__init__()
-        self._ovn_property = None
+        self._nb_ovn = None
         self._plugin_property = None
 
     @property
     def _ovn(self):
-        if self._ovn_property is None:
-            LOG.info(_LI("Getting OvsdbOvnIdl"))
-            self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self)
-        return self._ovn_property
+        if self._nb_ovn is None:
+            LOG.info(_LI("Getting OvsdbNbOvnIdl"))
+            self._nb_ovn = impl_idl_ovn.OvsdbNbOvnIdl(self)
+        return self._nb_ovn
 
     @property
     def _plugin(self):

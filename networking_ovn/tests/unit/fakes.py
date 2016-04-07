@@ -18,7 +18,7 @@ import six
 import uuid
 
 
-class FakeOvsdbOvnIdl(object):
+class FakeOvsdbNbOvnIdl(object):
 
     def __init__(self, **kwargs):
         def _fake(*args, **kwargs):

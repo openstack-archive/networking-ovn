@@ -17,7 +17,7 @@ worker (all these workers are separate processes).
 
 Api workers and rpc workers will create ovsdb idl client object
 ('ovs.db.idl.Idl') to connect to the OVN_Northbound db.
-See 'networking_ovn.ovsdb.impl_idl_ovn.OvsdbOvnIdl' and
+See 'networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl' and
 'neutron.agent.ovsdb.native.connection.Connection' classes for more details.
 
 Ovn worker will create 'networking_ovn.ovsdb.ovsdb_monitor.OvnIdl' class
@@ -27,8 +27,8 @@ ovsdb-server, 'notify' function of 'OVnIdl' is called by the parent class
 object.
 
 OvnIdl.notify() function passes the received events to the
-ovsdb_monitor.OvnNbNotifyHandler class.
-ovsdb_monitor.OvnNbNotifyHandler checks for any changes in
+ovsdb_monitor.OvnDbNotifyHandler class.
+ovsdb_monitor.OvnDbNotifyHandler checks for any changes in
 the 'Logical_Port.up' and updates the neutron port's status accordingly.
 
 If 'notify_nova_on_port_status_changes' configuration is set, then neutron
@@ -61,12 +61,21 @@ One thing to note is the ovn worker (with OvnIdl) do not carry out any
 transactions to the OVN Northbound db.
 
 Since the api and rpc workers are not configured with any locks,
-using the ovsdb lock on the OVN_Northbound by the ovn workers will not have
-any side effects to the transactions done by these api and rpc workers.
+using the ovsdb lock on the OVN_Northbound and OVN_Southbound DBs by the ovn
+workers will not have any side effects to the transactions done by these api
+and rpc workers.
 
 Handling port status changes when neutron server(s) are down
 ------------------------------------------------------------
 
 When neutron server starts, ovn worker would receive a dump of all
-logical ports as events. 'ovsdb_monitor.OvnNbNotifyHandler' would sync up
+logical ports as events. 'ovsdb_monitor.OvnDbNotifyHandler' would sync up
 if there are any inconsistencies in the port status.
+
+OVN Southbound DB Access
+------------------------
+
+The OVN Neutron ML2 driver has a need to acquire chassis information (hostname
+and physnets combinations). This is required initially to support routed
+networks. Thus, the plugin will initiate and maintain a connection to the OVN
+SB DB during startup.

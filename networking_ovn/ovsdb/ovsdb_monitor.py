@@ -33,6 +33,23 @@ from neutron import worker
 LOG = log.getLogger(__name__)
 
 
+class ChassisEvent(row_event.RowEvent):
+    """Chassis create update delete event."""
+
+    def __init__(self, driver):
+        self.driver = driver
+        table = 'Chassis'
+        events = (self.ROW_CREATE, self.ROW_UPDATE, self.ROW_DELETE)
+        super(ChassisEvent, self).__init__(events, table, None)
+        self.event_name = 'ChassisEvent'
+
+    def run(self, event, row, old):
+        # TODO(lizk): Need a follow-up patch to consume the Chassis
+        # row and event, for when Chasiss table content changes
+        # caused by nodes come and leave.
+        pass
+
+
 class LogicalPortCreateUpEvent(row_event.RowEvent):
     """Row create event - Logical_Port 'up' = True.
 
@@ -112,7 +129,7 @@ class LogicalPortUpdateDownEvent(row_event.RowEvent):
         self.driver.set_port_status_down(row.name)
 
 
-class OvnNbNotifyHandler(object):
+class OvnDbNotifyHandler(object):
 
     STOP_EVENT = ("STOP", None, None, None)
 
@@ -157,7 +174,7 @@ class OvnNbNotifyHandler(object):
                     pass
 
     def shutdown(self):
-        self.notifications.put(OvnNbNotifyHandler.STOP_EVENT)
+        self.notifications.put(OvnDbNotifyHandler.STOP_EVENT)
 
     def notify_loop(self):
         while True:
@@ -165,7 +182,7 @@ class OvnNbNotifyHandler(object):
                 match, event, row, updates = self.notifications.get()
                 if (not isinstance(match, row_event.RowEvent) and
                         (match, event, row, updates) == (
-                            OvnNbNotifyHandler.STOP_EVENT)):
+                            OvnDbNotifyHandler.STOP_EVENT)):
                     self.notifications.task_done()
                     break
                 match.run(event, row, updates)
@@ -188,16 +205,8 @@ class OvnIdl(idl.Idl):
 
     def __init__(self, driver, remote, schema):
         super(OvnIdl, self).__init__(remote, schema)
-        self._lp_update_up_event = LogicalPortUpdateUpEvent(driver)
-        self._lp_update_down_event = LogicalPortUpdateDownEvent(driver)
-        self._lp_create_up_event = LogicalPortCreateUpEvent(driver)
-        self._lp_create_down_event = LogicalPortCreateDownEvent(driver)
 
-        self.notify_handler = OvnNbNotifyHandler(driver)
-        self.notify_handler.watch_events([self._lp_create_up_event,
-                                          self._lp_create_down_event,
-                                          self._lp_update_up_event,
-                                          self._lp_update_down_event])
+        self.notify_handler = OvnDbNotifyHandler(driver)
         # ovsdb lock name to acquire.
         # This event lock is used to handle the notify events sent by idl.Idl
         # idl.Idl will call notify function for the "update" rpc method it
@@ -227,6 +236,25 @@ class OvnIdl(idl.Idl):
         LOG.debug("Have the event lock to handle the notify events")
         self.notify_handler.notify(event, row, updates)
 
+    def post_initialize(self, driver):
+        """Should be called after the idl has been initialized"""
+        pass
+
+
+class OvnNbIdl(OvnIdl):
+
+    def __init__(self, driver, remote, schema):
+        super(OvnNbIdl, self).__init__(driver, remote, schema)
+        self._lp_update_up_event = LogicalPortUpdateUpEvent(driver)
+        self._lp_update_down_event = LogicalPortUpdateDownEvent(driver)
+        self._lp_create_up_event = LogicalPortCreateUpEvent(driver)
+        self._lp_create_down_event = LogicalPortCreateDownEvent(driver)
+
+        self.notify_handler.watch_events([self._lp_create_up_event,
+                                          self._lp_create_down_event,
+                                          self._lp_update_up_event,
+                                          self._lp_update_down_event])
+
     def unwatch_logical_port_create_events(self):
         """Unwatch the logical port create events.
 
@@ -241,10 +269,39 @@ class OvnIdl(idl.Idl):
         self._lp_create_up_event = None
         self._lp_create_down_event = None
 
+    def post_initialize(self, driver):
+        self.unwatch_logical_port_create_events()
+
+
+class OvnSbIdl(OvnIdl):
+
+    def post_initialize(self, driver):
+        """Watch Chassis events.
+
+        When the ovs idl client connects to the ovsdb-server, it gets
+        a dump of all Chassis create event. We don't need to process them
+        because there will be sync up at startup. After that, we will watch
+        the events to make notify work.
+        """
+        self._chassis_event = ChassisEvent(driver)
+        self.notify_handler.watch_events([self._chassis_event])
+
 
 class OvnConnection(connection.Connection):
 
-    def start(self, driver):
+    def get_ovn_idl_cls(self):
+        """Get the ovn idl class
+
+        The connection might be for OVN_Southbound or OVN_Northbound. Return
+        different idl class according to the schema_name of connection.
+        """
+        if self.schema_name == 'OVN_Southbound':
+            return OvnSbIdl
+
+        # Return the ovn nb idl for the backward compatibility
+        return OvnNbIdl
+
+    def start(self, driver, table_name_list=None):
         # The implementation of this function is same as the base class start()
         # except that OvnIdl object is created instead of idl.Idl
         with self.lock:
@@ -266,14 +323,17 @@ class OvnConnection(connection.Connection):
                                                       self.schema_name)
                 helper = do_get_schema_helper()
 
-            helper.register_all()
-            self.idl = OvnIdl(driver, self.connection, helper)
+            if table_name_list is None:
+                helper.register_all()
+            else:
+                for table_name in table_name_list:
+                    helper.register_table(table_name)
+
+            idl_cls = self.get_ovn_idl_cls()
+            self.idl = idl_cls(driver, self.connection, helper)
             self.idl.set_lock(self.idl.event_lock_name)
             idlutils.wait_for_change(self.idl, self.timeout)
-            # We would have received the initial dump of all the logical
-            # ports as events by now. Unwatch the create events for
-            # logical ports as it is no longer necessary.
-            self.idl.unwatch_logical_port_create_events()
+            self.idl.post_initialize(driver)
             self.poller = poller.Poller()
             self.thread = threading.Thread(target=self.run)
             self.thread.setDaemon(True)

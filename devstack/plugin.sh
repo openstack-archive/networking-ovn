@@ -147,7 +147,8 @@ function configure_ovn_plugin {
                  print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3)')
         fi
         NEUTRON_CONF=/etc/neutron/neutron.conf
-        iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_NB_REMOTE"
+        iniset $NEUTRON_CONF ovn ovn_nb_connection "$OVN_NB_REMOTE"
+        iniset $NEUTRON_CONF ovn ovn_sb_connection "$OVN_SB_REMOTE"
         iniset $NEUTRON_CONF ovn ovn_l3_mode "$OVN_L3_MODE"
     fi
 

@@ -290,3 +290,14 @@ class API(object):
         :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
+
+
+@six.add_metaclass(abc.ABCMeta)
+class SbAPI(object):
+    @abc.abstractmethod
+    def get_chassis_hostname_and_physnets(self):
+        """Return a dict contains hostname and physnets mapping.
+
+        Hostname will be dict key, and a list of physnets will be dict
+        value. And hostname and physnets are related to the same host.
+        """
