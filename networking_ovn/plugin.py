@@ -273,7 +273,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             for net in nets:
                 self._extend_network_dict_provider(context, net)
 
-        return [self._fields(net, fields) for net in nets]
+        return (nets if not fields else
+                [self._fields(net, fields) for net in nets])
 
     def create_network(self, context, network):
         net = network['network']  # obviously..
