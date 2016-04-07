@@ -23,6 +23,7 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
 
 # Begin list of exclusions.
 r="^(?!.*"
@@ -33,30 +34,19 @@ r="$r(?:.*\[.*\bslow\b.*\])"
 # exclude things that aren't fully implemented yet in the OVN native L3 agent
 
 # NOTE: Re-enable floating ip tests once floating IPs are implemented
-# in OVN (bug 1514995).  This will require changes to
-# devstack install scripts to create a router and public network when
-# OVN native L3 agent is used.  Currently no router or public network
-# is created because the legacy L3 agent is disabled.
+# in OVN (bug 1514995).
 r="$r|(?:tempest\.api\.compute\.floating_ips.*)"
 r="$r|(?:tempest\.api\.network\.admin\.test_floating_ips_admin_actions.*)"
 r="$r|(?:tempest\.api\.network\.test_floating_ips.*)"
 r="$r|(?:tempest\.scenario\.test_minimum_basic.*)"
+r="$r|(?:tempest\.scenario\.test_network_advanced_server_ops.*)"
+r="$r|(?:tempest\.scenario\.test_network_basic_ops.*)"
+r="$r|(?:tempest\.scenario\.test_network_v6.*)"
+r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops.*)"
 r="$r|(?:tempest\.scenario\.test_shelve_instance.*)"
 r="$r|(?:tempest\.scenario\.test_snapshot_pattern.*)"
 r="$r|(?:tempest\.scenario\.test_stamp_pattern.*)"
 r="$r|(?:tempest\.scenario\.test_volume_boot_pattern.*)"
-
-# NOTE: Re-enable the following tests once the devstack install
-# scripts are changed to create a router and public network even
-# when the neutron L3 agent is not enabled (bug 1567068).  Currently no
-# router or public network is created because the legacy L3 agent is disabled.
-r="$r|(?:tempest\.api\.compute\.servers.*)"
-r="$r|(?:tempest\.api\.network\.admin\.test_external_networks_negative.*)"
-r="$r|(?:tempest\.api\.network\.test_routers\.RoutersIpV6Test.*)"
-r="$r|(?:tempest\.api\.network\.test_routers\.RoutersTest.*)"
-r="$r|(?:tempest\.scenario\.test_aggregates_basic_ops.*)"
-r="$r|(?:tempest\.scenario\.test_encrypted_cinder_volumes.*)"
-r="$r|(?:tempest\.scenario\.test_server_basic_ops.*)"
 
 # exclude things that just aren't enabled with OVN
 r="$r|(?:tempest\.api\.network\.admin\.test_l3_agent_scheduler.*)"
