@@ -82,6 +82,7 @@ ENABLE_ISOLATED_METADATA=True
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git
 #enable_service skydive-analyzer
+#enable_service skydive-agent
 
 # If you enable the DHCP agent, you can configure the availability
 # zone name (default is nova).
