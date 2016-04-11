@@ -12,7 +12,7 @@
 
 import os
 
-from neutron.common import constants as const
+from neutron_lib import constants as const
 
 
 def ovn_name(id):
