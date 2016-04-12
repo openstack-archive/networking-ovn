@@ -210,7 +210,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('index', 'NetworkinOVNReleaseNotes.tex',
+    ('index', 'NetworkingOVNReleaseNotes.tex',
      u'Networking OVN Release Notes Documentation',
      u'Networking OVN Developers', 'manual'),
 ]
@@ -256,7 +256,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'NetworkinOVNReleaseNotes',
+    ('index', 'NetworkingOVNReleaseNotes',
      u'Networking OVN Release Notes Documentation',
      u'Networking OVN Developers', 'NetworkingOVNReleaseNotes',
      'One line description of project.',
