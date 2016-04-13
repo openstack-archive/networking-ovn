@@ -83,9 +83,12 @@ OVS_BRANCH=$OVN_BRANCH
 # Utility Functions
 # -----------------
 
-# There are some ovs functions OVN depends on that must be sourced from these
+# There are some ovs functions OVN depends on that must be sourced from
+# the ovs neutron plugins. After doing this, the OVN overrides must be
+# re-sourced.
 source $TOP_DIR/lib/neutron_plugins/ovs_base
 source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
+source $NETWORKING_OVN_DIR/devstack/override-defaults
 
 function is_ovn_service_enabled {
     ovn_service=$1
@@ -384,9 +387,7 @@ function disable_libvirt_apparmor {
 # main loop
 if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
-        if [[ "$OFFLINE" != "True" ]]; then
-            install_ovn
-        fi
+        install_ovn
         configure_ovn
         init_ovn
         # We have to start at install time, because Neutron's post-config
