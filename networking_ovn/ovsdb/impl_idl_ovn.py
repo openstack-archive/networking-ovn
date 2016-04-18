@@ -127,6 +127,19 @@ class OvsdbOvnIdl(ovn_api.API):
                            'ports': ports})
         return result
 
+    def get_all_logical_routers_with_rports(self):
+        """Get logical Router ports associated with all logical Routers
+
+        @return: (lrouter_name, lrports)
+        """
+        result = []
+        for lrouter in self._tables['Logical_Router'].rows.values():
+            lrports = [lrport.name.replace('lrp-', '')
+                       for lrport in getattr(lrouter, 'ports', [])]
+            result.append({'name': lrouter.name.replace('neutron-', ''),
+                           'ports': lrports})
+        return result
+
     def get_acls_for_lswitches(self, lswitch_names):
         """Get the existing set of acls that belong to the logical switches
 
