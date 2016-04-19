@@ -18,6 +18,7 @@
 # NOTE(russellb) If you update this list, please also update
 # doc/source/features.rst.
 SUPPORTED_API_EXTENSIONS = [
+    'address-scope',
     'agent',
     'availability_zone',
     'binding',

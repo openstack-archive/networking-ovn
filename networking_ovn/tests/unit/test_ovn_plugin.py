@@ -34,6 +34,7 @@ from neutron.tests import tools
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.db import test_allowedaddresspairs_db as test_aap
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
+from neutron.tests.unit.extensions import test_address_scope as test_as
 from neutron.tests.unit.extensions import test_availability_zone as test_az
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
@@ -860,3 +861,11 @@ class TestOvnAllowedAddressPairs(test_aap.TestAllowedAddressPairs,
     def setUp(self, plugin=PLUGIN_NAME, ext_mgr=None):
         super(TestOvnAllowedAddressPairs, self).setUp(plugin=plugin,
                                                       ext_mgr=ext_mgr)
+
+
+class TestOvnAddressScope(test_as.TestAddressScope,
+                          OVNPluginTestCase):
+    def setUp(self, plugin=None):
+        ext_mgr = test_as.AddressScopeTestExtensionManager()
+        super(test_as.TestAddressScope, self).setUp(
+            plugin=PLUGIN_NAME, ext_mgr=ext_mgr)

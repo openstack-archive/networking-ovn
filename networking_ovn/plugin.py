@@ -40,6 +40,7 @@ from neutron.common import topics
 from neutron import context as n_context
 from neutron.core_extensions import base as base_core
 from neutron.core_extensions import qos as qos_core
+from neutron.db import address_scope_db
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
@@ -97,7 +98,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 agentschedulers_db.AZDhcpAgentSchedulerDbMixin,
                 netmtu_db.Netmtu_db_mixin,
                 ps_db_common.PortSecurityDbCommon,
-                addr_pair_db.AllowedAddressPairsMixin):
+                addr_pair_db.AllowedAddressPairsMixin,
+                address_scope_db.AddressScopeDbMixin):
 
     __native_bulk_support = True
     __native_pagination_support = True
