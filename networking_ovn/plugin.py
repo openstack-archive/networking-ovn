@@ -1258,13 +1258,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def create_router(self, context, router):
         router = super(OVNPlugin, self).create_router(
             context, router)
-        router_name = utils.ovn_name(router['id'])
-        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                        router.get('name', 'no_router_name')}
         try:
-            self._ovn.create_lrouter(router_name,
-                                     external_ids=external_ids
-                                     ).execute(check_error=True)
+            self.create_lrouter_in_ovn(router)
         except Exception:
             LOG.exception(_LE('Unable to create lrouter for %s'),
                           router['id'])
@@ -1272,6 +1267,21 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             raise n_exc.ServiceUnavailable()
 
         return router
+
+    def create_lrouter_in_ovn(self, router):
+        """Create lrouter in OVN
+
+        @param router: Router to be created in OVN
+        @return: Nothing
+        """
+
+        router_name = utils.ovn_name(router['id'])
+        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                        router.get('name', 'no_router_name')}
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.create_lrouter(router_name,
+                                             external_ids=external_ids
+                                             ))
 
     def delete_router(self, context, router_id):
         router_name = utils.ovn_name(router_id)
@@ -1301,16 +1311,13 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return result
 
-    def add_router_interface(self, context, router_id, interface_info):
-        router_interface_info = super(OVNPlugin, self).add_router_interface(
-            context, router_id, interface_info)
+    def create_lrouter_port_in_ovn(self, context, router_id, port):
+        """Create lrouter port in OVN
 
-        if not config.is_ovn_l3():
-            LOG.debug("OVN L3 mode is disabled, skipping "
-                      "add_router_interface")
-            return router_interface_info
-
-        port = self.get_port(context, router_interface_info['port_id'])
+        @param router id : LRouter ID for the port that needs to be created
+        @param port : LRouter port that needs to be created
+        @return: Nothing
+        """
         subnet_id = port['fixed_ips'][0]['subnet_id']
         subnet = self.get_subnet(context, subnet_id)
         lrouter = utils.ovn_name(router_id)
@@ -1327,6 +1334,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
             txn.add(self._ovn.set_lrouter_port_in_lport(port['id'],
                                                         lrouter_port_name))
+
+    def add_router_interface(self, context, router_id, interface_info):
+        router_interface_info = super(OVNPlugin, self).add_router_interface(
+            context, router_id, interface_info)
+
+        if not config.is_ovn_l3():
+            LOG.debug("OVN L3 mode is disabled, skipping "
+                      "add_router_interface")
+            return router_interface_info
+
+        port = self.get_port(context, router_interface_info['port_id'])
+        self.create_lrouter_port_in_ovn(context, router_id, port)
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):

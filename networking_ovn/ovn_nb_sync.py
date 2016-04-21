@@ -57,6 +57,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
         ctx = context.get_admin_context()
         self.sync_networks_and_ports(ctx)
         self.sync_acls(ctx)
+        self.sync_routers_and_rports(ctx)
 
     @staticmethod
     def _get_attribute(obj, attribute):
@@ -198,6 +199,95 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                 txn.add(self.ovn_api.delete_acl(aclr['lswitch'],
                                                 aclr['lport']))
         LOG.debug('ACL-SYNC: transaction finished @ %s' % str(datetime.now()))
+
+    def sync_routers_and_rports(self, ctx):
+        """Sync Routers between neutron and NB.
+
+        @param ctx: neutron context
+        @type  ctx: object of type neutron.context.Context
+        @var   db_routers: List of Routers from neutron DB
+        @var   db_router_ports: List of Router ports from neutron DB
+        @var   lrouters: NB dictionary of logical routers and
+               the corresponding logical router ports.
+               vs list-of-acls
+        @var   del_lrouters_list: List of Routers that need to be
+               deleted from NB
+        @var   del_lrouter_ports_list: List of Router ports that need to be
+               deleted from NB
+        @return: Nothing
+        """
+        LOG.debug('OVN-NB Sync Routers and Router ports started')
+        db_routers = {}
+        db_router_ports = {}
+        for router in self.core_plugin.get_routers(ctx):
+            db_routers[router['id']] = router
+
+        interfaces = self.core_plugin._get_sync_interfaces(ctx,
+                                                           db_routers.keys())
+        for interface in interfaces:
+            db_router_ports[interface['id']] = interface
+        lrouters = self.ovn_api.get_all_logical_routers_with_rports()
+        del_lrouters_list = []
+        del_lrouter_ports_list = []
+        for lrouter in lrouters:
+            if lrouter['name'] in db_routers:
+                for lrport in lrouter['ports']:
+                    if lrport in db_router_ports:
+                        del db_router_ports[lrport]
+                    else:
+                        del_lrouter_ports_list.append(
+                            {'port': lrport, 'lrouter': lrouter['name']})
+                del db_routers[lrouter['name']]
+            else:
+                del_lrouters_list.append(lrouter)
+
+        for r_id, router in db_routers.items():
+            LOG.warning(_LW("Router found in Neutron but not in "
+                            "OVN DB, router id=%s"), router['id'])
+            if self.mode == SYNC_MODE_REPAIR:
+                try:
+                    LOG.warning(_LW("Creating the router %s in OVN NB DB"),
+                                router['id'])
+                    self.core_plugin.create_lrouter_in_ovn(router)
+                except RuntimeError:
+                    LOG.warning(_LW("Create router in OVN NB failed for"
+                                    " router %s"), router['id'])
+
+        for rp_id, rrport in db_router_ports.items():
+            LOG.warning(_LW("Router Port found in Neutron but not in OVN "
+                            "DB, router port_id=%s"), rrport['id'])
+            if self.mode == SYNC_MODE_REPAIR:
+                try:
+                    LOG.warning(_LW("Creating the router port %s in "
+                                    "OVN NB DB"), rrport['id'])
+                    self.core_plugin.create_lrouter_port_in_ovn(
+                        ctx, rrport['device_id'], rrport)
+                except RuntimeError:
+                    LOG.warning(_LW("Create router port in OVN "
+                                    "NB failed for"
+                                    " router port %s"), rrport['id'])
+
+        with self.ovn_api.transaction(check_error=True) as txn:
+            for lrouter in del_lrouters_list:
+                LOG.warning(_LW("Router found in OVN but not in "
+                                "Neutron, router id=%s"), lrouter['name'])
+                if self.mode == SYNC_MODE_REPAIR:
+                    LOG.warning(_LW("Deleting the router %s from OVN NB DB"),
+                                lrouter['name'])
+                    txn.add(self.ovn_api.delete_lrouter(
+                            utils.ovn_name(lrouter['name'])))
+
+            for lrport_info in del_lrouter_ports_list:
+                LOG.warning(_LW("Router Port found in OVN but not in "
+                                "Neutron, port_id=%s"), lrport_info['port'])
+                if self.mode == SYNC_MODE_REPAIR:
+                    LOG.warning(_LW("Deleting the port %s from OVN NB DB"),
+                                lrport_info['port'])
+                    txn.add(self.ovn_api.delete_lrouter_port(
+                            utils.ovn_lrouter_port_name(lrport_info['port']),
+                            utils.ovn_name(lrport_info['lrouter']),
+                            if_exists=False))
+        LOG.debug('OVN-NB Sync routers and router ports finished')
 
     def sync_networks_and_ports(self, ctx):
         LOG.debug('OVN-NB Sync networks and ports started')
