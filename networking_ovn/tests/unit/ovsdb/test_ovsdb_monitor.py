@@ -18,11 +18,8 @@ import uuid
 
 from ovs.db import idl as ovs_idl
 
-from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.unit import test_ovn_plugin
-
-OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
 
 
 OVN_NB_SCHEMA = {
