@@ -16,11 +16,13 @@
 
 import copy
 import mock
+from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from oslo_utils import uuidutils
 import six
 from webob import exc
 
+from neutron.common import constants as n_const
 from neutron import context
 from neutron.core_extensions.qos import QosCoreResourceExtension
 from neutron.db.qos import api as qos_api
@@ -769,6 +771,32 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             expected_acls = {'neutron-lswitch-1': [acl1, acl2]}
             self.assertEqual(expected_acls, acl_del_dict)
             self.assertEqual({}, acl_add_dict)
+
+    def test__acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+        icmp = 'icmp6'
+        expected_match = ' && icmp6'
+
+        sg_rule['protocol'] = const.PROTO_NAME_ICMP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = const.PROTO_NUM_ICMP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = const.PROTO_NAME_IPV6_ICMP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = n_const.PROTO_NAME_IPV6_ICMP_LEGACY
+        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = const.PROTO_NUM_IPV6_ICMP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
 
 
 class TestOvnPluginL3(OVNPluginTestCase):
