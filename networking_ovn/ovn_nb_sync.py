@@ -164,7 +164,6 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
 
-        neutron_acls = []
         sg_ports_cache = {}
         subnet_cache = {}
         neutron_acls = {}
