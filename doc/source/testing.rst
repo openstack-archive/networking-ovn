@@ -385,19 +385,23 @@ controller node.
    .. code-block:: console
 
       # ovs-vsctl add-port br-int lport1 -- \
-      > set Interface lport1 external_ids:iface-id=IFACE_ID \
-      > type=internal
+        set Interface lport1 external_ids:iface-id=IFACE_ID \
+        type=internal
 
-   Replace ``IFACE_ID`` with the UUID of the neutron port.
+   Replace ``IFACE_ID`` with the UUID of the neutron port. Based on the example
+   output above, that would be ``92b4f192-7247-4ba0-88ad-40ce1d950e52``.
 
 #. Configure the MAC and IP address of the OVS port to use the same values as
    the neutron port in step 1 and bring it up.
 
    .. code-block:: console
 
-      # ip link set dev lport1 address fa:16:3e:23:6a:ab
+      # ip link set dev lport1 address MAC_ADDRESS
       # ip addr add 10.0.0.5/24 dev lport1
       # ip link set dev lport1 up
+
+   Replace ``MAC_ADDRESS`` with the mac address of the neutron port. Based on
+   the example output above, that would be ``fa:16:3e:23:6a:ab``.
 
 #. Verify connectivity from the host to an instance on the self-service
    network.
