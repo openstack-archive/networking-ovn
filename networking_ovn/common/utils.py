@@ -42,3 +42,11 @@ def ovn_vhu_sockpath(sock_dir, port_id):
         # this parameter will become the virtio port name,
         # so it should not exceed IFNAMSIZ(16).
         (const.VHOST_USER_DEVICE_PREFIX + port_id)[:14])
+
+
+def ovn_addrset_name(sg_id, ip_version):
+    # The name of the address set for the given security group id and ip
+    # version. The format is:
+    #   as-<ip version>-<security group uuid>
+    # with all '-' replaced with '_'.
+    return ('as-%s-%s' % (ip_version, sg_id)).replace('-', '_')

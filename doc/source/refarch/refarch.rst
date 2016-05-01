@@ -97,11 +97,13 @@ output in this section uses these commands with various output filters.
    $ ovn-nbctl list Logical_Switch
    $ ovn-nbctl list Logical_Switch_Port
    $ ovn-nbctl list ACL
+   $ ovn-nbctl list Address_Set
    $ ovn-nbctl list Logical_Router
    $ ovn-nbctl list Logical_Router_Port
 
    $ ovn-sbctl list Chassis
    $ ovn-sbctl list Encap
+   $ ovn-nbctl list Address_Set
    $ ovn-sbctl list Logical_Flow
    $ ovn-sbctl list Multicast_Group
    $ ovn-sbctl list Datapath_Binding
@@ -135,6 +137,51 @@ for the compute node.
    ip                  : "10.0.0.32"
    options             : {}
    type                : geneve
+
+Security Groups/Rules
+---------------------
+
+Each security group will map to 2 Address_Sets in the OVN NB and SB
+tables, one for ipv4 and another for ipv6, which will be used to hold ip
+addresses for the ports that belong to the security group, so that rules
+with remote_group_id can be efficiently applied.
+
+.. todo: add block with openstack security group rule example
+
+OVN operations
+^^^^^^^^^^^^^^
+
+#. Creating a security group will cause the OVN mechanism driver to create
+   2 new entries in the Address Set table of the northbound DB:
+
+   .. code-block:: console
+
+      _uuid               : 9a9d01bd-4afc-4d12-853a-cd21b547911d
+      addresses           : []
+      external_ids        : {"neutron:security_group_name"=default}
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
+
+      _uuid               : 27a91327-636e-4125-99f0-6f2937a3b6d8
+      addresses           : []
+      external_ids        : {"neutron:security_group_name"=default}
+      name                : "as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc"
+
+   In the above entries, the address set name include the protocol (IPv4
+   or IPv6, written as ip4 or ip6) and the uuid of the Openstack security
+   group, dashes translated to underscores.
+
+#. In turn, these new entries will be translated by the OVN northd daemon
+   into entries in the southbound DB:
+
+   .. code-block:: console
+
+      _uuid               : 886d7b3a-e460-470f-8af2-7c7d88ce45d2
+      addresses           : []
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
+
+      _uuid               : 355ddcba-941d-4f1c-b823-dc811cec59ca
+      addresses           : []
+      name                : "as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc"
 
 Networks
 --------

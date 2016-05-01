@@ -12,6 +12,8 @@
 #    under the License.
 #
 
+import netaddr
+
 from neutron_lib import constants as const
 from oslo_config import cfg
 
@@ -26,12 +28,9 @@ def is_sg_enabled():
 def acl_direction(r, port):
     if r['direction'] == 'ingress':
         portdir = 'outport'
-        remote_portdir = 'inport'
     else:
         portdir = 'inport'
-        remote_portdir = 'outport'
-    match = '%s == "%s"' % (portdir, port['id'])
-    return match, remote_portdir
+    return '%s == "%s"' % (portdir, port['id'])
 
 
 def acl_ethertype(r):
@@ -202,68 +201,20 @@ def _get_sg_from_cache(plugin, admin_context, sg_cache, sg_id):
         return sg
 
 
-def _acl_remote_match_ip(plugin, admin_context,
-                         sg_ports, subnet_cache,
-                         ip_version, src_or_dst):
-    ip_version_map = {'ip4': 4,
-                      'ip6': 6}
-    match = ''
-    port_ids = [sg_port['port_id'] for sg_port in sg_ports]
-    ports = plugin.get_ports(admin_context,
-                             filters={'id': port_ids})
-    for port in ports:
-        for fixed_ip in port['fixed_ips']:
-            subnet = _get_subnet_from_cache(plugin,
-                                            admin_context,
-                                            subnet_cache,
-                                            fixed_ip['subnet_id'])
-            if subnet['ip_version'] == ip_version_map.get(ip_version):
-                match += '%s.%s == %s || ' % (ip_version,
-                                              src_or_dst,
-                                              fixed_ip['ip_address'])
-
-    if match:
-        match = match[:-4]  # Remove the last ' || '
-        match = ' && (%s)' % match
-
-    return match
-
-
-def _acl_remote_group_id(plugin, admin_context, r,
-                         sg_ports_cache, subnet_cache,
-                         port, remote_portdir, ip_version):
+def acl_remote_group_id(r, ip_version):
     if not r['remote_group_id']:
-        return '', False
-    match = ''
-    sg_ports = _get_sg_ports_from_cache(plugin,
-                                        admin_context,
-                                        sg_ports_cache,
-                                        r['remote_group_id'])
-    sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
-    if not sg_ports:
-        # If there are no other ports on this security group, then this
-        # rule can never match, so no ACL row will be created for this
-        # rule.
-        return '', True
+        return ''
 
     src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-    remote_group_match = _acl_remote_match_ip(plugin,
-                                              admin_context,
-                                              sg_ports,
-                                              subnet_cache,
-                                              ip_version,
-                                              src_or_dst)
-
-    match += remote_group_match
-
-    return match, False
+    addrset_name = utils.ovn_addrset_name(r['remote_group_id'],
+                                          ip_version)
+    return ' && %s.%s == $%s' % (ip_version, src_or_dst, addrset_name)
 
 
-def _add_sg_rule_acl_for_port(plugin, admin_context, port, r,
-                              sg_ports_cache, subnet_cache):
+def _add_sg_rule_acl_for_port(port, r):
     # Update the match based on which direction this rule is for (ingress
     # or egress).
-    match, remote_portdir = acl_direction(r, port)
+    match = acl_direction(r, port)
 
     # Update the match for IPv4 vs IPv6.
     ip_match, ip_version, icmp = acl_ethertype(r)
@@ -272,20 +223,8 @@ def _add_sg_rule_acl_for_port(plugin, admin_context, port, r,
     # Update the match if an IPv4 or IPv6 prefix was specified.
     match += acl_remote_ip_prefix(r, ip_version)
 
-    group_match, empty_match = _acl_remote_group_id(plugin,
-                                                    admin_context,
-                                                    r,
-                                                    sg_ports_cache,
-                                                    subnet_cache,
-                                                    port,
-                                                    remote_portdir,
-                                                    ip_version)
-    if empty_match:
-        # If there are no other ports on this security group, then this
-        # rule can never match, so no ACL row will be created for this
-        # rule.
-        return None
-    match += group_match
+    # Update the match if remote group id was specified.
+    match += acl_remote_group_id(r, ip_version)
 
     # Update the match for the protocol (tcp, udp, icmp) and port/type
     # range if specified.
@@ -338,9 +277,7 @@ def update_acls_for_security_group(plugin,
     if rule:
         need_compare = False
         for port in port_list:
-            acl = _add_sg_rule_acl_for_port(
-                plugin, admin_context, port, rule,
-                sg_ports_cache, subnet_cache)
+            acl = _add_sg_rule_acl_for_port(port, rule)
             if acl:
                 # Remove lport and lswitch since we don't need them
                 acl.pop('lport')
@@ -352,7 +289,6 @@ def update_acls_for_security_group(plugin,
                                 admin_context,
                                 port,
                                 sg_cache,
-                                sg_ports_cache,
                                 subnet_cache)
             acl_new_values_dict[port['id']] = acls_new
 
@@ -363,8 +299,7 @@ def update_acls_for_security_group(plugin,
                     is_add_acl=is_add_acl).execute(check_error=True)
 
 
-def add_acls(plugin, admin_context, port, sg_cache,
-             sg_ports_cache, subnet_cache):
+def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
     acl_list = []
 
     # Skip ACLs if security groups aren't enabled
@@ -379,12 +314,12 @@ def add_acls(plugin, admin_context, port, sg_cache,
     acl_list += drop_all_ip_traffic_for_port(port)
 
     for ip in port['fixed_ips']:
+        if netaddr.IPNetwork(ip['ip_address']).version != 4:
+            continue
         subnet = _get_subnet_from_cache(plugin,
                                         admin_context,
                                         subnet_cache,
                                         ip['subnet_id'])
-        if subnet['ip_version'] != 4:
-            continue
         acl_list += add_acl_dhcp(port, subnet)
 
     # We create an ACL entry for each rule on each security group applied
@@ -395,41 +330,22 @@ def add_acls(plugin, admin_context, port, sg_cache,
                                 sg_cache,
                                 sg_id)
         for r in sg['security_group_rules']:
-            acl = _add_sg_rule_acl_for_port(plugin,
-                                            admin_context,
-                                            port, r,
-                                            sg_ports_cache,
-                                            subnet_cache)
+            acl = _add_sg_rule_acl_for_port(port, r)
             if acl and acl not in acl_list:
                 acl_list.append(acl)
 
     return acl_list
 
 
-def refresh_remote_security_group(plugin,
-                                  admin_context,
-                                  ovn,
-                                  sec_group,
-                                  sg_cache=None,
-                                  sg_ports_cache=None,
-                                  subnet_cache=None,
-                                  exclude_ports=None):
+def acl_port_ips(port):
     # Skip ACLs if security groups aren't enabled
     if not is_sg_enabled():
-        return
+        return {'ip4': [], 'ip6': []}
 
-    # For sec_group, refresh acls for all other security groups that have
-    # rules referencing sec_group as 'remote_group'.
-    filters = {'remote_group_id': [sec_group]}
-    refering_rules = plugin.get_security_group_rules(
-        admin_context, filters, fields=['security_group_id'])
-    sg_ids = set(r['security_group_id'] for r in refering_rules)
-    for sg_id in sg_ids:
-        update_acls_for_security_group(plugin,
-                                       admin_context,
-                                       ovn,
-                                       sg_id,
-                                       sg_cache,
-                                       sg_ports_cache,
-                                       subnet_cache,
-                                       exclude_ports)
+    ip_addresses = {4: [], 6: []}
+    for fixed_ip in port['fixed_ips']:
+        ip_version = netaddr.IPNetwork(fixed_ip['ip_address']).version
+        ip_addresses[ip_version].append(fixed_ip['ip_address'])
+
+    return {'ip4': ip_addresses[4],
+            'ip6': ip_addresses[6]}

@@ -16,6 +16,7 @@ import six
 OVN_NETWORK_NAME_EXT_ID_KEY = 'neutron:network_name'
 OVN_PORT_NAME_EXT_ID_KEY = 'neutron:port_name'
 OVN_ROUTER_NAME_EXT_ID_KEY = 'neutron:router_name'
+OVN_SG_NAME_EXT_ID_KEY = 'neutron:security_group_name'
 OVN_PHYSNET_EXT_ID_KEY = 'neutron:provnet-physical-network'
 OVN_NETTYPE_EXT_ID_KEY = 'neutron:provnet-network-type'
 OVN_SEGID_EXT_ID_KEY = 'neutron:provnet-segmentation-id'

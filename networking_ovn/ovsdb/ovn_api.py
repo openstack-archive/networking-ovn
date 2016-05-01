@@ -292,6 +292,47 @@ class API(object):
         :returns:            :class:`Command` with no result
         """
 
+    @abc.abstractmethod
+    def create_address_set(self, name, may_exist=True, **columns):
+        """Create an address set
+
+        :param name:        The name of the address set
+        :type name:         string
+        :param may_exist:   Do not fail if address set already exists
+        :type may_exist:    bool
+        :param columns:     Dictionary of address set columns
+                            Supported columns: external_ids, addresses
+        :type columns:      dictionary
+        :returns:           :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def delete_address_set(self, name, if_exists=True):
+        """Delete an address set
+
+        :param name:        The name of the address set
+        :type name:         string
+        :param if_exists:   Do not fail if the address set does not exist
+        :type if_exists:    bool
+        :returns:           :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def update_address_set(self, name, addrs_add, addrs_remove,
+                           if_exists=True):
+        """Updates addresses in an address set
+
+        :param name:            The name of the address set
+        :type name:             string
+        :param addrs_add:       The addresses to be added
+        :type addrs_add:        []
+        :param addrs_remove:    The addresses to be removed
+        :type addrs_remove:     []
+        :param if_exists:       Do not fail if the address set does not exist
+        :type if_exists:        bool
+        :returns:               :class:`Command` with no result
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):

@@ -149,7 +149,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                vs list-of-acls
         @var   nb_acls: NB dictionary of port
                vs list-of-acls
-        @var   sg_ports_cache: cache for sg_ports
         @var   subnet_cache: cache for subnets
         @return: Nothing
         """
@@ -160,7 +159,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             db_ports[port['id']] = port
 
         sg_cache = {}
-        sg_ports_cache = {}
         subnet_cache = {}
         neutron_acls = {}
         for port_id, port in db_ports.items():
@@ -171,7 +169,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                            ctx,
                                            port,
                                            sg_cache,
-                                           sg_ports_cache,
                                            subnet_cache))
                 else:
                     neutron_acls[port_id] = \
@@ -179,7 +176,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                            ctx,
                                            port,
                                            sg_cache,
-                                           sg_ports_cache,
                                            subnet_cache)
 
         nb_acls = self.get_acls(ctx)

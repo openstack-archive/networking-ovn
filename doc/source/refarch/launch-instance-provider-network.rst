@@ -68,6 +68,16 @@ launching an instance.
       type                : ""
       up                  : true
 
+#. The OVN mechanism driver updates the appropriate Address Set
+   entry with the address of this instance:
+
+   .. code-block:: console
+
+      _uuid               : d0becdea-e1ed-48c4-9afc-e278cdef4629
+      addresses           : ["203.0.113.103"]
+      external_ids        : {"neutron:security_group_name"=default}
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
+
 #. The OVN mechanism driver creates ACL entries for this port and
    any other ports in the project.
 
@@ -102,7 +112,7 @@ launching an instance.
       direction           : to-lport
       external_ids        : {"neutron:lport"="cafd4862-c69c-46e4-b3d2-6141ce06b205"}
       log                 : false
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src == 0.0.0.0/0 && icmp4"
+      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src = $as_ip4_90a78a43_b5649_4bee_8822_21fcccab58dc"
       priority            : 1002
 
       _uuid               : 36dbb1b1-cd30-4454-a0bf-923646eb7c3f
@@ -128,6 +138,14 @@ launching an instance.
       log                 : false
       match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip"
       priority            : 1001
+
+      _uuid               : 6d4db3cf-c1f1-4006-ad66-ae582a6acd21
+      action              : allow-related
+      direction           : to-lport
+      external_ids        : {"neutron:lport"="cafd4862-c69c-46e4-b3d2-6141ce06b205"}
+      log                 : false
+      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip6 && ip6.src = $as_ip6_90a78a43_b5649_4bee_8822_21fcccab58dc"
+      priority            : 1002
 
 #. The OVN mechanism driver updates the logical switch information with
    the UUIDs of these objects.
@@ -179,6 +197,15 @@ launching an instance.
                                cc5bcd19-bcae-4e29-8cee-3ec8a8a75d46,
                                e73e3fcd-316a-4418-bbd5-a8a42032b1c3]
         tunnel_key          : 65535
+
+#. The OVN northbound service translates the Address Set change into
+   the new Address Set in the OVN southbound database.
+
+   .. code-block:: console
+
+      _uuid               : 2addbee3-7084-4fff-8f7b-15b1efebdaff
+      addresses           : ["203.0.113.103"]
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
 
 #. The OVN northbound service translates the ACL and logical port objects
    into logical flows in the OVN southbound database.
@@ -374,11 +401,20 @@ launching an instance.
       priority            : 65535
       table_id            : 1
 
+      _uuid               : 9c23c6b1-567a-4cab-804f-c448c23fe9ad
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 1f4ced55-be6a-45ee-8abd-496c7c1194ae
+      match               : "ct.new && (outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip6 && ip6.src == $as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc)"
+      pipeline            : egress
+      priority            : 2002
+      table_id            : 1
+
       _uuid               : ace32153-664e-45fc-ae94-3a1ed7a1153a
       actions             : "ct_commit; next;"
       external_ids        : {stage-name=ls_out_acl}
       logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.new && (outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src == 0.0.0.0/0 && icmp4)"
+      match               : "ct.new && (outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc)"
       pipeline            : egress
       priority            : 2002
       table_id            : 1
