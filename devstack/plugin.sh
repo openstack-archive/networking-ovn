@@ -72,6 +72,14 @@ OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 # to 1500 bytes.
 OVN_NATIVE_MTU=${OVN_NATIVE_MTU:-1500}
 
+# If using OVN_L3_MODE, this sets whether to create a public network and bridge.
+# If set to True, a public network and subnet(s) will be created, and a router
+# will be created to route the default private network to the public one.
+# Can only be set to True if OVN_L3_MODE is being used (and not q-l3) and
+# NEUTRON_CREATE_INITIAL_NETWORKS is True (the default).  There are known issues
+# setting this to true in a multinode devstack setup
+OVN_L3_CREATE_PUBLIC_NETWORK=$(trueorfalse False OVN_L3_CREATE_PUBLIC_NETWORK)
+
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
@@ -89,6 +97,7 @@ OVS_BRANCH=$OVN_BRANCH
 source $TOP_DIR/lib/neutron_plugins/ovs_base
 source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
 source $NETWORKING_OVN_DIR/devstack/override-defaults
+source $NETWORKING_OVN_DIR/devstack/network_utils.sh
 
 function is_ovn_service_enabled {
     ovn_service=$1
@@ -384,6 +393,29 @@ function disable_libvirt_apparmor {
     sudo aa-complain /etc/apparmor.d/usr.sbin.libvirtd
 }
 
+function create_public_bridge {
+    # Create the public bridge that OVN will use
+    # This logic is based on the devstack neutron-legacy _neutron_configure_router_v4 and _v6
+    local ext_gw_ifc
+    ext_gw_ifc=$(get_ext_gw_interface)
+
+    sudo ovs-vsctl --may-exist add-br $ext_gw_ifc -- set bridge $ext_gw_ifc protocols=OpenFlow13
+    sudo ovs-vsctl set open . external-ids:ovn-bridge-mappings=provider:$ext_gw_ifc
+    if [ -n "$FLOATING_RANGE" ]; then
+        local cidr_len=${FLOATING_RANGE#*/}
+        sudo ip addr add $PUBLIC_NETWORK_GATEWAY/$cidr_len dev $ext_gw_ifc
+    fi
+
+    sudo sysctl -w net.ipv6.conf.all.forwarding=1
+    if [ -n "$IPV6_PUBLIC_RANGE" ]; then
+        local ipv6_cidr_len=${IPV6_PUBLIC_RANGE#*/}
+        sudo ip -6 addr add $IPV6_PUBLIC_NETWORK_GATEWAY/$ipv6_cidr_len dev $ext_gw_ifc
+        sudo ip -6 route replace $FIXED_RANGE_V6 via $IPV6_PUBLIC_NETWORK_GATEWAY dev $ext_gw_ifc
+    fi
+
+    sudo ip link set $ext_gw_ifc up
+}
+
 # main loop
 if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
@@ -407,6 +439,17 @@ if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_servi
         # variables to enable OVN commands from any node.
         grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_NB_REMOTE\nexport OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
 
+    elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
+        if [[ "$OVN_L3_CREATE_PUBLIC_NETWORK" == "True" ]]; then
+            if [[ "$NEUTRON_CREATE_INITIAL_NETWORKS" != "True" || "$OVN_L3_MODE" != "True" ]]; then
+                echo "OVN_L3_CREATE_PUBLIC_NETWORK=True is being ignored because either"
+                echo "NEUTRON_CREATE_INITIAL_NETWORKS or OVN_L3_MODE is set to False"
+            else
+                add_net_subnet_router
+                create_public_bridge
+                add_public_network_id_to_tempest_conf
+            fi
+        fi
     fi
 
     if [[ "$1" == "unstack" ]]; then
