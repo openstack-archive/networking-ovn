@@ -16,7 +16,7 @@
 # on external imports.
 
 # NOTE(russellb) If you update this list, please also update
-# doc/source/features.rst.
+# doc/source/features.rst and the current release note.
 SUPPORTED_API_EXTENSIONS = [
     'address-scope',
     'agent',

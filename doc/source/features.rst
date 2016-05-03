@@ -15,7 +15,7 @@ services:
 
   Native implementation or conventional layer-3 agent. The native
   implementation supports distributed routing. However, it currently lacks
-  support for NAT.
+  support for floating IP addresses and NAT.
 
 * DHCP
 

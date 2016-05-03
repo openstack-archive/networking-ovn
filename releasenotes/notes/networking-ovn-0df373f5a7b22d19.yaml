@@ -1,0 +1,34 @@
+---
+features:
+  - |
+    This is the initial release of OpenStack neutron integration with OVN.
+    OVN provides virtual networking for Open vSwitch and is a component of
+    the `Open vSwitch <http://openvswitch.org/>`_ project. The following
+    virtual networking features are available. Some features are provided
+    via a native OVN implementation or via a conventional neutron agent.
+
+    * Layer-2 switching (native OVN implementation)
+    * Layer-3 routing (native OVN implementation or conventional
+      neutron layer-3 agent) The native OVN implementation supports
+      distributed routing. However, it currently lacks support for
+      floating IP addresses and NAT.
+    * DHCP (conventional neuron DHCP agent)
+    * Metadata (conventional neutron metadata agent)
+    * DPDK - May be used with OVS using either the Linux kernel
+      datapath or the DPDK datapath.
+
+    The initial release also supports the following neutron API
+    extensions, ``agent``, ``Address Scopes``,
+    ``Allowed Address Pairs``, ``Auto Allocated Topology Services``,
+    ``Availability Zone``, ``DHCP Agent Scheduler``,
+    ``HA Router extension`` \* , ``L3 Agent Scheduler`` \*,
+    ``Network Availability Zone``, ``Network IP Availability``,
+    ``Neutron external network``, ``Neutron Extra DHCP opts``,
+    ``Neutron Extra Route``, ``Neutron L3 Router``,
+    ``Network MTU``, ``Port Binding``, ``Port Security``,
+    ``Provider Network``, ``Quality of Service``,
+    ``Quota management support``, ``RBAC Policies``,
+    ``security-group``, ``Subnet Allocation``,
+    ``Tag support`` and ``Time Stamp Fields``.
+
+    (\*) Only applicable when conventional neutron layer-3 agent enabled.
