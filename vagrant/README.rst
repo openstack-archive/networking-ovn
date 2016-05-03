@@ -40,7 +40,7 @@ Deployment
 ----------
 
 #. Install `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_ and
-   `Vagrant <http://downloads.vagrantup.com>`_.
+   `Vagrant <https://www.vagrantup.com/downloads.html>`_.
 
 #. Clone the ``networking-ovn`` repository into your home directory and
    change to the ``vagrant`` directory::
