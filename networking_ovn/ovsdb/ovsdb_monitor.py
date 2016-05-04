@@ -41,8 +41,8 @@ class LogicalPortCreateUpEvent(row_event.RowEvent):
     This event will not be generated for new ports getting created.
     """
 
-    def __init__(self, plugin):
-        self.plugin = plugin
+    def __init__(self, driver):
+        self.driver = driver
         table = 'Logical_Port'
         events = (self.ROW_CREATE)
         super(LogicalPortCreateUpEvent, self).__init__(
@@ -50,7 +50,7 @@ class LogicalPortCreateUpEvent(row_event.RowEvent):
         self.event_name = 'LogicalPortCreateUpEvent'
 
     def run(self, event, row, old):
-        self.plugin.set_port_status_up(row.name)
+        self.driver.set_port_status_up(row.name)
 
 
 class LogicalPortCreateDownEvent(row_event.RowEvent):
@@ -60,8 +60,8 @@ class LogicalPortCreateDownEvent(row_event.RowEvent):
     port that is up that has since been deactivated, we'll catch it here.
     This event will not be generated for new ports getting created.
     """
-    def __init__(self, plugin):
-        self.plugin = plugin
+    def __init__(self, driver):
+        self.driver = driver
         table = 'Logical_Port'
         events = (self.ROW_CREATE)
         super(LogicalPortCreateDownEvent, self).__init__(
@@ -69,7 +69,7 @@ class LogicalPortCreateDownEvent(row_event.RowEvent):
         self.event_name = 'LogicalPortCreateDownEvent'
 
     def run(self, event, row, old):
-        self.plugin.set_port_status_down(row.name)
+        self.driver.set_port_status_down(row.name)
 
 
 class LogicalPortUpdateUpEvent(row_event.RowEvent):
@@ -79,8 +79,8 @@ class LogicalPortUpdateUpEvent(row_event.RowEvent):
     New value of Logical_Port 'up' will be True and the old value will be
     False.
     """
-    def __init__(self, plugin):
-        self.plugin = plugin
+    def __init__(self, driver):
+        self.driver = driver
         table = 'Logical_Port'
         events = (self.ROW_UPDATE)
         super(LogicalPortUpdateUpEvent, self).__init__(
@@ -89,7 +89,7 @@ class LogicalPortUpdateUpEvent(row_event.RowEvent):
         self.event_name = 'LogicalPortUpdateUpEvent'
 
     def run(self, event, row, old):
-        self.plugin.set_port_status_up(row.name)
+        self.driver.set_port_status_up(row.name)
 
 
 class LogicalPortUpdateDownEvent(row_event.RowEvent):
@@ -99,8 +99,8 @@ class LogicalPortUpdateDownEvent(row_event.RowEvent):
     New value of Logical_Port 'up' will be False and the old value will be
     True.
     """
-    def __init__(self, plugin):
-        self.plugin = plugin
+    def __init__(self, driver):
+        self.driver = driver
         table = 'Logical_Port'
         events = (self.ROW_UPDATE)
         super(LogicalPortUpdateDownEvent, self).__init__(
@@ -109,15 +109,15 @@ class LogicalPortUpdateDownEvent(row_event.RowEvent):
         self.event_name = 'LogicalPortUpdateDownEvent'
 
     def run(self, event, row, old):
-        self.plugin.set_port_status_down(row.name)
+        self.driver.set_port_status_down(row.name)
 
 
 class OvnNbNotifyHandler(object):
 
     STOP_EVENT = ("STOP", None, None, None)
 
-    def __init__(self, plugin):
-        self.plugin = plugin
+    def __init__(self, driver):
+        self.driver = driver
         self.__watched_events = set()
         self.__lock = threading.Lock()
         self.notifications = Queue.Queue()
@@ -186,14 +186,14 @@ class OvnNbNotifyHandler(object):
 
 class OvnIdl(idl.Idl):
 
-    def __init__(self, plugin, remote, schema):
+    def __init__(self, driver, remote, schema):
         super(OvnIdl, self).__init__(remote, schema)
-        self._lp_update_up_event = LogicalPortUpdateUpEvent(plugin)
-        self._lp_update_down_event = LogicalPortUpdateDownEvent(plugin)
-        self._lp_create_up_event = LogicalPortCreateUpEvent(plugin)
-        self._lp_create_down_event = LogicalPortCreateDownEvent(plugin)
+        self._lp_update_up_event = LogicalPortUpdateUpEvent(driver)
+        self._lp_update_down_event = LogicalPortUpdateDownEvent(driver)
+        self._lp_create_up_event = LogicalPortCreateUpEvent(driver)
+        self._lp_create_down_event = LogicalPortCreateDownEvent(driver)
 
-        self.notify_handler = OvnNbNotifyHandler(plugin)
+        self.notify_handler = OvnNbNotifyHandler(driver)
         self.notify_handler.watch_events([self._lp_create_up_event,
                                           self._lp_create_down_event,
                                           self._lp_update_up_event,
@@ -244,7 +244,7 @@ class OvnIdl(idl.Idl):
 
 class OvnConnection(connection.Connection):
 
-    def start(self, plugin):
+    def start(self, driver):
         # The implementation of this function is same as the base class start()
         # except that OvnIdl object is created instead of idl.Idl
         with self.lock:
@@ -267,7 +267,7 @@ class OvnConnection(connection.Connection):
                 helper = do_get_schema_helper()
 
             helper.register_all()
-            self.idl = OvnIdl(plugin, self.connection, helper)
+            self.idl = OvnIdl(driver, self.connection, helper)
             self.idl.set_lock(self.idl.event_lock_name)
             idlutils.wait_for_change(self.idl, self.timeout)
             # We would have received the initial dump of all the logical
@@ -284,7 +284,7 @@ class OvnWorker(worker.NeutronWorker):
     def start(self):
         super(OvnWorker, self).start()
         # NOTE(twilson) The super class will trigger the post_fork_initialize
-        # in the plugin, which starts the connection/IDL notify loop which
+        # in the driver, which starts the connection/IDL notify loop which
         # keeps the process from exiting
 
     def stop(self):
