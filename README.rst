@@ -51,7 +51,7 @@ about OVN:
 
 These blog resources may also help with testing and understanding OVN:
 
-* http://galsagie.github.io//sdn/nfv/openstack/ovs/2015/11/23/ovn-l3-deepdive/
+* http://galsagie.github.io/2015/11/23/ovn-l3-deepdive/
 * http://blog.russellbryant.net/2015/10/22/openstack-security-groups-using-ovn-acls/
 * http://galsagie.github.io/sdn/openstack/ovs/2015/05/30/ovn-deep-dive/
 * http://blog.russellbryant.net/2015/05/14/an-ez-bake-ovn-for-openstack/
