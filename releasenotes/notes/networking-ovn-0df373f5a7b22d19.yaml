@@ -18,7 +18,7 @@ features:
       datapath or the DPDK datapath.
 
     The initial release also supports the following neutron API
-    extensions, ``agent``, ``Address Scopes``,
+    extensions, ``agent``, ``Address Scopes`` \*,
     ``Allowed Address Pairs``, ``Auto Allocated Topology Services``,
     ``Availability Zone``, ``DHCP Agent Scheduler``,
     ``HA Router extension`` \* , ``L3 Agent Scheduler`` \*,
