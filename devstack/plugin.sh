@@ -224,7 +224,7 @@ function install_ovn {
         install_neutron
     fi
 
-    setup_package $DEST/networking-ovn
+    setup_develop $DEST/networking-ovn
     # Install tox, used to generate the config (see devstack/override-defaults)
     pip_install tox
     source $NEUTRON_DIR/devstack/lib/ovs
