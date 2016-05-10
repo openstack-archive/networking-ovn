@@ -318,7 +318,7 @@ class TestQosOvnPlugin(OVNPluginTestCase):
 
     def _create_qos_bw_limit_rule(self, policy_id):
         ret = qos_rule.QosBandwidthLimitRule()
-        ret.id = 'rule-uuid'
+        ret.id = uuidutils.generate_uuid()
         ret.max_kbps = 50
         ret.max_burst_kbps = 500
         ret.obj_reset_changes()
