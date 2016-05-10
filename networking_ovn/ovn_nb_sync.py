@@ -13,9 +13,9 @@
 from datetime import datetime
 from eventlet import greenthread
 import itertools
+from neutron_lib import constants
 from oslo_log import log
 
-from neutron.api.v2 import attributes as attr
 from neutron import context
 from neutron.extensions import providernet as pnet
 
@@ -62,7 +62,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
     @staticmethod
     def _get_attribute(obj, attribute):
         res = obj.get(attribute)
-        if res is attr.ATTR_NOT_SPECIFIED:
+        if res is constants.ATTR_NOT_SPECIFIED:
             res = None
         return res
 
