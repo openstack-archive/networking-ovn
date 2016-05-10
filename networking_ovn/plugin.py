@@ -16,6 +16,7 @@ import collections
 import netaddr
 
 from neutron_lib import constants as const
+from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
@@ -34,7 +35,6 @@ from neutron.api.v2 import attributes as attr
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as n_context

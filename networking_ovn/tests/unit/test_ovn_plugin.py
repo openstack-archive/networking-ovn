@@ -16,11 +16,11 @@
 
 import copy
 import mock
+from neutron_lib import exceptions as n_exc
 from oslo_utils import uuidutils
 import six
 from webob import exc
 
-from neutron.common import exceptions as n_exc
 from neutron import context
 from neutron.core_extensions.qos import QosCoreResourceExtension
 from neutron.db.qos import api as qos_api
