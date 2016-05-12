@@ -19,6 +19,7 @@ from oslo_config import cfg
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
 from neutron.tests.unit.db import test_db_base_plugin_v2
+from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -41,7 +42,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                             'cidr': '10.0.0.1/24'}
         self.fake_router = {'id': 'router-id',
                             'name': 'router',
-                            'admin_state_up': False}
+                            'admin_state_up': False,
+                            'routes': [{'destination': '1.1.1.0/24',
+                                        'nexthop': '2.2.2.3'}]}
         mgr = manager.NeutronManager.get_instance()
         self.l3_plugin = mgr.get_service_plugins().get(
             service_constants.L3_ROUTER_NAT)
@@ -63,6 +66,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         ).start()
         mock.patch(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router',
+            return_value=self.fake_router
+        ).start()
+        mock.patch(
+            'neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.update_router',
             return_value=self.fake_router
         ).start()
 
@@ -123,6 +130,28 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id',
             external_ids={'neutron:router_name': 'test'})
 
+    @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
+    def test_update_router_static_route_no_change(self, func):
+        router_id = 'router-id'
+        update_data = {'router': {'routes': [{'destination': '1.1.1.0/24',
+                                              'nexthop': '2.2.2.3'}]}}
+        self.l3_plugin.update_router(self.context, router_id, update_data)
+        self.assertFalse(self.l3_plugin._ovn.add_static_route.called)
+        self.assertFalse(self.l3_plugin._ovn.delete_static_route.called)
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
+    def test_update_router_static_route_change(self, func):
+        router_id = 'router-id'
+        update_data = {'router': {'routes': [{'destination': '2.2.2.0/24',
+                                              'nexthop': '3.3.3.3'}]}}
+        self.l3_plugin.update_router(self.context, router_id, update_data)
+        self.l3_plugin._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id',
+            ip_prefix='2.2.2.0/24', nexthop='3.3.3.3')
+        self.l3_plugin._ovn.delete_static_route.assert_called_once_with(
+            'neutron-router-id',
+            ip_prefix='1.1.1.0/24', nexthop='2.2.2.3')
+
 
 class OVNL3BaseForTests(test_db_base_plugin_v2.NeutronDbPluginV2TestCase):
 
@@ -156,3 +185,26 @@ class OVNL3TestCase(OVNL3BaseForTests,
     # implement the update_port() method.
     def test_router_add_interface_port(self):
         pass
+
+
+class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
+                           test_extraroute.ExtraRouteDBTestCaseBase):
+
+    def setUp(self):
+        plugin = 'neutron.tests.unit.extensions.test_l3.TestNoL3NatPlugin'
+        l3_plugin = ('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin')
+        service_plugins = {'l3_plugin_name': l3_plugin}
+        # For these tests we need to enable overlapping ips
+        cfg.CONF.set_default('allow_overlapping_ips', True)
+        cfg.CONF.set_default('max_routes', 3)
+        ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
+        impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
+        super(test_l3.L3BaseForIntTests, self).setUp(
+            plugin=plugin, ext_mgr=ext_mgr,
+            service_plugins=service_plugins)
+        patcher = mock.patch(
+            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
+            new_callable=mock.PropertyMock,
+            return_value=fakes.FakeOvsdbOvnIdl())
+        patcher.start()
+        self.setup_notification_driver()

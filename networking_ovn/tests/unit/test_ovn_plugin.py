@@ -769,7 +769,9 @@ class TestOvnPluginL3(OVNPluginTestCase):
 
         self.fake_router = {'id': 'router-id',
                             'name': 'router',
-                            'admin_state_up': False}
+                            'admin_state_up': False,
+                            'routes': [{'destination': '1.1.1.0/24',
+                                        'nexthop': '2.2.2.3'}]}
 
     @mock.patch('neutron.db.l3_dvr_db.L3_NAT_with_dvr_db_mixin.'
                 'add_router_interface')
@@ -857,6 +859,36 @@ class TestOvnPluginL3(OVNPluginTestCase):
         self.plugin._ovn.update_lrouter.assert_called_once_with(
             'neutron-router-id',
             external_ids={'neutron:router_name': 'test'})
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
+    def test_update_router_static_route_no_change(self, func):
+        router_id = 'router-id'
+        update_data = {'router': {'routes': [{'destination': '1.1.1.0/24',
+                                              'nexthop': '2.2.2.3'}]}}
+        with mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.'
+                        'get_router', return_value=self.fake_router),\
+            mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                       'update_router', return_value=self.fake_router):
+            self.plugin.update_router(self.context, router_id, update_data)
+        self.assertFalse(self.plugin._ovn.add_static_route.called)
+        self.assertFalse(self.plugin._ovn.delete_static_route.called)
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
+    def test_update_router_static_route_change(self, func):
+        router_id = 'router-id'
+        update_data = {'router': {'routes': [{'destination': '2.2.2.0/24',
+                                              'nexthop': '3.3.3.3'}]}}
+        with mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.'
+                        'get_router', return_value=self.fake_router),\
+            mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                       'update_router', return_value=self.fake_router):
+            self.plugin.update_router(self.context, router_id, update_data)
+        self.plugin._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id',
+            ip_prefix='2.2.2.0/24', nexthop='3.3.3.3')
+        self.plugin._ovn.delete_static_route.assert_called_once_with(
+            'neutron-router-id',
+            ip_prefix='1.1.1.0/24', nexthop='2.2.2.3')
 
 
 class TestL3NatTestCase(test_l3_plugin.L3NatDBIntTestCase,

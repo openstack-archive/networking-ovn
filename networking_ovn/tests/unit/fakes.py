@@ -40,3 +40,5 @@ class FakeOvsdbOvnIdl(object):
         self.delete_acl = mock.Mock()
         self.update_acls = mock.Mock()
         self.idl = mock.Mock()
+        self.add_static_route = mock.Mock()
+        self.delete_static_route = mock.Mock()

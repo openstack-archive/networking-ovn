@@ -38,6 +38,7 @@ from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
+from neutron.common import utils as n_utils
 from neutron import context as n_context
 from neutron.core_extensions import base as base_core
 from neutron.core_extensions import qos as qos_core
@@ -1229,6 +1230,9 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             context, id, router)
 
         update = {}
+        added = []
+        removed = []
+        router_name = utils.ovn_name(id)
         if 'admin_state_up' in router['router']:
             enabled = router['router']['admin_state_up']
             if enabled != original_router['admin_state_up']:
@@ -1240,11 +1244,28 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                                 router['router']['name']}
                 update['external_ids'] = external_ids
 
-        if update:
-            router_name = utils.ovn_name(id)
+        """ Update static routes """
+        if 'routes' in router['router']:
+            routes = router['router']['routes']
+            added, removed = n_utils.diff_list_of_dict(
+                original_router['routes'], routes)
+
+        if update or added or removed:
             try:
-                self._ovn.update_lrouter(router_name, **update
-                                         ).execute(check_error=True)
+                with self._ovn.transaction(check_error=True) as txn:
+                    if update:
+                        txn.add(self._ovn.update_lrouter(router_name,
+                                **update))
+
+                    for route in added:
+                        txn.add(self._ovn.add_static_route(router_name,
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
+
+                    for route in removed:
+                        txn.add(self._ovn.delete_static_route(router_name,
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
             except Exception:
                 LOG.exception(_LE('Unable to update lrouter for %s'), id)
                 super(OVNPlugin, self).update_router(context,

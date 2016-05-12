@@ -526,3 +526,57 @@ class UpdateACLsCommand(BaseCommand):
                 self._add_acls(txn, acls, acl_add_values)
 
             setattr(lswitch, 'acls', acls)
+
+
+class AddStaticRouteCommand(BaseCommand):
+    def __init__(self, api, lrouter, **columns):
+        super(AddStaticRouteCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        row = txn.insert(self.api._tables['Logical_Router_Static_Route'])
+        for col, val in self.columns.items():
+            setattr(row, col, val)
+        lrouter.verify('static_routes')
+        static_routes = getattr(lrouter, 'static_routes', [])
+        static_routes.append(row.uuid)
+        setattr(lrouter, 'static_routes', static_routes)
+
+
+class DelStaticRouteCommand(BaseCommand):
+    def __init__(self, api, lrouter, ip_prefix, nexthop, if_exists):
+        super(DelStaticRouteCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.ip_prefix = ip_prefix
+        self.nexthop = nexthop
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        lrouter.verify('static_routes')
+
+        static_routes = getattr(lrouter, 'static_routes', [])
+        for route in static_routes:
+            ip_prefix = getattr(route, 'ip_prefix', '')
+            nexthop = getattr(route, 'nexthop', '')
+            if self.ip_prefix == ip_prefix and self.nexthop == nexthop:
+                static_routes.remove(route)
+                route.delete()
+                break
+        setattr(lrouter, 'static_routes', static_routes)

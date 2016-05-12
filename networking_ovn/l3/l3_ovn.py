@@ -14,11 +14,12 @@
 
 import netaddr
 
+from neutron.common import utils as n_utils
 from neutron_lib import exceptions as n_exc
 from oslo_log import log
 
 from neutron.db import common_db_mixin
-from neutron.db import l3_db
+from neutron.db import extraroute_db
 from neutron import manager
 from neutron.plugins.common import constants
 from neutron.services import service_base
@@ -35,7 +36,7 @@ LOG = log.getLogger(__name__)
 
 class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         common_db_mixin.CommonDbMixin,
-                        l3_db.L3_NAT_db_mixin):
+                        extraroute_db.ExtraRoute_db_mixin):
     """Implementation of the OVN L3 Router Service Plugin.
 
     This class implements a L3 service plugin that provides
@@ -108,6 +109,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             context, id, router)
 
         update = {}
+        added = []
+        removed = []
+        router_name = utils.ovn_name(id)
         if 'admin_state_up' in router['router']:
             enabled = router['router']['admin_state_up']
             if enabled != original_router['admin_state_up']:
@@ -119,11 +123,28 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                 router['router']['name']}
                 update['external_ids'] = external_ids
 
-        if update:
-            router_name = utils.ovn_name(id)
+        """ Update static routes """
+        if 'routes' in router['router']:
+            routes = router['router']['routes']
+            added, removed = n_utils.diff_list_of_dict(
+                original_router['routes'], routes)
+
+        if update or added or removed:
             try:
-                self._ovn.update_lrouter(router_name, **update
-                                         ).execute(check_error=True)
+                with self._ovn.transaction(check_error=True) as txn:
+                    if update:
+                        txn.add(self._ovn.update_lrouter(router_name,
+                                **update))
+
+                    for route in added:
+                        txn.add(self._ovn.add_static_route(router_name,
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
+
+                    for route in removed:
+                        txn.add(self._ovn.delete_static_route(router_name,
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
             except Exception:
                 LOG.exception(_LE('Unable to update lrouter for %s'), id)
                 super(OVNL3RouterPlugin, self).update_router(context,

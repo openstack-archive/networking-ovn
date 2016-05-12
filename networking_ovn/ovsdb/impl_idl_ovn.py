@@ -222,3 +222,10 @@ class OvsdbOvnIdl(ovn_api.API):
                                      port_list, acl_new_values_dict,
                                      need_compare=need_compare,
                                      is_add_acl=is_add_acl)
+
+    def add_static_route(self, lrouter, **columns):
+        return cmd.AddStaticRouteCommand(self, lrouter, **columns)
+
+    def delete_static_route(self, lrouter, ip_prefix, nexthop, if_exists=True):
+        return cmd.DelStaticRouteCommand(self, lrouter, ip_prefix, nexthop,
+                                         if_exists)
