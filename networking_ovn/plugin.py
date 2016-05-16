@@ -1279,9 +1279,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         router_name = utils.ovn_name(router['id'])
         external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
                         router.get('name', 'no_router_name')}
+        enabled = router.get('admin_state_up')
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.create_lrouter(router_name,
-                                             external_ids=external_ids
+                                             external_ids=external_ids,
+                                             enabled=enabled
                                              ))
 
     def delete_router(self, context, router_id):
@@ -1295,13 +1297,23 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         original_router = self.get_router(context, id)
         result = super(OVNPlugin, self).update_router(
             context, id, router)
+
+        update = {}
+        if 'admin_state_up' in router['router']:
+            enabled = router['router']['admin_state_up']
+            if enabled != original_router['admin_state_up']:
+                update['enabled'] = enabled
+
         if 'name' in router['router']:
+            if router['router']['name'] != original_router['name']:
+                external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                                router['router']['name']}
+                update['external_ids'] = external_ids
+
+        if update:
             router_name = utils.ovn_name(id)
-            external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                            router['router']['name']}
             try:
-                self._ovn.update_lrouter(router_name,
-                                         external_ids=external_ids
+                self._ovn.update_lrouter(router_name, **update
                                          ).execute(check_error=True)
             except Exception:
                 LOG.exception(_LE('Unable to update lrouter for %s'), id)
