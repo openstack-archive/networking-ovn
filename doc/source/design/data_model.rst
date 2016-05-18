@@ -1,7 +1,7 @@
 Mapping between Neutron and OVN data models
 ========================================================
 
-The primary job of the Neutron OVN core plugin is to translate requests for
+The primary job of the Neutron OVN ML2 driver is to translate requests for
 resources into OVN's data model.  Resources are created in OVN by updating the
 appropriate tables in the OVN northbound database (an ovsdb database).  This
 document looks at the mappings between the data that exists in Neutron and what

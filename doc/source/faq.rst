@@ -4,13 +4,6 @@
 FAQ
 ===
 
-**Q: Why does networking-ovn implement a Neutron core plugin instead of a ML2
-mechanism driver?**
-
-The primary benefit of using ML2 is to support multiple mechanism drivers.  OVN
-does not currently support a deployment model that would benefit from the use
-of ML2.
-
 **Q: Does OVN support DVR or distributed L3 routing?**
 
 DVR (Distributed Virtual Router) is typically used to refer to a specific
@@ -33,8 +26,8 @@ overlays for that purpose.
 **Q: What's the status of HA for networking-ovn and OVN?**
 
 Typically, multiple copies of neutron-server are run across multiple servers
-and uses a load balancer.  The neutron plugin provided by networking-ovn
-supports this deployment model.  In addition, multiple copies of
+and uses a load balancer.  The neutron ML2 mechanism driver provided by
+networking-ovn supports this deployment model.  In addition, multiple copies of
 neutron-dhcp-agent and neutron-metadata-agent can be run with the option of
 configuring neutron-dhcp-agent availability zones.
 

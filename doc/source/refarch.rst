@@ -22,7 +22,7 @@ functionality to launch basic instances:
 * Identity service
 * Image service
 * Compute management (control plane)
-* Networking management with OVN plug-in (control plane)
+* Networking management with OVN ML2 driver (control plane)
 
 The database node contains the following components:
 

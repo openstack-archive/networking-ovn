@@ -16,10 +16,6 @@ SERVICE_PASSWORD=password
 SERVICE_TOKEN=password
 ADMIN_PASSWORD=password
 
-# The OVN plugin is currently in the process of switching to the ML2
-# framework. In order to setup the plugin using ml2 set:
-# Q_PLUGIN="ml2"
-
 # The DevStack plugin defaults to using the ovn branch from the official ovs
 # repo.  You can optionally use a different one.  For example, you may want to
 # use the latest patches in blp's ovn branch:

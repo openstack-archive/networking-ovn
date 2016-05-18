@@ -45,11 +45,19 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Availability Zone                | availability_zone         |
 +----------------------------------+---------------------------+
+| Default Subnetpools              | default-subnetpools       |
++----------------------------------+---------------------------+
 | DHCP Agent Scheduler             | dhcp_agent_scheduler      |
++----------------------------------+---------------------------+
+| Distributed Virtual Router *     | dvr                       |
++----------------------------------+---------------------------+
+| DNS Integration *                | dns-integration           |
 +----------------------------------+---------------------------+
 | HA Router extension *            | l3-ha                     |
 +----------------------------------+---------------------------+
 | L3 Agent Scheduler *             | l3_agent_scheduler        |
++----------------------------------+---------------------------+
+| Multi Provider Network           | multi-provider            |
 +----------------------------------+---------------------------+
 | Network Availability Zone        | network_availability_zone |
 +----------------------------------+---------------------------+
@@ -60,6 +68,8 @@ The following Neutron API extensions are supported with OVN:
 | Neutron Extra DHCP opts          | extra_dhcp_opt            |
 +----------------------------------+---------------------------+
 | Neutron Extra Route              | extraroute                |
++----------------------------------+---------------------------+
+| Neutron L3 external gateway *    | ext-gw-mode               |
 +----------------------------------+---------------------------+
 | Neutron L3 Router                | router                    |
 +----------------------------------+---------------------------+
@@ -77,7 +87,11 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | RBAC Policies                    | rbac-policies             |
 +----------------------------------+---------------------------+
+| Router Availability Zone *       | router_availability_zone  |
++----------------------------------+---------------------------+
 | security-group                   | security-group            |
++----------------------------------+---------------------------+
+| standard-attr-description        | standard-attr-description |
 +----------------------------------+---------------------------+
 | Subnet Allocation                | subnet_allocation         |
 +----------------------------------+---------------------------+

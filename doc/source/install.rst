@@ -108,6 +108,7 @@ primary node. See the :ref:`faq` for more information.
       # /usr/share/openvswitch/scripts/ovn-ctl start_northd
 
    Options for *start_northd*:
+
    .. code-block:: console
 
       # /usr/share/openvswitch/scripts/ovn-ctl start_northd --help
@@ -119,25 +120,16 @@ primary node. See the :ref:`faq` for more information.
       # ...
 
 #. Configure the Networking server component. The Networking service
-   implements OVN as a core plug-in similar to ML2. Edit the
-   ``/etc/neutron/neutron.conf`` file:
+   implements OVN as an ML2 driver. Edit the ``/etc/neutron/neutron.conf``
+   file:
 
-   * Enable the OVN core plug-in and disable any service plug-ins.
+   * Enable the ML2 core plug-in.
 
      .. code-block:: ini
 
         [DEFAULT]
         ...
-        core_plugin = networking_ovn.plugin.OVNPlugin
-        service_plugins = qos
-
-     .. note::
-
-        Disabling any service plug-ins applies to deployments using
-        the OVN native layer-3 service or conventional layer-3 agent.
-
-#. Configure the OVN plug-in. Edit the
-   ``/etc/neutron/plugins/networking-ovn/networking-ovn.ini`` file:
+        core_plugin = neutron.plugins.ml2.plugin.Ml2Plugin
 
    * Configure OVS database access.
 
@@ -150,9 +142,23 @@ primary node. See the :ref:`faq` for more information.
      Replace ``IP_ADDRESS`` with the IP address of the controller node
      that runs the ``ovsdb-server`` service.
 
+   * If the QoS service is enabled then you also need to enable the OVN QoS
+     notification driver.
+
+     .. code-block:: ini
+
+        [qos]
+        ...
+        notification_drivers = ovn-qos
+
    * (Optional) Enable native layer-3 services.
 
      .. code-block:: ini
+
+        [DEFAULT]
+        ...
+        service_plugins = networking_ovn.l3.l3_ovn.OVNL3RouterPlugin
+        ...
 
         [ovn]
         ...
@@ -161,6 +167,34 @@ primary node. See the :ref:`faq` for more information.
      .. note::
 
         See :ref:`features` and :ref:`faq` for more information.
+
+   * (Optional) Enable conventional layer-3 agent.
+
+     .. code-block:: ini
+
+        [DEFAULT]
+        ...
+        service_plugins = neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
+        ...
+
+        [ovn]
+        ...
+        ovn_l3_mode = False
+
+     .. note::
+
+        See :ref:`features` and :ref:`faq` for more information.
+
+#. Configure the OVN ML2 driver. Edit the
+   ``/etc/neutron/plugins/ml2/ml2_conf.ini`` file:
+
+   * Enable the OVN ML2 driver.
+
+     .. code-block:: ini
+
+        [ml2]
+        ...
+        mechanism_drivers = ovn
 
 #. Start the ``neutron-server`` service.
 

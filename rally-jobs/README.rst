@@ -15,7 +15,7 @@ Structure
   Files will be located in ~/.rally/extra/*
 
 * ovn.yaml is a task that is run in gates against OpenStack with
-  Neutron service configured with OVN plugin
+  Neutron service configured with OVN ML2 driver
 
 Useful links
 ------------

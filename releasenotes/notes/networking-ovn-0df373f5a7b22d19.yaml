@@ -20,15 +20,20 @@ features:
     The initial release also supports the following neutron API
     extensions, ``agent``, ``Address Scopes`` \*,
     ``Allowed Address Pairs``, ``Auto Allocated Topology Services``,
-    ``Availability Zone``, ``DHCP Agent Scheduler``,
-    ``HA Router extension`` \* , ``L3 Agent Scheduler`` \*,
+    ``Availability Zone``, ``Default Subnetpools``,
+    ``DHCP Agent Scheduler``, ``Distributed Virtual Router`` \*,
+    ``DNS Integration`` \*, ``HA Router extension`` \*,
+    ``L3 Agent Scheduler`` \*, ``Multi Provider Network``,
     ``Network Availability Zone``, ``Network IP Availability``,
     ``Neutron external network``, ``Neutron Extra DHCP opts``,
-    ``Neutron Extra Route``, ``Neutron L3 Router``,
+    ``Neutron Extra Route``,
+    ``Neutron L3 Configurable external gateway mode`` \*,
+    ``Neutron L3 Router``,
     ``Network MTU``, ``Port Binding``, ``Port Security``,
     ``Provider Network``, ``Quality of Service``,
     ``Quota management support``, ``RBAC Policies``,
-    ``security-group``, ``Subnet Allocation``,
+    ``Router Availability Zone`` \*, ``security-group``,
+    ``standard-attr-description``, ``Subnet Allocation``,
     ``Tag support`` and ``Time Stamp Fields``.
 
     (\*) Only applicable when conventional neutron layer-3 agent enabled.

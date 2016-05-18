@@ -91,6 +91,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     @property
     def _ovn(self):
         if self._ovn_property is None:
+            # TODO(rtheis): This is required for neutron L3 agent callbacks.
+            # These callbacks are not run in a child process and thus don't
+            # have post_fork_initialize() called. Investigate why this occurs
+            # and if anything can be done to fix this.
             LOG.info(_LI("Getting OvsdbOvnIdl"))
             self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self)
         return self._ovn_property
