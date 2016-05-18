@@ -39,13 +39,13 @@ class OvsdbOvnIdl(ovn_api.API):
 
     ovsdb_connection = None
 
-    def __init__(self, plugin, trigger=None):
+    def __init__(self, driver, trigger=None):
         super(OvsdbOvnIdl, self).__init__()
         if OvsdbOvnIdl.ovsdb_connection is None:
             OvsdbOvnIdl.ovsdb_connection = get_connection(trigger)
         if isinstance(OvsdbOvnIdl.ovsdb_connection,
                       ovsdb_monitor.OvnConnection):
-            OvsdbOvnIdl.ovsdb_connection.start(plugin)
+            OvsdbOvnIdl.ovsdb_connection.start(driver)
         else:
             OvsdbOvnIdl.ovsdb_connection.start()
         self.idl = OvsdbOvnIdl.ovsdb_connection.idl

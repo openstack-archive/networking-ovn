@@ -15,8 +15,46 @@
 # to be able to easily import it and export the info without any dependencies
 # on external imports.
 
-# NOTE(russellb) If you update this list, please also update
+# NOTE(russellb) If you update these lists, please also update
 # doc/source/features.rst and the current release note.
+ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3 = [
+    'dns-integration',
+    'dvr',
+    'extraroute',
+    'ext-gw-mode',
+    'l3-ha',
+    'l3_agent_scheduler',
+    'router',
+    'router_availability_zone',
+]
+ML2_SUPPORTED_API_EXTENSIONS_OVN_L3 = [
+    'router',
+]
+ML2_SUPPORTED_API_EXTENSIONS = [
+    'address-scope',
+    'agent',
+    'allowed-address-pairs',
+    'auto-allocated-topology',
+    'availability_zone',
+    'binding',
+    'default-subnetpools',
+    'dhcp_agent_scheduler',
+    'external-net',
+    'extra_dhcp_opt',
+    'multi-provider',
+    'net-mtu',
+    'network_availability_zone',
+    'network-ip-availability',
+    'port-security',
+    'provider',
+    'quotas',
+    'rbac-policies',
+    'security-group',
+    'standard-attr-description',
+    'subnet_allocation',
+    'tag',
+    'timestamp_core',
+]
 SUPPORTED_API_EXTENSIONS = [
     'address-scope',
     'agent',

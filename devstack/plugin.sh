@@ -60,10 +60,6 @@ OVN_NB_REMOTE=${OVN_NB_REMOTE:-tcp:$HOST_IP:6641}
 # 'ovn-uuid' so that the same one will be re-used if you re-run DevStack.
 OVN_UUID=${OVN_UUID:-}
 
-# Whether to enable using OVN's L3 functionality. If this value is disabled,
-# OpenStack will use q-l3 functionality.
-OVN_L3_MODE=$(trueorfalse True OVN_L3_MODE)
-
 # Whether or not to build the openvswitch kernel module from ovs.  This is required
 # unless the distro kernel includes ovs+conntrack support.
 OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
@@ -137,16 +133,35 @@ function configure_ovn_plugin {
     echo "Configuring Neutron for OVN"
 
     if is_service_enabled q-svc ; then
-        # NOTE(arosen) needed for tempest
-        export NETWORK_API_EXTENSIONS=$(python -c \
-            'from networking_ovn.common import extensions ;\
-             print ",".join(extensions.SUPPORTED_API_EXTENSIONS)')
+ 
+        if [[ "$Q_PLUGIN" == "ovn" ]]; then
+            # NOTE(arosen) needed for tempest
+            export NETWORK_API_EXTENSIONS=$(python -c \
+                'from networking_ovn.common import extensions ;\
+                 print ",".join(extensions.SUPPORTED_API_EXTENSIONS)')
 
-
-        iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
-        iniset $NEUTRON_CONF DEFAULT service_plugins "qos"
-        iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_NB_REMOTE"
-        iniset $Q_PLUGIN_CONF_FILE ovn ovn_l3_mode "$OVN_L3_MODE"
+            iniset $NEUTRON_CONF DEFAULT core_plugin "$Q_PLUGIN_CLASS"
+            iniset $NEUTRON_CONF DEFAULT service_plugins "qos"
+            iniset $Q_PLUGIN_CONF_FILE ovn ovsdb_connection "$OVN_NB_REMOTE"
+            iniset $Q_PLUGIN_CONF_FILE ovn ovn_l3_mode "$OVN_L3_MODE"
+        else
+            # NOTE(arosen) needed for tempest
+            export NETWORK_API_EXTENSIONS=$(python -c \
+                'from networking_ovn.common import extensions ;\
+                 print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS)')
+            if [[ "$OVN_L3_MODE" == "True" ]]; then
+                export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$(python -c \
+                    'from networking_ovn.common import extensions ;\
+                     print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3)')
+            else
+                export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$(python -c \
+                    'from networking_ovn.common import extensions ;\
+                     print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3)')
+            fi
+            NEUTRON_CONF=/etc/neutron/neutron.conf
+            iniset $NEUTRON_CONF ovn ovsdb_connection "$OVN_NB_REMOTE"
+            iniset $NEUTRON_CONF ovn ovn_l3_mode "$OVN_L3_MODE"
+        fi
     fi
 
     if is_service_enabled q-l3 ; then
