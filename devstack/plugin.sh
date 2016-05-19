@@ -170,6 +170,10 @@ function configure_ovn_plugin {
         fi
     fi
 
+    if is_service_enabled q-qos ; then
+        iniset $NEUTRON_CONF qos notification_drivers ovn-qos
+    fi
+
     if is_service_enabled q-dhcp ; then
         #
         # Similar to other virtual networking mechanisms, OVN implements

@@ -29,15 +29,15 @@ from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
 from neutron import manager
-from neutron.objects.qos import rule as qos_rule
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 
-from networking_ovn._i18n import _LI
+from networking_ovn._i18n import _, _LI
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
+from networking_ovn.ml2 import qos_driver
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 
@@ -84,7 +84,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._plugin_property = None
         self._setup_vif_port_bindings()
         self.subscribe()
-        # TODO(rtheis): Is any initialization required for QoS?
+        self.qos_driver = qos_driver.OVNQosDriver(self)
 
     @property
     def _plugin(self):
@@ -221,47 +221,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._ovn.set_lswitch_ext_id(
             utils.ovn_name(network_id), ext_id).execute(check_error=True)
 
-    def _get_network_ports_for_policy(self, admin_context,
-                                      network_id, policy_id):
-        all_rules = qos_rule.get_rules(admin_context, policy_id)
-        ports = self._plugin.get_ports(
-            admin_context, filters={"network_id": [network_id]})
-        port_ids = []
-        for port in ports:
-            include = True
-            for rule in all_rules:
-                if not rule.should_apply_to_port(port):
-                    include = False
-                    break
-            if include:
-                port_ids.append(port['id'])
-        return port_ids
-
-    def _qos_get_ovn_options(self, admin_context, policy_id):
-        all_rules = qos_rule.get_rules(admin_context, policy_id)
-        options = {}
-        for rule in all_rules:
-            if isinstance(rule, qos_rule.QosBandwidthLimitRule):
-                if rule.max_kbps:
-                    options['policing_rate'] = str(rule.max_kbps)
-                if rule.max_burst_kbps:
-                    options['policing_burst'] = str(rule.max_burst_kbps)
-        return options
-
-    def _update_network_qos(self, network_id, policy_id):
-        admin_context = n_context.get_admin_context()
-        port_ids = self._get_network_ports_for_policy(
-            admin_context, network_id, policy_id)
-        qos_rule_options = self._qos_get_ovn_options(
-            admin_context, policy_id)
-
-        if qos_rule_options is not None:
-            with self._ovn.transaction(check_error=True) as txn:
-                for port_id in port_ids:
-                    txn.add(self._ovn.set_lport(
-                        lport_name=port_id,
-                        options=qos_rule_options))
-
     def update_network_postcommit(self, context):
         """Update a network.
 
@@ -282,12 +241,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         original_network = context.original
         if network['name'] != original_network['name']:
             self._set_network_name(network['id'], network['name'])
-
-        if (qos_consts.QOS_POLICY_ID in network and
-            (network[qos_consts.QOS_POLICY_ID] !=
-             original_network[qos_consts.QOS_POLICY_ID])):
-            self._update_network_qos(network['id'],
-                                     network[qos_consts.QOS_POLICY_ID])
+        self.qos_driver.update_network(network, original_network)
 
     def delete_network_postcommit(self, context):
         """Delete a network.
@@ -323,7 +277,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 not validators.is_attr_set(
                     port[ovn_const.OVN_PORT_BINDING_PROFILE])):
             return {}
-
+        param_set = {}
         param_dict = {}
         for param_set in ovn_const.OVN_PORT_BINDING_PROFILE_PARAMS:
             param_keys = param_set.keys()
@@ -401,11 +355,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         result in the deletion of the resource.
         """
         port = context.current
-        binding_profile = self.validate_and_get_data_from_binding_profile(port)
-        ovn_port_info = self.get_ovn_port_options(binding_profile, port)
+        ovn_port_info = self.get_ovn_port_options(port)
         self._insert_port_provisioning_block(port)
         self.create_port_in_ovn(port, ovn_port_info)
-        # TODO(rtheis): Are changes required for QoS?
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
@@ -431,13 +383,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return list(allowed_addresses)
 
-    def get_ovn_port_options(self, binding_profile, port):
+    def get_ovn_port_options(self, port, qos_options=None):
+        binding_profile = self.validate_and_get_data_from_binding_profile(port)
+        if qos_options is None:
+            qos_options = self.qos_driver.get_qos_options(port)
         vtep_physical_switch = binding_profile.get('vtep_physical_switch')
-        vtep_logical_switch = None
         parent_name = None
         tag = None
         port_type = None
-        options = None
 
         if vtep_physical_switch:
             vtep_logical_switch = binding_profile.get('vtep_logical_switch')
@@ -447,6 +400,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             addresses = "unknown"
             port_security = []
         else:
+            options = qos_options
             parent_name = binding_profile.get('parent_name')
             tag = binding_profile.get('tag')
             addresses = port['mac_address']
@@ -551,10 +505,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """
         port = context.current
         original_port = context.original
-        binding_profile = self.validate_and_get_data_from_binding_profile(port)
-        ovn_port_info = self.get_ovn_port_options(binding_profile, port)
+        self.update_port(port, original_port)
+
+    def update_port(self, port, original_port, qos_options=None):
+        ovn_port_info = self.get_ovn_port_options(port, qos_options)
         self._update_port_in_ovn(original_port, port, ovn_port_info)
-        # TODO(rtheis): Are changes required for QoS?
 
     def _update_port_in_ovn(self, original_port, port, ovn_port_info):
         external_ids = {

@@ -83,6 +83,10 @@ ENABLE_ISOLATED_METADATA=True
 #dhcp_load_type = networks
 #dhcp_agents_per_network = 2
 
+# Enable QoS
+#enable_plugin neutron http://git.openstack.org/openstack/neutron
+#enable_service q-qos
+
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git
 #enable_service skydive-analyzer
