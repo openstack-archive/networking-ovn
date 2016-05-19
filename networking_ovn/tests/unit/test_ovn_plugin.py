@@ -772,6 +772,18 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             self.assertEqual(expected_acls, acl_del_dict)
             self.assertEqual({}, acl_add_dict)
 
+    def test__acl_protocol_and_ports_for_tcp_and_udp_number(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+
+        sg_rule['protocol'] = const.PROTO_NUM_TCP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && tcp', match)
+
+        sg_rule['protocol'] = const.PROTO_NUM_UDP
+        match = self.plugin._acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && udp', match)
+
     def test__acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
         sg_rule = {'port_range_min': None,
                    'port_range_max': None}

@@ -999,8 +999,15 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def _acl_protocol_and_ports(self, r, icmp):
         protocol = None
         match = ''
-        if r['protocol'] in ('tcp', 'udp'):
-            protocol = r['protocol']
+        if r['protocol'] in ('tcp', 'udp',
+                             const.PROTO_NUM_TCP, const.PROTO_NUM_UDP):
+            # OVN expects the protocol name not number
+            if r['protocol'] == const.PROTO_NUM_TCP:
+                protocol = 'tcp'
+            elif r['protocol'] == const.PROTO_NUM_UDP:
+                protocol = 'udp'
+            else:
+                protocol = r['protocol']
             port_match = '%s.dst' % protocol
         elif r.get('protocol') in (const.PROTO_NAME_ICMP,
                                    const.PROTO_NAME_IPV6_ICMP,
