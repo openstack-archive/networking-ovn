@@ -41,6 +41,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         self.port_create_status = 'DOWN'
         self.mech = mech_driver.OVNMechanismDriver
         self.mech._ovn = fakes.FakeOvsdbOvnIdl()
+        self.mech._insert_port_provisioning_block = mock.Mock()
 
 
 class TestOVNMechansimDriverBasicGet(test_plugin.TestMl2BasicGet,
