@@ -36,7 +36,6 @@ from neutron.api.v2 import attributes as attr
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import constants as n_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as n_context
@@ -72,6 +71,7 @@ from neutron.objects.qos import rule as qos_rule
 from neutron.services.qos import qos_consts
 
 from networking_ovn._i18n import _, _LE, _LI, _LW
+from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions
@@ -902,37 +902,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return port_security_enabled
 
-    def _acl_direction(self, r, port):
-        if r['direction'] == 'ingress':
-            portdir = 'outport'
-            remote_portdir = 'inport'
-        else:
-            portdir = 'inport'
-            remote_portdir = 'outport'
-        match = '%s == "%s"' % (portdir, port['id'])
-        return match, remote_portdir
-
-    def _acl_ethertype(self, r):
-        match = ''
-        ip_version = None
-        icmp = None
-        if r['ethertype'] == 'IPv4':
-            match = ' && ip4'
-            ip_version = 'ip4'
-            icmp = 'icmp4'
-        elif r['ethertype'] == 'IPv6':
-            match = ' && ip6'
-            ip_version = 'ip6'
-            icmp = 'icmp6'
-        return match, ip_version, icmp
-
-    def _acl_remote_ip_prefix(self, r, ip_version):
-        if not r['remote_ip_prefix']:
-            return ''
-        src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-        return ' && %s.%s == %s' % (ip_version, src_or_dst,
-                                    r['remote_ip_prefix'])
-
     def _acl_get_subnet_from_cache(self, context, subnet_cache, subnet_id):
         if subnet_id in subnet_cache:
             return subnet_cache[subnet_id]
@@ -996,54 +965,18 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         return match, False
 
-    def _acl_protocol_and_ports(self, r, icmp):
-        protocol = None
-        match = ''
-        if r['protocol'] in ('tcp', 'udp',
-                             str(const.PROTO_NUM_TCP),
-                             str(const.PROTO_NUM_UDP)):
-            # OVN expects the protocol name not number
-            if r['protocol'] == str(const.PROTO_NUM_TCP):
-                protocol = 'tcp'
-            elif r['protocol'] == str(const.PROTO_NUM_UDP):
-                protocol = 'udp'
-            else:
-                protocol = r['protocol']
-            port_match = '%s.dst' % protocol
-        elif r.get('protocol') in (const.PROTO_NAME_ICMP,
-                                   const.PROTO_NAME_IPV6_ICMP,
-                                   n_const.PROTO_NAME_IPV6_ICMP_LEGACY,
-                                   str(const.PROTO_NUM_ICMP),
-                                   str(const.PROTO_NUM_IPV6_ICMP)):
-            protocol = icmp
-            port_match = '%s.type' % icmp
-        if protocol:
-            match += ' && %s' % protocol
-            # If min or max are set to -1, then we just treat it like it wasn't
-            # specified at all and don't match on it.
-            min_port = r['port_range_min']
-            max_port = r['port_range_max']
-            if (min_port and min_port == max_port and min_port != -1):
-                match += ' && %s == %d' % (port_match, min_port)
-            else:
-                if min_port and min_port != -1:
-                    match += ' && %s >= %d' % (port_match, min_port)
-                if max_port and max_port != -1:
-                    match += ' && %s <= %d' % (port_match, max_port)
-        return match
-
     def _add_sg_rule_acl_for_port(self, context, port, r, sg_ports_cache,
                                   subnet_cache):
         # Update the match based on which direction this rule is for (ingress
         # or egress).
-        match, remote_portdir = self._acl_direction(r, port)
+        match, remote_portdir = acl_utils.acl_direction(r, port)
 
         # Update the match for IPv4 vs IPv6.
-        ip_match, ip_version, icmp = self._acl_ethertype(r)
+        ip_match, ip_version, icmp = acl_utils.acl_ethertype(r)
         match += ip_match
 
         # Update the match if an IPv4 or IPv6 prefix was specified.
-        match += self._acl_remote_ip_prefix(r, ip_version)
+        match += acl_utils.acl_remote_ip_prefix(r, ip_version)
 
         group_match, empty_match = self._acl_remote_group_id(context, r,
                                                              sg_ports_cache,
@@ -1060,7 +993,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         # Update the match for the protocol (tcp, udp, icmp) and port/type
         # range if specified.
-        match += self._acl_protocol_and_ports(r, icmp)
+        match += acl_utils.acl_protocol_and_ports(r, icmp)
 
         # Finally, create the ACL entry for the direction specified.
         dir_map = {
@@ -1117,22 +1050,6 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             acl_list.append(acl)
         return acl_list
 
-    def _drop_all_ip_traffic_for_port(self, port):
-        acl_list = []
-        for direction, p in (('from-lport', 'inport'),
-                             ('to-lport', 'outport')):
-            lswitch = utils.ovn_name(port['network_id'])
-            lport = port['id']
-            acl = {"lswitch": lswitch, "lport": lport,
-                   "priority": ovn_const.ACL_PRIORITY_DROP,
-                   "action": ovn_const.ACL_ACTION_DROP,
-                   "log": False,
-                   "direction": direction,
-                   "match": '%s == "%s" && ip' % (p, port['id']),
-                   "external_ids": {'neutron:lport': port['id']}}
-            acl_list.append(acl)
-        return acl_list
-
     def _add_acls(self, context, port,
                   sg_cache=None, sg_ports_cache=None, subnet_cache=None):
         acl_list = []
@@ -1141,7 +1058,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             return acl_list
 
         # Drop all IP traffic to and from the logical port by default.
-        acl_list += self._drop_all_ip_traffic_for_port(port)
+        acl_list += acl_utils.drop_all_ip_traffic_for_port(port)
 
         if subnet_cache is None:
             subnet_cache = {}
