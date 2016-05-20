@@ -36,6 +36,7 @@ from neutron.api.v2 import attributes as attr
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
+from neutron.common import constants as n_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as n_context
@@ -1001,7 +1002,11 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         if r['protocol'] in ('tcp', 'udp'):
             protocol = r['protocol']
             port_match = '%s.dst' % protocol
-        elif r['protocol'] == 'icmp':
+        elif r.get('protocol') in (const.PROTO_NAME_ICMP,
+                                   const.PROTO_NAME_IPV6_ICMP,
+                                   n_const.PROTO_NAME_IPV6_ICMP_LEGACY,
+                                   const.PROTO_NUM_ICMP,
+                                   const.PROTO_NUM_IPV6_ICMP):
             protocol = icmp
             port_match = '%s.type' % icmp
         if protocol:
