@@ -12,6 +12,10 @@
 #    under the License.
 #
 
+from neutron_lib import constants as const
+
+from neutron.common import constants as n_const
+
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
@@ -53,10 +57,22 @@ def acl_remote_ip_prefix(r, ip_version):
 def acl_protocol_and_ports(r, icmp):
     protocol = None
     match = ''
-    if r['protocol'] in ('tcp', 'udp'):
-        protocol = r['protocol']
+    if r['protocol'] in ('tcp', 'udp',
+                         str(const.PROTO_NUM_TCP),
+                         str(const.PROTO_NUM_UDP)):
+        # OVN expects the protocol name not number
+        if r['protocol'] == str(const.PROTO_NUM_TCP):
+            protocol = 'tcp'
+        elif r['protocol'] == str(const.PROTO_NUM_UDP):
+            protocol = 'udp'
+        else:
+            protocol = r['protocol']
         port_match = '%s.dst' % protocol
-    elif r['protocol'] == 'icmp':
+    elif r.get('protocol') in (const.PROTO_NAME_ICMP,
+                               const.PROTO_NAME_IPV6_ICMP,
+                               n_const.PROTO_NAME_IPV6_ICMP_LEGACY,
+                               str(const.PROTO_NUM_ICMP),
+                               str(const.PROTO_NUM_IPV6_ICMP)):
         protocol = icmp
         port_match = '%s.type' % icmp
     if protocol:
