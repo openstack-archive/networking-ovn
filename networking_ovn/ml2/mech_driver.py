@@ -80,17 +80,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         called prior to this method being called.
         """
         LOG.info(_LI("Starting OVNMechanismDriver"))
-        self._admin_context_property = None
         self._plugin_property = None
         self._setup_vif_port_bindings()
         self.subscribe()
         # TODO(rtheis): Is any initialization required for QoS?
-
-    @property
-    def _admin_context(self):
-        if self._admin_context_property is None:
-            self._admin_context_property = n_context.get_admin_context()
-        return self._admin_context_property
 
     @property
     def _plugin(self):
@@ -155,6 +148,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         sg_rule = None
         is_add_acl = True
 
+        admin_context = n_context.get_admin_context()
         if resource == resources.SECURITY_GROUP:
             sg_id = kwargs.get('security_group_id')
         elif resource == resources.SECURITY_GROUP_RULE:
@@ -163,14 +157,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 sg_id = sg_rule['security_group_id']
             elif event == events.BEFORE_DELETE:
                 sg_rule = self._plugin.get_security_group_rule(
-                    self._admin_context, kwargs.get('security_group_rule_id'))
+                    admin_context, kwargs.get('security_group_rule_id'))
                 sg_id = sg_rule['security_group_id']
                 is_add_acl = False
 
         # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here. If updating ACls fails somehow, we're out of sync until another
         # change causes another refresh attempt.
-        self._update_acls_for_security_group(sg_id,
+        self._update_acls_for_security_group(admin_context,
+                                             sg_id,
                                              rule=sg_rule,
                                              is_add_acl=is_add_acl)
 
@@ -223,10 +218,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._ovn.set_lswitch_ext_id(
             utils.ovn_name(network_id), ext_id).execute(check_error=True)
 
-    def _get_network_ports_for_policy(self, network_id, policy_id):
-        all_rules = qos_rule.get_rules(self._admin_context, policy_id)
+    def _get_network_ports_for_policy(self, admin_context,
+                                      network_id, policy_id):
+        all_rules = qos_rule.get_rules(admin_context, policy_id)
         ports = self._plugin.get_ports(
-            self._admin_context, filters={"network_id": [network_id]})
+            admin_context, filters={"network_id": [network_id]})
         port_ids = []
         for port in ports:
             include = True
@@ -238,8 +234,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 port_ids.append(port['id'])
         return port_ids
 
-    def _qos_get_ovn_options(self, policy_id):
-        all_rules = qos_rule.get_rules(self._admin_context, policy_id)
+    def _qos_get_ovn_options(self, admin_context, policy_id):
+        all_rules = qos_rule.get_rules(admin_context, policy_id)
         options = {}
         for rule in all_rules:
             if isinstance(rule, qos_rule.QosBandwidthLimitRule):
@@ -250,8 +246,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return options
 
     def _update_network_qos(self, network_id, policy_id):
-        port_ids = self._get_network_ports_for_policy(network_id, policy_id)
-        qos_rule_options = self._qos_get_ovn_options(policy_id)
+        admin_context = n_context.get_admin_context()
+        port_ids = self._get_network_ports_for_policy(
+            admin_context, network_id, policy_id)
+        qos_rule_options = self._qos_get_ovn_options(
+            admin_context, policy_id)
 
         if qos_rule_options is not None:
             with self._ovn.transaction(check_error=True) as txn:
@@ -360,7 +359,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # parent_name.  Just let it raise the right exception if there is a
         # problem.
         if 'parent_name' in param_set:
-            self._plugin.get_port(self._admin_context,
+            self._plugin.get_port(n_context.get_admin_context(),
                                   param_dict['parent_name'])
 
         if 'tag' in param_set:
@@ -438,46 +437,48 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _get_sg_ports_from_cache(self, sg_ports_cache, sg_id):
+    def _get_sg_ports_from_cache(self, admin_context, sg_ports_cache, sg_id):
         if sg_id in sg_ports_cache:
             return sg_ports_cache[sg_id]
         else:
             filters = {'security_group_id': [sg_id]}
             sg_ports = self._plugin._get_port_security_group_bindings(
-                self._admin_context, filters)
+                admin_context, filters)
             if sg_ports:
                 sg_ports_cache[sg_id] = sg_ports
             return sg_ports
 
-    def _get_sg_from_cache(self, sg_cache, sg_id):
+    def _get_sg_from_cache(self, admin_context, sg_cache, sg_id):
         if sg_id in sg_cache:
             return sg_cache[sg_id]
         else:
-            sg = self._plugin.get_security_group(self._admin_context, sg_id)
+            sg = self._plugin.get_security_group(admin_context, sg_id)
             if sg:
                 sg_cache[sg_id] = sg
             return sg
 
-    def _get_subnet_from_cache(self, subnet_cache, subnet_id):
+    def _get_subnet_from_cache(self, admin_context, subnet_cache, subnet_id):
         if subnet_id in subnet_cache:
             return subnet_cache[subnet_id]
         else:
-            subnet = self._plugin.get_subnet(self._admin_context, subnet_id)
+            subnet = self._plugin.get_subnet(admin_context, subnet_id)
             if subnet:
                 subnet_cache[subnet_id] = subnet
             return subnet
 
-    def _acl_remote_match_ip(self, sg_ports, subnet_cache,
+    def _acl_remote_match_ip(self, admin_context,
+                             sg_ports, subnet_cache,
                              ip_version, src_or_dst):
         ip_version_map = {'ip4': 4,
                           'ip6': 6}
         match = ''
         port_ids = [sg_port['port_id'] for sg_port in sg_ports]
-        ports = self._plugin.get_ports(self._admin_context,
+        ports = self._plugin.get_ports(admin_context,
                                        filters={'id': port_ids})
         for port in ports:
             for fixed_ip in port['fixed_ips']:
-                subnet = self._get_subnet_from_cache(subnet_cache,
+                subnet = self._get_subnet_from_cache(admin_context,
+                                                     subnet_cache,
                                                      fixed_ip['subnet_id'])
                 if subnet['ip_version'] == ip_version_map.get(ip_version):
                     match += '%s.%s == %s || ' % (ip_version,
@@ -490,12 +491,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return match
 
-    def _acl_remote_group_id(self, r, sg_ports_cache, subnet_cache,
+    def _acl_remote_group_id(self, admin_context, r,
+                             sg_ports_cache, subnet_cache,
                              port, remote_portdir, ip_version):
         if not r['remote_group_id']:
             return '', False
         match = ''
-        sg_ports = self._get_sg_ports_from_cache(sg_ports_cache,
+        sg_ports = self._get_sg_ports_from_cache(admin_context,
+                                                 sg_ports_cache,
                                                  r['remote_group_id'])
         sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
         if not sg_ports:
@@ -505,7 +508,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             return '', True
 
         src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-        remote_group_match = self._acl_remote_match_ip(sg_ports,
+        remote_group_match = self._acl_remote_match_ip(admin_context,
+                                                       sg_ports,
                                                        subnet_cache,
                                                        ip_version,
                                                        src_or_dst)
@@ -514,7 +518,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return match, False
 
-    def _add_sg_rule_acl_for_port(self, port, r, sg_ports_cache, subnet_cache):
+    def _add_sg_rule_acl_for_port(self, admin_context, port, r,
+                                  sg_ports_cache, subnet_cache):
         # Update the match based on which direction this rule is for (ingress
         # or egress).
         match, remote_portdir = ovn_acl.acl_direction(r, port)
@@ -526,7 +531,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # Update the match if an IPv4 or IPv6 prefix was specified.
         match += ovn_acl.acl_remote_ip_prefix(r, ip_version)
 
-        group_match, empty_match = self._acl_remote_group_id(r,
+        group_match, empty_match = self._acl_remote_group_id(admin_context, r,
                                                              sg_ports_cache,
                                                              subnet_cache,
                                                              port,
@@ -547,6 +552,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return ovn_acl.add_sg_rule_acl_for_port(port, r, match)
 
     def _add_acls(self,
+                  admin_context,
                   port,
                   sg_cache,
                   sg_ports_cache,
@@ -560,7 +566,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         acl_list += ovn_acl.drop_all_ip_traffic_for_port(port)
 
         for ip in port['fixed_ips']:
-            subnet = self._get_subnet_from_cache(subnet_cache,
+            subnet = self._get_subnet_from_cache(admin_context,
+                                                 subnet_cache,
                                                  ip['subnet_id'])
             if subnet['ip_version'] != 4:
                 continue
@@ -569,10 +576,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # We create an ACL entry for each rule on each security group applied
         # to this port.
         for sg_id in sec_groups:
-            sg = self._get_sg_from_cache(sg_cache,
+            sg = self._get_sg_from_cache(admin_context,
+                                         sg_cache,
                                          sg_id)
             for r in sg['security_group_rules']:
-                acl = self._add_sg_rule_acl_for_port(port, r,
+                acl = self._add_sg_rule_acl_for_port(admin_context,
+                                                     port, r,
                                                      sg_ports_cache,
                                                      subnet_cache)
                 if acl and acl not in acl_list:
@@ -581,6 +590,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return acl_list
 
     def _refresh_remote_security_group(self,
+                                       admin_context,
                                        sec_group,
                                        sg_cache=None,
                                        sg_ports_cache=None,
@@ -590,16 +600,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # rules referencing sec_group as 'remote_group'.
         filters = {'remote_group_id': [sec_group]}
         refering_rules = self._plugin.get_security_group_rules(
-            self._admin_context, filters, fields=['security_group_id'])
+            admin_context, filters, fields=['security_group_id'])
         sg_ids = set(r['security_group_id'] for r in refering_rules)
         for sg_id in sg_ids:
-            self._update_acls_for_security_group(sg_id,
+            self._update_acls_for_security_group(admin_context,
+                                                 sg_id,
                                                  sg_cache,
                                                  sg_ports_cache,
                                                  subnet_cache,
                                                  exclude_ports)
 
     def _update_acls_for_security_group(self,
+                                        admin_context,
                                         security_group_id,
                                         sg_cache=None,
                                         sg_ports_cache=None,
@@ -614,13 +626,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet_cache = subnet_cache or {}
         exclude_ports = exclude_ports or []
 
-        sg_ports = self._get_sg_ports_from_cache(sg_ports_cache,
+        sg_ports = self._get_sg_ports_from_cache(admin_context,
+                                                 sg_ports_cache,
                                                  security_group_id)
 
         # ACLs associated with a security group may span logical switches
         sg_port_ids = [binding['port_id'] for binding in sg_ports]
         sg_port_ids = list(set(sg_port_ids) - set(exclude_ports))
-        port_list = self._plugin.get_ports(self._admin_context,
+        port_list = self._plugin.get_ports(admin_context,
                                            filters={'id': sg_port_ids})
         lswitch_names = set([p['network_id'] for p in port_list])
         acl_new_values_dict = {}
@@ -636,14 +649,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             need_compare = False
             for port in port_list:
                 acl = self._add_sg_rule_acl_for_port(
-                    port, rule, sg_ports_cache, subnet_cache)
+                    admin_context, port, rule, sg_ports_cache, subnet_cache)
                 # Remove lport and lswitch since we don't need them
                 acl.pop('lport')
                 acl.pop('lswitch')
                 acl_new_values_dict[port['id']] = acl
         else:
             for port in port_list:
-                acls_new = self._add_acls(port,
+                acls_new = self._add_acls(admin_context,
+                                          port,
                                           sg_cache,
                                           sg_ports_cache,
                                           subnet_cache)
@@ -658,6 +672,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def create_port_in_ovn(self, port, ovn_port_info):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         lswitch_name = utils.ovn_name(port['network_id'])
+        admin_context = n_context.get_admin_context()
         sg_cache = {}
         sg_ports_cache = {}
         subnet_cache = {}
@@ -677,7 +692,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     options=ovn_port_info.options,
                     type=ovn_port_info.type,
                     port_security=ovn_port_info.port_security))
-            acls_new = self._add_acls(port,
+            acls_new = self._add_acls(admin_context,
+                                      port,
                                       sg_cache,
                                       sg_ports_cache,
                                       subnet_cache)
@@ -687,7 +703,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if len(port.get('fixed_ips')):
             for sg_id in port.get('security_groups', []):
                 self._refresh_remote_security_group(
-                    sg_id, sg_cache, sg_ports_cache,
+                    admin_context, sg_id,
+                    sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
 
     def update_port_precommit(self, context):
@@ -733,6 +750,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def _update_port_in_ovn(self, original_port, port, ovn_port_info):
         external_ids = {
             ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
+        admin_context = n_context.get_admin_context()
         sg_cache = {}
         sg_ports_cache = {}
         subnet_cache = {}
@@ -752,7 +770,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']),
                     port['id']))
-            acls_new = self._add_acls(port,
+            acls_new = self._add_acls(admin_context,
+                                      port,
                                       sg_cache,
                                       sg_ports_cache,
                                       subnet_cache)
@@ -773,7 +792,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         for sg_id in (attached_sg_ids | detached_sg_ids):
             self._refresh_remote_security_group(
-                sg_id, sg_cache, sg_ports_cache,
+                admin_context, sg_id,
+                sg_cache, sg_ports_cache,
                 subnet_cache, [port['id']])
 
         # Refresh remote security groups if remote_group_match_ip is set
@@ -783,7 +803,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             unchanged_sg_ids = new_sg_ids & old_sg_ids
             for sg_id in unchanged_sg_ids:
                 self._refresh_remote_security_group(
-                    sg_id, sg_cache, sg_ports_cache,
+                    admin_context, sg_id,
+                    sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
 
     def delete_port_postcommit(self, context):
@@ -805,11 +826,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']), port['id']))
 
+        admin_context = n_context.get_admin_context()
         sg_ids = port.get('security_groups', [])
         num_fixed_ips = len(port.get('fixed_ips'))
         if num_fixed_ips:
             for sg_id in sg_ids:
-                self._refresh_remote_security_group(sg_id)
+                self._refresh_remote_security_group(admin_context, sg_id)
 
     def bind_port(self, context):
         """Attempt to bind a port.
@@ -878,11 +900,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return [ovsdb_monitor.OvnWorker()]
 
     def set_port_status_up(self, port_id):
-        self._plugin.update_port_status(self._admin_context,
+        self._plugin.update_port_status(n_context.get_admin_context(),
                                         port_id,
                                         const.PORT_STATUS_ACTIVE)
 
     def set_port_status_down(self, port_id):
-        self._plugin.update_port_status(self._admin_context,
+        self._plugin.update_port_status(n_context.get_admin_context(),
                                         port_id,
                                         const.PORT_STATUS_DOWN)
