@@ -16,13 +16,11 @@
 
 import copy
 import mock
-from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from oslo_utils import uuidutils
 import six
 from webob import exc
 
-from neutron.common import constants as n_const
 from neutron import context
 from neutron.core_extensions.qos import QosCoreResourceExtension
 from neutron.db.qos import api as qos_api
@@ -411,28 +409,6 @@ class TestOvnPluginACLs(OVNPluginTestCase):
                             'ip_version': 4,
                             'cidr': '1.1.1.0/24'}
 
-    def test__drop_all_ip_traffic_for_port(self):
-        acls = self.plugin._drop_all_ip_traffic_for_port(self.fake_port)
-        acl_to_lport = {'action': 'drop', 'direction': 'to-lport',
-                        'external_ids': {'neutron:lport':
-                                         self.fake_port['id']},
-                        'log': False, 'lport': self.fake_port['id'],
-                        'lswitch': 'neutron-network_id1',
-                        'match': 'outport == "fake_port_id1" && ip',
-                        'priority': 1001}
-        acl_from_lport = {'action': 'drop', 'direction': 'from-lport',
-                          'external_ids': {'neutron:lport':
-                                           self.fake_port['id']},
-                          'log': False, 'lport': self.fake_port['id'],
-                          'lswitch': 'neutron-network_id1',
-                          'match': 'inport == "fake_port_id1" && ip',
-                          'priority': 1001}
-        for acl in acls:
-            if 'to-lport' in acl.values():
-                self.assertEqual(acl_to_lport, acl)
-            if 'from-lport' in acl.values():
-                self.assertEqual(acl_from_lport, acl)
-
     def test__add_acl_dhcp_no_cache(self):
         self.plugin._ovn.add_acl = mock.Mock()
         with mock.patch.object(self.plugin, 'get_subnet',
@@ -771,44 +747,6 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             expected_acls = {'neutron-lswitch-1': [acl1, acl2]}
             self.assertEqual(expected_acls, acl_del_dict)
             self.assertEqual({}, acl_add_dict)
-
-    def test__acl_protocol_and_ports_for_tcp_and_udp_number(self):
-        sg_rule = {'port_range_min': None,
-                   'port_range_max': None}
-
-        sg_rule['protocol'] = str(const.PROTO_NUM_TCP)
-        match = self.plugin._acl_protocol_and_ports(sg_rule, None)
-        self.assertEqual(' && tcp', match)
-
-        sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
-        match = self.plugin._acl_protocol_and_ports(sg_rule, None)
-        self.assertEqual(' && udp', match)
-
-    def test__acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
-        sg_rule = {'port_range_min': None,
-                   'port_range_max': None}
-        icmp = 'icmp6'
-        expected_match = ' && icmp6'
-
-        sg_rule['protocol'] = const.PROTO_NAME_ICMP
-        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
-        self.assertEqual(expected_match, match)
-
-        sg_rule['protocol'] = str(const.PROTO_NUM_ICMP)
-        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
-        self.assertEqual(expected_match, match)
-
-        sg_rule['protocol'] = const.PROTO_NAME_IPV6_ICMP
-        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
-        self.assertEqual(expected_match, match)
-
-        sg_rule['protocol'] = n_const.PROTO_NAME_IPV6_ICMP_LEGACY
-        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
-        self.assertEqual(expected_match, match)
-
-        sg_rule['protocol'] = str(const.PROTO_NUM_IPV6_ICMP)
-        match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
-        self.assertEqual(expected_match, match)
 
 
 class TestOvnPluginL3(OVNPluginTestCase):
