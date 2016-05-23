@@ -24,6 +24,7 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron import context as n_context
+from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
@@ -371,6 +372,22 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return param_dict
 
+    def _insert_port_provisioning_block(self, port):
+        vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
+        if vnic_type not in self.supported_vnic_types:
+            LOG.debug("No provisioning block due to unsupported vnic_type: %s",
+                      vnic_type)
+            return
+        # Insert a provisioning block to prevent the port from
+        # transitioning to active until OVN reports back that
+        # the port is up.
+        if port['status'] != const.PORT_STATUS_ACTIVE:
+            provisioning_blocks.add_provisioning_component(
+                n_context.get_admin_context(),
+                port['id'], resources.PORT,
+                provisioning_blocks.L2_AGENT_ENTITY
+            )
+
     def create_port_postcommit(self, context):
         """Create a port.
 
@@ -384,6 +401,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         port = context.current
         binding_profile = self.validate_and_get_data_from_binding_profile(port)
         ovn_port_info = self.get_ovn_port_options(binding_profile, port)
+        self._insert_port_provisioning_block(port)
         self.create_port_in_ovn(port, ovn_port_info)
         # TODO(rtheis): Are changes required for QoS?
 
@@ -900,11 +918,17 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return [ovsdb_monitor.OvnWorker()]
 
     def set_port_status_up(self, port_id):
-        self._plugin.update_port_status(n_context.get_admin_context(),
-                                        port_id,
-                                        const.PORT_STATUS_ACTIVE)
+        # Port provisioning is complete now that OVN has reported
+        # that the port is up.
+        LOG.debug("OVN reports status up for port: %s", port_id)
+        provisioning_blocks.provisioning_complete(
+            n_context.get_admin_context(),
+            port_id,
+            resources.PORT,
+            provisioning_blocks.L2_AGENT_ENTITY)
 
     def set_port_status_down(self, port_id):
+        LOG.debug("OVN reports status down for port: %s", port_id)
         self._plugin.update_port_status(n_context.get_admin_context(),
                                         port_id,
                                         const.PORT_STATUS_DOWN)
