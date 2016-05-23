@@ -776,11 +776,11 @@ class TestOvnPluginACLs(OVNPluginTestCase):
         sg_rule = {'port_range_min': None,
                    'port_range_max': None}
 
-        sg_rule['protocol'] = const.PROTO_NUM_TCP
+        sg_rule['protocol'] = str(const.PROTO_NUM_TCP)
         match = self.plugin._acl_protocol_and_ports(sg_rule, None)
         self.assertEqual(' && tcp', match)
 
-        sg_rule['protocol'] = const.PROTO_NUM_UDP
+        sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
         match = self.plugin._acl_protocol_and_ports(sg_rule, None)
         self.assertEqual(' && udp', match)
 
@@ -794,7 +794,7 @@ class TestOvnPluginACLs(OVNPluginTestCase):
         match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
-        sg_rule['protocol'] = const.PROTO_NUM_ICMP
+        sg_rule['protocol'] = str(const.PROTO_NUM_ICMP)
         match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
@@ -806,7 +806,7 @@ class TestOvnPluginACLs(OVNPluginTestCase):
         match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
-        sg_rule['protocol'] = const.PROTO_NUM_IPV6_ICMP
+        sg_rule['protocol'] = str(const.PROTO_NUM_IPV6_ICMP)
         match = self.plugin._acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 

@@ -16,6 +16,10 @@ import copy
 import mock
 import six
 
+from neutron_lib import constants as const
+
+from neutron.common import constants as n_const
+
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands as cmd
@@ -326,3 +330,41 @@ class TestACLs(base.TestCase):
             expected_acls = {'neutron-lswitch-1': [acl1, acl2]}
             self.assertEqual(expected_acls, acl_del_dict)
             self.assertEqual({}, acl_add_dict)
+
+    def test_acl_protocol_and_ports_for_tcp_and_udp_number(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_TCP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && tcp', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && udp', match)
+
+    def test_acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+        icmp = 'icmp6'
+        expected_match = ' && icmp6'
+
+        sg_rule['protocol'] = const.PROTO_NAME_ICMP
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_ICMP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = const.PROTO_NAME_IPV6_ICMP
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = n_const.PROTO_NAME_IPV6_ICMP_LEGACY
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_IPV6_ICMP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+        self.assertEqual(expected_match, match)

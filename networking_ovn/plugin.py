@@ -1000,11 +1000,12 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         protocol = None
         match = ''
         if r['protocol'] in ('tcp', 'udp',
-                             const.PROTO_NUM_TCP, const.PROTO_NUM_UDP):
+                             str(const.PROTO_NUM_TCP),
+                             str(const.PROTO_NUM_UDP)):
             # OVN expects the protocol name not number
-            if r['protocol'] == const.PROTO_NUM_TCP:
+            if r['protocol'] == str(const.PROTO_NUM_TCP):
                 protocol = 'tcp'
-            elif r['protocol'] == const.PROTO_NUM_UDP:
+            elif r['protocol'] == str(const.PROTO_NUM_UDP):
                 protocol = 'udp'
             else:
                 protocol = r['protocol']
@@ -1012,8 +1013,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         elif r.get('protocol') in (const.PROTO_NAME_ICMP,
                                    const.PROTO_NAME_IPV6_ICMP,
                                    n_const.PROTO_NAME_IPV6_ICMP_LEGACY,
-                                   const.PROTO_NUM_ICMP,
-                                   const.PROTO_NUM_IPV6_ICMP):
+                                   str(const.PROTO_NUM_ICMP),
+                                   str(const.PROTO_NUM_IPV6_ICMP)):
             protocol = icmp
             port_match = '%s.type' % icmp
         if protocol:
