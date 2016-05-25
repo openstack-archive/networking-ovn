@@ -455,35 +455,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _acl_remote_group_id(self, admin_context, r,
-                             sg_ports_cache, subnet_cache,
-                             port, remote_portdir, ip_version):
-        if not r['remote_group_id']:
-            return '', False
-        match = ''
-        sg_ports = ovn_acl._get_sg_ports_from_cache(self._plugin,
-                                                    admin_context,
-                                                    sg_ports_cache,
-                                                    r['remote_group_id'])
-        sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
-        if not sg_ports:
-            # If there are no other ports on this security group, then this
-            # rule can never match, so no ACL row will be created for this
-            # rule.
-            return '', True
-
-        src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-        remote_group_match = ovn_acl._acl_remote_match_ip(self._plugin,
-                                                          admin_context,
-                                                          sg_ports,
-                                                          subnet_cache,
-                                                          ip_version,
-                                                          src_or_dst)
-
-        match += remote_group_match
-
-        return match, False
-
     def _add_sg_rule_acl_for_port(self, admin_context, port, r,
                                   sg_ports_cache, subnet_cache):
         # Update the match based on which direction this rule is for (ingress
@@ -497,12 +468,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # Update the match if an IPv4 or IPv6 prefix was specified.
         match += ovn_acl.acl_remote_ip_prefix(r, ip_version)
 
-        group_match, empty_match = self._acl_remote_group_id(admin_context, r,
-                                                             sg_ports_cache,
-                                                             subnet_cache,
-                                                             port,
-                                                             remote_portdir,
-                                                             ip_version)
+        group_match, empty_match = ovn_acl._acl_remote_group_id(self._plugin,
+                                                                admin_context,
+                                                                r,
+                                                                sg_ports_cache,
+                                                                subnet_cache,
+                                                                port,
+                                                                remote_portdir,
+                                                                ip_version)
         if empty_match:
             # If there are no other ports on this security group, then this
             # rule can never match, so no ACL row will be created for this

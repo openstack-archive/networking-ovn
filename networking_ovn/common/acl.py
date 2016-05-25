@@ -217,3 +217,33 @@ def _acl_remote_match_ip(plugin, admin_context,
         match = ' && (%s)' % match
 
     return match
+
+
+def _acl_remote_group_id(plugin, admin_context, r,
+                         sg_ports_cache, subnet_cache,
+                         port, remote_portdir, ip_version):
+    if not r['remote_group_id']:
+        return '', False
+    match = ''
+    sg_ports = _get_sg_ports_from_cache(plugin,
+                                        admin_context,
+                                        sg_ports_cache,
+                                        r['remote_group_id'])
+    sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
+    if not sg_ports:
+        # If there are no other ports on this security group, then this
+        # rule can never match, so no ACL row will be created for this
+        # rule.
+        return '', True
+
+    src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
+    remote_group_match = _acl_remote_match_ip(plugin,
+                                              admin_context,
+                                              sg_ports,
+                                              subnet_cache,
+                                              ip_version,
+                                              src_or_dst)
+
+    match += remote_group_match
+
+    return match, False
