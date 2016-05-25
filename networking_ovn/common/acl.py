@@ -180,3 +180,13 @@ def _get_sg_ports_from_cache(plugin, admin_context, sg_ports_cache, sg_id):
         if sg_ports:
             sg_ports_cache[sg_id] = sg_ports
         return sg_ports
+
+
+def _get_sg_from_cache(plugin, admin_context, sg_cache, sg_id):
+    if sg_id in sg_cache:
+        return sg_cache[sg_id]
+    else:
+        sg = plugin.get_security_group(admin_context, sg_id)
+        if sg:
+            sg_cache[sg_id] = sg
+        return sg

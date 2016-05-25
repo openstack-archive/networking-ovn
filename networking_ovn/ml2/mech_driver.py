@@ -455,15 +455,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _get_sg_from_cache(self, admin_context, sg_cache, sg_id):
-        if sg_id in sg_cache:
-            return sg_cache[sg_id]
-        else:
-            sg = self._plugin.get_security_group(admin_context, sg_id)
-            if sg:
-                sg_cache[sg_id] = sg
-            return sg
-
     def _acl_remote_match_ip(self, admin_context,
                              sg_ports, subnet_cache,
                              ip_version, src_or_dst):
@@ -577,9 +568,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # We create an ACL entry for each rule on each security group applied
         # to this port.
         for sg_id in sec_groups:
-            sg = self._get_sg_from_cache(admin_context,
-                                         sg_cache,
-                                         sg_id)
+            sg = ovn_acl._get_sg_from_cache(self._plugin,
+                                            admin_context,
+                                            sg_cache,
+                                            sg_id)
             for r in sg['security_group_rules']:
                 acl = self._add_sg_rule_acl_for_port(admin_context,
                                                      port, r,
