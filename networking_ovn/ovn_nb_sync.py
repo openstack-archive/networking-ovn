@@ -20,6 +20,7 @@ from neutron import context
 from neutron.extensions import providernet as pnet
 
 from networking_ovn._i18n import _LW
+from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from neutron.db import db_base_plugin_v2
@@ -164,6 +165,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
 
+        sg_cache = {}
         sg_ports_cache = {}
         subnet_cache = {}
         neutron_acls = {}
@@ -171,16 +173,20 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
             if port['security_groups']:
                 if port_id in neutron_acls:
                     neutron_acls[port_id].extend(
-                        self.core_plugin._add_acls(ctx,
-                                                   port,
-                                                   sg_ports_cache,
-                                                   subnet_cache))
+                        acl_utils._add_acls(self.core_plugin,
+                                            ctx,
+                                            port,
+                                            sg_cache,
+                                            sg_ports_cache,
+                                            subnet_cache))
                 else:
                     neutron_acls[port_id] = \
-                        self.core_plugin._add_acls(ctx,
-                                                   port,
-                                                   sg_ports_cache,
-                                                   subnet_cache)
+                        acl_utils._add_acls(self.core_plugin,
+                                            ctx,
+                                            port,
+                                            sg_cache,
+                                            sg_ports_cache,
+                                            subnet_cache)
 
         nb_acls = self.get_acls(ctx)
 

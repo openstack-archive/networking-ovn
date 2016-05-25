@@ -40,6 +40,7 @@ from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3_plugin
 from neutron.tests.unit.extensions import test_portsecurity
 
+from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -409,40 +410,14 @@ class TestOvnPluginACLs(OVNPluginTestCase):
                             'ip_version': 4,
                             'cidr': '1.1.1.0/24'}
 
-    def test__add_acl_dhcp_no_cache(self):
+    def test_add_acl_dhcp(self):
         self.plugin._ovn.add_acl = mock.Mock()
         with mock.patch.object(self.plugin, 'get_subnet',
                                return_value=self.fake_subnet):
-            acls = self.plugin._add_acl_dhcp(self.context, self.fake_port, {})
+            subnet = acl_utils._get_subnet_from_cache(
+                self.plugin, self.context, {}, 'subnet_id')
+            acls = acl_utils.add_acl_dhcp(self.fake_port, subnet)
 
-        expected_match_to_lport = (
-            'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
-            '&& udp.dst == 68') % (self.fake_port['id'],
-                                   self.fake_subnet['cidr'])
-        acl_to_lport = {'action': 'allow', 'direction': 'to-lport',
-                        'external_ids': {'neutron:lport': 'fake_port_id1'},
-                        'log': False, 'lport': 'fake_port_id1',
-                        'lswitch': 'neutron-network_id1',
-                        'match': expected_match_to_lport, 'priority': 1002}
-        expected_match_from_lport = (
-            'inport == "%s" && ip4 && '
-            '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
-            'udp && udp.src == 68 && udp.dst == 67'
-        ) % (self.fake_port['id'], self.fake_subnet['cidr'])
-        acl_from_lport = {'action': 'allow', 'direction': 'from-lport',
-                          'external_ids': {'neutron:lport': 'fake_port_id1'},
-                          'log': False, 'lport': 'fake_port_id1',
-                          'lswitch': 'neutron-network_id1',
-                          'match': expected_match_from_lport, 'priority': 1002}
-        for acl in acls:
-            if 'to-lport' in acl.values():
-                self.assertEqual(acl_to_lport, acl)
-            if 'from-lport' in acl.values():
-                self.assertEqual(acl_from_lport, acl)
-
-    def test__add_acl_dhcp_cache(self):
-        acls = self.plugin._add_acl_dhcp(self.context, self.fake_port,
-                                         {'subnet_id1': self.fake_subnet})
         expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
             '&& udp.dst == 68') % (self.fake_port['id'],
@@ -469,19 +444,22 @@ class TestOvnPluginACLs(OVNPluginTestCase):
                 self.assertEqual(acl_from_lport, acl)
 
     def test__add_acls_no_sec_group(self):
-        acls = self.plugin._add_acls(self.context,
-                                     port={'security_groups': []})
+        acls = acl_utils._add_acls(self.plugin, self.context,
+                                   port={'security_groups': []},
+                                   sg_cache={}, sg_ports_cache={},
+                                   subnet_cache={})
         self.assertEqual(acls, [])
 
     def _test__add_sg_rule_acl_for_port(self, sg_rule, direction, match):
         port = {'id': 'port-id',
                 'network_id': 'network-id'}
         self.plugin._ovn.add_acl = mock.Mock()
-        acl = self.plugin._add_sg_rule_acl_for_port(self.context,
-                                                    port,
-                                                    sg_rule,
-                                                    sg_ports_cache={},
-                                                    subnet_cache={})
+        acl = acl_utils._add_sg_rule_acl_for_port(self.plugin,
+                                                  self.context,
+                                                  port,
+                                                  sg_rule,
+                                                  sg_ports_cache={},
+                                                  subnet_cache={})
         self.assertEqual(acl, {'lswitch': 'neutron-network-id',
                                'lport': 'port-id',
                                'priority': ovn_const.ACL_PRIORITY_ALLOW,

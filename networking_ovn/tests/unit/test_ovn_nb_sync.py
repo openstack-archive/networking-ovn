@@ -170,10 +170,15 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
         self.plugin.get_ports.return_value = self.ports
         self.plugin.get_security_groups = mock.Mock()
         self.plugin.get_security_groups.return_value = self.security_groups
-        self.plugin._acl_get_subnet_from_cache = mock.Mock()
-        self.plugin._acl_get_subnet_from_cache.return_value = self.subnet
-        self.plugin._acl_remote_group_id = mock.MagicMock(
-            side_effect=self.matches)
+        mock.patch(
+            "networking_ovn.common.acl._get_subnet_from_cache",
+            return_value=self.subnet
+        ).start()
+        mock.patch(
+            "networking_ovn.common.acl._acl_remote_group_id",
+            side_effect=self.matches
+        ).start()
+
         self.plugin.get_security_group = mock.MagicMock(
             side_effect=self.security_groups)
         self.ovn_nb_sync.get_acls = mock.Mock()
