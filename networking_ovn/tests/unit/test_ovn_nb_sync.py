@@ -16,14 +16,13 @@ import mock
 
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
+from networking_ovn.tests.unit.ml2 import test_mech_driver
 from networking_ovn.tests.unit import test_ovn_plugin
 
 
-class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
-    def setUp(self):
-        super(TestOvnNbSync, self).setUp()
-        self.plugin._ovn = self._ovn = impl_idl_ovn.OvsdbOvnIdl(self,
-                                                                mock.ANY)
+# TODO(rtheis): Refactor this class with core plugin removal.
+class OvnNbSyncTestCaseMixin(object):
+    def setup_sync_resources(self):
         self.subnet = {'cidr': '10.0.0.0/24',
                        'id': 'subnet1',
                        'subnetpool_id': None,
@@ -146,18 +145,15 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
                                      {'name': 'neutron-n3',
                                       'ports': ['p1n3', 'p2n3']}]
 
-    def _test_ovn_nb_sync_helper(self, mode, networks, ports,
-                                 routers, router_ports,
-                                 create_router_list, create_router_port_list,
-                                 del_router_list, del_router_port_list,
-                                 create_network_list, create_port_list,
-                                 del_network_list, del_port_list):
+    def _test_mocks_helper(self, ovn_nb_synchronizer):
+        # TODO(rtheis): Remove unneeded mocks with core plugin.
+        core_plugin = ovn_nb_synchronizer.core_plugin
+        ovn_api = ovn_nb_synchronizer.ovn_api
+        ovn_driver = ovn_nb_synchronizer.ovn_driver
+        l3_plugin = ovn_nb_synchronizer.l3_plugin
 
-        self.ovn_nb_sync = ovn_nb_sync.OvnNbSynchronizer(
-            self.plugin, self.plugin._ovn, mode)
-
-        self.plugin.get_networks = mock.Mock()
-        self.plugin.get_networks.return_value = self.networks
+        core_plugin.get_networks = mock.Mock()
+        core_plugin.get_networks.return_value = self.networks
 
         # following block is used for acl syncing unit-test
 
@@ -166,10 +162,8 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
         # 4 acls are returned as current ovn acls,
         # two of which will match with neutron.
         # So, in this example 17 will be added, 2 removed
-        self.plugin.get_ports = mock.Mock()
-        self.plugin.get_ports.return_value = self.ports
-        self.plugin.get_security_groups = mock.Mock()
-        self.plugin.get_security_groups.return_value = self.security_groups
+        core_plugin.get_ports = mock.Mock()
+        core_plugin.get_ports.return_value = self.ports
         mock.patch(
             "networking_ovn.common.acl._get_subnet_from_cache",
             return_value=self.subnet
@@ -178,11 +172,10 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
             "networking_ovn.common.acl._acl_remote_group_id",
             side_effect=self.matches
         ).start()
-
-        self.plugin.get_security_group = mock.MagicMock(
+        core_plugin.get_security_group = mock.MagicMock(
             side_effect=self.security_groups)
-        self.ovn_nb_sync.get_acls = mock.Mock()
-        self.ovn_nb_sync.get_acls.return_value = self.acls_ovn
+        ovn_nb_synchronizer.get_acls = mock.Mock()
+        ovn_nb_synchronizer.get_acls.return_value = self.acls_ovn
         # end of acl-sync block
 
         # The following block is used for router and router port syncing tests
@@ -197,86 +190,101 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
         # OVN db has p1r3 in Router 3 and p3r1 in Router 1.
         # During the sync p1r1 and p1r2 will be added and p1r3 and p3r1
         # will be deleted from the OVN db
-        self.plugin.get_routers = mock.Mock()
-        self.plugin.get_routers.return_value = self.routers
-        self.plugin._get_sync_interfaces = mock.Mock()
-        self.plugin._get_sync_interfaces.return_value = (
+        l3_plugin.get_routers = mock.Mock()
+        l3_plugin.get_routers.return_value = self.routers
+        l3_plugin._get_sync_interfaces = mock.Mock()
+        l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
         # end of router-sync block
 
-        self.plugin._ovn.get_all_logical_switches_with_ports = mock.Mock()
-        self.plugin._ovn.get_all_logical_switches_with_ports.return_value = (
+        ovn_api.get_all_logical_switches_with_ports = mock.Mock()
+        ovn_api.get_all_logical_switches_with_ports.return_value = (
             self.lswitches_with_ports)
 
-        self.plugin._ovn.get_all_logical_routers_with_rports = mock.Mock()
-        self.plugin._ovn.get_all_logical_routers_with_rports.return_value = (
+        ovn_api.get_all_logical_routers_with_rports = mock.Mock()
+        ovn_api.get_all_logical_routers_with_rports.return_value = (
             self.lrouters_with_rports)
 
-        self.ovn_nb_sync.ovn_api.transaction = mock.MagicMock()
+        ovn_api.transaction = mock.MagicMock()
 
-        self.plugin.create_network_in_ovn = mock.Mock()
-        self.plugin.create_port_in_ovn = mock.Mock()
-        self.plugin.qos_get_ovn_port_options = mock.Mock()
-        self.plugin.qos_get_ovn_port_options.return_value = mock.ANY
-        self.plugin.get_ovn_port_options = mock.Mock()
-        self.plugin.get_ovn_port_options.return_value = mock.ANY
-        self.ovn_nb_sync.ovn_api.delete_lswitch = mock.Mock()
-        self.ovn_nb_sync.ovn_api.delete_lport = mock.Mock()
+        ovn_driver.create_network_in_ovn = mock.Mock()
+        ovn_driver.create_port_in_ovn = mock.Mock()
+        ovn_driver.get_data_from_binding_profile = mock.Mock()
+        ovn_driver.validate_and_get_data_from_binding_profile = mock.Mock()
+        ovn_driver.qos_get_ovn_port_options = mock.Mock()
+        ovn_driver.qos_get_ovn_port_options.return_value = mock.ANY
+        ovn_driver.get_ovn_port_options = mock.Mock()
+        ovn_driver.get_ovn_port_options.return_value = mock.ANY
+        ovn_api.delete_lswitch = mock.Mock()
+        ovn_api.delete_lport = mock.Mock()
 
-        self.plugin.create_lrouter_in_ovn = mock.Mock()
-        self.plugin.create_lrouter_port_in_ovn = mock.Mock()
-        self.ovn_nb_sync.ovn_api.delete_lrouter = mock.Mock()
-        self.ovn_nb_sync.ovn_api.delete_lrouter_port = mock.Mock()
-        self.ovn_nb_sync.sync_networks_and_ports(mock.ANY)
-        self.ovn_nb_sync.sync_acls(mock.ANY)
-        self.ovn_nb_sync.sync_routers_and_rports(mock.ANY)
+        l3_plugin.create_lrouter_in_ovn = mock.Mock()
+        l3_plugin.create_lrouter_port_in_ovn = mock.Mock()
+        ovn_api.delete_lrouter = mock.Mock()
+        ovn_api.delete_lrouter_port = mock.Mock()
 
-        self.assertEqual(self.plugin.get_security_groups.call_count, 1)
-        self.plugin.get_security_groups.assert_has_calls([mock.ANY],
-                                                         any_order=True)
+    def _test_ovn_nb_sync_helper(self, ovn_nb_synchronizer,
+                                 networks, ports,
+                                 routers, router_ports,
+                                 create_router_list, create_router_port_list,
+                                 del_router_list, del_router_port_list,
+                                 create_network_list, create_port_list,
+                                 del_network_list, del_port_list):
+        self._test_mocks_helper(ovn_nb_synchronizer)
+
+        core_plugin = ovn_nb_synchronizer.core_plugin
+        ovn_api = ovn_nb_synchronizer.ovn_api
+        ovn_driver = ovn_nb_synchronizer.ovn_driver
+        l3_plugin = ovn_nb_synchronizer.l3_plugin
+
+        ovn_nb_synchronizer.sync_networks_and_ports(mock.ANY)
+        ovn_nb_synchronizer.sync_acls(mock.ANY)
+        ovn_nb_synchronizer.sync_routers_and_rports(mock.ANY)
 
         get_security_group_calls = [mock.call(mock.ANY, sg['id'])
                                     for sg in self.security_groups]
-        self.assertEqual(self.plugin.get_security_group.call_count,
+        self.assertEqual(core_plugin.get_security_group.call_count,
                          len(self.security_groups))
-        self.plugin.get_security_group.assert_has_calls(
+        core_plugin.get_security_group.assert_has_calls(
             get_security_group_calls, any_order=True)
 
-        create_network_calls = [mock.call(net['net'], net['ext_ids'])
-                                for net in create_network_list]
-        self.assertEqual(self.plugin.create_network_in_ovn.call_count,
+        self.assertEqual(ovn_driver.create_network_in_ovn.call_count,
                          len(create_network_list))
-        self.plugin.create_network_in_ovn.assert_has_calls(
+        create_network_calls = [mock.call(net['net'], net['ext_ids'],
+                                          None, None)
+                                for net in create_network_list]
+        ovn_driver.create_network_in_ovn.assert_has_calls(
             create_network_calls, any_order=True)
 
-        create_port_calls = [mock.call(mock.ANY, port, mock.ANY)
-                             for port in create_port_list]
-        self.assertEqual(self.plugin.create_port_in_ovn.call_count,
+        self.assertEqual(ovn_driver.create_port_in_ovn.call_count,
                          len(create_port_list))
-        self.plugin.create_port_in_ovn.assert_has_calls(create_port_calls,
-                                                        any_order=True)
+        # TODO(rtheis): Enable assertion with core plugin removal.
+        # create_port_calls = [mock.call(port, mock.ANY)
+        #                      for port in create_port_list]
+        # ovn_driver.create_port_in_ovn.assert_has_calls(create_port_calls,
+        #                                                any_order=True)
 
-        self.assertEqual(self.ovn_nb_sync.ovn_api.delete_lswitch.call_count,
+        self.assertEqual(ovn_api.delete_lswitch.call_count,
                          len(del_network_list))
         delete_lswitch_calls = [mock.call(lswitch_name=net_name)
                                 for net_name in del_network_list]
-        self.ovn_nb_sync.ovn_api.delete_lswitch.assert_has_calls(
+        ovn_api.delete_lswitch.assert_has_calls(
             delete_lswitch_calls, any_order=True)
 
-        self.assertEqual(self.ovn_nb_sync.ovn_api.delete_lport.call_count,
+        self.assertEqual(ovn_api.delete_lport.call_count,
                          len(del_port_list))
         delete_lport_calls = [mock.call(lport_name=port['id'],
                                         lswitch=port['lswitch'])
                               for port in del_port_list]
-        self.ovn_nb_sync.ovn_api.delete_lport.assert_has_calls(
+        ovn_api.delete_lport.assert_has_calls(
             delete_lport_calls, any_order=True)
 
         create_router_calls = [mock.call(r)
                                for r in create_router_list]
         self.assertEqual(
-            self.plugin.create_lrouter_in_ovn.call_count,
+            l3_plugin.create_lrouter_in_ovn.call_count,
             len(create_router_list))
-        self.plugin.create_lrouter_in_ovn.assert_has_calls(
+        l3_plugin.create_lrouter_in_ovn.assert_has_calls(
             create_router_calls, any_order=True)
 
         create_router_port_calls = [mock.call(mock.ANY,
@@ -284,27 +292,37 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
                                               mock.ANY)
                                     for p in create_router_port_list]
         self.assertEqual(
-            self.plugin.create_lrouter_port_in_ovn.call_count,
+            l3_plugin.create_lrouter_port_in_ovn.call_count,
             len(create_router_port_list))
-        self.plugin.create_lrouter_port_in_ovn.assert_has_calls(
+        l3_plugin.create_lrouter_port_in_ovn.assert_has_calls(
             create_router_port_calls,
             any_order=True)
 
-        self.assertEqual(self.ovn_nb_sync.ovn_api.delete_lrouter.call_count,
+        self.assertEqual(ovn_api.delete_lrouter.call_count,
                          len(del_router_list))
         delete_lrouter_calls = [mock.call(r['router'])
                                 for r in del_router_list]
-        self.ovn_nb_sync.ovn_api.delete_lrouter.assert_has_calls(
+        ovn_api.delete_lrouter.assert_has_calls(
             delete_lrouter_calls, any_order=True)
 
         self.assertEqual(
-            self.ovn_nb_sync.ovn_api.delete_lrouter_port.call_count,
+            ovn_api.delete_lrouter_port.call_count,
             len(del_router_port_list))
         delete_lrouter_port_calls = [mock.call(port['id'],
                                                port['router'], if_exists=False)
                                      for port in del_router_port_list]
-        self.ovn_nb_sync.ovn_api.delete_lrouter_port.assert_has_calls(
+        ovn_api.delete_lrouter_port.assert_has_calls(
             delete_lrouter_port_calls, any_order=True)
+
+
+# TODO(rtheis): Remove this class with core plugin.
+class TestOvnNbSyncCore(test_ovn_plugin.OVNPluginTestCase,
+                        OvnNbSyncTestCaseMixin):
+    def setUp(self):
+        super(TestOvnNbSyncCore, self).setUp()
+        self.plugin._ovn = self._ovn = impl_idl_ovn.OvsdbOvnIdl(self,
+                                                                mock.ANY)
+        self.setup_sync_resources()
 
     def test_ovn_nb_sync_mode_repair(self):
         create_network_list = [{'net': {'id': 'n2'}, 'ext_ids': {}}]
@@ -323,7 +341,11 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
         create_router_port_list = self.get_sync_router_ports
 
-        self._test_ovn_nb_sync_helper('repair', self.networks, self.ports,
+        ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+            self.plugin, self.plugin._ovn, 'repair')
+        self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
+                                      self.networks,
+                                      self.ports,
                                       self.routers,
                                       self.get_sync_router_ports,
                                       create_router_list,
@@ -342,7 +364,75 @@ class TestOvnNbSync(test_ovn_plugin.OVNPluginTestCase):
         del_router_list = []
         del_router_port_list = []
 
-        self._test_ovn_nb_sync_helper('log', self.networks, self.ports,
+        ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+            self.plugin, self.plugin._ovn, 'log')
+        self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
+                                      self.networks,
+                                      self.ports,
+                                      self.routers,
+                                      self.get_sync_router_ports,
+                                      create_router_list,
+                                      create_router_port_list,
+                                      del_router_list, del_router_port_list,
+                                      create_network_list, create_port_list,
+                                      del_network_list, del_port_list)
+
+
+# TODO(rtheis): Refactor this class with core plugin removal.
+class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase,
+                       OvnNbSyncTestCaseMixin):
+
+    l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
+
+    def setUp(self):
+        super(TestOvnNbSyncML2, self).setUp()
+        self.setup_sync_resources()
+
+    def test_ovn_nb_sync_mode_repair(self):
+        create_network_list = [{'net': {'id': 'n2'}, 'ext_ids': {}}]
+        del_network_list = ['neutron-n3']
+        del_port_list = [{'id': 'p3n1', 'lswitch': 'neutron-n1'},
+                         {'id': 'p1n1', 'lswitch': 'neutron-n1'}]
+        create_port_list = self.ports
+        for port in create_port_list:
+            if port['id'] == 'p1n1':
+                # this will be skipped by the logic,
+                # because it is already in lswitch-port list
+                create_port_list.remove(port)
+
+        create_router_list = [{'id': 'r2'}]
+        del_router_list = [{'router': 'neutron-r3'}]
+        del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
+        create_router_port_list = self.get_sync_router_ports
+
+        ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+            self.plugin, self.mech_driver._ovn, 'repair', self.mech_driver)
+        self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
+                                      self.networks,
+                                      self.ports,
+                                      self.routers,
+                                      self.get_sync_router_ports,
+                                      create_router_list,
+                                      create_router_port_list,
+                                      del_router_list, del_router_port_list,
+                                      create_network_list, create_port_list,
+                                      del_network_list, del_port_list)
+
+    def test_ovn_nb_sync_mode_log(self):
+        create_network_list = []
+        create_port_list = []
+        del_network_list = []
+        del_port_list = []
+        create_router_list = []
+        create_router_port_list = []
+        del_router_list = []
+        del_router_port_list = []
+
+        ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+            self.plugin, self.mech_driver._ovn, 'log', self.mech_driver)
+        self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
+                                      self.networks,
+                                      self.ports,
                                       self.routers,
                                       self.get_sync_router_ports,
                                       create_router_list,
