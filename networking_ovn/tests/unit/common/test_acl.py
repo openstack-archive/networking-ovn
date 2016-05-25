@@ -18,8 +18,6 @@ import six
 
 from neutron_lib import constants as const
 
-from neutron.common import constants as n_const
-
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands as cmd
@@ -367,7 +365,7 @@ class TestACLs(base.TestCase):
         match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
-        sg_rule['protocol'] = n_const.PROTO_NAME_IPV6_ICMP_LEGACY
+        sg_rule['protocol'] = const.PROTO_NAME_IPV6_ICMP_LEGACY
         match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
