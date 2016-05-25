@@ -455,41 +455,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _add_sg_rule_acl_for_port(self, admin_context, port, r,
-                                  sg_ports_cache, subnet_cache):
-        # Update the match based on which direction this rule is for (ingress
-        # or egress).
-        match, remote_portdir = ovn_acl.acl_direction(r, port)
-
-        # Update the match for IPv4 vs IPv6.
-        ip_match, ip_version, icmp = ovn_acl.acl_ethertype(r)
-        match += ip_match
-
-        # Update the match if an IPv4 or IPv6 prefix was specified.
-        match += ovn_acl.acl_remote_ip_prefix(r, ip_version)
-
-        group_match, empty_match = ovn_acl._acl_remote_group_id(self._plugin,
-                                                                admin_context,
-                                                                r,
-                                                                sg_ports_cache,
-                                                                subnet_cache,
-                                                                port,
-                                                                remote_portdir,
-                                                                ip_version)
-        if empty_match:
-            # If there are no other ports on this security group, then this
-            # rule can never match, so no ACL row will be created for this
-            # rule.
-            return None
-        match += group_match
-
-        # Update the match for the protocol (tcp, udp, icmp) and port/type
-        # range if specified.
-        match += ovn_acl.acl_protocol_and_ports(r, icmp)
-
-        # Finally, create the ACL entry for the direction specified.
-        return ovn_acl.add_sg_rule_acl_for_port(port, r, match)
-
     def _add_acls(self,
                   admin_context,
                   port,
@@ -521,10 +486,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                             sg_cache,
                                             sg_id)
             for r in sg['security_group_rules']:
-                acl = self._add_sg_rule_acl_for_port(admin_context,
-                                                     port, r,
-                                                     sg_ports_cache,
-                                                     subnet_cache)
+                acl = ovn_acl._add_sg_rule_acl_for_port(self._plugin,
+                                                        admin_context,
+                                                        port, r,
+                                                        sg_ports_cache,
+                                                        subnet_cache)
                 if acl and acl not in acl_list:
                     acl_list.append(acl)
 
@@ -590,8 +556,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if rule:
             need_compare = False
             for port in port_list:
-                acl = self._add_sg_rule_acl_for_port(
-                    admin_context, port, rule, sg_ports_cache, subnet_cache)
+                acl = ovn_acl._add_sg_rule_acl_for_port(
+                    self._plugin, admin_context, port, rule,
+                    sg_ports_cache, subnet_cache)
                 # Remove lport and lswitch since we don't need them
                 acl.pop('lport')
                 acl.pop('lswitch')

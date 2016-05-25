@@ -247,3 +247,39 @@ def _acl_remote_group_id(plugin, admin_context, r,
     match += remote_group_match
 
     return match, False
+
+
+def _add_sg_rule_acl_for_port(plugin, admin_context, port, r,
+                              sg_ports_cache, subnet_cache):
+    # Update the match based on which direction this rule is for (ingress
+    # or egress).
+    match, remote_portdir = acl_direction(r, port)
+
+    # Update the match for IPv4 vs IPv6.
+    ip_match, ip_version, icmp = acl_ethertype(r)
+    match += ip_match
+
+    # Update the match if an IPv4 or IPv6 prefix was specified.
+    match += acl_remote_ip_prefix(r, ip_version)
+
+    group_match, empty_match = _acl_remote_group_id(plugin,
+                                                    admin_context,
+                                                    r,
+                                                    sg_ports_cache,
+                                                    subnet_cache,
+                                                    port,
+                                                    remote_portdir,
+                                                    ip_version)
+    if empty_match:
+        # If there are no other ports on this security group, then this
+        # rule can never match, so no ACL row will be created for this
+        # rule.
+        return None
+    match += group_match
+
+    # Update the match for the protocol (tcp, udp, icmp) and port/type
+    # range if specified.
+    match += acl_protocol_and_ports(r, icmp)
+
+    # Finally, create the ACL entry for the direction specified.
+    return add_sg_rule_acl_for_port(port, r, match)
