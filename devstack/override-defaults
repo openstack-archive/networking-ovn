@@ -1,10 +1,6 @@
-# Enable the OVN core plugin.
-Q_PLUGIN="ovn"
-
-# Enable the OVN ML2 mechanism driver.  Include the logger to
-# assist with development and debugging, but it's not required.
-#Q_PLUGIN="ml2"
-#Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn,logger
+# FIXME(arosen): switch to ml2 when code is ready
+Q_PLUGIN=${Q_PLUGIN:-"ovn"}
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=${Q_ML2_PLUGIN_MECHANISM_DRIVERS:-ovn,logger}
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
 # OpenStack will use q-l3 functionality.
