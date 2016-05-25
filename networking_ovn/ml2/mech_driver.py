@@ -165,10 +165,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here. If updating ACls fails somehow, we're out of sync until another
         # change causes another refresh attempt.
-        self._update_acls_for_security_group(admin_context,
-                                             sg_id,
-                                             rule=sg_rule,
-                                             is_add_acl=is_add_acl)
+        ovn_acl._update_acls_for_security_group(self._plugin,
+                                                admin_context,
+                                                self._ovn,
+                                                sg_id,
+                                                rule=sg_rule,
+                                                is_add_acl=is_add_acl)
 
     def create_network_postcommit(self, context):
         """Create a network.
@@ -455,47 +457,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _add_acls(self,
-                  admin_context,
-                  port,
-                  sg_cache,
-                  sg_ports_cache,
-                  subnet_cache):
-        acl_list = []
-        sec_groups = port.get('security_groups', [])
-        if not sec_groups:
-            return acl_list
-
-        # Drop all IP traffic to and from the logical port by default.
-        acl_list += ovn_acl.drop_all_ip_traffic_for_port(port)
-
-        for ip in port['fixed_ips']:
-            subnet = ovn_acl._get_subnet_from_cache(self._plugin,
-                                                    admin_context,
-                                                    subnet_cache,
-                                                    ip['subnet_id'])
-            if subnet['ip_version'] != 4:
-                continue
-            acl_list += ovn_acl.add_acl_dhcp(port, subnet)
-
-        # We create an ACL entry for each rule on each security group applied
-        # to this port.
-        for sg_id in sec_groups:
-            sg = ovn_acl._get_sg_from_cache(self._plugin,
-                                            admin_context,
-                                            sg_cache,
-                                            sg_id)
-            for r in sg['security_group_rules']:
-                acl = ovn_acl._add_sg_rule_acl_for_port(self._plugin,
-                                                        admin_context,
-                                                        port, r,
-                                                        sg_ports_cache,
-                                                        subnet_cache)
-                if acl and acl not in acl_list:
-                    acl_list.append(acl)
-
-        return acl_list
-
     def _refresh_remote_security_group(self,
                                        admin_context,
                                        sec_group,
@@ -510,73 +471,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             admin_context, filters, fields=['security_group_id'])
         sg_ids = set(r['security_group_id'] for r in refering_rules)
         for sg_id in sg_ids:
-            self._update_acls_for_security_group(admin_context,
-                                                 sg_id,
-                                                 sg_cache,
-                                                 sg_ports_cache,
-                                                 subnet_cache,
-                                                 exclude_ports)
-
-    def _update_acls_for_security_group(self,
-                                        admin_context,
-                                        security_group_id,
-                                        sg_cache=None,
-                                        sg_ports_cache=None,
-                                        subnet_cache=None,
-                                        exclude_ports=None,
-                                        rule=None,
-                                        is_add_acl=True):
-
-        # Setup the caches or use cache provided.
-        sg_cache = sg_cache or {}
-        sg_ports_cache = sg_ports_cache or {}
-        subnet_cache = subnet_cache or {}
-        exclude_ports = exclude_ports or []
-
-        sg_ports = ovn_acl._get_sg_ports_from_cache(self._plugin,
+            ovn_acl._update_acls_for_security_group(self._plugin,
                                                     admin_context,
+                                                    self._ovn,
+                                                    sg_id,
+                                                    sg_cache,
                                                     sg_ports_cache,
-                                                    security_group_id)
-
-        # ACLs associated with a security group may span logical switches
-        sg_port_ids = [binding['port_id'] for binding in sg_ports]
-        sg_port_ids = list(set(sg_port_ids) - set(exclude_ports))
-        port_list = self._plugin.get_ports(admin_context,
-                                           filters={'id': sg_port_ids})
-        lswitch_names = set([p['network_id'] for p in port_list])
-        acl_new_values_dict = {}
-
-        # NOTE(lizk): When a certain rule is given, we can directly locate
-        # the affected acl records, so no need to compare new acl values with
-        # existing acl objects, such as case create_security_group_rule or
-        # delete_security_group_rule is calling this. But for other cases,
-        # since we don't know which acl records need be updated, compare will
-        # be needed.
-        need_compare = True
-        if rule:
-            need_compare = False
-            for port in port_list:
-                acl = ovn_acl._add_sg_rule_acl_for_port(
-                    self._plugin, admin_context, port, rule,
-                    sg_ports_cache, subnet_cache)
-                # Remove lport and lswitch since we don't need them
-                acl.pop('lport')
-                acl.pop('lswitch')
-                acl_new_values_dict[port['id']] = acl
-        else:
-            for port in port_list:
-                acls_new = self._add_acls(admin_context,
-                                          port,
-                                          sg_cache,
-                                          sg_ports_cache,
-                                          subnet_cache)
-                acl_new_values_dict[port['id']] = acls_new
-
-        self._ovn.update_acls(list(lswitch_names),
-                              iter(port_list),
-                              acl_new_values_dict,
-                              need_compare=need_compare,
-                              is_add_acl=is_add_acl).execute(check_error=True)
+                                                    subnet_cache,
+                                                    exclude_ports)
 
     def create_port_in_ovn(self, port, ovn_port_info):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
@@ -601,11 +503,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     options=ovn_port_info.options,
                     type=ovn_port_info.type,
                     port_security=ovn_port_info.port_security))
-            acls_new = self._add_acls(admin_context,
-                                      port,
-                                      sg_cache,
-                                      sg_ports_cache,
-                                      subnet_cache)
+            acls_new = ovn_acl._add_acls(self._plugin, admin_context,
+                                         port, sg_cache, sg_ports_cache,
+                                         subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
@@ -679,11 +579,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']),
                     port['id']))
-            acls_new = self._add_acls(admin_context,
-                                      port,
-                                      sg_cache,
-                                      sg_ports_cache,
-                                      subnet_cache)
+            acls_new = ovn_acl._add_acls(self._plugin,
+                                         admin_context,
+                                         port,
+                                         sg_cache,
+                                         sg_ports_cache,
+                                         subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
