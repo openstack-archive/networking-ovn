@@ -475,15 +475,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 sg_cache[sg_id] = sg
             return sg
 
-    def _get_subnet_from_cache(self, admin_context, subnet_cache, subnet_id):
-        if subnet_id in subnet_cache:
-            return subnet_cache[subnet_id]
-        else:
-            subnet = self._plugin.get_subnet(admin_context, subnet_id)
-            if subnet:
-                subnet_cache[subnet_id] = subnet
-            return subnet
-
     def _acl_remote_match_ip(self, admin_context,
                              sg_ports, subnet_cache,
                              ip_version, src_or_dst):
@@ -495,9 +486,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                        filters={'id': port_ids})
         for port in ports:
             for fixed_ip in port['fixed_ips']:
-                subnet = self._get_subnet_from_cache(admin_context,
-                                                     subnet_cache,
-                                                     fixed_ip['subnet_id'])
+                subnet = ovn_acl._get_subnet_from_cache(self._plugin,
+                                                        admin_context,
+                                                        subnet_cache,
+                                                        fixed_ip['subnet_id'])
                 if subnet['ip_version'] == ip_version_map.get(ip_version):
                     match += '%s.%s == %s || ' % (ip_version,
                                                   src_or_dst,
@@ -584,9 +576,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         acl_list += ovn_acl.drop_all_ip_traffic_for_port(port)
 
         for ip in port['fixed_ips']:
-            subnet = self._get_subnet_from_cache(admin_context,
-                                                 subnet_cache,
-                                                 ip['subnet_id'])
+            subnet = ovn_acl._get_subnet_from_cache(self._plugin,
+                                                    admin_context,
+                                                    subnet_cache,
+                                                    ip['subnet_id'])
             if subnet['ip_version'] != 4:
                 continue
             acl_list += ovn_acl.add_acl_dhcp(port, subnet)

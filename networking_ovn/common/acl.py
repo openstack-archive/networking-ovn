@@ -158,3 +158,13 @@ def add_acl_dhcp(port, subnet):
            "external_ids": {'neutron:lport': port['id']}}
     acl_list.append(acl)
     return acl_list
+
+
+def _get_subnet_from_cache(plugin, admin_context, subnet_cache, subnet_id):
+    if subnet_id in subnet_cache:
+        return subnet_cache[subnet_id]
+    else:
+        subnet = plugin.get_subnet(admin_context, subnet_id)
+        if subnet:
+            subnet_cache[subnet_id] = subnet
+        return subnet
