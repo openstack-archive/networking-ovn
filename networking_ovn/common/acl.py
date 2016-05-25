@@ -190,3 +190,30 @@ def _get_sg_from_cache(plugin, admin_context, sg_cache, sg_id):
         if sg:
             sg_cache[sg_id] = sg
         return sg
+
+
+def _acl_remote_match_ip(plugin, admin_context,
+                         sg_ports, subnet_cache,
+                         ip_version, src_or_dst):
+    ip_version_map = {'ip4': 4,
+                      'ip6': 6}
+    match = ''
+    port_ids = [sg_port['port_id'] for sg_port in sg_ports]
+    ports = plugin.get_ports(admin_context,
+                             filters={'id': port_ids})
+    for port in ports:
+        for fixed_ip in port['fixed_ips']:
+            subnet = _get_subnet_from_cache(plugin,
+                                            admin_context,
+                                            subnet_cache,
+                                            fixed_ip['subnet_id'])
+            if subnet['ip_version'] == ip_version_map.get(ip_version):
+                match += '%s.%s == %s || ' % (ip_version,
+                                              src_or_dst,
+                                              fixed_ip['ip_address'])
+
+    if match:
+        match = match[:-4]  # Remove the last ' || '
+        match = ' && (%s)' % match
+
+    return match
