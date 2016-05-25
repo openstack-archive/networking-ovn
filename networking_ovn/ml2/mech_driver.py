@@ -455,17 +455,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _get_sg_ports_from_cache(self, admin_context, sg_ports_cache, sg_id):
-        if sg_id in sg_ports_cache:
-            return sg_ports_cache[sg_id]
-        else:
-            filters = {'security_group_id': [sg_id]}
-            sg_ports = self._plugin._get_port_security_group_bindings(
-                admin_context, filters)
-            if sg_ports:
-                sg_ports_cache[sg_id] = sg_ports
-            return sg_ports
-
     def _get_sg_from_cache(self, admin_context, sg_cache, sg_id):
         if sg_id in sg_cache:
             return sg_cache[sg_id]
@@ -507,9 +496,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if not r['remote_group_id']:
             return '', False
         match = ''
-        sg_ports = self._get_sg_ports_from_cache(admin_context,
-                                                 sg_ports_cache,
-                                                 r['remote_group_id'])
+        sg_ports = ovn_acl._get_sg_ports_from_cache(self._plugin,
+                                                    admin_context,
+                                                    sg_ports_cache,
+                                                    r['remote_group_id'])
         sg_ports = [p for p in sg_ports if p['port_id'] != port['id']]
         if not sg_ports:
             # If there are no other ports on this security group, then this
@@ -637,9 +627,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet_cache = subnet_cache or {}
         exclude_ports = exclude_ports or []
 
-        sg_ports = self._get_sg_ports_from_cache(admin_context,
-                                                 sg_ports_cache,
-                                                 security_group_id)
+        sg_ports = ovn_acl._get_sg_ports_from_cache(self._plugin,
+                                                    admin_context,
+                                                    sg_ports_cache,
+                                                    security_group_id)
 
         # ACLs associated with a security group may span logical switches
         sg_port_ids = [binding['port_id'] for binding in sg_ports]
