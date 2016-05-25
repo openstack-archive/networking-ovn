@@ -385,3 +385,28 @@ def _add_acls(plugin, admin_context, port, sg_cache,
                 acl_list.append(acl)
 
     return acl_list
+
+
+def _refresh_remote_security_group(plugin,
+                                   admin_context,
+                                   ovn,
+                                   sec_group,
+                                   sg_cache=None,
+                                   sg_ports_cache=None,
+                                   subnet_cache=None,
+                                   exclude_ports=None):
+    # For sec_group, refresh acls for all other security groups that have
+    # rules referencing sec_group as 'remote_group'.
+    filters = {'remote_group_id': [sec_group]}
+    refering_rules = plugin.get_security_group_rules(
+        admin_context, filters, fields=['security_group_id'])
+    sg_ids = set(r['security_group_id'] for r in refering_rules)
+    for sg_id in sg_ids:
+        _update_acls_for_security_group(plugin,
+                                        admin_context,
+                                        ovn,
+                                        sg_id,
+                                        sg_cache,
+                                        sg_ports_cache,
+                                        subnet_cache,
+                                        exclude_ports)

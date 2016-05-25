@@ -411,29 +411,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return OvnPortInfo(port_type, options, [addresses], port_security,
                            parent_name, tag)
 
-    def _refresh_remote_security_group(self,
-                                       admin_context,
-                                       sec_group,
-                                       sg_cache=None,
-                                       sg_ports_cache=None,
-                                       subnet_cache=None,
-                                       exclude_ports=None):
-        # For sec_group, refresh acls for all other security groups that have
-        # rules referencing sec_group as 'remote_group'.
-        filters = {'remote_group_id': [sec_group]}
-        refering_rules = self._plugin.get_security_group_rules(
-            admin_context, filters, fields=['security_group_id'])
-        sg_ids = set(r['security_group_id'] for r in refering_rules)
-        for sg_id in sg_ids:
-            ovn_acl._update_acls_for_security_group(self._plugin,
-                                                    admin_context,
-                                                    self._ovn,
-                                                    sg_id,
-                                                    sg_cache,
-                                                    sg_ports_cache,
-                                                    subnet_cache,
-                                                    exclude_ports)
-
     def create_port_in_ovn(self, port, ovn_port_info):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
         lswitch_name = utils.ovn_name(port['network_id'])
@@ -465,9 +442,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         if len(port.get('fixed_ips')):
             for sg_id in port.get('security_groups', []):
-                self._refresh_remote_security_group(
-                    admin_context, sg_id,
-                    sg_cache, sg_ports_cache,
+                ovn_acl._refresh_remote_security_group(
+                    self._plugin, admin_context, self._ovn,
+                    sg_id, sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
 
     def update_port_precommit(self, context):
@@ -556,8 +533,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             return port
 
         for sg_id in (attached_sg_ids | detached_sg_ids):
-            self._refresh_remote_security_group(
-                admin_context, sg_id,
+            ovn_acl._refresh_remote_security_group(
+                self._plugin, admin_context, self._ovn, sg_id,
                 sg_cache, sg_ports_cache,
                 subnet_cache, [port['id']])
 
@@ -567,8 +544,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # now we only need to take care of unchanged security groups.
             unchanged_sg_ids = new_sg_ids & old_sg_ids
             for sg_id in unchanged_sg_ids:
-                self._refresh_remote_security_group(
-                    admin_context, sg_id,
+                ovn_acl._refresh_remote_security_group(
+                    self._plugin, admin_context, self._ovn, sg_id,
                     sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
 
@@ -596,7 +573,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         num_fixed_ips = len(port.get('fixed_ips'))
         if num_fixed_ips:
             for sg_id in sg_ids:
-                self._refresh_remote_security_group(admin_context, sg_id)
+                ovn_acl._refresh_remote_security_group(
+                    self._plugin, admin_context, self._ovn, sg_id)
 
     def bind_port(self, context):
         """Attempt to bind a port.
