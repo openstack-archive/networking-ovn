@@ -134,6 +134,9 @@ class OvsdbOvnIdl(ovn_api.API):
         """
         result = []
         for lrouter in self._tables['Logical_Router'].rows.values():
+            if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
+                lrouter.external_ids):
+                continue
             lrports = [lrport.name.replace('lrp-', '')
                        for lrport in getattr(lrouter, 'ports', [])]
             result.append({'name': lrouter.name.replace('neutron-', ''),
