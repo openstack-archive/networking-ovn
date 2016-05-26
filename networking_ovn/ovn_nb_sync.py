@@ -227,14 +227,18 @@ class OvnNbSynchronizer(object):
                   (len(list(itertools.chain(*six.itervalues(neutron_acls)))),
                    len(list(itertools.chain(*six.itervalues(nb_acls))))))
 
-        LOG.debug('ACL-SYNC: transaction started @ %s' % str(datetime.now()))
-        with self.ovn_api.transaction(check_error=True) as txn:
-            for acla in list(itertools.chain(*six.itervalues(neutron_acls))):
-                txn.add(self.ovn_api.add_acl(**acla))
-            for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
-                txn.add(self.ovn_api.delete_acl(aclr['lswitch'],
-                                                aclr['lport']))
-        LOG.debug('ACL-SYNC: transaction finished @ %s' % str(datetime.now()))
+        if self.mode == SYNC_MODE_REPAIR:
+            LOG.debug('ACL-SYNC: transaction started @ %s' %
+                      str(datetime.now()))
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for acla in list(itertools.chain(
+                                 *six.itervalues(neutron_acls))):
+                    txn.add(self.ovn_api.add_acl(**acla))
+                for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
+                    txn.add(self.ovn_api.delete_acl(aclr['lswitch'],
+                                                    aclr['lport']))
+            LOG.debug('ACL-SYNC: transaction finished @ %s' %
+                      str(datetime.now()))
 
     def sync_routers_and_rports(self, ctx):
         """Sync Routers between neutron and NB.
