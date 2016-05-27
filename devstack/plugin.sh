@@ -197,7 +197,7 @@ function init_ovn {
     base_dir=$DATA_DIR/ovs
     mkdir -p $base_dir
 
-    for db in conf.db ovnsb.db ovnnb.db ; do
+    for db in conf.db ovnsb.db ovnnb.db vtep.db ; do
         if [ -f $base_dir/$db ] ; then
             rm -f $base_dir/$db
         fi
@@ -209,6 +209,9 @@ function init_ovn {
     if is_ovn_service_enabled ovn-northd ; then
         ovsdb-tool create $base_dir/ovnsb.db $DEST/$OVN_REPO_NAME/ovn/ovn-sb.ovsschema
         ovsdb-tool create $base_dir/ovnnb.db $DEST/$OVN_REPO_NAME/ovn/ovn-nb.ovsschema
+    fi
+    if is_ovn_service_enabled ovn-controller-vtep ; then
+        ovsdb-tool create $base_dir/vtep.db $DEST/$OVN_REPO_NAME/vtep/vtep.ovsschema
     fi
 }
 
@@ -292,12 +295,22 @@ function start_ovs {
     # rather broken.  So, stay with this for now and somebody more tenacious
     # than I can figure out how to make it work...
 
-    if is_ovn_service_enabled ovn-controller; then
+    if is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
+        local _OVSREMOTE="--remote=db:Open_vSwitch,Open_vSwitch,manager_options"
+        local _VTEPREMOTE=""
+        local _OVSDB=conf.db
+        local _VTEPDB=""
+
+        if is_ovn_service_enabled ovn-controller-vtep ; then
+            _VTEPREMOTE="--remote=db:hardware_vtep,Global,managers"
+            _VTEPDB=vtep.db
+        fi
+
         ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
-                     --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+                     $_OVSREMOTE $_VTEPREMOTE \
                      --pidfile --detach -vconsole:off \
                      --log-file=$LOGDIR/ovsdb-server.log \
-                     conf.db
+                     $_OVSDB $_VTEPDB
 
         echo -n "Waiting for ovsdb-server to start ... "
         local testcmd="test -e /usr/local/var/run/openvswitch/db.sock"
@@ -308,7 +321,7 @@ function start_ovs {
         ovs-vsctl --no-wait set open_vswitch . external-ids:system-id="$OVN_UUID"
     fi
 
-    if is_ovn_service_enabled ovn-controller ; then
+    if is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_SB_REMOTE"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
@@ -327,6 +340,14 @@ function start_ovs {
             _neutron_ovs_base_setup_bridge $OVS_PHYSICAL_BRIDGE
             ovs-vsctl set open . external-ids:ovn-bridge-mappings=${PHYSICAL_NETWORK}:${OVS_PHYSICAL_BRIDGE}
         fi
+    fi
+
+    if is_ovn_service_enabled ovn-controller-vtep ; then
+        _neutron_ovs_base_setup_bridge br-vtep
+        vtep-ctl add-ps br-vtep
+        vtep-ctl set Physical_Switch br-vtep tunnel_ips=$HOST_IP
+        sudo /usr/local/share/openvswitch/scripts/ovs-vtep --log-file=$LOGDIR/ovs-vtep.log --pidfile --detach br-vtep
+        vtep-ctl set-manager tcp:$HOST_IP:6640
     fi
 
     cd $_pwd
@@ -351,6 +372,21 @@ function start_ovn {
         sudo ovs-appctl -t ovn-controller vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
 
+    if is_ovn_service_enabled ovn-controller-vtep ; then
+        # (regXboi) pulling out --log-file to avoid double logging
+        # appears to break devstack, so let's not do that
+        run_process ovn-controller-vtep "sudo ovn-controller-vtep --pidfile --log-file --vtep-db=unix:/usr/local/var/run/openvswitch/db.sock --ovnsb-db=unix:/usr/local/var/run/openvswitch/ovnsb_db.sock"
+
+        # This makes sure that the console logs have time stamps to
+        # the millisecond, but we need to make sure ovs-appctl has
+        # a pid file to work with, so ...
+        echo -n "Waiting for ovn-controller-vtep to start ... "
+        local testcmd="test -e /usr/local/var/run/openvswitch/ovn-controller-vtep.pid"
+        test_with_retry "$testcmd" "ovn-controller-vtep did not start" $SERVICE_TIMEOUT 1
+        echo "done."
+        sudo ovs-appctl -t ovn-controller-vtep vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
+    fi
+
     if is_ovn_service_enabled ovn-northd ; then
 
 
@@ -372,6 +408,11 @@ function start_ovn {
 function stop_ovn {
     if is_ovn_service_enabled ovn-controller ; then
         stop_process ovn-controller
+        sudo killall ovs-vswitchd
+    fi
+    if is_ovn_service_enabled ovn-controller-vtep ; then
+        stop_process ovn-controller-vtep
+        sudo killall ovs-vtep
         sudo killall ovs-vswitchd
     fi
     if is_ovn_service_enabled ovn-northd ; then
@@ -423,7 +464,7 @@ function create_public_bridge {
 }
 
 # main loop
-if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller; then
+if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
         install_ovn
         configure_ovn
