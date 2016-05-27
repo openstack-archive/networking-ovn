@@ -168,3 +168,15 @@ def _get_subnet_from_cache(plugin, admin_context, subnet_cache, subnet_id):
         if subnet:
             subnet_cache[subnet_id] = subnet
         return subnet
+
+
+def _get_sg_ports_from_cache(plugin, admin_context, sg_ports_cache, sg_id):
+    if sg_id in sg_ports_cache:
+        return sg_ports_cache[sg_id]
+    else:
+        filters = {'security_group_id': [sg_id]}
+        sg_ports = plugin._get_port_security_group_bindings(
+            admin_context, filters)
+        if sg_ports:
+            sg_ports_cache[sg_id] = sg_ports
+        return sg_ports
