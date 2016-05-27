@@ -235,8 +235,15 @@ class OvnNbSynchronizer(object):
                                  *six.itervalues(neutron_acls))):
                     txn.add(self.ovn_api.add_acl(**acla))
                 for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
-                    txn.add(self.ovn_api.delete_acl(aclr['lswitch'],
-                                                    aclr['lport']))
+                    # Both lswitch and lport aren't needed within the ACL.
+                    lswitchr = aclr.pop('lswitch').replace('neutron-', '')
+                    lportr = aclr.pop('lport')
+                    aclr_dict = {lportr: aclr}
+                    txn.add(self.ovn_api.update_acls([lswitchr],
+                                                     [lportr],
+                                                     aclr_dict,
+                                                     need_compare=False,
+                                                     is_add_acl=False))
             LOG.debug('ACL-SYNC: transaction finished @ %s' %
                       str(datetime.now()))
 
