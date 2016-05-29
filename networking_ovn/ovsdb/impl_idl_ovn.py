@@ -130,7 +130,7 @@ class OvsdbOvnIdl(ovn_api.API):
     def get_all_logical_routers_with_rports(self):
         """Get logical Router ports associated with all logical Routers
 
-        @return: (lrouter_name, lrports)
+        @return: (lrouter_name, static_routes, lrports)
         """
         result = []
         for lrouter in self._tables['Logical_Router'].rows.values():
@@ -139,7 +139,11 @@ class OvsdbOvnIdl(ovn_api.API):
                 continue
             lrports = [lrport.name.replace('lrp-', '')
                        for lrport in getattr(lrouter, 'ports', [])]
+            sroutes = [{'destination': sroute.ip_prefix,
+                        'nexthop': sroute.nexthop}
+                       for sroute in getattr(lrouter, 'static_routes', [])]
             result.append({'name': lrouter.name.replace('neutron-', ''),
+                           'static_routes': sroutes,
                            'ports': lrports})
         return result
 

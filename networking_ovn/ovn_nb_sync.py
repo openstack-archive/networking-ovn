@@ -16,6 +16,7 @@ import itertools
 from neutron_lib import constants
 from oslo_log import log
 
+from neutron.common import utils as n_utils
 from neutron import context
 from neutron.extensions import providernet as pnet
 from neutron import manager
@@ -229,6 +230,7 @@ class OvnNbSynchronizer(object):
         lrouters = self.ovn_api.get_all_logical_routers_with_rports()
         del_lrouters_list = []
         del_lrouter_ports_list = []
+        update_sroutes_list = []
         for lrouter in lrouters:
             if lrouter['name'] in db_routers:
                 for lrport in lrouter['ports']:
@@ -237,6 +239,16 @@ class OvnNbSynchronizer(object):
                     else:
                         del_lrouter_ports_list.append(
                             {'port': lrport, 'lrouter': lrouter['name']})
+                if 'routes' in db_routers[lrouter['name']]:
+                    db_routes = db_routers[lrouter['name']]['routes']
+                else:
+                    db_routes = []
+                ovn_routes = lrouter['static_routes']
+                add_routes, del_routes = n_utils.diff_list_of_dict(
+                    ovn_routes, db_routes)
+                update_sroutes_list.append({'id': lrouter['name'],
+                                            'add': add_routes,
+                                            'del': del_routes})
                 del db_routers[lrouter['name']]
             else:
                 del_lrouters_list.append(lrouter)
@@ -249,6 +261,10 @@ class OvnNbSynchronizer(object):
                     LOG.warning(_LW("Creating the router %s in OVN NB DB"),
                                 router['id'])
                     self.l3_plugin.create_lrouter_in_ovn(router)
+                    if 'routes' in router:
+                        update_sroutes_list.append(
+                            {'id': router['id'], 'add': router['routes'],
+                             'del': []})
                 except RuntimeError:
                     LOG.warning(_LW("Create router in OVN NB failed for"
                                     " router %s"), router['id'])
@@ -287,6 +303,31 @@ class OvnNbSynchronizer(object):
                             utils.ovn_lrouter_port_name(lrport_info['port']),
                             utils.ovn_name(lrport_info['lrouter']),
                             if_exists=False))
+            for sroute in update_sroutes_list:
+                if sroute['add']:
+                    LOG.warning("Router %s static routes %s found in "
+                                "Neutron but not in OVN", sroute['id'],
+                                sroute['add'])
+                    if self.mode == SYNC_MODE_REPAIR:
+                        LOG.warning(_LW("Add static routes %s to OVN NB DB"),
+                                    sroute['add'])
+                        for route in sroute['add']:
+                            txn.add(self.ovn_api.add_static_route(
+                                utils.ovn_name(sroute['id']),
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
+                if sroute['del']:
+                    LOG.warning("Router %s static routes %s found in "
+                                "OVN but not in Neutron", sroute['id'],
+                                sroute['del'])
+                    if self.mode == SYNC_MODE_REPAIR:
+                        LOG.warning(_LW("Delete static routes %s from OVN "
+                                        "NB DB"), sroute['del'])
+                        for route in sroute['del']:
+                            txn.add(self.ovn_api.delete_static_route(
+                                utils.ovn_name(sroute['id']),
+                                ip_prefix=route['destination'],
+                                nexthop=route['nexthop']))
         LOG.debug('OVN-NB Sync routers and router ports finished')
 
     def sync_networks_and_ports(self, ctx):
