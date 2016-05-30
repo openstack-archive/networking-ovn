@@ -173,20 +173,20 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
             if port['security_groups']:
                 if port_id in neutron_acls:
                     neutron_acls[port_id].extend(
-                        acl_utils._add_acls(self.core_plugin,
-                                            ctx,
-                                            port,
-                                            sg_cache,
-                                            sg_ports_cache,
-                                            subnet_cache))
+                        acl_utils.add_acls(self.core_plugin,
+                                           ctx,
+                                           port,
+                                           sg_cache,
+                                           sg_ports_cache,
+                                           subnet_cache))
                 else:
                     neutron_acls[port_id] = \
-                        acl_utils._add_acls(self.core_plugin,
-                                            ctx,
-                                            port,
-                                            sg_cache,
-                                            sg_ports_cache,
-                                            subnet_cache)
+                        acl_utils.add_acls(self.core_plugin,
+                                           ctx,
+                                           port,
+                                           sg_cache,
+                                           sg_ports_cache,
+                                           subnet_cache)
 
         nb_acls = self.get_acls(ctx)
 

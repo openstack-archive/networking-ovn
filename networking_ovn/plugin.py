@@ -673,8 +673,8 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             sg_ports_cache = {}
             subnet_cache = {}
             sg_cache = {}
-            acls_new = acl_utils._add_acls(self, context, port, sg_cache,
-                                           sg_ports_cache, subnet_cache)
+            acls_new = acl_utils.add_acls(self, context, port, sg_cache,
+                                          sg_ports_cache, subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
@@ -691,7 +691,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             return port
 
         for sg_id in (attached_sg_ids | detached_sg_ids):
-            acl_utils._refresh_remote_security_group(
+            acl_utils.refresh_remote_security_group(
                 self, context, self._ovn, sg_id,
                 sg_ports_cache=sg_ports_cache,
                 exclude_ports=[port['id']],
@@ -703,7 +703,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # now we only need to take care of unchanged security groups.
             unchanged_sg_ids = new_sg_ids & old_sg_ids
             for sg_id in unchanged_sg_ids:
-                acl_utils._refresh_remote_security_group(
+                acl_utils.refresh_remote_security_group(
                     self, context, self._ovn, sg_id,
                     sg_ports_cache=sg_ports_cache,
                     exclude_ports=[port['id']],
@@ -925,14 +925,14 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             sg_ports_cache = {}
             subnet_cache = {}
             sg_cache = {}
-            acls_new = acl_utils._add_acls(self, context, port, sg_cache,
-                                           sg_ports_cache, subnet_cache)
+            acls_new = acl_utils.add_acls(self, context, port, sg_cache,
+                                          sg_ports_cache, subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
         if len(port.get('fixed_ips')):
             for sg_id in port.get('security_groups', []):
-                acl_utils._refresh_remote_security_group(
+                acl_utils.refresh_remote_security_group(
                     self, context, self._ovn, sg_id,
                     sg_ports_cache=sg_ports_cache,
                     exclude_ports=[port['id']], subnet_cache=subnet_cache)
@@ -956,7 +956,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         if num_fixed_ips:
             for sg_id in sg_ids:
-                acl_utils._refresh_remote_security_group(
+                acl_utils.refresh_remote_security_group(
                     self, context, self._ovn, sg_id)
 
     def extend_port_dict_binding(self, port_res, port_db):
@@ -1153,7 +1153,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
     def update_security_group(self, context, id, security_group):
         res = super(OVNPlugin, self).update_security_group(context, id,
                                                            security_group)
-        acl_utils._update_acls_for_security_group(self, context, self._ovn, id)
+        acl_utils.update_acls_for_security_group(self, context, self._ovn, id)
         return res
 
     def delete_security_group(self, context, id):
@@ -1170,7 +1170,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # here.  We put the rule in the Neutron db above and then update all
         # affected ports next.  If updating ports fails somehow, we're out of
         # sync until another change causes another refresh attempt.
-        acl_utils._update_acls_for_security_group(
+        acl_utils.update_acls_for_security_group(
             self, context, self._ovn, group_id, rule=rule, is_add_acl=True)
         return res
 
@@ -1183,7 +1183,7 @@ class OVNPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         # ACL update to reflect the current state in OVN.  If updating OVN
         # fails, we'll be out of sync until another change happens that
         # triggers a refresh.
-        acl_utils._update_acls_for_security_group(
+        acl_utils.update_acls_for_security_group(
             self, context, self._ovn, group_id, rule=security_group_rule,
             is_add_acl=False)
 

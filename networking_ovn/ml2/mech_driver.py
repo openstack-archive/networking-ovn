@@ -165,12 +165,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here. If updating ACls fails somehow, we're out of sync until another
         # change causes another refresh attempt.
-        ovn_acl._update_acls_for_security_group(self._plugin,
-                                                admin_context,
-                                                self._ovn,
-                                                sg_id,
-                                                rule=sg_rule,
-                                                is_add_acl=is_add_acl)
+        ovn_acl.update_acls_for_security_group(self._plugin,
+                                               admin_context,
+                                               self._ovn,
+                                               sg_id,
+                                               rule=sg_rule,
+                                               is_add_acl=is_add_acl)
 
     def create_network_postcommit(self, context):
         """Create a network.
@@ -434,15 +434,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     options=ovn_port_info.options,
                     type=ovn_port_info.type,
                     port_security=ovn_port_info.port_security))
-            acls_new = ovn_acl._add_acls(self._plugin, admin_context,
-                                         port, sg_cache, sg_ports_cache,
-                                         subnet_cache)
+            acls_new = ovn_acl.add_acls(self._plugin, admin_context,
+                                        port, sg_cache, sg_ports_cache,
+                                        subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
         if len(port.get('fixed_ips')):
             for sg_id in port.get('security_groups', []):
-                ovn_acl._refresh_remote_security_group(
+                ovn_acl.refresh_remote_security_group(
                     self._plugin, admin_context, self._ovn,
                     sg_id, sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
@@ -511,12 +511,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             txn.add(self._ovn.delete_acl(
                     utils.ovn_name(port['network_id']),
                     port['id']))
-            acls_new = ovn_acl._add_acls(self._plugin,
-                                         admin_context,
-                                         port,
-                                         sg_cache,
-                                         sg_ports_cache,
-                                         subnet_cache)
+            acls_new = ovn_acl.add_acls(self._plugin,
+                                        admin_context,
+                                        port,
+                                        sg_cache,
+                                        sg_ports_cache,
+                                        subnet_cache)
             for acl in acls_new:
                 txn.add(self._ovn.add_acl(**acl))
 
@@ -533,7 +533,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             return port
 
         for sg_id in (attached_sg_ids | detached_sg_ids):
-            ovn_acl._refresh_remote_security_group(
+            ovn_acl.refresh_remote_security_group(
                 self._plugin, admin_context, self._ovn, sg_id,
                 sg_cache, sg_ports_cache,
                 subnet_cache, [port['id']])
@@ -544,7 +544,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # now we only need to take care of unchanged security groups.
             unchanged_sg_ids = new_sg_ids & old_sg_ids
             for sg_id in unchanged_sg_ids:
-                ovn_acl._refresh_remote_security_group(
+                ovn_acl.refresh_remote_security_group(
                     self._plugin, admin_context, self._ovn, sg_id,
                     sg_cache, sg_ports_cache,
                     subnet_cache, [port['id']])
@@ -573,7 +573,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         num_fixed_ips = len(port.get('fixed_ips'))
         if num_fixed_ips:
             for sg_id in sg_ids:
-                ovn_acl._refresh_remote_security_group(
+                ovn_acl.refresh_remote_security_group(
                     self._plugin, admin_context, self._ovn, sg_id)
 
     def bind_port(self, context):

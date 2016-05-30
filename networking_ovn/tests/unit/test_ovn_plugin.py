@@ -443,11 +443,11 @@ class TestOvnPluginACLs(OVNPluginTestCase):
             if 'from-lport' in acl.values():
                 self.assertEqual(acl_from_lport, acl)
 
-    def test__add_acls_no_sec_group(self):
-        acls = acl_utils._add_acls(self.plugin, self.context,
-                                   port={'security_groups': []},
-                                   sg_cache={}, sg_ports_cache={},
-                                   subnet_cache={})
+    def test_add_acls_no_sec_group(self):
+        acls = acl_utils.add_acls(self.plugin, self.context,
+                                  port={'security_groups': []},
+                                  sg_cache={}, sg_ports_cache={},
+                                  subnet_cache={})
         self.assertEqual(acls, [])
 
     def _test__add_sg_rule_acl_for_port(self, sg_rule, direction, match):
