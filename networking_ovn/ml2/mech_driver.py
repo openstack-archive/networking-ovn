@@ -81,10 +81,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         called prior to this method being called.
         """
         LOG.info(_LI("Starting OVNMechanismDriver"))
+        self._ovn_property = None
         self._plugin_property = None
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
+
+    @property
+    def _ovn(self):
+        if self._ovn_property is None:
+            LOG.info(_LI("Getting OvsdbOvnIdl"))
+            self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self)
+        return self._ovn_property
 
     @property
     def _plugin(self):
@@ -134,7 +142,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             events.BEFORE_DELETE)
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        self._ovn = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
+        self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
 
         # TODO(rtheis): Synchronizer needs to use ML2 ...
         # if trigger.im_class == ovsdb_monitor.OvnWorker:
