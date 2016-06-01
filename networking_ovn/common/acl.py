@@ -328,10 +328,11 @@ def _update_acls_for_security_group(plugin,
             acl = _add_sg_rule_acl_for_port(
                 plugin, admin_context, port, rule,
                 sg_ports_cache, subnet_cache)
-            # Remove lport and lswitch since we don't need them
-            acl.pop('lport')
-            acl.pop('lswitch')
-            acl_new_values_dict[port['id']] = acl
+            if acl:
+                # Remove lport and lswitch since we don't need them
+                acl.pop('lport')
+                acl.pop('lswitch')
+                acl_new_values_dict[port['id']] = acl
     else:
         for port in port_list:
             acls_new = _add_acls(plugin,
