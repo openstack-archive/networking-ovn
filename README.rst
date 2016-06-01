@@ -40,6 +40,8 @@ The openvswitch web page includes a list of presentations, some of which are
 about OVN:
 
 * http://openvswitch.org/support/
+* OVN talk at OpenStack Summit in Austin, Spring 2016
+  * https://www.youtube.com/watch?v=okralc7LrZo
 * OVN Project Update at the OpenStack Summit in Tokyo, Fall 2015
   * http://openvswitch.org/support/slides/OVN_Tokyo.pdf
   * https://www.youtube.com/watch?v=3IrG2xghJjs
