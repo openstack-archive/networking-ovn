@@ -38,6 +38,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
+from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 
@@ -144,13 +145,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
 
-        # TODO(rtheis): Synchronizer needs to use ML2 ...
-        # if trigger.im_class == ovsdb_monitor.OvnWorker:
-        #     # Call the synchronization task if its ovn worker
-        #     # This sync neutron DB to OVN-NB DB only in inconsistent states
-        #     self.synchronizer = ovn_nb_sync.OvnNbSynchronizer(
-        #         self, self._ovn, config.get_ovn_neutron_sync_mode())
-        #     self.synchronizer.sync()
+        if trigger.im_class == ovsdb_monitor.OvnWorker:
+            # Call the synchronization task if its ovn worker
+            # This sync neutron DB to OVN-NB DB only in inconsistent states
+            self.synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+                self._plugin,
+                self._ovn,
+                config.get_ovn_neutron_sync_mode(),
+                self
+            )
+            self.synchronizer.sync()
 
     def sg_callback(self, resource, event, trigger, **kwargs):
         sg_id = None

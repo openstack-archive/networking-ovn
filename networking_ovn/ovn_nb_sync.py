@@ -18,13 +18,14 @@ from oslo_log import log
 
 from neutron import context
 from neutron.extensions import providernet as pnet
+from neutron import manager
+from neutron.plugins.common import constants as service_constants
 
 from networking_ovn._i18n import _LW
 from networking_ovn.common import acl as acl_utils
+from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
-from neutron.db import db_base_plugin_v2
-from neutron.db import securitygroups_db
 import six
 
 LOG = log.getLogger(__name__)
@@ -34,12 +35,22 @@ SYNC_MODE_LOG = 'log'
 SYNC_MODE_REPAIR = 'repair'
 
 
-class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
-                        securitygroups_db.SecurityGroupDbMixin):
+class OvnNbSynchronizer(object):
     """Synchronizer class for NB."""
 
-    def __init__(self, plugin, ovn_api, mode):
-        self.core_plugin = plugin
+    def __init__(self, core_plugin, ovn_api, mode, ovn_driver=None):
+        self.core_plugin = core_plugin
+        # TODO(rtheis): Require OVN driver once core plugin is removed
+        # and remove related core plugin code throughout this part.
+        if ovn_driver is None:
+            self.is_ml2_ovn_driver = False
+            self.ovn_driver = core_plugin
+            self.l3_plugin = core_plugin
+        else:
+            self.is_ml2_ovn_driver = True
+            self.ovn_driver = ovn_driver
+            self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
+                service_constants.L3_ROUTER_NAT)
         self.ovn_api = ovn_api
         self.mode = mode
 
@@ -67,7 +78,20 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
             res = None
         return res
 
+    # TODO(rtheis): Refactor this method with core plugin removal.
     def _create_network_in_ovn(self, net):
+        if self.is_ml2_ovn_driver:
+            self._ml2_create_network_in_ovn(net)
+        else:
+            self._core_create_network_in_ovn(net)
+
+    def _ml2_create_network_in_ovn(self, network):
+        physnet = self._get_attribute(network, pnet.PHYSICAL_NETWORK)
+        segid = self._get_attribute(network, pnet.SEGMENTATION_ID)
+        self.ovn_driver.create_network_in_ovn(network, {}, physnet, segid)
+
+    # TODO(rtheis): Remove this method with core plugin.
+    def _core_create_network_in_ovn(self, net):
         ext_ids = {}
         physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
         if physnet:
@@ -82,17 +106,29 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                     ovn_const.OVN_SEGID_EXT_ID_KEY: str(segid),
                 })
 
-        self.core_plugin.create_network_in_ovn(net, ext_ids)
+        self.ovn_driver.create_network_in_ovn(net, ext_ids, None, None)
 
+    # TODO(rtheis): Refactor this method with core plugin removal.
     def _create_port_in_ovn(self, ctx, port):
-        binding_profile = self.core_plugin.get_data_from_binding_profile(
+        if self.is_ml2_ovn_driver:
+            self._ml2_create_port_in_ovn(port)
+        else:
+            self._core_create_port_in_ovn(ctx, port)
+
+    def _ml2_create_port_in_ovn(self, port):
+        ovn_port_info = self.ovn_driver.get_ovn_port_options(port)
+        self.ovn_driver.create_port_in_ovn(port, ovn_port_info)
+
+    # TODO(rtheis): Remove this method with core plugin.
+    def _core_create_port_in_ovn(self, ctx, port):
+        binding_profile = self.ovn_driver.get_data_from_binding_profile(
             ctx, port)
-        qos_options = self.core_plugin.qos_get_ovn_port_options(
+        qos_options = self.ovn_driver.qos_get_ovn_port_options(
             ctx, port)
-        ovn_port_info = self.core_plugin.get_ovn_port_options(binding_profile,
-                                                              qos_options,
-                                                              port)
-        return self.core_plugin.create_port_in_ovn(ctx, port, ovn_port_info)
+        ovn_port_info = self.ovn_driver.get_ovn_port_options(binding_profile,
+                                                             qos_options,
+                                                             port)
+        return self.ovn_driver.create_port_in_ovn(ctx, port, ovn_port_info)
 
     def remove_common_acls(self, neutron_acls, nb_acls):
         """Take out common acls of the two acl dictionaries.
@@ -126,7 +162,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                                                                       filters)
         lswitch_names = set([])
         for binding in sg_ports:
-            port = self.get_port(context, binding['port_id'])
+            port = self.core_plugin.get_port(context, binding['port_id'])
             lswitch_names.add(port['network_id'])
         acl_dict, ignore1, ignore2 = \
             self.ovn_api.get_acls_for_lswitches(lswitch_names)
@@ -145,7 +181,6 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
 
         @param ctx: neutron context
         @type  ctx: object of type neutron.context.Context
-        @var   db_secs: List of SGs from neutron DB
         @var   db_ports: List of ports from neutron DB
         @var   neutron_acls: neutron dictionary of port
                vs list-of-acls
@@ -157,10 +192,6 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
         """
         LOG.debug('ACL-SYNC: started @ %s' %
                   str(datetime.now()))
-        db_secs = {}
-        for sg in self.core_plugin.get_security_groups(ctx):
-            db_secs[sg['id']] = sg
-
         db_ports = {}
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
@@ -221,14 +252,19 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                deleted from NB
         @return: Nothing
         """
+        if not config.is_ovn_l3():
+            LOG.debug("OVN L3 mode is disabled, skipping "
+                      "sync routers and router ports")
+            return
+
         LOG.debug('OVN-NB Sync Routers and Router ports started')
         db_routers = {}
         db_router_ports = {}
-        for router in self.core_plugin.get_routers(ctx):
+        for router in self.l3_plugin.get_routers(ctx):
             db_routers[router['id']] = router
 
-        interfaces = self.core_plugin._get_sync_interfaces(ctx,
-                                                           db_routers.keys())
+        interfaces = self.l3_plugin._get_sync_interfaces(ctx,
+                                                         db_routers.keys())
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
         lrouters = self.ovn_api.get_all_logical_routers_with_rports()
@@ -253,7 +289,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                 try:
                     LOG.warning(_LW("Creating the router %s in OVN NB DB"),
                                 router['id'])
-                    self.core_plugin.create_lrouter_in_ovn(router)
+                    self.l3_plugin.create_lrouter_in_ovn(router)
                 except RuntimeError:
                     LOG.warning(_LW("Create router in OVN NB failed for"
                                     " router %s"), router['id'])
@@ -265,7 +301,7 @@ class OvnNbSynchronizer(db_base_plugin_v2.NeutronDbPluginV2,
                 try:
                     LOG.warning(_LW("Creating the router port %s in "
                                     "OVN NB DB"), rrport['id'])
-                    self.core_plugin.create_lrouter_port_in_ovn(
+                    self.l3_plugin.create_lrouter_port_in_ovn(
                         ctx, rrport['device_id'], rrport)
                 except RuntimeError:
                     LOG.warning(_LW("Create router port in OVN "
