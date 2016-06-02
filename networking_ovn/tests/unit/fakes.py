@@ -47,6 +47,13 @@ class FakeOvsdbOvnIdl(object):
         self.delete_static_route = mock.Mock()
 
 
+class FakePlugin(object):
+
+    def __init__(self, **kwargs):
+        self.get_ports = mock.Mock()
+        self._get_port_security_group_bindings = mock.Mock()
+
+
 class FakeResource(object):
 
     def __init__(self, manager=None, info=None, loaded=False, methods=None):

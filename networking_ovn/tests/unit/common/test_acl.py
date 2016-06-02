@@ -33,13 +33,19 @@ class TestACLs(base.TestCase):
         super(TestACLs, self).setUp()
         self.driver = mock.Mock()
         self.driver._ovn = fakes.FakeOvsdbOvnIdl()
-        self.fake_port = {'id': 'fake_port_id1',
-                          'network_id': 'network_id1',
-                          'fixed_ips': [{'subnet_id': 'subnet_id1',
-                                         'ip_address': '1.1.1.1'}]}
-        self.fake_subnet = {'id': 'subnet_id1',
-                            'ip_version': 4,
-                            'cidr': '1.1.1.0/24'}
+        self.plugin = fakes.FakePlugin()
+        self.admin_context = mock.Mock()
+        self.fake_port = fakes.FakePort.create_one_port({
+            'id': 'fake_port_id1',
+            'network_id': 'network_id1',
+            'fixed_ips': [{'subnet_id': 'subnet_id1',
+                           'ip_address': '1.1.1.1'}],
+        }).info()
+        self.fake_subnet = fakes.FakeSubnet.create_one_subnet({
+            'id': 'subnet_id1',
+            'ip_version': 4,
+            'cidr': '1.1.1.0/24',
+        }).info()
         patcher = mock.patch(
             'neutron.agent.ovsdb.native.idlutils.row_by_value',
             lambda *args, **kwargs: mock.MagicMock())
@@ -368,3 +374,84 @@ class TestACLs(base.TestCase):
         sg_rule['protocol'] = str(const.PROTO_NUM_IPV6_ICMP)
         match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
+
+    def test_acl_direction(self):
+        sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
+            'direction': 'ingress'
+        }).info()
+
+        match, remote_portdir = ovn_acl.acl_direction(sg_rule, self.fake_port)
+        self.assertEqual('outport == "' + self.fake_port['id'] + '"', match)
+        self.assertEqual('inport', remote_portdir)
+
+        sg_rule['direction'] = 'egress'
+        match, remote_portdir = ovn_acl.acl_direction(sg_rule, self.fake_port)
+        self.assertEqual('inport == "' + self.fake_port['id'] + '"', match)
+        self.assertEqual('outport', remote_portdir)
+
+    def test_acl_ethertype(self):
+        sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
+            'ethertype': 'IPv4'
+        }).info()
+
+        match, ip_version, icmp = ovn_acl.acl_ethertype(sg_rule)
+        self.assertEqual(' && ip4', match)
+        self.assertEqual('ip4', ip_version)
+        self.assertEqual('icmp4', icmp)
+
+        sg_rule['ethertype'] = 'IPv6'
+        match, ip_version, icmp = ovn_acl.acl_ethertype(sg_rule)
+        self.assertEqual(' && ip6', match)
+        self.assertEqual('ip6', ip_version)
+        self.assertEqual('icmp6', icmp)
+
+    def test_acl_remote_ip_prefix(self):
+        sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
+            'direction': 'ingress',
+            'remote_ip_prefix': None
+        }).info()
+        ip_version = 'ip4'
+        remote_ip_prefix = '10.10.0.0/24'
+
+        match = ovn_acl.acl_remote_ip_prefix(sg_rule, ip_version)
+        self.assertEqual('', match)
+
+        sg_rule['remote_ip_prefix'] = remote_ip_prefix
+        match = ovn_acl.acl_remote_ip_prefix(sg_rule, ip_version)
+        expected_match = ' && %s.src == %s' % (ip_version, remote_ip_prefix)
+        self.assertEqual(expected_match, match)
+
+        sg_rule['direction'] = 'egress'
+        match = ovn_acl.acl_remote_ip_prefix(sg_rule, ip_version)
+        expected_match = ' && %s.dst == %s' % (ip_version, remote_ip_prefix)
+        self.assertEqual(expected_match, match)
+
+    def test_update_acls_for_security_group(self):
+        sg = fakes.FakeSecurityGroup.create_one_security_group().info()
+        remote_sg = fakes.FakeSecurityGroup.create_one_security_group().info()
+        sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
+            'security_group_id': sg['id'],
+            'remote_group_id': remote_sg['id']
+        }).info()
+        port = fakes.FakePort.create_one_port({
+            'security_groups': [sg['id']]
+        }).info()
+        self.plugin.get_ports.return_value = [port]
+        sg_ports_cache = {sg['id']: [{'port_id': port['id']}],
+                          remote_sg['id']: []}
+
+        # Validate no ACLs to update when remote security group
+        # doesn't have any ports.
+        ovn_acl.update_acls_for_security_group(self.plugin,
+                                               self.admin_context,
+                                               self.driver._ovn,
+                                               sg['id'],
+                                               sg_ports_cache=sg_ports_cache,
+                                               rule=sg_rule)
+        self.driver._ovn.update_acls.assert_called_once_with(
+            [port['network_id']],
+            mock.ANY,
+            {},
+            need_compare=False,
+            is_add_acl=True
+        )
