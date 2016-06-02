@@ -125,22 +125,20 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             }
 
     def subscribe(self):
-        registry.subscribe(
-            self.post_fork_initialize,
-            resources.PROCESS,
-            events.AFTER_CREATE)
-        registry.subscribe(
-            self.sg_callback,
-            resources.SECURITY_GROUP,
-            events.AFTER_UPDATE)
-        registry.subscribe(
-            self.sg_callback,
-            resources.SECURITY_GROUP_RULE,
-            events.AFTER_CREATE)
-        registry.subscribe(
-            self.sg_callback,
-            resources.SECURITY_GROUP_RULE,
-            events.BEFORE_DELETE)
+        registry.subscribe(self.post_fork_initialize,
+                           resources.PROCESS,
+                           events.AFTER_CREATE)
+
+        # Handle security group/rule notifications
+        registry.subscribe(self._process_sg_notification,
+                           resources.SECURITY_GROUP,
+                           events.AFTER_UPDATE)
+        registry.subscribe(self._process_sg_notification,
+                           resources.SECURITY_GROUP_RULE,
+                           events.AFTER_CREATE)
+        registry.subscribe(self._process_sg_notification,
+                           resources.SECURITY_GROUP_RULE,
+                           events.BEFORE_DELETE)
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
@@ -156,7 +154,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             )
             self.synchronizer.sync()
 
-    def sg_callback(self, resource, event, trigger, **kwargs):
+    def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg_id = None
         sg_rule = None
         is_add_acl = True

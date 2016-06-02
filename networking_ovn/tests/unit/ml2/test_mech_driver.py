@@ -15,6 +15,8 @@
 import mock
 from webob import exc
 
+from neutron.callbacks import events
+from neutron.callbacks import resources
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import config
@@ -61,6 +63,46 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.sg_cache = {self.fake_sg['id']: self.fake_sg}
         self.sg_ports_cache = {}
         self.subnet_cache = {self.fake_subnet['id']: self.fake_subnet}
+
+    def test__process_sg_notifications_sg_update(self):
+        with mock.patch(
+            'networking_ovn.common.acl.update_acls_for_security_group'
+        ) as ovn_acl_up:
+            self.mech_driver._process_sg_notification(
+                resources.SECURITY_GROUP, events.AFTER_UPDATE, {},
+                security_group_id='sg_id')
+            ovn_acl_up.assert_called_once_with(
+                mock.ANY, mock.ANY, mock.ANY,
+                'sg_id', is_add_acl=True, rule=None)
+
+    def test__process_sg_notifications_sgr_create(self):
+        with mock.patch(
+            'networking_ovn.common.acl.update_acls_for_security_group'
+        ) as ovn_acl_up:
+            rule = {'security_group_id': 'sg_id'}
+            self.mech_driver._process_sg_notification(
+                resources.SECURITY_GROUP_RULE, events.AFTER_CREATE, {},
+                security_group_rule=rule)
+            ovn_acl_up.assert_called_once_with(
+                mock.ANY, mock.ANY, mock.ANY,
+                'sg_id', is_add_acl=True, rule=rule)
+
+    def test_process_sg_notifications_sgr_delete(self):
+        rule = {'security_group_id': 'sg_id'}
+        with mock.patch(
+            'networking_ovn.common.acl.update_acls_for_security_group'
+        ) as ovn_acl_up:
+            with mock.patch(
+                'neutron.db.securitygroups_db.'
+                'SecurityGroupDbMixin.get_security_group_rule',
+                return_value=rule
+            ):
+                self.mech_driver._process_sg_notification(
+                    resources.SECURITY_GROUP_RULE, events.BEFORE_DELETE, {},
+                    security_group_rule=rule)
+                ovn_acl_up.assert_called_once_with(
+                    mock.ANY, mock.ANY, mock.ANY,
+                    'sg_id', is_add_acl=False, rule=rule)
 
     def test_add_acls_no_sec_group(self):
         acls = ovn_acl.add_acls(self.mech_driver._plugin,
