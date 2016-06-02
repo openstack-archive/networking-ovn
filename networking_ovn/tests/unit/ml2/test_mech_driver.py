@@ -42,7 +42,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         mm = manager.NeutronManager.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver.initialize()
-        self.mech_driver._ovn = fakes.FakeOvsdbOvnIdl()
+        self.mech_driver._ovn_property = fakes.FakeOvsdbOvnIdl()
 
         self.fake_subnet = fakes.FakeSubnet.create_one_subnet().info()
         self.fake_port_no_sg = fakes.FakePort.create_one_port().info()
@@ -258,7 +258,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         super(OVNMechanismDriverTestCase, self).setUp()
         mm = manager.NeutronManager.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
-        self.mech_driver._ovn = fakes.FakeOvsdbOvnIdl()
+        self.mech_driver._ovn_property = fakes.FakeOvsdbOvnIdl()
         self.mech_driver._insert_port_provisioning_block = mock.Mock()
         self.mech_driver.vif_type = portbindings.VIF_TYPE_OVS
 
