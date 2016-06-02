@@ -476,8 +476,9 @@ class UpdateACLsCommand(BaseCommand):
                 switch_name = utils.ovn_name(port['network_id'])
                 if switch_name not in acl_add_values_dict:
                     acl_add_values_dict[switch_name] = []
-                acl_add_values_dict[switch_name].append(
-                    self.acl_new_values_dict[port['id']])
+                if port['id'] in self.acl_new_values_dict:
+                    acl_add_values_dict[switch_name].append(
+                        self.acl_new_values_dict[port['id']])
             acl_del_objs_dict = {}
         else:
             acl_add_values_dict = {}
