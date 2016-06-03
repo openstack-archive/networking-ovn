@@ -1,32 +1,11 @@
-# FIXME(arosen): switch to ml2 when code is ready
-Q_PLUGIN=${Q_PLUGIN:-"ovn"}
+Q_PLUGIN=${Q_PLUGIN:-"ml2"}
 Q_ML2_PLUGIN_MECHANISM_DRIVERS=${Q_ML2_PLUGIN_MECHANISM_DRIVERS:-ovn,logger}
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
 # OpenStack will use q-l3 functionality.
 OVN_L3_MODE=$(trueorfalse True OVN_L3_MODE)
-
-if [[ "$Q_PLUGIN" == "ovn" ]]; then
-    function neutron_plugin_configure_common {
-        Q_PLUGIN_CLASS="networking_ovn.plugin.OVNPlugin"
-        Q_PLUGIN_CONF_PATH=/etc/neutron/plugins/networking-ovn/
-        Q_PLUGIN_CONF_FILENAME=networking-ovn.ini
-        Q_PLUGIN_CONF_FILE=$Q_PLUGIN_CONF_PATH/$Q_PLUGIN_CONF_FILENAME
-    }
-
-    function neutron_plugin_configure_service {
-        cd $NETWORKING_OVN_DIR; tox -egenconfig; cd -
-        cp $NETWORKING_OVN_DIR/etc/* $NEUTRON_CONF_DIR/plugins -R
-    }
-
-    function has_neutron_plugin_security_group {
-        # 0 means True here
-        return 0
-    }
-else
-    if [[ "$OVN_L3_MODE" == "True" ]]; then
-        ML2_L3_PLUGIN="networking_ovn.l3.l3_ovn.OVNL3RouterPlugin"
-    fi
+if [[ "$OVN_L3_MODE" == "True" ]]; then
+    ML2_L3_PLUGIN="networking_ovn.l3.l3_ovn.OVNL3RouterPlugin"
 fi
 
 # This function is invoked by DevStack's Neutron plugin setup

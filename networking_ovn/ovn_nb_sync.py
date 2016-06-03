@@ -24,7 +24,6 @@ from neutron.plugins.common import constants as service_constants
 from networking_ovn._i18n import _LW
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import config
-from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 import six
 
@@ -38,19 +37,11 @@ SYNC_MODE_REPAIR = 'repair'
 class OvnNbSynchronizer(object):
     """Synchronizer class for NB."""
 
-    def __init__(self, core_plugin, ovn_api, mode, ovn_driver=None):
+    def __init__(self, core_plugin, ovn_api, mode, ovn_driver):
         self.core_plugin = core_plugin
-        # TODO(rtheis): Require OVN driver once core plugin is removed
-        # and remove related core plugin code throughout this part.
-        if ovn_driver is None:
-            self.is_ml2_ovn_driver = False
-            self.ovn_driver = core_plugin
-            self.l3_plugin = core_plugin
-        else:
-            self.is_ml2_ovn_driver = True
-            self.ovn_driver = ovn_driver
-            self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-                service_constants.L3_ROUTER_NAT)
+        self.ovn_driver = ovn_driver
+        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
+            service_constants.L3_ROUTER_NAT)
         self.ovn_api = ovn_api
         self.mode = mode
 
@@ -78,57 +69,14 @@ class OvnNbSynchronizer(object):
             res = None
         return res
 
-    # TODO(rtheis): Refactor this method with core plugin removal.
     def _create_network_in_ovn(self, net):
-        if self.is_ml2_ovn_driver:
-            self._ml2_create_network_in_ovn(net)
-        else:
-            self._core_create_network_in_ovn(net)
-
-    def _ml2_create_network_in_ovn(self, network):
-        physnet = self._get_attribute(network, pnet.PHYSICAL_NETWORK)
-        segid = self._get_attribute(network, pnet.SEGMENTATION_ID)
-        self.ovn_driver.create_network_in_ovn(network, {}, physnet, segid)
-
-    # TODO(rtheis): Remove this method with core plugin.
-    def _core_create_network_in_ovn(self, net):
-        ext_ids = {}
         physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
-        if physnet:
-            nettype = self._get_attribute(net, pnet.NETWORK_TYPE)
-            segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
-            ext_ids.update({
-                ovn_const.OVN_PHYSNET_EXT_ID_KEY: physnet,
-                ovn_const.OVN_NETTYPE_EXT_ID_KEY: nettype,
-            })
-            if segid:
-                ext_ids.update({
-                    ovn_const.OVN_SEGID_EXT_ID_KEY: str(segid),
-                })
+        segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
+        self.ovn_driver.create_network_in_ovn(net, {}, physnet, segid)
 
-        self.ovn_driver.create_network_in_ovn(net, ext_ids, None, None)
-
-    # TODO(rtheis): Refactor this method with core plugin removal.
     def _create_port_in_ovn(self, ctx, port):
-        if self.is_ml2_ovn_driver:
-            self._ml2_create_port_in_ovn(port)
-        else:
-            self._core_create_port_in_ovn(ctx, port)
-
-    def _ml2_create_port_in_ovn(self, port):
         ovn_port_info = self.ovn_driver.get_ovn_port_options(port)
         self.ovn_driver.create_port_in_ovn(port, ovn_port_info)
-
-    # TODO(rtheis): Remove this method with core plugin.
-    def _core_create_port_in_ovn(self, ctx, port):
-        binding_profile = self.ovn_driver.get_data_from_binding_profile(
-            ctx, port)
-        qos_options = self.ovn_driver.qos_get_ovn_port_options(
-            ctx, port)
-        ovn_port_info = self.ovn_driver.get_ovn_port_options(binding_profile,
-                                                             qos_options,
-                                                             port)
-        return self.ovn_driver.create_port_in_ovn(ctx, port, ovn_port_info)
 
     def remove_common_acls(self, neutron_acls, nb_acls):
         """Take out common acls of the two acl dictionaries.

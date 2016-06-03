@@ -15,21 +15,20 @@
 
 
 from networking_ovn.common import constants as ovn_const
-from networking_ovn.tests.unit import test_ovn_plugin
+from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
 
 
-class TestOVNParentTagPortBinding(test_ovn_plugin.OVNPluginTestCase):
+class TestOVNParentTagPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
 
     def test_create_port_with_invalid_parent(self):
         binding = {OVN_PROFILE: {"parent_name": 'invalid', 'tag': 1}}
         with self.network() as n:
             with self.subnet(n):
-                # FIXME(arosen): we shouldn't be returning 404 in this case.
                 self._create_port(
                     self.fmt, n['network']['id'],
-                    expected_res_status=404,
+                    expected_res_status=500,
                     arg_list=(OVN_PROFILE,),
                     **binding)
 
@@ -54,5 +53,5 @@ class TestOVNParentTagPortBinding(test_ovn_plugin.OVNPluginTestCase):
                     binding[OVN_PROFILE]['parent_name'] = p['port']['id']
                     self._create_port(self.fmt, n['network']['id'],
                                       arg_list=(OVN_PROFILE,),
-                                      expected_res_status=400,
+                                      expected_res_status=500,
                                       **binding)

@@ -5,8 +5,8 @@ When the logical port's VIF is attached or removed to/from the ovn integration
 bridge, ovn-northd updates the Logical_Port.up to 'True' or 'False'
 accordingly.
 
-In order for the OVN Neutron plugin to update the corresponding neutron port's
-status to 'ACTIVE' or 'DOWN' in the db, it needs to monitor the
+In order for the OVN Neutron ML2 driver to update the corresponding neutron
+port's status to 'ACTIVE' or 'DOWN' in the db, it needs to monitor the
 OVN Northbound db. A neutron worker is created for this purpose.
 
 The implementation of the ovn worker can be found here -

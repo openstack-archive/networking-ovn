@@ -2,8 +2,8 @@ Troubleshooting
 ===============
 
 The following section describe common problems that you might
-encounter after/during the installation of OVN plugin with Devstack
-and possible solutions to these problems.
+encounter after/during the installation of OVN ML2 driver with
+Devstack and possible solutions to these problems.
 
 Launching VM's failure
 -----------------------

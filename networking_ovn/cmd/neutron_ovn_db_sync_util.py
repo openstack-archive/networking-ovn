@@ -26,21 +26,8 @@ from networking_ovn.common import config as ovn_config
 from networking_ovn.ml2 import mech_driver
 from networking_ovn import ovn_nb_sync
 from networking_ovn.ovsdb import impl_idl_ovn
-from networking_ovn import plugin as ovn_plugin
 
 LOG = logging.getLogger(__name__)
-
-
-# TODO(rtheis): Remove this class with core plugin.
-class OVNPlugin(ovn_plugin.OVNPlugin):
-
-    supported_extension_aliases = []
-
-    def _start_rpc_notifiers(self):
-        pass
-
-    def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        pass
 
 
 class Ml2Plugin(ml2_plugin.Ml2Plugin):
@@ -96,12 +83,7 @@ def main():
                       '"repair"'), mode)
         return
 
-    # TODO(rtheis): Remove OVNPlugin support with core plugin removal.
-    if cfg.CONF.core_plugin.endswith('OVNPlugin'):
-        cfg.CONF.core_plugin = (
-            'networking_ovn.cmd.neutron_ovn_db_sync_util.OVNPlugin')
-        conf.service_plugins = []
-    elif cfg.CONF.core_plugin.endswith('Ml2Plugin'):
+    if cfg.CONF.core_plugin.endswith('Ml2Plugin'):
         cfg.CONF.core_plugin = (
             'networking_ovn.cmd.neutron_ovn_db_sync_util.Ml2Plugin')
         cfg.CONF.ml2.mechanism_drivers = ['ovn-sync']
@@ -116,14 +98,9 @@ def main():
         LOG.error(_LE('Invalid --ovn-ovsdb_connection parameter provided.'))
         return
 
-    # TODO(rtheis): Remove OVNPlugin support with core plugin removal.
     core_plugin = manager.NeutronManager.get_plugin()
-    if isinstance(core_plugin, ml2_plugin.Ml2Plugin):
-        ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
-        ovn_driver._ovn = ovn_api
-    else:
-        ovn_driver = None
-        core_plugin._ovn = ovn_api
+    ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
+    ovn_driver._ovn_property = ovn_api
 
     synchronizer = ovn_nb_sync.OvnNbSynchronizer(
         core_plugin, ovn_api, mode, ovn_driver)

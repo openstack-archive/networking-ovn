@@ -502,7 +502,7 @@ Provider Networks
 Neutron has a "provider networks" API extension that lets you specify
 some additional attributes on a network.  These attributes let you
 map a Neutron network to a physical network in your environment.
-The OVN plugin is adding support for this API extension.  It currently
+The OVN ML2 driver is adding support for this API extension.  It currently
 supports "flat" and "vlan" networks.
 
 Here is how you can test it:
@@ -543,8 +543,8 @@ Alternatively, you can define connectivity to a VLAN instead of a flat network:
     --provider:network_type vlan \
     --provider:segmentation_id 101
 
-Observe that the OVN plugin created a special logical port of type localnet on
-the logical switch to model the connection to the physical network.
+Observe that the OVN ML2 driver created a special logical port of type localnet
+on the logical switch to model the connection to the physical network.
 
 ::
 

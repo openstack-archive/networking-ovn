@@ -19,7 +19,7 @@ import uuid
 from ovs.db import idl as ovs_idl
 
 from networking_ovn.ovsdb import ovsdb_monitor
-from networking_ovn.tests.unit import test_ovn_plugin
+from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 
 OVN_NB_SCHEMA = {
@@ -48,18 +48,18 @@ OVN_NB_SCHEMA = {
 }
 
 
-class TestOvnIdlNotifyHandler(test_ovn_plugin.OVNPluginTestCase):
+class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     def setUp(self):
         super(TestOvnIdlNotifyHandler, self).setUp()
         helper = ovs_idl.SchemaHelper(schema_json=OVN_NB_SCHEMA)
         helper.register_all()
-        self.idl = ovsdb_monitor.OvnIdl(self.plugin, "remote", helper)
+        self.idl = ovsdb_monitor.OvnIdl(self.driver, "remote", helper)
         self.idl.lock_name = self.idl.event_lock_name
         self.idl.has_lock = True
         self.lp_table = self.idl.tables.get('Logical_Port')
-        self.plugin.set_port_status_up = mock.Mock()
-        self.plugin.set_port_status_down = mock.Mock()
+        self.driver.set_port_status_up = mock.Mock()
+        self.driver.set_port_status_down = mock.Mock()
 
     def _test_lport_helper(self, event, new_row_json, old_row_json=None,
                            table=None):
@@ -81,62 +81,62 @@ class TestOvnIdlNotifyHandler(test_ovn_plugin.OVNPluginTestCase):
     def test_lport_up_create_event(self):
         row_data = {"up": True, "name": "foo-name"}
         self._test_lport_helper('create', row_data)
-        self.plugin.set_port_status_up.assert_called_once_with("foo-name")
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.driver.set_port_status_up.assert_called_once_with("foo-name")
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_lport_down_create_event(self):
         row_data = {"up": False, "name": "foo-name"}
         self._test_lport_helper('create', row_data)
-        self.plugin.set_port_status_down.assert_called_once_with("foo-name")
-        self.assertFalse(self.plugin.set_port_status_up.called)
+        self.driver.set_port_status_down.assert_called_once_with("foo-name")
+        self.assertFalse(self.driver.set_port_status_up.called)
 
     def test_lport_up_not_set_event(self):
         row_data = {"up": ['set', []], "name": "foo-name"}
         self._test_lport_helper('create', row_data)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_unwatch_logical_port_create_events(self):
         self.idl.unwatch_logical_port_create_events()
         row_data = {"up": True, "name": "foo-name"}
         self._test_lport_helper('create', row_data)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
         row_data["up"] = False
         self._test_lport_helper('create', row_data)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_lport_up_update_event(self):
         new_row_json = {"up": True, "name": "foo-name"}
         old_row_json = {"up": False}
         self._test_lport_helper('update', new_row_json,
                                 old_row_json=old_row_json)
-        self.plugin.set_port_status_up.assert_called_once_with("foo-name")
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.driver.set_port_status_up.assert_called_once_with("foo-name")
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_lport_down_update_event(self):
         new_row_json = {"up": False, "name": "foo-name"}
         old_row_json = {"up": True}
         self._test_lport_helper('update', new_row_json,
                                 old_row_json=old_row_json)
-        self.plugin.set_port_status_down.assert_called_once_with("foo-name")
-        self.assertFalse(self.plugin.set_port_status_up.called)
+        self.driver.set_port_status_down.assert_called_once_with("foo-name")
+        self.assertFalse(self.driver.set_port_status_up.called)
 
     def test_lport_up_update_event_no_old_data(self):
         new_row_json = {"up": True, "name": "foo-name"}
         self._test_lport_helper('update', new_row_json,
                                 old_row_json=None)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_lport_down_update_event_no_old_data(self):
         new_row_json = {"up": False, "name": "foo-name"}
         self._test_lport_helper('update', new_row_json,
                                 old_row_json=None)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_lport_other_column_update_event(self):
         new_row_json = {"up": False, "name": "foo-name",
@@ -144,15 +144,15 @@ class TestOvnIdlNotifyHandler(test_ovn_plugin.OVNPluginTestCase):
         old_row_json = {"addresses": ["10.0.0.3"]}
         self._test_lport_helper('update', new_row_json,
                                 old_row_json=old_row_json)
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_notify_other_table(self):
         new_row_json = {"name": "foo-name"}
         self._test_lport_helper('create', new_row_json,
                                 table=self.idl.tables.get("Logical_Switch"))
-        self.assertFalse(self.plugin.set_port_status_up.called)
-        self.assertFalse(self.plugin.set_port_status_down.called)
+        self.assertFalse(self.driver.set_port_status_up.called)
+        self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_notify_no_ovsdb_lock(self):
         self.idl.has_lock = False

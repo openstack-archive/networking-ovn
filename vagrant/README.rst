@@ -10,7 +10,7 @@ architecture:
    databases via the Open vSwitch (OVS) database and ``ovn-northd`` services.
 #. Controller node containing the Identity service, Image service, control
    plane portion of the Compute service, control plane portion of the
-   Networking service including the ``networking-ovn`` plug-in, and the
+   Networking service including the ``networking-ovn`` ML2 driver, and the
    dashboard. In addition, the controller node is configured as an NFS
    server to support instance live migration between the two compute nodes.
 #. Two compute nodes containing the Compute hypervisor, ``ovn-controller``
