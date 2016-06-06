@@ -10,6 +10,8 @@
 # $7 - ovn-compute1 short name
 # $8 - ovn-compute2 IP address
 # $9 - ovn-compute2 short name
+# $10 - ovn-vtep IP address
+# $11 - ovn-vtep short name
 MTU=$1
 OVN_DB_IP=$2
 OVN_DB_NAME=$3
@@ -19,6 +21,8 @@ OVN_COMPUTE1_IP=$6
 OVN_COMPUTE1_NAME=$7
 OVN_COMPUTE2_IP=$8
 OVN_COMPUTE2_NAME=$9
+OVN_VTEP_IP=$10
+OVN_VTEP_NAME=$11
 
 BASE_PACKAGES="git bridge-utils ebtables python-pip python-dev build-essential ntp"
 DEBIAN_FRONTEND=noninteractive sudo apt-get -qqy update
@@ -73,6 +77,7 @@ sudo sh -c "echo \"$OVN_DB_IP $OVN_DB_NAME\" >> /etc/hosts"
 sudo sh -c "echo \"$OVN_CONTROLLER_IP $OVN_CONTROLLER_NAME\" >> /etc/hosts"
 sudo sh -c "echo \"$OVN_COMPUTE1_IP $OVN_COMPUTE1_NAME\" >> /etc/hosts"
 sudo sh -c "echo \"$OVN_COMPUTE2_IP $OVN_COMPUTE2_NAME\" >> /etc/hosts"
+sudo sh -c "echo \"$OVN_VTEP_IP $OVN_VTEP_NAME\" >> /etc/hosts"
 
 # Non-interactive SSH setup
 cp networking-ovn/vagrant/provisioning/id_rsa ~/.ssh/id_rsa

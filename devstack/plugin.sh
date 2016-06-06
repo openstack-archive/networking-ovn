@@ -375,7 +375,7 @@ function start_ovn {
     if is_ovn_service_enabled ovn-controller-vtep ; then
         # (regXboi) pulling out --log-file to avoid double logging
         # appears to break devstack, so let's not do that
-        run_process ovn-controller-vtep "sudo ovn-controller-vtep --pidfile --log-file --vtep-db=unix:/usr/local/var/run/openvswitch/db.sock --ovnsb-db=unix:/usr/local/var/run/openvswitch/ovnsb_db.sock"
+        run_process ovn-controller-vtep "sudo ovn-controller-vtep --pidfile --log-file --vtep-db=unix:/usr/local/var/run/openvswitch/db.sock --ovnsb-db=$OVN_SB_REMOTE"
 
         # This makes sure that the console logs have time stamps to
         # the millisecond, but we need to make sure ovs-appctl has

@@ -17,6 +17,9 @@ architecture:
    service for OVN, DHCP and metadata agents for the Networking service,
    OVS services. In addition, the compute nodes are configured as NFS
    clients to support instance live migration between them.
+#. Optionally a node to run the HW VTEP simulator. This node is not
+   started by default but can be started by running "vagrant up ovn-vtep"
+   after doing a normal "vagrant up".
 
 During deployment, Vagrant creates three VirtualBox networks:
 
@@ -76,6 +79,7 @@ Deployment
 
      ovn-db                    running (virtualbox)
      ovn-controller            running (virtualbox)
+     ovn-vtep                  running (virtualbox)
      ovn-compute1              running (virtualbox)
      ovn-compute2              running (virtualbox)
 
@@ -83,6 +87,7 @@ Deployment
 
      $ vagrant ssh ovn-db
      $ vagrant ssh ovn-controller
+     $ vagrant ssh ovn-vtep
      $ vagrant ssh ovn-compute1
      $ vagrant ssh ovn-compute2
 

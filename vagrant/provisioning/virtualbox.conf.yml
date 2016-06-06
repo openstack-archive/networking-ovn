@@ -21,6 +21,14 @@ ovncontroller:
   memory: 6144
   cpus: 2
   mtu: 1500
+ovnvtep:
+  short_name: "ovn-vtep"
+  host_name: "ovn-vtep.devstack.dev"
+  ip: "192.168.33.13"
+  prov-ip: "10.10.0.13"
+  memory: 512
+  cpus: 1
+  mtu: 1500
 ovncompute1:
   short_name: "ovn-compute1"
   host_name: "ovn-compute1.devstack.dev"
