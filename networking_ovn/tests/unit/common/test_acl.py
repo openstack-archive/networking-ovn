@@ -373,6 +373,34 @@ class TestACLs(base.TestCase):
         match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
         self.assertEqual(expected_match, match)
 
+    def test_acl_protocol_and_ports_for_icmp4_and_icmp6_port_range(self):
+        match_list = [
+            (None, None, ' && icmp4'),
+            (0, None, ' && icmp4 && icmp4.type == 0'),
+            (0, 0, ' && icmp4 && icmp4.type == 0 && icmp4.code == 0'),
+            (0, 5, ' && icmp4 && icmp4.type == 0 && icmp4.code == 5')]
+        v6_match_list = [
+            (None, None, ' && icmp6'),
+            (133, None, ' && icmp6 && icmp6.type == 133'),
+            (1, 1, ' && icmp6 && icmp6.type == 1 && icmp6.code == 1'),
+            (138, 1, ' && icmp6 && icmp6.type == 138 && icmp6.code == 1')]
+
+        sg_rule = {'protocol': const.PROTO_NAME_ICMP}
+        icmp = 'icmp4'
+        for pmin, pmax, expected_match in match_list:
+            sg_rule['port_range_min'] = pmin
+            sg_rule['port_range_max'] = pmax
+            match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+            self.assertEqual(expected_match, match)
+
+        sg_rule = {'protocol': const.PROTO_NAME_IPV6_ICMP}
+        icmp = 'icmp6'
+        for pmin, pmax, expected_match in v6_match_list:
+            sg_rule['port_range_min'] = pmin
+            sg_rule['port_range_max'] = pmax
+            match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
+            self.assertEqual(expected_match, match)
+
     def test_acl_direction(self):
         sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
             'direction': 'ingress'

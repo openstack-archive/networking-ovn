@@ -77,15 +77,22 @@ def acl_protocol_and_ports(r, icmp):
         match += ' && %s' % protocol
         # If min or max are set to -1, then we just treat it like it wasn't
         # specified at all and don't match on it.
-        min_port = r['port_range_min']
-        max_port = r['port_range_max']
-        if (min_port and min_port == max_port and min_port != -1):
+        min_port = -1 if r['port_range_min'] is None else r['port_range_min']
+        max_port = -1 if r['port_range_max'] is None else r['port_range_max']
+        if protocol != icmp:
+            if (min_port > -1 and min_port == max_port):
+                match += ' && %s == %d' % (port_match, min_port)
+            else:
+                if min_port > -1:
+                    match += ' && %s >= %d' % (port_match, min_port)
+                if max_port > -1:
+                    match += ' && %s <= %d' % (port_match, max_port)
+        # It's invalid to create security group rule for ICMP and ICMPv6 with
+        # ICMP(v6) code but without ICMP(v6) type.
+        elif protocol == icmp and min_port > -1:
             match += ' && %s == %d' % (port_match, min_port)
-        else:
-            if min_port and min_port != -1:
-                match += ' && %s >= %d' % (port_match, min_port)
-            if max_port and max_port != -1:
-                match += ' && %s <= %d' % (port_match, max_port)
+            if max_port > -1:
+                match += ' && %s.code == %s' % (icmp, max_port)
     return match
 
 
