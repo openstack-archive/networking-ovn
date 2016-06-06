@@ -286,6 +286,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """
         self.validate_and_get_data_from_binding_profile(context.current)
 
+    # TODO(rtheis): The neutron ML2 plugin does not provide drivers with
+    # an interface to validate port bindings before the precommit stage.
+    # As a result, the plugin will map a validate error here to a
+    # MechanismDriverError. This makes it harder for users to determine
+    # mistakes in the binding profile. Refactor this as needed based
+    # on resolution to https://bugs.launchpad.net/neutron/+bug/1589622.
     def validate_and_get_data_from_binding_profile(self, port):
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
                 not validators.is_attr_set(
