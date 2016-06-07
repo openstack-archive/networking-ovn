@@ -22,6 +22,11 @@ OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
 
 class TestOVNVtepPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
 
+    # NOTE(rtheis): The neutron ML2 plugin does not provide drivers with
+    # an interface to validate port bindings. As a result, a 500 error
+    # (i.e. MechanismDriverError) is expected when the port binding
+    # information is invalid.
+
     def test_create_port_with_vtep_options(self):
         binding = {OVN_PROFILE: {"vtep_physical_switch": 'psw1',
                    "vtep_logical_switch": 'lsw1'}}
