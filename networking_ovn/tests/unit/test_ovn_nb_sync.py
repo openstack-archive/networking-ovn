@@ -122,8 +122,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
               'ip4.src == 10.0.0.0/24 && udp && '
               'udp.src == 67 && udp.dst == 68'}]}
 
-        self.routers = [{'id': 'r1'},
-                        {'id': 'r2'}]
+        self.routers = [{'id': 'r1', 'routes': []},
+                        {'id': 'r2', 'routes': [{'nexthop': '40.0.0.100',
+                         'destination': '30.0.0.0/24'}]}]
 
         self.get_sync_router_ports = [
             {'fixed_ips': [{'subnet_id': 'subnet1',
@@ -138,9 +139,13 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
              'mac_address': 'fa:16:3e:d6:8b:ce'}]
 
         self.lrouters_with_rports = [{'name': 'r3',
-                                      'ports': ['p1r3']},
+                                      'ports': ['p1r3'],
+                                      'static_routes': []},
                                      {'name': 'r1',
-                                      'ports': ['p3r1']}]
+                                      'ports': ['p3r1'],
+                                      'static_routes':
+                                      [{'nexthop': '20.0.0.100',
+                                        'destination': '10.0.0.0/24'}]}]
 
         self.lswitches_with_ports = [{'name': 'neutron-n1',
                                       'ports': ['p1n1', 'p3n1']},
@@ -220,6 +225,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin.create_lrouter_port_in_ovn = mock.Mock()
         ovn_api.delete_lrouter = mock.Mock()
         ovn_api.delete_lrouter_port = mock.Mock()
+        ovn_api.add_static_route = mock.Mock()
+        ovn_api.delete_static_route = mock.Mock()
 
     def _test_ovn_nb_sync_helper(self, ovn_nb_synchronizer,
                                  networks, ports,
@@ -227,7 +234,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                  create_router_list, create_router_port_list,
                                  del_router_list, del_router_port_list,
                                  create_network_list, create_port_list,
-                                 del_network_list, del_port_list):
+                                 del_network_list, del_port_list,
+                                 add_static_route_list, del_static_route_list):
         self._test_mocks_helper(ovn_nb_synchronizer)
 
         core_plugin = ovn_nb_synchronizer.core_plugin
@@ -276,6 +284,12 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.delete_lport.assert_has_calls(
             delete_lport_calls, any_order=True)
 
+        self.assertEqual(ovn_api.add_static_route.call_count,
+                         len(add_static_route_list))
+
+        self.assertEqual(ovn_api.delete_static_route.call_count,
+                         len(del_static_route_list))
+
         create_router_calls = [mock.call(r)
                                for r in create_router_list]
         self.assertEqual(
@@ -323,7 +337,13 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                 # because it is already in lswitch-port list
                 create_port_list.remove(port)
 
-        create_router_list = [{'id': 'r2'}]
+        create_router_list = [{'id': 'r2', 'routes': [{'nexthop': '40.0.0.100',
+                               'destination': '30.0.0.0/24'}]}]
+        add_static_route_list = [{'destination': '30.0.0.0/24',
+                                  'nexthop': '40.0.0.100'}]
+        del_static_route_list = [{'nexthop': '20.0.0.100',
+                                  'destination': '10.0.0.0/24'}]
+
         del_router_list = [{'router': 'neutron-r3'}]
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
         create_router_port_list = self.get_sync_router_ports
@@ -339,7 +359,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       create_router_port_list,
                                       del_router_list, del_router_port_list,
                                       create_network_list, create_port_list,
-                                      del_network_list, del_port_list)
+                                      del_network_list, del_port_list,
+                                      add_static_route_list,
+                                      del_static_route_list)
 
     def test_ovn_nb_sync_mode_log(self):
         create_network_list = []
@@ -350,6 +372,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         create_router_port_list = []
         del_router_list = []
         del_router_port_list = []
+        add_static_route_list = []
+        del_static_route_list = []
 
         ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._ovn, 'log', self.mech_driver)
@@ -362,4 +386,6 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       create_router_port_list,
                                       del_router_list, del_router_port_list,
                                       create_network_list, create_port_list,
-                                      del_network_list, del_port_list)
+                                      del_network_list, del_port_list,
+                                      add_static_route_list,
+                                      del_static_route_list)
