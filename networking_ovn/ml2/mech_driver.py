@@ -32,7 +32,7 @@ from neutron import manager
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 
-from networking_ovn._i18n import _, _LI
+from networking_ovn._i18n import _, _LI, _LW
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
@@ -85,6 +85,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._nb_ovn = None
         self._sb_ovn = None
         self._plugin_property = None
+        self.sg_enabled = ovn_acl.is_sg_enabled()
+        if cfg.CONF.SECURITYGROUP.firewall_driver:
+            LOG.warning(_LW('Firewall driver configuration is ignored'))
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
@@ -115,7 +118,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         else:
             self.vif_type = portbindings.VIF_TYPE_OVS,
             self.vif_details = {
-                portbindings.CAP_PORT_FILTER: True,
+                portbindings.CAP_PORT_FILTER: self.sg_enabled,
             }
 
     def subscribe(self):
@@ -124,15 +127,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                            events.AFTER_CREATE)
 
         # Handle security group/rule notifications
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP,
-                           events.AFTER_UPDATE)
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP_RULE,
-                           events.AFTER_CREATE)
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP_RULE,
-                           events.BEFORE_DELETE)
+        if self.sg_enabled:
+            registry.subscribe(self._process_sg_notification,
+                               resources.SECURITY_GROUP,
+                               events.AFTER_UPDATE)
+            registry.subscribe(self._process_sg_notification,
+                               resources.SECURITY_GROUP_RULE,
+                               events.AFTER_CREATE)
+            registry.subscribe(self._process_sg_notification,
+                               resources.SECURITY_GROUP_RULE,
+                               events.BEFORE_DELETE)
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         # NOTE(rtheis): This will initialize all workers (API, RPC,
