@@ -344,11 +344,6 @@ class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
             expected_status=exc.HTTPConflict.code,
             expected_error='PortBound')
 
-    # TODO(rtheis): Remove once [1] is fixed.
-    # [1] https://review.openstack.org/#/c/310682/
-    def test_create_router_port_and_fail_create_postcommit(self):
-        pass
-
 
 class TestOVNMechansimDriverAllowedAddressPairs(
         test_plugin.TestMl2AllowedAddressPairs,
