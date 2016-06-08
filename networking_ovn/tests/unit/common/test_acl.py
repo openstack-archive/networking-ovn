@@ -30,7 +30,7 @@ class TestACLs(base.TestCase):
     def setUp(self):
         super(TestACLs, self).setUp()
         self.driver = mock.Mock()
-        self.driver._ovn = fakes.FakeOvsdbNbOvnIdl()
+        self.driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.plugin = fakes.FakePlugin()
         self.admin_context = mock.Mock()
         self.fake_port = fakes.FakePort.create_one_port({
@@ -232,7 +232,7 @@ class TestACLs(base.TestCase):
         acls_new_dict_copy = copy.deepcopy(acls_new_dict)
 
         # Invoke _compute_acl_differences
-        update_cmd = cmd.UpdateACLsCommand(self.driver._ovn,
+        update_cmd = cmd.UpdateACLsCommand(self.driver._nb_ovn,
                                            [lswitch_name],
                                            iter(ports),
                                            acls_new_dict
@@ -261,7 +261,7 @@ class TestACLs(base.TestCase):
 
         # make sure argument add_acl=False will take no affect in
         # need_compare=True scenario
-        update_cmd_with_acl = cmd.UpdateACLsCommand(self.driver._ovn,
+        update_cmd_with_acl = cmd.UpdateACLsCommand(self.driver._nb_ovn,
                                                     [lswitch_name],
                                                     iter(ports),
                                                     acls_new_dict_copy,
@@ -298,7 +298,7 @@ class TestACLs(base.TestCase):
                          '%s' % (port2['id']): aclport2_new}
 
         # test for creating new acls
-        update_cmd_add_acl = cmd.UpdateACLsCommand(self.driver._ovn,
+        update_cmd_add_acl = cmd.UpdateACLsCommand(self.driver._nb_ovn,
                                                    [lswitch_name],
                                                    iter(ports),
                                                    acls_new_dict,
@@ -322,7 +322,7 @@ class TestACLs(base.TestCase):
             name='neutron-lswitch-1', acls=[acl1, acl2, acl3])
         with mock.patch('neutron.agent.ovsdb.native.idlutils.row_by_value',
                         return_value=lswitch_obj):
-            update_cmd_del_acl = cmd.UpdateACLsCommand(self.driver._ovn,
+            update_cmd_del_acl = cmd.UpdateACLsCommand(self.driver._nb_ovn,
                                                        [lswitch_name],
                                                        iter(ports),
                                                        acls_new_dict,
@@ -442,11 +442,11 @@ class TestACLs(base.TestCase):
         # doesn't have any ports.
         ovn_acl.update_acls_for_security_group(self.plugin,
                                                self.admin_context,
-                                               self.driver._ovn,
+                                               self.driver._nb_ovn,
                                                sg['id'],
                                                sg_ports_cache=sg_ports_cache,
                                                rule=sg_rule)
-        self.driver._ovn.update_acls.assert_called_once_with(
+        self.driver._nb_ovn.update_acls.assert_called_once_with(
             [port['network_id']],
             mock.ANY,
             {},
