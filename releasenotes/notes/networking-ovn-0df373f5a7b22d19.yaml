@@ -23,7 +23,7 @@ features:
     ``Availability Zone``, ``Default Subnetpools``,
     ``DHCP Agent Scheduler``, ``Distributed Virtual Router`` \*,
     ``DNS Integration`` \*, ``HA Router extension`` \*,
-    ``L3 Agent Scheduler`` \*, ``Multi Provider Network``,
+    ``L3 Agent Scheduler`` \*,
     ``Network Availability Zone``, ``Network IP Availability``,
     ``Neutron external network``, ``Neutron Extra DHCP opts``,
     ``Neutron Extra Route``,

@@ -53,7 +53,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                      ['geneve'],
                                      group='ml2')
         config.cfg.CONF.set_override('vni_ranges',
-                                     ['1:4095'],
+                                     ['1:65536'],
                                      group='ml2_type_geneve')
         super(TestOVNFunctionalBase, self).setUp()
         mm = manager.NeutronManager.get_plugin().mechanism_manager

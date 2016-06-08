@@ -57,8 +57,6 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | L3 Agent Scheduler *             | l3_agent_scheduler        |
 +----------------------------------+---------------------------+
-| Multi Provider Network           | multi-provider            |
-+----------------------------------+---------------------------+
 | Network Availability Zone        | network_availability_zone |
 +----------------------------------+---------------------------+
 | Network IP Availability          | network-ip-availability   |
