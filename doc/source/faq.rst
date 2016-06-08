@@ -68,7 +68,10 @@ roughly:
 3. Restart ovn-northd pointed at the new database location(s) for the OVN
    northbound and southbound databases.
 
-4. Run neutron-ovn-db-sync-util with "--ovn-neutron_sync_mode=repair".  When
+4. Run ``neutron-ovn-db-sync-util`` with ``--ovn-neutron_sync_mode=repair`` and
+   with your neutron server configuration files (for example,
+   ``--config-file /etc/neutron/neutron.conf`` and
+   ``--config-file /etc/neutron/plugins/ml2/ml2_conf.ini``).  When
    this command completes, the OVN databases will have been restored and
    ovsdb-server can be configured to allow connections from ovn-controller on
    compute hosts (See ovs-vsctl get-manager/set-manager/del-manager commands).

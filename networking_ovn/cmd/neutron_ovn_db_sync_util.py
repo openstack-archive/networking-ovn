@@ -83,9 +83,14 @@ def main():
                       '"repair"'), mode)
         return
 
-    if cfg.CONF.core_plugin.endswith('Ml2Plugin'):
+    # Validate and modify core plugin and ML2 mechanism drivers for syncing.
+    if cfg.CONF.core_plugin.endswith('.Ml2Plugin'):
         cfg.CONF.core_plugin = (
             'networking_ovn.cmd.neutron_ovn_db_sync_util.Ml2Plugin')
+        if 'ovn' not in cfg.CONF.ml2.mechanism_drivers:
+            LOG.error(_LE('No "ovn" mechanism driver found : "%s".'),
+                      cfg.CONF.ml2.mechanism_drivers)
+            return
         cfg.CONF.ml2.mechanism_drivers = ['ovn-sync']
         conf.service_plugins = ['networking_ovn.l3.l3_ovn.OVNL3RouterPlugin']
     else:
