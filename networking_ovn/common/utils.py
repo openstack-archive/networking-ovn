@@ -55,31 +55,32 @@ def ovn_addrset_name(sg_id, ip_version):
     return ('as-%s-%s' % (ip_version, sg_id)).replace('-', '_')
 
 
-def get_lsp_dhcpv4_opts(port):
-    # Get dhcpv4 options from Neutron port, for setting DHCP_Options row
+def get_lsp_dhcp_opts(port, ip_version):
+    # Get dhcp options from Neutron port, for setting DHCP_Options row
     # in OVN.
     lsp_dhcp_disabled = False
-    lsp_dhcpv4_opts = {}
+    lsp_dhcp_opts = {}
     if port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES):
         lsp_dhcp_disabled = True
     else:
         for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
-            if edo['ip_version'] != 4:
+            if edo['ip_version'] != ip_version:
                 continue
 
             if edo['opt_name'] == 'dhcp_disabled' and (
                     edo['opt_value'] in ['True', 'true']):
-                # OVN native DHCPv4 is disabled on this port
+                # OVN native DHCP is disabled on this port
                 lsp_dhcp_disabled = True
                 # Make sure return value behavior not depends on the order and
                 # content of the extra DHCP options for the port
-                lsp_dhcpv4_opts.clear()
+                lsp_dhcp_opts.clear()
                 break
 
-            if edo['opt_name'] not in constants.SUPPORTED_DHCP_OPTS:
+            if edo['opt_name'] not in (
+                    constants.SUPPORTED_DHCP_OPTS[ip_version]):
                 continue
 
             opt = edo['opt_name'].replace('-', '_')
-            lsp_dhcpv4_opts[opt] = edo['opt_value']
+            lsp_dhcp_opts[opt] = edo['opt_value']
 
-    return (lsp_dhcp_disabled, lsp_dhcpv4_opts)
+    return (lsp_dhcp_disabled, lsp_dhcp_opts)

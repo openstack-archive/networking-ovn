@@ -42,3 +42,12 @@ DHCP options.
 
 Ex. neutron port-update <PORT_ID> \
 --extra-dhcp-opt ip_version=4, opt_name=dhcp_disabled, opt_value=false
+
+
+DHCPv6
+------
+
+OVN implements a native DHCPv6 support similar to DHCPv4. When a v6 subnet is
+created, the OVN ML2 driver will insert a new entry into DHCP_Options table
+only when the subnet 'ipv6_address_mode' is not 'slaac', and enable_dhcp is
+True.

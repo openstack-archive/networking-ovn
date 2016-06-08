@@ -52,6 +52,15 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                          'dns_nameservers': [],
                          'host_routes': [],
                          'ip_version': 4},
+                        {'id': 'n1-s2',
+                         'network_id': 'n1',
+                         'enable_dhcp': True,
+                         'cidr': 'fd79:e1c:a55::/64',
+                         'tenant_id': 'tenant1',
+                         'gateway_ip': 'fd79:e1c:a55::1',
+                         'dns_nameservers': [],
+                         'host_routes': [],
+                         'ip_version': 6},
                         {'id': 'n2',
                          'network_id': 'n2',
                          'enable_dhcp': True,
@@ -106,7 +115,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                   {'subnet_id': 'subnet1',
                    'ip_address': 'fd79:e1c:a55::816:eff:eff:ff2'}],
              'security_groups': ['sg2'],
-             'network_id': 'n1'},
+             'network_id': 'n1',
+             'extra_dhcp_opts': [{'ip_version': 6,
+                                  'opt_name': 'domain-search',
+                                  'opt_value': 'foo-domain'}]},
             {'id': 'p1n2',
              'device_owner': 'compute:None',
              'fixed_ips':
@@ -121,7 +133,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                   'opt_value': '20.0.0.20'},
                                  {'ip_version': 4,
                                   'opt_name': 'dns-server',
-                                  'opt_value': '8.8.8.8'}]},
+                                  'opt_value': '8.8.8.8'},
+                                 {'ip_version': 6,
+                                  'opt_name': 'domain-search',
+                                  'opt_value': 'foo-domain'}]},
             {'id': 'p2n2',
              'device_owner': 'compute:None',
              'fixed_ips':
@@ -331,24 +346,38 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                    'router': '30.0.0.1'},
                                   'external_ids': {'subnet_id': 'n1-s3'},
                                   'uuid': 'UUID2'}},
-            'ports': {'p1n2': {'cidr': '10.0.0.0/24',
-                               'options': {'server_id': '10.0.0.1',
-                                           'server_mac': '01:02:03:04:05:06',
-                                           'lease_time': '1000',
-                                           'mtu': '1400',
-                                           'router': '10.0.0.1'},
-                               'external_ids': {'subnet_id': 'n1-s1',
-                                                'port_id': 'p1n2'},
-                               'uuid': 'UUID3'},
-                      'p5n2': {'cidr': '10.0.0.0/24',
-                               'options': {'server_id': '10.0.0.1',
-                                           'server_mac': '01:02:03:04:05:06',
-                                           'lease_time': '1000',
-                                           'mtu': '1400',
-                                           'router': '10.0.0.1'},
-                               'external_ids': {'subnet_id': 'n1-s1',
-                                                'port_id': 'p5n2'},
-                               'uuid': 'UUID4'}}}
+            'ports_v4': {'p1n2': {'cidr': '10.0.0.0/24',
+                                  'options': {'server_id': '10.0.0.1',
+                                              'server_mac':
+                                                  '01:02:03:04:05:06',
+                                              'lease_time': '1000',
+                                              'mtu': '1400',
+                                              'router': '10.0.0.1'},
+                                  'external_ids': {'subnet_id': 'n1-s1',
+                                                   'port_id': 'p1n2'},
+                                  'uuid': 'UUID3'},
+                         'p5n2': {'cidr': '10.0.0.0/24',
+                                  'options': {'server_id': '10.0.0.1',
+                                              'server_mac':
+                                                  '01:02:03:04:05:06',
+                                              'lease_time': '1000',
+                                              'mtu': '1400',
+                                              'router': '10.0.0.1'},
+                                  'external_ids': {'subnet_id': 'n1-s1',
+                                                   'port_id': 'p5n2'},
+                                  'uuid': 'UUID4'}},
+            'ports_v6': {'p1n1': {'cidr': 'fd79:e1c:a55::/64',
+                                  'options': {'server_id': '01:02:03:04:05:06',
+                                              'mtu': '1450'},
+                                  'external_ids': {'subnet_id': 'fake',
+                                                   'port_id': 'p1n1'},
+                                  'uuid': 'UUID5'},
+                         'p1n2': {'cidr': 'fd79:e1c:a55::/64',
+                                  'options': {'server_id': '01:02:03:04:05:06',
+                                              'mtu': '1450'},
+                                  'external_ids': {'subnet_id': 'fake',
+                                                   'port_id': 'p1n2'},
+                                  'uuid': 'UUID6'}}}
 
         ovn_api.create_address_set = mock.Mock()
         ovn_api.delete_address_set = mock.Mock()
@@ -553,8 +582,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
              'addrs_add': [],
              'name': 'as_ip6_sg2'}]
 
-        add_subnet_dhcp_options_list = [(self.subnets[1], self.networks[1])]
-        delete_dhcp_options_list = ['UUID2', 'UUID4']
+        add_subnet_dhcp_options_list = [(self.subnets[2], self.networks[1]),
+                                        (self.subnets[1], self.networks[0])]
+        delete_dhcp_options_list = ['UUID2', 'UUID4', 'UUID5']
 
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, 'repair', self.mech_driver)

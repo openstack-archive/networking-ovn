@@ -45,13 +45,15 @@ ACL_ACTION_ALLOW = 'allow'
 # unhosted router gateways to schedule.
 OVN_GATEWAY_INVALID_CHASSIS = 'neutron-ovn-invalid-chassis'
 
-SUPPORTED_DHCP_OPTS = [
-    'netmask', 'router', 'dns-server', 'log-server',
-    'lpr-server', 'swap-server', 'ip-forward-enable',
-    'policy-filter', 'default-ttl', 'mtu', 'router-discovery',
-    'router-solicitation', 'arp-timeout', 'ethernet-encap',
-    'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
-    'tftp-server']
+SUPPORTED_DHCP_OPTS = {
+    4: ['netmask', 'router', 'dns-server', 'log-server',
+        'lpr-server', 'swap-server', 'ip-forward-enable',
+        'policy-filter', 'default-ttl', 'mtu', 'router-discovery',
+        'router-solicitation', 'arp-timeout', 'ethernet-encap',
+        'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
+        'tftp-server'],
+    6: ['server-id', 'dns-server', 'domain-search']}
+DHCPV6_STATELESS_OPT = 'dhcpv6_stateless'
 
 CHASSIS_DATAPATH_NETDEV = 'netdev'
 CHASSIS_IFACE_DPDKVHOSTUSER = 'dpdkvhostuser'

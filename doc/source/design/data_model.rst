@@ -53,7 +53,7 @@ Subnet
         ipv6_address_mode
 
 Once a subnet is created, we should create an entry in the DHCP Options table
-with the DHCPv4 options.
+with the DHCPv4 or DHCPv6 options.
 
 ::
 

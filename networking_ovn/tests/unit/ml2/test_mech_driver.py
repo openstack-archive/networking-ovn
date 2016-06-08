@@ -724,6 +724,34 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.assertTrue(self.mech_driver._is_port_provisioning_required(
             fake_port, fake_host, None))
 
+    def _test_add_subnet_dhcp_options_in_ovn(self, subnet, ovn_dhcp_opts=None,
+                                             call_get_dhcp_opts=True,
+                                             call_compose_dhcp_opts=True):
+        subnet['id'] = 'fake_id'
+        with mock.patch.object(self.mech_driver,
+                               'get_ovn_dhcp_options') as get_opts:
+            self.mech_driver.add_subnet_dhcp_options_in_ovn(
+                subnet, mock.ANY, ovn_dhcp_opts)
+            self.assertEqual(call_get_dhcp_opts, get_opts.called)
+            self.assertEqual(
+                call_compose_dhcp_opts,
+                self.mech_driver._nb_ovn.compose_dhcp_options_commands.called)
+
+    def test_add_subnet_dhcp_options_in_ovn(self):
+        subnet = {'ip_version': const.IP_VERSION_4}
+        self._test_add_subnet_dhcp_options_in_ovn(subnet)
+
+    def test_add_subnet_dhcp_options_in_ovn_with_given_ovn_dhcp_opts(self):
+        subnet = {'ip_version': const.IP_VERSION_4}
+        self._test_add_subnet_dhcp_options_in_ovn(
+            subnet, ovn_dhcp_opts={'foo': 'bar'}, call_get_dhcp_opts=False)
+
+    def test_add_subnet_dhcp_options_in_ovn_with_slaac_v6_subnet(self):
+        subnet = {'ip_version': const.IP_VERSION_6,
+                  'ipv6_address_mode': const.IPV6_SLAAC}
+        self._test_add_subnet_dhcp_options_in_ovn(
+            subnet, call_get_dhcp_opts=False, call_compose_dhcp_opts=False)
+
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['logger', 'ovn']
@@ -765,7 +793,10 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
     # information for ACL processing. This interferes with the update_port
     # mock already done by the test.
     def test_subnet_update_ipv4_and_ipv6_pd_v6stateless_subnets(self):
-        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'):
+        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'),\
+                mock.patch.object(self.mech_driver,
+                                  '_get_subnet_dhcp_options_for_port',
+                                  return_value={}):
             super(TestOVNMechansimDriverSubnetsV2, self).\
                 test_subnet_update_ipv4_and_ipv6_pd_v6stateless_subnets()
 
@@ -773,7 +804,10 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
     # information for ACL processing. This interferes with the update_port
     # mock already done by the test.
     def test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets(self):
-        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'):
+        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'),\
+                mock.patch.object(self.mech_driver,
+                                  '_get_subnet_dhcp_options_for_port',
+                                  return_value={}):
             super(TestOVNMechansimDriverSubnetsV2, self).\
                 test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets()
 
@@ -958,148 +992,261 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         subnet = {'id': 'foo-subnet',
                   'cidr': 'ae70::/24',
                   'ip_version': 6,
-                  'enable_dhcp': True}
+                  'enable_dhcp': True,
+                  'dns_nameservers': ['7.7.7.7', '8.8.8.8']}
         network = {'mtu': 1400}
 
-        expected_dhcp_options = {'cidr': 'ae70::/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet'},
-                                 'options': {}}
+        expected_dhcp_options = {
+            'cidr': 'ae70::/24', 'external_ids': {'subnet_id': 'foo-subnet'},
+            'options': {'server_id': '01:02:03:04:05:06',
+                        'dns_server': '{7.7.7.7, 8.8.8.8}'}}
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options)
 
-    def test_get_port_dhcpv4_options_port_dhcp_opts_set(self):
+    def test_get_ovn_dhcp_options_dhcpv6_stateless_subnet(self):
+        subnet = {'id': 'foo-subnet',
+                  'cidr': 'ae70::/24',
+                  'ip_version': 6,
+                  'enable_dhcp': True,
+                  'dns_nameservers': ['7.7.7.7', '8.8.8.8'],
+                  'ipv6_address_mode': const.DHCPV6_STATELESS}
+        network = {'mtu': 1400}
+
+        expected_dhcp_options = {
+            'cidr': 'ae70::/24', 'external_ids': {'subnet_id': 'foo-subnet'},
+            'options': {'server_id': '01:02:03:04:05:06',
+                        'dns_server': '{7.7.7.7, 8.8.8.8}',
+                        'dhcpv6_stateless': 'true'}}
+
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options)
+
+    def _test__get_port_dhcp_options_port_dhcp_opts_set(self, ip_version=4):
+        if ip_version == 4:
+            ip_address = '10.0.0.11'
+        else:
+            ip_address = 'aef0::4'
+
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}],
-            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
-                                 'opt_value': '1200'},
-                                {'ip_version': 4, 'opt_name': 'ntp-server',
-                                 'opt_value': '8.8.8.8'}]}
+                           'ip_address': ip_address}]}
+        if ip_version == 4:
+            port['extra_dhcp_opts'] = [
+                {'ip_version': 4, 'opt_name': 'mtu', 'opt_value': '1200'},
+                {'ip_version': 4, 'opt_name': 'ntp-server',
+                 'opt_value': '8.8.8.8'}]
+        else:
+            port['extra_dhcp_opts'] = [
+                {'ip_version': 6, 'opt_name': 'domain-search',
+                 'opt_value': 'foo-domain'},
+                {'ip_version': 4, 'opt_name': 'dns-server',
+                 'opt_value': '7.7.7.7'}]
 
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = {
-            'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'},
-            'uuid': 'foo-uuid'}
+        self.mech_driver._get_subnet_dhcp_options_for_port = mock.Mock(
+            return_value=({
+                'cidr': '10.0.0.0/24',
+                'external_ids': {'subnet_id': 'foo-subnet'},
+                'options': {'router': '10.0.0.1', 'mtu': '1400'},
+                'uuid': 'foo-uuid'} if ip_version == 4 else {
+                'cidr': 'aef0::/64',
+                'external_ids': {'subnet_id': 'foo-subnet'},
+                'options': {'server_id': '01:02:03:04:05:06'}}))
 
         self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = 'foo-val'
-        dhcpv4_options = self.mech_driver.get_port_dhcpv4_options(port)
-        self.assertEqual('foo-val', dhcpv4_options)
+        dhcp_options = self.mech_driver.get_port_dhcp_options(
+            port, ip_version)
+        self.assertEqual('foo-val', dhcp_options)
 
-        # Since the port has extra DHCPv4 options defined, a new DHCP_Options
-        # row should be created and logical switch port DHCPv4 options should
-        # point to this.
-        expected_dhcp_options = {'cidr': '10.0.0.0/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet',
-                                                  'port_id': 'foo-port'},
-                                 'options': {'router': '10.0.0.1',
-                                             'mtu': '1200',
-                                             'ntp_server': '8.8.8.8'}}
+        # Since the port has extra DHCP options defined, a new DHCP_Options
+        # row should be created and logical switch port DHCPv4/DHCPv6 options
+        # should point to this.
+        if ip_version == 4:
+            expected_dhcp_options = {
+                'cidr': '10.0.0.0/24',
+                'external_ids': {'subnet_id': 'foo-subnet',
+                                 'port_id': 'foo-port'},
+                'options': {'router': '10.0.0.1', 'mtu': '1200',
+                            'ntp_server': '8.8.8.8'}}
+        else:
+            expected_dhcp_options = {
+                'cidr': 'aef0::/64',
+                'external_ids': {'subnet_id': 'foo-subnet',
+                                 'port_id': 'foo-port'},
+                'options': {'server_id': '01:02:03:04:05:06',
+                            'domain_search': 'foo-domain'}}
+
         self.mech_driver._nb_ovn.add_dhcp_options.assert_called_once_with(
             'foo-subnet', port_id='foo-port', **expected_dhcp_options)
 
-    def test_get_port_dhcpv4_options_port_dhcp_opts_not_set(self):
-        port = {
-            'id': 'foo-port',
-            'device_owner': 'compute:None',
-            'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}]}
+    def test__get_port_dhcp_options_port_dhcp_opts_set_v4(self):
+        self._test__get_port_dhcp_options_port_dhcp_opts_set(ip_version=4)
 
-        expected_dhcpv4_opts = {
-            'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'}}
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = (
-            expected_dhcpv4_opts)
+    def test__get_port_dhcp_options_port_dhcp_opts_set_v6(self):
+        self._test__get_port_dhcp_options_port_dhcp_opts_set(ip_version=6)
 
-        self.assertEqual(expected_dhcpv4_opts,
-                         self.mech_driver.get_port_dhcpv4_options(port))
+    def _test__get_port_dhcp_options_port_dhcp_opts_not_set(
+        self, ip_version=4):
+        if ip_version == 4:
+            port = {'id': 'foo-port',
+                    'device_owner': 'compute:None',
+                    'fixed_ips': [{'subnet_id': 'foo-subnet',
+                                   'ip_address': '10.0.0.11'}]}
+        else:
+            port = {'id': 'foo-port',
+                    'device_owner': 'compute:None',
+                    'fixed_ips': [{'subnet_id': 'foo-subnet',
+                                   'ip_address': 'aef0::4'}]}
 
-        # Since the port has no extra DHCPv4 options defined, no new
-        # DHCP_Options row should be created and logical switch port DHCPv4
-        # options should point to the subnet DHCPv4 options.
+        if ip_version == 4:
+            expected_dhcp_opts = {
+                'cidr': '10.0.0.0/24',
+                'external_ids': {'subnet_id': 'foo-subnet'},
+                'options': {'router': '10.0.0.1', 'mtu': '1400'}}
+        else:
+            expected_dhcp_opts = {
+                'cidr': 'aef0::/64',
+                'external_ids': {'subnet_id': 'foo-subnet'},
+                'options': {'server_id': '01:02:03:04:05:06'}}
+
+        self.mech_driver._get_subnet_dhcp_options_for_port = mock.Mock(
+            return_value=expected_dhcp_opts)
+
+        self.assertEqual(
+            expected_dhcp_opts,
+            self.mech_driver.get_port_dhcp_options(port,
+                                                   ip_version=ip_version))
+
+        # Since the port has no extra DHCPv4/v6 options defined, no new
+        # DHCP_Options row should be created and logical switch port DHCPv4/v6
+        # options should point to the subnet DHCPv4/v6 options.
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test_get_port_dhcpv4_options_port_dhcp_disabled_1(self):
+    def test__get_port_dhcp_options_port_dhcp_opts_not_set_v4(self):
+        self._test__get_port_dhcp_options_port_dhcp_opts_not_set(ip_version=4)
+
+    def test__get_port_dhcp_options_port_dhcp_opts_not_set_v6(self):
+        self._test__get_port_dhcp_options_port_dhcp_opts_not_set(ip_version=6)
+
+    def _test__get_port_dhcp_options_port_dhcp_disabled(self, ip_version=4):
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}],
-            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'dhcp_disabled',
-                                 'opt_value': 'True'}]
-        }
-
-        self.assertIsNone(self.mech_driver.get_port_dhcpv4_options(port))
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
-
-    def test_get_port_dhcpv4_options_port_dhcp_disabled_2(self):
-        port = {
-            'id': 'foo-port',
-            'device_owner': 'compute:None',
-            'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}],
+                           'ip_address': '10.0.0.11'},
+                          {'subnet_id': 'foo-subnet-v6',
+                           'ip_address': 'aef0::11'}],
             'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'dhcp_disabled',
                                  'opt_value': 'False'},
                                 {'ip_version': 6, 'opt_name': 'dhcp_disabled',
-                                 'opt_value': 'True'}]
-        }
+                                 'opt_value': 'False'}]
+            }
 
-        expected_dhcpv4_opts = {
-            'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'}}
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = (
-            expected_dhcpv4_opts)
+        subnet_dhcp_opts = mock.Mock()
+        self.mech_driver._get_subnet_dhcp_options_for_port = mock.Mock(
+            return_value=subnet_dhcp_opts)
 
-        self.assertEqual(expected_dhcpv4_opts,
-                         self.mech_driver.get_port_dhcpv4_options(port))
+        # No dhcp_disabled set to true, subnet dhcp options will be get for
+        # this port. Since it doesn't have any other extra dhcp options, but
+        # dhcp_disabled, no port dhcp options will be created.
+        self.assertEqual(
+            subnet_dhcp_opts,
+            self.mech_driver.get_port_dhcp_options(port, ip_version))
+        self.assertEqual(
+            1,
+            self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test__get_port_dhcpv4_options_port_with_invalid_device_owner(self):
+        # Set dhcp_disabled with ip_version specified by this test case to
+        # true, no dhcp options will be get since it's dhcp_disabled now for
+        # ip_version be tested.
+        opt_index = 0 if ip_version == 4 else 1
+        port['extra_dhcp_opts'][opt_index]['opt_value'] = 'True'
+        self.mech_driver._get_subnet_dhcp_options_for_port.reset_mock()
+        self.assertIsNone(
+            self.mech_driver.get_port_dhcp_options(port, ip_version))
+        self.assertEqual(
+            0,
+            self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
+
+        # Set dhcp_disabled with ip_version specified by this test case to
+        # false, and set dhcp_disabled with ip_version not in test to true.
+        # Subnet dhcp options will be get, since dhcp_disabled with ip_version
+        # not in test should not affect.
+        opt_index_1 = 1 if ip_version == 4 else 0
+        port['extra_dhcp_opts'][opt_index]['opt_value'] = 'False'
+        port['extra_dhcp_opts'][opt_index_1]['opt_value'] = 'True'
+        self.assertEqual(
+            subnet_dhcp_opts,
+            self.mech_driver.get_port_dhcp_options(port, ip_version))
+        self.assertEqual(
+            1,
+            self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
+
+    def test__get_port_dhcp_options_port_dhcp_disabled_v4(self):
+        self._test__get_port_dhcp_options_port_dhcp_disabled(ip_version=4)
+
+    def test__get_port_dhcp_options_port_dhcp_disabled_v6(self):
+        self._test__get_port_dhcp_options_port_dhcp_disabled(ip_version=6)
+
+    def test__get_port_dhcp_options_port_with_invalid_device_owner(self):
         port = {
             'id': 'foo-port',
             'device_owner': 'neutron:router_interface',
             'fixed_ips': ['fake']
         }
 
-        self.assertIsNone(self.mech_driver.get_port_dhcpv4_options(port))
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
-
-    def test__get_delete_lsp_dhcpv4_options_cmd(self):
-        port = {
-            'id': 'foo-port',
-            'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}],
-        }
-
-        self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = {
-            'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'},
-            'uuid': 'foo-uuid'}
-
-        self.mech_driver._nb_ovn.delete_dhcp_options.return_value = 'foo-cmd'
-        self.assertEqual(
-            'foo-cmd',
-            self.mech_driver._get_delete_lsp_dhcpv4_options_cmd(port))
-        self.mech_driver._nb_ovn.delete_dhcp_options.assert_called_once_with(
-            'foo-uuid')
-
-    def test__get_delete_lsp_dhcpv4_options_cmd_no_lsp_opts(self):
-        port = {
-            'id': 'foo-port',
-            'fixed_ips': [{'subnet_id': 'foo-subnet',
-                           'ip_address': '10.0.0.11'}],
-        }
-
-        self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = None
-
         self.assertIsNone(
-            self.mech_driver._get_delete_lsp_dhcpv4_options_cmd(port))
-        self.mech_driver._nb_ovn.delete_dhcp_options.assert_not_called()
+            self.mech_driver.get_port_dhcp_options(port, mock.ANY))
+
+    def _test__get_subnet_dhcp_options_for_port(self, ip_version=4,
+                                                enable_dhcp=True):
+        port = {'fixed_ips': [
+            {'ip_address': '10.0.0.4',
+             'subnet_id': 'v4_snet_id_1' if enable_dhcp else 'v4_snet_id_2'},
+            {'ip_address': '2001:dba::4',
+             'subnet_id': 'v6_snet_id_1' if enable_dhcp else 'v6_snet_id_2'},
+            {'ip_address': '2001:dbb::4', 'subnet_id': 'v6_snet_id_3'}]}
+
+        def fake(subnets):
+            fake_rows = {
+                'v4_snet_id_1': 'foo',
+                'v6_snet_id_1': {'options': {}},
+                'v6_snet_id_3': {'options': {
+                    ovn_const.DHCPV6_STATELESS_OPT: 'true'}}}
+            return [fake_rows[row] for row in fake_rows if row in subnets]
+
+        self.mech_driver._nb_ovn.get_subnets_dhcp_options.side_effect = fake
+
+        if ip_version == 4:
+            expected_opts = 'foo' if enable_dhcp else None
+        else:
+            expected_opts = {
+                'options': {} if enable_dhcp else {
+                    ovn_const.DHCPV6_STATELESS_OPT: 'true'}}
+
+        self.assertEqual(
+            expected_opts,
+            self.mech_driver._get_subnet_dhcp_options_for_port(
+                port, ip_version))
+
+    def test__get_subnet_dhcp_options_for_port_v4(self):
+        self._test__get_subnet_dhcp_options_for_port()
+
+    def test__get_subnet_dhcp_options_for_port_v4_dhcp_disabled(self):
+        self._test__get_subnet_dhcp_options_for_port(enable_dhcp=False)
+
+    def test__get_subnet_dhcp_options_for_port_v6(self):
+        self._test__get_subnet_dhcp_options_for_port(ip_version=6)
+
+    def test__get_subnet_dhcp_options_for_port_v6_dhcp_disabled(self):
+        self._test__get_subnet_dhcp_options_for_port(ip_version=6,
+                                                     enable_dhcp=False)

@@ -463,9 +463,12 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug('OVN-NB Sync DHCP options for Neutron subnets started')
 
         db_subnets = {}
-        for subnet in self.core_plugin.get_subnets(ctx):
-            if subnet['enable_dhcp']:
-                db_subnets[subnet['id']] = subnet
+        filters = {'enable_dhcp': [1]}
+        for subnet in self.core_plugin.get_subnets(ctx, filters=filters):
+            if subnet['ip_version'] == constants.IP_VERSION_6 and (
+                subnet.get('ipv6_address_mode') == constants.IPV6_SLAAC):
+                continue
+            db_subnets[subnet['id']] = subnet
 
         del_subnet_dhcp_opts_list = []
         for subnet_id, ovn_dhcp_opts in ovn_subnet_dhcp_options.items():
@@ -519,7 +522,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug('OVN-NB Sync DHCP options for Neutron subnets finished')
 
     def _sync_port_dhcp_options(self, ctx, ports_need_sync_dhcp_opts,
-                                ovn_port_dhcp_options):
+                                ovn_port_dhcpv4_opts, ovn_port_dhcpv6_opts):
         if not config.is_ovn_dhcp():
             return
 
@@ -527,48 +530,59 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                   'dhcp options assigned started')
 
         txn_commands = []
+        lsp_dhcp_key = {constants.IP_VERSION_4: 'dhcpv4_options',
+                        constants.IP_VERSION_6: 'dhcpv6_options'}
+        ovn_port_dhcp_opts = {constants.IP_VERSION_4: ovn_port_dhcpv4_opts,
+                              constants.IP_VERSION_6: ovn_port_dhcpv6_opts}
         for port in ports_need_sync_dhcp_opts:
             if self.mode == SYNC_MODE_REPAIR:
                 LOG.debug('Updating DHCP options for port %s in OVN NB DB',
                           port['id'])
-                dhcp_opts = self.ovn_driver.get_port_dhcpv4_options(port)
-                if not dhcp_opts:
-                    # If the Logical_Switch_Port.dhcpv4_options no longer
-                    # refers a port dhcp options created in DHCP_Options
-                    # earlier, that port dhcp options will be deleted
-                    # in the following ovn_port_dhcp_options handling.
+                set_lsp = {}
+                for ip_v in [constants.IP_VERSION_4, constants.IP_VERSION_6]:
+                    dhcp_opts = self.ovn_driver.get_port_dhcp_options(
+                        port, ip_v)
+                    if not dhcp_opts:
+                        # If the Logical_Switch_Port.dhcpv4_options or
+                        # dhcpv6_options no longer refers a port dhcp options
+                        # created in DHCP_Options earlier, that port dhcp
+                        # options will be deleted in the following
+                        # ovn_port_dhcp_options handling.
+                        set_lsp[lsp_dhcp_key[ip_v]] = []
+                    elif port['id'] in ovn_port_dhcp_opts[ip_v]:
+                        # When the Logical_Switch_Port.dhcpv4_options or
+                        # dhcpv6_options refers a port dhcp options in
+                        # DHCP_Options earlier, if the extra dhcp options has
+                        # changed, ovn_driver.get_port_dhcp_options should
+                        # udpate it, if removed, it will be deleted in the
+                        # following ovn_port_dhcp_options handling.
+                        if dhcp_opts['external_ids'].get('port_id'):
+                            ovn_port_dhcp_opts[ip_v].pop(port['id'])
+                            # Ensure Logical_Switch_Port still have references
+                            # to DHCP_Options rows.
+                            set_lsp[lsp_dhcp_key[ip_v]] = [dhcp_opts['uuid']]
+                    elif 'uuid' in dhcp_opts:
+                        set_lsp[lsp_dhcp_key[ip_v]] = [dhcp_opts['uuid']]
+                if set_lsp:
                     txn_commands.append(self.ovn_api.set_lswitch_port(
-                        lport_name=port['id'],
-                        dhcpv4_options=[]))
-                elif port['id'] in ovn_port_dhcp_options:
-                    # When the Logical_Switch_Port.dhcpv4_options refers a port
-                    # dhcp options in DHCP_Options earlier, if the extra dhcp
-                    # options has changed, ovn_driver.get_port_dhcpv4_options
-                    # should udpate it, if removed, it will be deleted
-                    # in the following ovn_port_dhcp_options handling.
-                    if dhcp_opts['external_ids'].get('port_id') is not None:
-                        ovn_port_dhcp_options.pop(port['id'])
-                elif 'uuid' in dhcp_opts:
-                    # If the Logical_Switch_Port.dhcpv4_options is already
-                    # in sync, then this transaction will be a no-op.
-                    txn_commands.append(self.ovn_api.set_lswitch_port(
-                        lport_name=port['id'],
-                        dhcpv4_options=[dhcp_opts['uuid']]))
+                        lport_name=port['id'], **set_lsp))
 
-        for port_id, dhcp_opt in ovn_port_dhcp_options.items():
-            LOG.warning(
-                _LW('Out of sync port DHCP options for (subnet %(subnet_id)s'
-                    ' port %(port_id)s) found in OVN NB DB which needs to be '
-                    'deleted'),
-                {'subnet_id': dhcp_opt['external_ids']['subnet_id'],
-                 'port_id': port_id})
+        for ip_v in [constants.IP_VERSION_4, constants.IP_VERSION_6]:
+            for port_id, dhcp_opt in ovn_port_dhcp_opts[ip_v].items():
+                LOG.warning(
+                    _LW('Out of sync port DHCPv%(ip_version)d options for '
+                        '(subnet %(subnet_id)s port %(port_id)s) found in OVN '
+                        'NB DB which needs to be deleted'),
+                    {'ip_version': ip_v,
+                     'subnet_id': dhcp_opt['external_ids']['subnet_id'],
+                     'port_id': port_id})
 
-            if self.mode == SYNC_MODE_REPAIR:
-                LOG.debug('Deleting port DHCP options for (subnet %s, port '
-                          '%s)', dhcp_opt['external_ids']['subnet_id'],
-                          port_id)
-                txn_commands.append(self.ovn_api.delete_dhcp_options(
-                    dhcp_opt['uuid']))
+                if self.mode == SYNC_MODE_REPAIR:
+                    LOG.debug('Deleting port DHCPv%d options for (subnet %s, '
+                              'port %s)', ip_v,
+                              dhcp_opt['external_ids']['subnet_id'], port_id)
+                    txn_commands.append(self.ovn_api.delete_dhcp_options(
+                        dhcp_opt['uuid']))
 
         if txn_commands:
             with self.ovn_api.transaction(check_error=True) as txn:
@@ -629,10 +643,16 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.debug('Creating the port %s in OVN NB DB',
                               port['id'])
                     self._create_port_in_ovn(ctx, port)
-                    if port_id in ovn_all_dhcp_options['ports']:
-                        _, lsp_opts = utils.get_lsp_dhcpv4_opts(port)
+                    if port_id in ovn_all_dhcp_options['ports_v4']:
+                        _, lsp_opts = utils.get_lsp_dhcp_opts(
+                            port, constants.IP_VERSION_4)
                         if lsp_opts:
-                            ovn_all_dhcp_options['ports'].pop(port_id)
+                            ovn_all_dhcp_options['ports_v4'].pop(port_id)
+                    if port_id in ovn_all_dhcp_options['ports_v6']:
+                        _, lsp_opts = utils.get_lsp_dhcp_opts(
+                            port, constants.IP_VERSION_6)
+                        if lsp_opts:
+                            ovn_all_dhcp_options['ports_v6'].pop(port_id)
                 except RuntimeError:
                     LOG.warning(_LW("Create port in OVN NB failed for"
                                     " port %s"), port['id'])
@@ -656,15 +676,22 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     txn.add(self.ovn_api.delete_lswitch_port(
                         lport_name=lport_info['port'],
                         lswitch_name=lport_info['lswitch']))
-                    if lport_info['port'] in ovn_all_dhcp_options['ports']:
-                        LOG.debug('Deleting port DHCP options for (port %s)',
+                    if lport_info['port'] in ovn_all_dhcp_options['ports_v4']:
+                        LOG.debug('Deleting port DHCPv4 options for (port %s)',
                                   lport_info['port'])
                         txn.add(self.ovn_api.delete_dhcp_options(
-                                ovn_all_dhcp_options['ports'].pop(
+                                ovn_all_dhcp_options['ports_v4'].pop(
+                                    lport_info['port'])['uuid']))
+                    if lport_info['port'] in ovn_all_dhcp_options['ports_v6']:
+                        LOG.debug('Deleting port DHCPv6 options for (port %s)',
+                                  lport_info['port'])
+                        txn.add(self.ovn_api.delete_dhcp_options(
+                                ovn_all_dhcp_options['ports_v6'].pop(
                                     lport_info['port'])['uuid']))
 
         self._sync_port_dhcp_options(ctx, ports_need_sync_dhcp_opts,
-                                     ovn_all_dhcp_options['ports'])
+                                     ovn_all_dhcp_options['ports_v4'],
+                                     ovn_all_dhcp_options['ports_v6'])
         LOG.debug('OVN-NB Sync networks, ports and DHCP options finished')
 
 

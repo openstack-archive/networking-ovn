@@ -231,6 +231,10 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
              'external_ids': {'subnet_id': 'subnet-id-20-0-2-0',
                               'port_id': 'lsp-vpn-id-5'},
              'options': {'mtu': '1442', 'router': '20.0.2.254'}},
+            {'cidr': '2001:dba::/64',
+             'external_ids': {'subnet_id': 'subnet-id-2001-dba',
+                              'port_id': 'lsp-vpn-id-5'},
+             'options': {'server_id': '12:34:56:78:9a:bc'}},
             {'cidr': '30.0.1.0/24',
              'external_ids': {'port_id': 'port-id-30-0-1-0'},
              'options': {'mtu': '1442', 'router': '30.0.2.254'}},
@@ -530,23 +534,49 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
             'subnet-id-10-0-2-0')
         expected_row = self._find_ovsdb_fake_row(self.dhcp_table,
                                                  'cidr', '10.0.2.0/24')
-        self.assertEqual(subnet_options,
-                         {'cidr': expected_row.cidr,
+        self.assertEqual({'cidr': expected_row.cidr,
                           'external_ids': expected_row.external_ids,
                           'options': expected_row.options,
-                          'uuid': expected_row.uuid})
+                          'uuid': expected_row.uuid},
+                         subnet_options)
         subnet_options = self.nb_ovn_idl.get_subnet_dhcp_options(
             'subnet-id-11-0-2-0')
-        self.assertEqual(subnet_options, None)
+        self.assertIsNone(subnet_options)
         subnet_options = self.nb_ovn_idl.get_subnet_dhcp_options(
             'port-id-30-0-1-0')
-        self.assertEqual(subnet_options, None)
+        self.assertIsNone(subnet_options)
+
+    def test_get_subnets_dhcp_options(self):
+        self._load_nb_db()
+        get_row_dict = lambda row: {
+            'cidr': row.cidr,
+            'external_ids': row.external_ids,
+            'options': row.options,
+            'uuid': row.uuid}
+
+        subnets_options = self.nb_ovn_idl.get_subnets_dhcp_options(
+            ['subnet-id-10-0-1-0', 'subnet-id-10-0-2-0'])
+        expected_rows = [
+            get_row_dict(
+                self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', cidr))
+            for cidr in ('10.0.1.0/24', '10.0.2.0/24')]
+        self.assertItemsEqual(expected_rows, subnets_options)
+
+        subnets_options = self.nb_ovn_idl.get_subnets_dhcp_options(
+            ['subnet-id-11-0-2-0', 'subnet-id-20-0-1-0'])
+        expected_row = get_row_dict(
+            self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', '20.0.1.0/24'))
+        self.assertItemsEqual([expected_row], subnets_options)
+
+        subnets_options = self.nb_ovn_idl.get_subnets_dhcp_options(
+            ['port-id-30-0-1-0', 'fake-not-exist'])
+        self.assertEqual([], subnets_options)
 
     def test_get_all_dhcp_options(self):
         self._load_nb_db()
         dhcp_options = self.nb_ovn_idl.get_all_dhcp_options()
         self.assertEqual(len(dhcp_options['subnets']), 3)
-        self.assertEqual(len(dhcp_options['ports']), 2)
+        self.assertEqual(len(dhcp_options['ports_v4']), 2)
 
     def test_get_port_dhcp_options(self):
         self._load_nb_db()
@@ -554,14 +584,41 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
             'subnet-id-10-0-3-0', 'lsp-vpn-id-3')
         expected_row = self._find_ovsdb_fake_row(self.dhcp_table,
                                                  'cidr', '10.0.3.0/24')
-        self.assertEqual(port_options,
-                         {'cidr': expected_row.cidr,
+        self.assertEqual({'cidr': expected_row.cidr,
                           'external_ids': expected_row.external_ids,
                           'options': expected_row.options,
-                          'uuid': expected_row.uuid})
+                          'uuid': expected_row.uuid},
+                         port_options)
         port_options = self.nb_ovn_idl.get_port_dhcp_options(
-            '', 'port-id-30-0-1-0')
-        self.assertEqual(port_options, None)
+            'subnet-id-30-0-1-0', 'port-id-30-0-1-0')
+        self.assertIsNone(port_options)
+
+    def test_get_port_all_dhcp_options(self):
+        self._load_nb_db()
+        get_row_dict = lambda row: {
+            'cidr': row.cidr,
+            'external_ids': row.external_ids,
+            'options': row.options,
+            'uuid': row.uuid}
+
+        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
+            ['subnet-id-20-0-2-0', 'subnet-id-2001-dba'],
+            'lsp-vpn-id-5')
+        expected_rows = [
+            get_row_dict(
+                self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', cidr))
+            for cidr in ('20.0.2.0/24', '2001:dba::/64')]
+        self.assertItemsEqual(expected_rows, port_options)
+
+        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
+            ['subnet-id-10-0-3-0', 'fake_not_exist'], 'lsp-vpn-id-3')
+        expected_row = get_row_dict(
+            self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', '10.0.3.0/24'))
+        self.assertItemsEqual([expected_row], port_options)
+
+        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
+            ['subnet-id-30-0-1-0'], 'port-id-30-0-1-0')
+        self.assertEqual([], port_options)
 
     def test_compose_dhcp_options_commands(self):
         # TODO(azbiswas): Implement in seperate patch
