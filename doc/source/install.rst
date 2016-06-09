@@ -137,7 +137,8 @@ primary node. See the :ref:`faq` for more information.
 
         [ovn]
         ...
-        ovsdb_connection = tcp:IP_ADDRESS:6640
+        ovn_nb_connection = tcp:IP_ADDRESS:6641
+        ovn_sb_connection = tcp:IP_ADDRESS:6642
 
      Replace ``IP_ADDRESS`` with the IP address of the controller node
      that runs the ``ovsdb-server`` service.

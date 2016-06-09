@@ -17,9 +17,20 @@ from neutron.extensions import portbindings
 
 
 ovn_opts = [
-    cfg.StrOpt('ovsdb_connection',
+    cfg.StrOpt('ovsdb_connection', deprecated_for_removal=True,
                default='tcp:127.0.0.1:6640',
-               help=_('The connection string for the native OVSDB backend')),
+               help=_('The connection string for the native OVSDB backend.'
+                      'This option is going to be deprecated and be replaced'
+                      'by option ovn_nb_connection.')),
+    cfg.StrOpt('ovn_nb_connection',
+               deprecated_name='ovsdb_connection',
+               default='tcp:127.0.0.1:6641',
+               help=_('The connection string for the OVN_Northbound OVSDB '
+                      'backend')),
+    cfg.StrOpt('ovn_sb_connection',
+               default='tcp:127.0.0.1:6642',
+               help=_('The connection string for the OVN_Southbound OVSDB '
+                      'backend')),
     cfg.IntOpt('ovsdb_connection_timeout',
                default=60,
                help=_('Timeout in seconds for the OVSDB '
@@ -66,8 +77,12 @@ def list_opts():
     ]
 
 
-def get_ovn_ovsdb_connection():
-    return cfg.CONF.ovn.ovsdb_connection
+def get_ovn_nb_connection():
+    return cfg.CONF.ovn.ovn_nb_connection
+
+
+def get_ovn_sb_connection():
+    return cfg.CONF.ovn.ovn_sb_connection
 
 
 def get_ovn_ovsdb_timeout():

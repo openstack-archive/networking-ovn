@@ -82,7 +82,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         called prior to this method being called.
         """
         LOG.info(_LI("Starting OVNMechanismDriver"))
-        self._ovn_property = None
+        self._nb_ovn = None
+        self._sb_ovn = None
         self._plugin_property = None
         self._setup_vif_port_bindings()
         self.subscribe()
@@ -90,14 +91,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
     @property
     def _ovn(self):
-        if self._ovn_property is None:
+        if self._nb_ovn is None:
             # TODO(rtheis): This is required for neutron L3 agent callbacks.
             # These callbacks are not run in a child process and thus don't
             # have post_fork_initialize() called. Investigate why this occurs
             # and if anything can be done to fix this.
-            LOG.info(_LI("Getting OvsdbOvnIdl"))
-            self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self)
-        return self._ovn_property
+            LOG.info(_LI("Getting OvsdbNbOvnIdl"))
+            self._nb_ovn = impl_idl_ovn.OvsdbNbOvnIdl(self)
+        return self._nb_ovn
 
     @property
     def _plugin(self):
@@ -145,7 +146,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                            events.BEFORE_DELETE)
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        self._ovn_property = impl_idl_ovn.OvsdbOvnIdl(self, trigger)
+        self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
+                                                               trigger)
 
         if trigger.im_class == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker

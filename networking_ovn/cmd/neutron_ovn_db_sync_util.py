@@ -98,14 +98,14 @@ def main():
         return
 
     try:
-        ovn_api = impl_idl_ovn.OvsdbOvnIdl(None)
+        ovn_api = impl_idl_ovn.OvsdbNbOvnIdl(None)
     except RuntimeError:
-        LOG.error(_LE('Invalid --ovn-ovsdb_connection parameter provided.'))
+        LOG.error(_LE('Invalid --ovn-ovn_nb_connection parameter provided.'))
         return
 
     core_plugin = manager.NeutronManager.get_plugin()
     ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
-    ovn_driver._ovn_property = ovn_api
+    ovn_driver._nb_ovn = ovn_api
 
     synchronizer = ovn_nb_sync.OvnNbSynchronizer(
         core_plugin, ovn_api, mode, ovn_driver)

@@ -51,7 +51,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
-            return_value=fakes.FakeOvsdbOvnIdl()
+            return_value=fakes.FakeOvsdbNbOvnIdl()
         ).start()
         mock.patch(
             'neutron.db.l3_db.L3_NAT_db_mixin.notify_router_interface_action'
@@ -162,7 +162,7 @@ class OVNL3BaseForTests(test_db_base_plugin_v2.NeutronDbPluginV2TestCase):
         # For these tests we need to enable overlapping ips
         cfg.CONF.set_default('allow_overlapping_ips', True)
         ext_mgr = test_l3.L3TestExtensionManager()
-        impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
+        impl_idl_ovn.OvsdbNbOvnIdl = mock.Mock()
         super(OVNL3BaseForTests, self).setUp(plugin=plugin,
                                              ext_mgr=ext_mgr,
                                              service_plugins=service_plugins)
@@ -172,7 +172,7 @@ class OVNL3BaseForTests(test_db_base_plugin_v2.NeutronDbPluginV2TestCase):
         patcher = mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
-            return_value=fakes.FakeOvsdbOvnIdl())
+            return_value=fakes.FakeOvsdbNbOvnIdl())
         patcher.start()
         self.setup_notification_driver()
 
@@ -198,13 +198,13 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
         cfg.CONF.set_default('allow_overlapping_ips', True)
         cfg.CONF.set_default('max_routes', 3)
         ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
-        impl_idl_ovn.OvsdbOvnIdl = mock.Mock()
+        impl_idl_ovn.OvsdbNbOvnIdl = mock.Mock()
         super(test_l3.L3BaseForIntTests, self).setUp(
             plugin=plugin, ext_mgr=ext_mgr,
             service_plugins=service_plugins)
         patcher = mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
-            return_value=fakes.FakeOvsdbOvnIdl())
+            return_value=fakes.FakeOvsdbNbOvnIdl())
         patcher.start()
         self.setup_notification_driver()
