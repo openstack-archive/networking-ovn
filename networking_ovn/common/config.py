@@ -25,12 +25,10 @@ ovn_opts = [
     cfg.StrOpt('ovn_nb_connection',
                deprecated_name='ovsdb_connection',
                default='tcp:127.0.0.1:6641',
-               help=_('The connection string for the OVN_Northbound OVSDB '
-                      'backend')),
+               help=_('The connection string for the OVN_Northbound OVSDB')),
     cfg.StrOpt('ovn_sb_connection',
                default='tcp:127.0.0.1:6642',
-               help=_('The connection string for the OVN_Southbound OVSDB '
-                      'backend')),
+               help=_('The connection string for the OVN_Southbound OVSDB')),
     cfg.IntOpt('ovsdb_connection_timeout',
                default=60,
                help=_('Timeout in seconds for the OVSDB '
