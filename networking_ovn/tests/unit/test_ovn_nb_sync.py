@@ -349,7 +349,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         create_router_port_list = self.get_sync_router_ports
 
         ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
-            self.plugin, self.mech_driver._ovn, 'repair', self.mech_driver)
+            self.plugin, self.mech_driver._nb_ovn, 'repair', self.mech_driver)
         self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
                                       self.networks,
                                       self.ports,
@@ -376,7 +376,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_static_route_list = []
 
         ovn_nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
-            self.plugin, self.mech_driver._ovn, 'log', self.mech_driver)
+            self.plugin, self.mech_driver._nb_ovn, 'log', self.mech_driver)
         self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
                                       self.networks,
                                       self.ports,

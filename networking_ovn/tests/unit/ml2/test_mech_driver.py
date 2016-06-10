@@ -199,9 +199,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                set_context=True, tenant_id='test',
                                **kwargs) as port:
                     self.assertTrue(
-                        self.mech_driver._ovn.create_lport.called)
+                        self.mech_driver._nb_ovn.create_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.create_lport
+                        (self.mech_driver._nb_ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual(['00:00:00:00:00:01 10.0.0.2 10.0.0.4'],
                                      called_args_dict.get('port_security'))
@@ -212,9 +212,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         data, port['port']['id'])
                     req.get_response(self.api)
                     self.assertTrue(
-                        self.mech_driver._ovn.set_lport.called)
+                        self.mech_driver._nb_ovn.set_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.set_lport
+                        (self.mech_driver._nb_ovn.set_lport
                          ).call_args_list[0][1])
                     self.assertEqual(['00:00:00:00:00:02 10.0.0.2 10.0.0.4'],
                                      called_args_dict.get('port_security'))
@@ -228,9 +228,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                set_context=True, tenant_id='test',
                                **kwargs) as port:
                     self.assertTrue(
-                        self.mech_driver._ovn.create_lport.called)
+                        self.mech_driver._nb_ovn.create_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.create_lport
+                        (self.mech_driver._nb_ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual([],
                                      called_args_dict.get('port_security'))
@@ -241,9 +241,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         data, port['port']['id'])
                     req.get_response(self.api)
                     self.assertTrue(
-                        self.mech_driver._ovn.set_lport.called)
+                        self.mech_driver._nb_ovn.set_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.set_lport
+                        (self.mech_driver._nb_ovn.set_lport
                          ).call_args_list[0][1])
                     self.assertEqual([],
                                      called_args_dict.get('port_security'))
@@ -261,9 +261,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                **kwargs) as port:
                     port_ip = port['port'].get('fixed_ips')[0]['ip_address']
                     self.assertTrue(
-                        self.mech_driver._ovn.create_lport.called)
+                        self.mech_driver._nb_ovn.create_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.create_lport
+                        (self.mech_driver._nb_ovn.create_lport
                          ).call_args_list[0][1])
                     self.assertEqual(
                         tools.UnorderedList(
@@ -283,9 +283,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         data, port['port']['id'])
                     req.get_response(self.api)
                     self.assertTrue(
-                        self.mech_driver._ovn.set_lport.called)
+                        self.mech_driver._nb_ovn.set_lport.called)
                     called_args_dict = (
-                        (self.mech_driver._ovn.set_lport
+                        (self.mech_driver._nb_ovn.set_lport
                          ).call_args_list[0][1])
                     self.assertEqual(tools.UnorderedList(
                         ["22:22:22:22:22:22 2.2.2.2",
