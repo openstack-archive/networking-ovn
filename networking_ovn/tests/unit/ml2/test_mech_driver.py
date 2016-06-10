@@ -259,6 +259,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                arg_list=('allowed_address_pairs',),
                                set_context=True, tenant_id='test',
                                **kwargs) as port:
+                    port_ip = port['port'].get('fixed_ips')[0]['ip_address']
                     self.assertTrue(
                         self.mech_driver._ovn.create_lport.called)
                     called_args_dict = (
@@ -267,7 +268,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self.assertEqual(
                         tools.UnorderedList(
                             ["22:22:22:22:22:22 2.2.2.2",
-                             port['port']['mac_address'] + ' ' + '10.0.0.2'
+                             port['port']['mac_address'] + ' ' + port_ip
                              + ' ' + '1.1.1.1']),
                         called_args_dict.get('port_security'))
 
@@ -288,7 +289,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                          ).call_args_list[0][1])
                     self.assertEqual(tools.UnorderedList(
                         ["22:22:22:22:22:22 2.2.2.2",
-                         "00:00:00:00:00:01 10.0.0.2",
+                         "00:00:00:00:00:01 " + port_ip,
                          old_mac + " 1.1.1.1"]),
                         called_args_dict.get('port_security'))
 
