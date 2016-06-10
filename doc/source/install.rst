@@ -131,18 +131,6 @@ primary node. See the :ref:`faq` for more information.
         ...
         core_plugin = neutron.plugins.ml2.plugin.Ml2Plugin
 
-   * Configure OVS database access.
-
-     .. code-block:: ini
-
-        [ovn]
-        ...
-        ovn_nb_connection = tcp:IP_ADDRESS:6641
-        ovn_sb_connection = tcp:IP_ADDRESS:6642
-
-     Replace ``IP_ADDRESS`` with the IP address of the controller node
-     that runs the ``ovsdb-server`` service.
-
    * If the QoS service is enabled then you also need to enable the OVN QoS
      notification driver.
 
@@ -152,38 +140,21 @@ primary node. See the :ref:`faq` for more information.
         ...
         notification_drivers = ovn-qos
 
-   * (Optional) Enable native layer-3 services.
+   * (Optional) Enable the native or conventional layer-3 service.
 
      .. code-block:: ini
 
         [DEFAULT]
         ...
-        service_plugins = networking_ovn.l3.l3_ovn.OVNL3RouterPlugin
-        ...
-
-        [ovn]
-        ...
-        ovn_l3_mode = True
+        service_plugins = L3_SERVICE
 
      .. note::
 
-        See :ref:`features` and :ref:`faq` for more information.
-
-   * (Optional) Enable conventional layer-3 agent.
-
-     .. code-block:: ini
-
-        [DEFAULT]
-        ...
-        service_plugins = neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
-        ...
-
-        [ovn]
-        ...
-        ovn_l3_mode = False
-
-     .. note::
-
+        Replace ``L3_SERVICE`` with
+        ``networking_ovn.l3.l3_ovn.OVNL3RouterPlugin``
+        to enable the native layer-3 service or with
+        ``neutron.services.l3_router.l3_router_plugin.L3RouterPlugin``
+        to enable the conventional layer-3 service.
         See :ref:`features` and :ref:`faq` for more information.
 
 #. Configure the OVN ML2 driver. Edit the
@@ -196,6 +167,23 @@ primary node. See the :ref:`faq` for more information.
         [ml2]
         ...
         mechanism_drivers = ovn
+
+   * Configure OVS database access and the OVN L3 mode
+
+     .. code-block:: ini
+
+        [ovn]
+        ...
+        ovn_nb_connection = tcp:IP_ADDRESS:6641
+        ovn_sb_connection = tcp:IP_ADDRESS:6642
+        ovn_l3_mode = OVN_L3_MODE
+
+     .. note::
+
+        Replace ``IP_ADDRESS`` with the IP address of the controller node
+        that runs the ``ovsdb-server`` service. Replace ``OVN_L3_MODE``
+        with ``True`` if you enabled the native layer-3 service in
+        ``/etc/neutron/neutron.conf`` else ``False``.
 
 #. Start the ``neutron-server`` service.
 

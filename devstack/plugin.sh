@@ -146,10 +146,9 @@ function configure_ovn_plugin {
                 'from networking_ovn.common import extensions ;\
                  print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3)')
         fi
-        NEUTRON_CONF=/etc/neutron/neutron.conf
-        iniset $NEUTRON_CONF ovn ovn_nb_connection "$OVN_NB_REMOTE"
-        iniset $NEUTRON_CONF ovn ovn_sb_connection "$OVN_SB_REMOTE"
-        iniset $NEUTRON_CONF ovn ovn_l3_mode "$OVN_L3_MODE"
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_nb_connection="$OVN_NB_REMOTE"
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_mode="$OVN_L3_MODE"
     fi
 
     if is_service_enabled q-l3 ; then
@@ -159,6 +158,7 @@ function configure_ovn_plugin {
     fi
 
     if is_service_enabled q-qos ; then
+        NEUTRON_CONF=/etc/neutron/neutron.conf
         iniset $NEUTRON_CONF qos notification_drivers ovn-qos
     fi
 
