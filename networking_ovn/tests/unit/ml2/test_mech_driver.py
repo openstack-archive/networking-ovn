@@ -323,13 +323,21 @@ class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
 class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                                       OVNMechanismDriverTestCase):
 
-    # TODO(rtheis): Debug test case failure.
+    # NOTE(rtheis): Mock the OVN port update since it is getting subnet
+    # information for ACL processing. This interferes with the update_port
+    # mock already done by the test.
     def test_subnet_update_ipv4_and_ipv6_pd_v6stateless_subnets(self):
-        pass
+        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'):
+            super(TestOVNMechansimDriverSubnetsV2, self).\
+                test_subnet_update_ipv4_and_ipv6_pd_v6stateless_subnets()
 
-    # TODO(rtheis): Debug test case failure.
+    # NOTE(rtheis): Mock the OVN port update since it is getting subnet
+    # information for ACL processing. This interferes with the update_port
+    # mock already done by the test.
     def test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets(self):
-        pass
+        with mock.patch.object(self.mech_driver, '_update_port_in_ovn'):
+            super(TestOVNMechansimDriverSubnetsV2, self).\
+                test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets()
 
 
 class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
