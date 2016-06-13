@@ -132,10 +132,10 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def get_all_logical_ports_ids(self):
-        """Returns all logical ports names and external ids
+    def get_all_logical_switch_ports_ids(self):
+        """Returns all logical switch ports names and external ids
 
-        :returns: dictionary with lport name and ext ids
+        :returns: dictionary with lsp name and ext ids
         """
 
     @abc.abstractmethod

@@ -118,7 +118,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 return row.external_ids
         return {}
 
-    def get_all_logical_ports_ids(self):
+    def get_all_logical_switch_ports_ids(self):
         result = {}
         for row in self._tables['Logical_Switch_Port'].rows.values():
             result[row.name] = row.external_ids

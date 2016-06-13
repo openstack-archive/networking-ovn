@@ -99,7 +99,7 @@ creates logical switches with a name in the format neutron-<network UUID>.  So,
 we can use ``ovn-nbctl`` to list the configured logical switches and see that
 their names correlate with the output from ``neutron net-list``::
 
-    $ ovn-nbctl lswitch-list
+    $ ovn-nbctl ls-list
     c628c46a-372f-412b-8edf-eb3408b021ca (neutron-266371ca-904e-4433-b653-866f9204d22e)
 
     $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
@@ -315,10 +315,11 @@ with the::
     $ TEST1_PORT_ID=e3800c90-24d4-49ad-abb2-041a2e3dd259
     $ TEST2_PORT_ID=d660a917-5095-4bd0-92c5-d0abdffb600b
 
-Now we can look at OVN using ``ovn-nbctl`` to see the logical ports that were
-created for these two Neutron ports.  The first part of the output is the OVN
-logical port UUID.  The second part in parentheses is the logical port name.
-Neutron sets the logical port name equal to the Neutron port ID.
+Now we can look at OVN using ``ovn-nbctl`` to see the logical switch ports
+that were created for these two Neutron ports.  The first part of the output
+is the OVN logical switch port UUID.  The second part in parentheses is the
+logical switch port name. Neutron sets the logical switch port name equal to
+the Neutron port ID.
 
 ::
 
@@ -543,15 +544,15 @@ Alternatively, you can define connectivity to a VLAN instead of a flat network:
     --provider:network_type vlan \
     --provider:segmentation_id 101
 
-Observe that the OVN ML2 driver created a special logical port of type localnet
-on the logical switch to model the connection to the physical network.
+Observe that the OVN ML2 driver created a special logical switch port of type
+localnet on the logical switch to model the connection to the physical network.
 
 ::
 
     $ ovn-nbctl show
     ...
-     lswitch 5bbccbbd-f5ca-411b-bad9-01095d6f1316 (neutron-729dbbee-db84-4a3d-afc3-82c0b3701074)
-         lport provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+     switch 5bbccbbd-f5ca-411b-bad9-01095d6f1316 (neutron-729dbbee-db84-4a3d-afc3-82c0b3701074)
+         port provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
              addresses: ["unknown"]
     ...
 

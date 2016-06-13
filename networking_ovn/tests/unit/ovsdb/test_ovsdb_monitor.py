@@ -113,8 +113,8 @@ class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertFalse(self.driver.set_port_status_up.called)
         self.assertFalse(self.driver.set_port_status_down.called)
 
-    def test_unwatch_logical_port_create_events(self):
-        self.idl.unwatch_logical_port_create_events()
+    def test_unwatch_logical_switch_port_create_events(self):
+        self.idl.unwatch_logical_switch_port_create_events()
         row_data = {"up": True, "name": "foo-name"}
         self._test_lport_helper('create', row_data)
         self.assertFalse(self.driver.set_port_status_up.called)

@@ -69,8 +69,8 @@ Handling port status changes when neutron server(s) are down
 ------------------------------------------------------------
 
 When neutron server starts, ovn worker would receive a dump of all
-logical ports as events. 'ovsdb_monitor.OvnDbNotifyHandler' would sync up
-if there are any inconsistencies in the port status.
+logical switch ports as events. 'ovsdb_monitor.OvnDbNotifyHandler' would
+sync up if there are any inconsistencies in the port status.
 
 OVN Southbound DB Access
 ------------------------

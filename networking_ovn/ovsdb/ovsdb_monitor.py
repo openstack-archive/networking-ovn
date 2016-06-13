@@ -50,7 +50,7 @@ class ChassisEvent(row_event.RowEvent):
         pass
 
 
-class LogicalPortCreateUpEvent(row_event.RowEvent):
+class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):
     """Row create event - Logical_Switch_Port 'up' = True.
 
     On connection, we get a dump of all ports, so if there is a neutron
@@ -62,15 +62,15 @@ class LogicalPortCreateUpEvent(row_event.RowEvent):
         self.driver = driver
         table = 'Logical_Switch_Port'
         events = (self.ROW_CREATE)
-        super(LogicalPortCreateUpEvent, self).__init__(
+        super(LogicalSwitchPortCreateUpEvent, self).__init__(
             events, table, (('up', '=', True),))
-        self.event_name = 'LogicalPortCreateUpEvent'
+        self.event_name = 'LogicalSwitchPortCreateUpEvent'
 
     def run(self, event, row, old):
         self.driver.set_port_status_up(row.name)
 
 
-class LogicalPortCreateDownEvent(row_event.RowEvent):
+class LogicalSwitchPortCreateDownEvent(row_event.RowEvent):
     """Row create event - Logical_Switch_Port 'up' = False
 
     On connection, we get a dump of all ports, so if there is a neutron
@@ -81,15 +81,15 @@ class LogicalPortCreateDownEvent(row_event.RowEvent):
         self.driver = driver
         table = 'Logical_Switch_Port'
         events = (self.ROW_CREATE)
-        super(LogicalPortCreateDownEvent, self).__init__(
+        super(LogicalSwitchPortCreateDownEvent, self).__init__(
             events, table, (('up', '=', False),))
-        self.event_name = 'LogicalPortCreateDownEvent'
+        self.event_name = 'LogicalSwitchPortCreateDownEvent'
 
     def run(self, event, row, old):
         self.driver.set_port_status_down(row.name)
 
 
-class LogicalPortUpdateUpEvent(row_event.RowEvent):
+class LogicalSwitchPortUpdateUpEvent(row_event.RowEvent):
     """Row update event - Logical_Switch_Port 'up' going from False to True
 
     This happens when the VM goes up.
@@ -100,16 +100,16 @@ class LogicalPortUpdateUpEvent(row_event.RowEvent):
         self.driver = driver
         table = 'Logical_Switch_Port'
         events = (self.ROW_UPDATE)
-        super(LogicalPortUpdateUpEvent, self).__init__(
+        super(LogicalSwitchPortUpdateUpEvent, self).__init__(
             events, table, (('up', '=', True),),
             old_conditions=(('up', '=', False),))
-        self.event_name = 'LogicalPortUpdateUpEvent'
+        self.event_name = 'LogicalSwitchPortUpdateUpEvent'
 
     def run(self, event, row, old):
         self.driver.set_port_status_up(row.name)
 
 
-class LogicalPortUpdateDownEvent(row_event.RowEvent):
+class LogicalSwitchPortUpdateDownEvent(row_event.RowEvent):
     """Row update event - Logical_Switch_Port 'up' going from True to False
 
     This happens when the VM goes down.
@@ -120,10 +120,10 @@ class LogicalPortUpdateDownEvent(row_event.RowEvent):
         self.driver = driver
         table = 'Logical_Switch_Port'
         events = (self.ROW_UPDATE)
-        super(LogicalPortUpdateDownEvent, self).__init__(
+        super(LogicalSwitchPortUpdateDownEvent, self).__init__(
             events, table, (('up', '=', False),),
             old_conditions=(('up', '=', True),))
-        self.event_name = 'LogicalPortUpdateDownEvent'
+        self.event_name = 'LogicalSwitchPortUpdateDownEvent'
 
     def run(self, event, row, old):
         self.driver.set_port_status_down(row.name)
@@ -245,32 +245,32 @@ class OvnNbIdl(OvnIdl):
 
     def __init__(self, driver, remote, schema):
         super(OvnNbIdl, self).__init__(driver, remote, schema)
-        self._lp_update_up_event = LogicalPortUpdateUpEvent(driver)
-        self._lp_update_down_event = LogicalPortUpdateDownEvent(driver)
-        self._lp_create_up_event = LogicalPortCreateUpEvent(driver)
-        self._lp_create_down_event = LogicalPortCreateDownEvent(driver)
+        self._lsp_update_up_event = LogicalSwitchPortUpdateUpEvent(driver)
+        self._lsp_update_down_event = LogicalSwitchPortUpdateDownEvent(driver)
+        self._lsp_create_up_event = LogicalSwitchPortCreateUpEvent(driver)
+        self._lsp_create_down_event = LogicalSwitchPortCreateDownEvent(driver)
 
-        self.notify_handler.watch_events([self._lp_create_up_event,
-                                          self._lp_create_down_event,
-                                          self._lp_update_up_event,
-                                          self._lp_update_down_event])
+        self.notify_handler.watch_events([self._lsp_create_up_event,
+                                          self._lsp_create_down_event,
+                                          self._lsp_update_up_event,
+                                          self._lsp_update_down_event])
 
-    def unwatch_logical_port_create_events(self):
-        """Unwatch the logical port create events.
+    def unwatch_logical_switch_port_create_events(self):
+        """Unwatch the logical switch port create events.
 
         When the ovs idl client connects to the ovsdb-server, it gets
-        a dump of all logical ports as events and we need to process them
-        at start up.
+        a dump of all logical switch ports as events and we need to process
+        them at start up.
         After the startup, there is no need to watch these events.
         So unwatch these events.
         """
-        self.notify_handler.unwatch_events([self._lp_create_up_event,
-                                            self._lp_create_down_event])
-        self._lp_create_up_event = None
-        self._lp_create_down_event = None
+        self.notify_handler.unwatch_events([self._lsp_create_up_event,
+                                            self._lsp_create_down_event])
+        self._lsp_create_up_event = None
+        self._lsp_create_down_event = None
 
     def post_initialize(self, driver):
-        self.unwatch_logical_port_create_events()
+        self.unwatch_logical_switch_port_create_events()
 
 
 class OvnSbIdl(OvnIdl):

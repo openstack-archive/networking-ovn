@@ -131,7 +131,7 @@ class SetLogicalPortCommand(BaseCommand):
         except idlutils.RowNotFound:
             if self.if_exists:
                 return
-            msg = _("Logical Port %s does not exist") % self.lport
+            msg = _("Logical Switch Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
         for col, val in self.columns.items():
@@ -302,7 +302,7 @@ class SetLRouterPortInLPortCommand(BaseCommand):
             port = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
                                          'name', self.lport)
         except idlutils.RowNotFound:
-            msg = _("Logical Port %s does not exist") % self.lport
+            msg = _("Logical Switch Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
         options = {'router-port': self.lrouter_port}

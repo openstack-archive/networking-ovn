@@ -90,7 +90,7 @@ container that runs inside of that VM::
     | tenant_id             | db75dd6671ef4858a7fed450f1f8e995                                                |
     +-----------------------+---------------------------------------------------------------------------------+
 
-Now we can look at the corresponding logical ports in OVN to see that
+Now we can look at the corresponding logical switch ports in OVN to see that
 the parent and tag were set as expected::
 
     $ ovn-nbctl lsp-get-parent be155d07-ecd9-4ad7-91e5-5be60684572a
