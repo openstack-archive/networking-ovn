@@ -51,7 +51,7 @@ class ChassisEvent(row_event.RowEvent):
 
 
 class LogicalPortCreateUpEvent(row_event.RowEvent):
-    """Row create event - Logical_Port 'up' = True.
+    """Row create event - Logical_Switch_Port 'up' = True.
 
     On connection, we get a dump of all ports, so if there is a neutron
     port that is down that has since been activated, we'll catch it here.
@@ -60,7 +60,7 @@ class LogicalPortCreateUpEvent(row_event.RowEvent):
 
     def __init__(self, driver):
         self.driver = driver
-        table = 'Logical_Port'
+        table = 'Logical_Switch_Port'
         events = (self.ROW_CREATE)
         super(LogicalPortCreateUpEvent, self).__init__(
             events, table, (('up', '=', True),))
@@ -71,7 +71,7 @@ class LogicalPortCreateUpEvent(row_event.RowEvent):
 
 
 class LogicalPortCreateDownEvent(row_event.RowEvent):
-    """Row create event - Logical_Port 'up' = False
+    """Row create event - Logical_Switch_Port 'up' = False
 
     On connection, we get a dump of all ports, so if there is a neutron
     port that is up that has since been deactivated, we'll catch it here.
@@ -79,7 +79,7 @@ class LogicalPortCreateDownEvent(row_event.RowEvent):
     """
     def __init__(self, driver):
         self.driver = driver
-        table = 'Logical_Port'
+        table = 'Logical_Switch_Port'
         events = (self.ROW_CREATE)
         super(LogicalPortCreateDownEvent, self).__init__(
             events, table, (('up', '=', False),))
@@ -90,15 +90,15 @@ class LogicalPortCreateDownEvent(row_event.RowEvent):
 
 
 class LogicalPortUpdateUpEvent(row_event.RowEvent):
-    """Row update event - Logical_Port 'up' going from False to True
+    """Row update event - Logical_Switch_Port 'up' going from False to True
 
     This happens when the VM goes up.
-    New value of Logical_Port 'up' will be True and the old value will be
-    False.
+    New value of Logical_Switch_Port 'up' will be True and the old value will
+    be False.
     """
     def __init__(self, driver):
         self.driver = driver
-        table = 'Logical_Port'
+        table = 'Logical_Switch_Port'
         events = (self.ROW_UPDATE)
         super(LogicalPortUpdateUpEvent, self).__init__(
             events, table, (('up', '=', True),),
@@ -110,15 +110,15 @@ class LogicalPortUpdateUpEvent(row_event.RowEvent):
 
 
 class LogicalPortUpdateDownEvent(row_event.RowEvent):
-    """Row update event - Logical_Port 'up' going from True to False
+    """Row update event - Logical_Switch_Port 'up' going from True to False
 
     This happens when the VM goes down.
-    New value of Logical_Port 'up' will be False and the old value will be
-    True.
+    New value of Logical_Switch_Port 'up' will be False and the old value will
+    be True.
     """
     def __init__(self, driver):
         self.driver = driver
-        table = 'Logical_Port'
+        table = 'Logical_Switch_Port'
         events = (self.ROW_UPDATE)
         super(LogicalPortUpdateDownEvent, self).__init__(
             events, table, (('up', '=', False),),

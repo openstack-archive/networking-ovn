@@ -322,7 +322,7 @@ Neutron sets the logical port name equal to the Neutron port ID.
 
 ::
 
-    $ ovn-nbctl lport-list neutron-$PRIVATE_NET_ID
+    $ ovn-nbctl lsp-list neutron-$PRIVATE_NET_ID
     1117ac4e-1c83-4fd5-bb16-6c9c11150446 (e3800c90-24d4-49ad-abb2-041a2e3dd259)
     9be0ab27-1565-4b92-b2d2-c4578e90c46d (d660a917-5095-4bd0-92c5-d0abdffb600b)
     1e81abcf-574b-4533-8202-da182491724c (51f98e51-143b-4968-a7a9-e2d8d419b246)
@@ -555,10 +555,10 @@ on the logical switch to model the connection to the physical network.
              addresses: ["unknown"]
     ...
 
-    $ ovn-nbctl lport-get-type provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    $ ovn-nbctl lsp-get-type provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
     localnet
 
-    $ ovn-nbctl lport-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
+    $ ovn-nbctl lsp-get-options provnet-729dbbee-db84-4a3d-afc3-82c0b3701074
     network_name=providernet
 
 If VLAN is used, there will be a VLAN tag shown on the localnet port as well.

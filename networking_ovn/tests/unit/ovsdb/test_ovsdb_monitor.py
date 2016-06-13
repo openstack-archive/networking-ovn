@@ -23,9 +23,9 @@ from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 
 OVN_NB_SCHEMA = {
-    "name": "OVN_Northbound", "version": "2.0.1",
+    "name": "OVN_Northbound", "version": "3.0.0",
     "tables": {
-        "Logical_Port": {
+        "Logical_Switch_Port": {
             "columns": {
                 "name": {"type": "string"},
                 "type": {"type": "string"},
@@ -74,7 +74,7 @@ class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.idl = ovsdb_monitor.OvnNbIdl(self.driver, "remote", helper)
         self.idl.lock_name = self.idl.event_lock_name
         self.idl.has_lock = True
-        self.lp_table = self.idl.tables.get('Logical_Port')
+        self.lp_table = self.idl.tables.get('Logical_Switch_Port')
         self.driver.set_port_status_up = mock.Mock()
         self.driver.set_port_status_down = mock.Mock()
 

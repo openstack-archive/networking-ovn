@@ -1,9 +1,9 @@
 OVN Neutron Worker and Port status handling
 ===========================================
 
-When the logical port's VIF is attached or removed to/from the ovn integration
-bridge, ovn-northd updates the Logical_Port.up to 'True' or 'False'
-accordingly.
+When the logical switch port's VIF is attached or removed to/from the ovn
+integration bridge, ovn-northd updates the Logical_Switch_Port.up to 'True'
+or 'False' accordingly.
 
 In order for the OVN Neutron ML2 driver to update the corresponding neutron
 port's status to 'ACTIVE' or 'DOWN' in the db, it needs to monitor the
@@ -29,7 +29,7 @@ object.
 OvnIdl.notify() function passes the received events to the
 ovsdb_monitor.OvnDbNotifyHandler class.
 ovsdb_monitor.OvnDbNotifyHandler checks for any changes in
-the 'Logical_Port.up' and updates the neutron port's status accordingly.
+the 'Logical_Switch_Port.up' and updates the neutron port's status accordingly.
 
 If 'notify_nova_on_port_status_changes' configuration is set, then neutron
 would notify nova on port status changes.
@@ -39,7 +39,7 @@ ovsdb locks
 
 If there are multiple neutron servers running, then each neutron server will
 have one ovn worker which listens for the notify events. When the
-'Logical_Port.up' is updated by ovn-northd, we do not want all the
+'Logical_Switch_Port.up' is updated by ovn-northd, we do not want all the
 neutron servers to handle the event and update the neutron port status.
 In order for only one neutron server to handle the events, ovsdb locks are
 used.

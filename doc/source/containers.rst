@@ -93,8 +93,8 @@ container that runs inside of that VM::
 Now we can look at the corresponding logical ports in OVN to see that
 the parent and tag were set as expected::
 
-    $ ovn-nbctl lport-get-parent be155d07-ecd9-4ad7-91e5-5be60684572a
+    $ ovn-nbctl lsp-get-parent be155d07-ecd9-4ad7-91e5-5be60684572a
     74e43404-f3c2-4f13-aeec-934db4e2de35
 
-    $ ovn-nbctl lport-get-tag be155d07-ecd9-4ad7-91e5-5be60684572a
+    $ ovn-nbctl lsp-get-tag be155d07-ecd9-4ad7-91e5-5be60684572a
     42

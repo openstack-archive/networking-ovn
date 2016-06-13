@@ -101,14 +101,14 @@ class AddLogicalPortCommand(BaseCommand):
             raise RuntimeError(msg)
         if self.may_exist:
             port = idlutils.row_by_value(self.api.idl,
-                                         'Logical_Port', 'name',
+                                         'Logical_Switch_Port', 'name',
                                          self.lport, None)
             if port:
                 return
 
         lswitch.verify('ports')
 
-        port = txn.insert(self.api._tables['Logical_Port'])
+        port = txn.insert(self.api._tables['Logical_Switch_Port'])
         port.name = self.lport
         for col, val in self.columns.items():
             setattr(port, col, val)
@@ -126,7 +126,7 @@ class SetLogicalPortCommand(BaseCommand):
 
     def run_idl(self, txn):
         try:
-            port = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+            port = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
                                          'name', self.lport)
         except idlutils.RowNotFound:
             if self.if_exists:
@@ -147,7 +147,7 @@ class DelLogicalPortCommand(BaseCommand):
 
     def run_idl(self, txn):
         try:
-            lport = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+            lport = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
                                           'name', self.lport)
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch)
@@ -162,7 +162,7 @@ class DelLogicalPortCommand(BaseCommand):
 
         ports.remove(lport)
         setattr(lswitch, 'ports', ports)
-        self.api._tables['Logical_Port'].rows[lport.uuid].delete()
+        self.api._tables['Logical_Switch_Port'].rows[lport.uuid].delete()
 
 
 class AddLRouterCommand(BaseCommand):
@@ -299,7 +299,7 @@ class SetLRouterPortInLPortCommand(BaseCommand):
 
     def run_idl(self, txn):
         try:
-            port = idlutils.row_by_value(self.api.idl, 'Logical_Port',
+            port = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
                                          'name', self.lport)
         except idlutils.RowNotFound:
             msg = _("Logical Port %s does not exist") % self.lport

@@ -385,7 +385,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # If allowed address pair has same mac as the port mac,
             # append the allowed ip address to the 'addresses'.
             # Else we will have multiple entries for the same mac in
-            # 'Logical_Port.port_security'.
+            # 'Logical_Switch_Port.port_security'.
             if allowed_address['mac_address'] == port['mac_address']:
                 addresses += ' ' + allowed_address['ip_address']
             else:
