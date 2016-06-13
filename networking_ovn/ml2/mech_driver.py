@@ -213,7 +213,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 vlan_id = None
                 if segid is not None:
                     vlan_id = int(segid)
-                txn.add(self._nb_ovn.create_lport(
+                txn.add(self._nb_ovn.create_lswitch_port(
                     lport_name='provnet-%s' % network['id'],
                     lswitch_name=lswitch_name,
                     addresses=['unknown'],
@@ -436,7 +436,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # The lport_name *must* be neutron port['id'].  It must match the
             # iface-id set in the Interfaces table of the Open_vSwitch
             # database which nova sets to be the port ID.
-            txn.add(self._nb_ovn.create_lport(
+            txn.add(self._nb_ovn.create_lswitch_port(
                     lport_name=port['id'],
                     lswitch_name=lswitch_name,
                     addresses=ovn_port_info.addresses,
@@ -510,7 +510,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet_cache = {}
 
         with self._nb_ovn.transaction(check_error=True) as txn:
-            txn.add(self._nb_ovn.set_lport(lport_name=port['id'],
+            txn.add(self._nb_ovn.set_lswitch_port(
+                    lport_name=port['id'],
                     addresses=ovn_port_info.addresses,
                     external_ids=external_ids,
                     parent_name=ovn_port_info.parent_name,
@@ -576,7 +577,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """
         port = context.current
         with self._nb_ovn.transaction(check_error=True) as txn:
-            txn.add(self._nb_ovn.delete_lport(port['id'],
+            txn.add(self._nb_ovn.delete_lswitch_port(port['id'],
                     utils.ovn_name(port['network_id'])))
             txn.add(self._nb_ovn.delete_acl(
                     utils.ovn_name(port['network_id']), port['id']))

@@ -181,8 +181,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                mac=port['mac_address'],
                                                network=network))
 
-            txn.add(self._ovn.set_lrouter_port_in_lport(port['id'],
-                                                        lrouter_port_name))
+            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
+                    port['id'], lrouter_port_name))
 
     def add_router_interface(self, context, router_id, interface_info):
         router_interface_info = \

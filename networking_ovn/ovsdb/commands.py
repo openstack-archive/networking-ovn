@@ -83,9 +83,9 @@ class LSwitchSetExternalIdCommand(BaseCommand):
         lswitch.external_ids = external_ids
 
 
-class AddLogicalPortCommand(BaseCommand):
+class AddLSwitchPortCommand(BaseCommand):
     def __init__(self, api, lport, lswitch, may_exist, **columns):
-        super(AddLogicalPortCommand, self).__init__(api)
+        super(AddLSwitchPortCommand, self).__init__(api)
         self.lport = lport
         self.lswitch = lswitch
         self.may_exist = may_exist
@@ -117,9 +117,9 @@ class AddLogicalPortCommand(BaseCommand):
         setattr(lswitch, 'ports', ports)
 
 
-class SetLogicalPortCommand(BaseCommand):
+class SetLSwitchPortCommand(BaseCommand):
     def __init__(self, api, lport, if_exists, **columns):
-        super(SetLogicalPortCommand, self).__init__(api)
+        super(SetLSwitchPortCommand, self).__init__(api)
         self.lport = lport
         self.columns = columns
         self.if_exists = if_exists
@@ -138,9 +138,9 @@ class SetLogicalPortCommand(BaseCommand):
             setattr(port, col, val)
 
 
-class DelLogicalPortCommand(BaseCommand):
+class DelLSwitchPortCommand(BaseCommand):
     def __init__(self, api, lport, lswitch, if_exists):
-        super(DelLogicalPortCommand, self).__init__(api)
+        super(DelLSwitchPortCommand, self).__init__(api)
         self.lport = lport
         self.lswitch = lswitch
         self.if_exists = if_exists
@@ -291,18 +291,19 @@ class DelLRouterPortCommand(BaseCommand):
             setattr(lrouter, 'ports', lrouter_ports)
 
 
-class SetLRouterPortInLPortCommand(BaseCommand):
-    def __init__(self, api, lport, lrouter_port):
-        super(SetLRouterPortInLPortCommand, self).__init__(api)
-        self.lport = lport
+class SetLRouterPortInLSwitchPortCommand(BaseCommand):
+    def __init__(self, api, lswitch_port, lrouter_port):
+        super(SetLRouterPortInLSwitchPortCommand, self).__init__(api)
+        self.lswitch_port = lswitch_port
         self.lrouter_port = lrouter_port
 
     def run_idl(self, txn):
         try:
             port = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
-                                         'name', self.lport)
+                                         'name', self.lswitch_port)
         except idlutils.RowNotFound:
-            msg = _("Logical Switch Port %s does not exist") % self.lport
+            msg = _("Logical Switch Port %s does not "
+                    "exist") % self.lswitch_port
             raise RuntimeError(msg)
 
         options = {'router-port': self.lrouter_port}
