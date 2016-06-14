@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import mock
 import time
 import uuid
@@ -192,40 +193,47 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         super(TestOvnSbIdlNotifyHandler, self).setUp()
         sb_helper = ovs_idl.SchemaHelper(schema_json=OVN_SB_SCHEMA)
         sb_helper.register_table('Chassis')
-        self.sb_idl = ovsdb_monitor.OvnSbIdl(self.plugin, "remote", sb_helper)
+        self.sb_idl = ovsdb_monitor.OvnSbIdl(self.driver, "remote", sb_helper)
         self.sb_idl.lock_name = self.sb_idl.event_lock_name
         self.sb_idl.has_lock = True
-        self.sb_idl.post_initialize(self.plugin)
+        self.sb_idl.post_initialize(self.driver)
         self.chassis_table = self.sb_idl.tables.get('Chassis')
-
-    def _test_chassis_helper(self, event):
-        row_uuid = str(uuid.uuid4())
-        table = self.chassis_table
-        row_json = {
+        self.driver.update_segment_host_mapping = mock.Mock()
+        self.row_json = {
             "name": "fake-name",
             "hostname": "fake-hostname",
-            "external_ids": {"ovn-bridge-mappings": "fake-phynet1:fake-br1"}
+            "external_ids": ['map', [["ovn-bridge-mappings",
+                                      "fake-phynet1:fake-br1"]]]
         }
-        row = ovs_idl.Row.from_json(self.sb_idl, table, row_uuid, row_json)
-        self.sb_idl.notify(event, row, updates=None)
+
+    def _test_chassis_helper(self, event, new_row_json, old_row_json=None):
+        row_uuid = str(uuid.uuid4())
+        table = self.chassis_table
+        row = ovs_idl.Row.from_json(self.sb_idl, table, row_uuid, new_row_json)
+        if old_row_json:
+            old_row = ovs_idl.Row.from_json(self.sb_idl, table,
+                                            row_uuid, old_row_json)
+        else:
+            old_row = None
+        self.sb_idl.notify(event, row, updates=old_row)
         # sleep for a second so that the notify handler green thread
         # handles the notify event
         time.sleep(1)
-        return row
 
-    @mock.patch('networking_ovn.ovsdb.ovsdb_monitor.ChassisEvent.run')
-    def test_chassis_create_event(self, chassis_event_run):
-        chassis = self._test_chassis_helper('create')
-        chassis_event_run.assert_called_once_with('create', chassis, None)
+    def test_chassis_create_event(self):
+        self._test_chassis_helper('create', self.row_json)
+        self.driver.update_segment_host_mapping.assert_called_once_with(
+            'fake-hostname', ['fake-phynet1'])
 
-    @mock.patch('networking_ovn.ovsdb.ovsdb_monitor.ChassisEvent.run')
-    def test_chassis_delete_event(self, chassis_event_run):
-        chassis = self._test_chassis_helper('delete')
-        chassis_event_run.assert_called_once_with('delete', chassis, None)
+    def test_chassis_delete_event(self):
+        self._test_chassis_helper('delete', self.row_json)
+        self.driver.update_segment_host_mapping.assert_called_once_with(
+            'fake-hostname', [])
 
-    # TODO(mestery): Update this test once we update the Neutron DB with the
-    #                info from the SB DB.
-    @mock.patch('networking_ovn.ovsdb.ovsdb_monitor.ChassisEvent.run')
-    def test_chassis_update_event(self, chassis_event_run):
-        chassis = self._test_chassis_helper('update')
-        chassis_event_run.assert_called_once_with('update', chassis, None)
+    def test_chassis_update_event(self):
+        old_row_json = copy.deepcopy(self.row_json)
+        old_row_json['external_ids'][1][0][1] = (
+            "fake-phynet2:fake-br2")
+        self._test_chassis_helper('update', self.row_json, old_row_json)
+        self.driver.update_segment_host_mapping.assert_called_once_with(
+            'fake-hostname', ['fake-phynet1'])

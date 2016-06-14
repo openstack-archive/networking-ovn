@@ -36,7 +36,8 @@ ovn_opts = [
     cfg.StrOpt('neutron_sync_mode',
                default='log',
                choices=('off', 'log', 'repair'),
-               help=_('The synchronization mode of OVN with Neutron DB. \n'
+               help=_('The synchronization mode of OVN_Northbound OVSDB '
+                      'with Neutron DB.\n'
                       'off - synchronization is off \n'
                       'log - during neutron-server startup, '
                       'check to see if OVN is in sync with '

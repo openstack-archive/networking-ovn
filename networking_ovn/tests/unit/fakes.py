@@ -47,6 +47,12 @@ class FakeOvsdbNbOvnIdl(object):
         self.delete_static_route = mock.Mock()
 
 
+class FakeOvsdbSbOvnIdl(object):
+
+    def __init__(self, **kwargs):
+        self.get_chassis_hostname_and_physnets = mock.Mock()
+
+
 class FakePlugin(object):
 
     def __init__(self, **kwargs):

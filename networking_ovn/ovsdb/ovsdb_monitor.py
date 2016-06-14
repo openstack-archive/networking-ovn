@@ -28,6 +28,7 @@ from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import helpers
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import config
+from neutron.common import utils as n_utils
 from neutron import worker
 
 LOG = log.getLogger(__name__)
@@ -44,10 +45,14 @@ class ChassisEvent(row_event.RowEvent):
         self.event_name = 'ChassisEvent'
 
     def run(self, event, row, old):
-        # TODO(lizk): Need a follow-up patch to consume the Chassis
-        # row and event, for when Chasiss table content changes
-        # caused by nodes come and leave.
-        pass
+        host = row.hostname
+        phy_nets = []
+        if event != self.ROW_DELETE:
+            bridge_mappings = row.external_ids.get('ovn-bridge-mappings', '')
+            mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
+            phy_nets = list(mapping_dict)
+
+        self.driver.update_segment_host_mapping(host, phy_nets)
 
 
 class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):
