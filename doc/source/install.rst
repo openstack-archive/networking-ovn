@@ -157,38 +157,79 @@ primary node. See the :ref:`faq` for more information.
         to enable the conventional layer-3 service.
         See :ref:`features` and :ref:`faq` for more information.
 
-#. Configure the OVN ML2 driver. Edit the
+#. Configure the ML2 plug-in. Edit the
    ``/etc/neutron/plugins/ml2/ml2_conf.ini`` file:
 
-   * Configure the OVN mechanism driver, the OVN tenant network type
-     and enable security groups with the port security extension.
+   * Configure the OVN mechanism driver, network type drivers, self-service
+     (tenant) network types, and enable the port security extension.
 
      .. code-block:: ini
 
         [ml2]
         ...
         mechanism_drivers = ovn
-        extension_drivers = port_security
+        type_drivers = local,flat,vlan,geneve
         tenant_network_types = geneve
-        ...
+        extension_drivers = port_security
+
+    .. note::
+
+       To enable VLAN self-service networks, add ``vlan`` to the
+       ``tenant_network_types`` option. The first network type
+       in the list becomes the default self-service network type.
+
+   * Configure the Geneve ID range and maximum header size. IPv4 and IPv6
+     endpoints should use a header size of 58 and 78 bytes, respectively.
+
+     .. code-block:: ini
 
         [ml2_type_geneve]
         ...
         vni_ranges = 1:65536
         max_header_size = 58
+
+     .. note::
+
+        The Networking service uses the ``vni_ranges`` option to allocate
+        network segments. However, OVN ignores the actual values. Thus, the ID
+        range only determines the quantity of Geneve networks in the
+        environment. For example, a range of ``5001:6000`` defines a maximum
+        of 1000 Geneve networks.
+
+   * Optionally, enable support for VLAN provider and self-service
+     networks on one or more physical networks. If you specify only
+     the physical network, only administrative (privileged) users can
+     manage VLAN networks. Additionally specifying a VLAN ID range for
+     a physical network enables regular (non-privileged) users to
+     manage VLAN networks. The Networking service allocates the VLAN ID
+     for each self-service network using the VLAN ID range for the
+     physical network.
+
+     .. code-block:: ini
+
+        [ml2_type_vlan]
         ...
+        network_vlan_ranges = PHYSICAL_NETWORK:MIN_VLAN_ID:MAX_VLAN_ID
+
+     Replace ``PHYSICAL_NETWORK`` with the physical network name and
+     optionally define the minimum and maximum VLAN IDs. Use a comma
+     to separate each physical network.
+
+     For example, to enable support for administrative VLAN networks
+     on the ``physnet1`` network and self-service VLAN networks on
+     the ``physnet2`` network using VLAN IDs 1001 to 2000:
+
+     .. code-block:: ini
+
+        network_vlan_ranges = physnet1,physnet2:1001:2000
+
+   * Enable security groups.
+
+     .. code-block:: ini
 
         [securitygroup]
         ...
         enable_security_group = true
-
-     .. note::
-
-        The ``vni_ranges`` option under ``[ml2_type_geneve]`` is used by the
-        networking service to allocate a network segment. However, OVN will
-        ignore network segment's VNI and calculate its own VNI. You may
-        modify this range to control the number of geneve networks that
-        can be created.
 
      .. note::
 
@@ -213,10 +254,6 @@ primary node. See the :ref:`faq` for more information.
         ``/etc/neutron/neutron.conf`` else ``False``.
 
 #. Start the ``neutron-server`` service.
-
-   .. code-block:: console
-
-      # systemctl start neutron-server
 
 Network nodes
 -------------

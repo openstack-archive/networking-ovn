@@ -17,11 +17,8 @@ When using OVN's native L3 support, L3 routing is always distributed.
 **Q: Does OVN support integration with physical switches?**
 
 OVN currently integrates with physical switches by optionally using them as
-VTEP gateways from logical to physical networks.
-
-OVN does not support using VLANs to implement tenant networks in such a way
-that physical switch integration would be needed.  It exclusively uses tunnel
-overlays for that purpose.
+VTEP gateways from logical to physical networks and via integrations provided
+by the Neutron ML2 framework, hierarchical port binding.
 
 **Q: What's the status of HA for networking-ovn and OVN?**
 
