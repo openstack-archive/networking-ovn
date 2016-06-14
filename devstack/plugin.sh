@@ -64,11 +64,8 @@ OVN_UUID=${OVN_UUID:-}
 # unless the distro kernel includes ovs+conntrack support.
 OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 
-# MTU of the native (underlying) physical network infrastructure. Defaults
-# to 1500 bytes.
-OVN_NATIVE_MTU=${OVN_NATIVE_MTU:-1500}
-
-# GENEVE overlay protocol overhead. Defaults to 58 bytes.
+# GENEVE overlay protocol overhead. Defaults to 58 bytes. The ML2 framework
+# will use this to configure the DHCP agent MTU option.
 # TODO(rtheis): This does not account for the 20 byte IPv6 MTU overhead.
 # This will need to be changed once https://review.openstack.org/#/c/320121/
 # is fixed.
@@ -169,28 +166,6 @@ function configure_ovn_plugin {
     if is_service_enabled q-qos ; then
         NEUTRON_CONF=/etc/neutron/neutron.conf
         iniset $NEUTRON_CONF qos notification_drivers ovn-qos
-    fi
-
-    if is_service_enabled q-dhcp ; then
-        #
-        # Similar to other virtual networking mechanisms, OVN implements
-        # overlay networks among nodes running OVS. Overlay network protocols
-        # add overhead that effectively reduces the MTU available to
-        # instances. MTU disparities can lead to packet loss and performance
-        # issues.
-        #
-        # Calculate MTU for self-service/private networks accounting for
-        # GENEVE overlay protocol overhead and configure the DHCP agent to
-        # provide it to instances. Only effective on neutron subnets with DHCP.
-        #
-        # TODO (mkassawara): Temporary workaround for larger MTU problems
-        # in neutron. Ideally, provider networks should use the native
-        # (underlying) physical network infrastructure MTU.
-
-        iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file "/etc/neutron/dnsmasq.conf"
-        if ! grep "dhcp-option=26" /etc/neutron/dnsmasq.conf ; then
-            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - $OVN_GENEVE_OVERHEAD))" | sudo tee -a /etc/neutron/dnsmasq.conf
-        fi
     fi
 }
 
