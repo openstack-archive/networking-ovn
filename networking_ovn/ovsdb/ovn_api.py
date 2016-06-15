@@ -70,11 +70,12 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def create_lport(self, name, lswitch_name, may_exist=True, **columns):
-        """Create a command to add an OVN lport
+    def create_lswitch_port(self, lport_name, lswitch_name, may_exist=True,
+                            **columns):
+        """Create a command to add an OVN logical switch port
 
-        :param name:          The name of the lport
-        :type name:           string
+        :param lport_name:    The name of the lport
+        :type lport_name:     string
         :param lswitch_name:  The name of the lswitch the lport is created on
         :type lswitch_name:   string
         :param may_exist:     Do not fail if lport already exists
@@ -87,8 +88,8 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lport(self, lport_name, if_exists=True, **columns):
-        """Create a command to set OVN lport fields
+    def set_lswitch_port(self, lport_name, if_exists=True, **columns):
+        """Create a command to set OVN logical switch port fields
 
         :param lport_name:    The name of the lport
         :type lport_name:     string
@@ -102,19 +103,19 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def delete_lport(self, name=None, lswitch=None, ext_id=None,
-                     if_exists=True):
-        """Create a command to delete an OVN lport
+    def delete_lswitch_port(self, lport_name=None, lswitch_name=None,
+                            ext_id=None, if_exists=True):
+        """Create a command to delete an OVN logical switch port
 
-        :param name:      The name of the lport
-        :type name:       string
-        :param lswitch:   The name of the lswitch
-        :type lswitch:    string
-        :param ext_id:    The external id of the lport
-        :type ext_id:     pair of <ext_id_key ,ext_id_value>
-        :param if_exists: Do not fail if the lport does not exists
-        :type if_exists:  bool
-        :returns:         :class:`Command` with no result
+        :param lport_name:    The name of the lport
+        :type lport_name:     string
+        :param lswitch_name:  The name of the lswitch
+        :type lswitch_name:   string
+        :param ext_id:        The external id of the lport
+        :type ext_id:         pair of <ext_id_key ,ext_id_value>
+        :param if_exists:     Do not fail if the lport does not exists
+        :type if_exists:      bool
+        :returns:             :class:`Command` with no result
         """
 
     @abc.abstractmethod
@@ -210,11 +211,11 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def set_lrouter_port_in_lport(self, lport, lrouter_port):
-        """Create a command to set lport as lrouter_port
+    def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port):
+        """Create a command to set lswitch_port as lrouter_port
 
-        :param lport:        The name of logical port
-        :type lport:         string
+        :param lswitch_port: The name of logical switch port
+        :type lswitch_port:  string
         :param lrouter_port: The name of logical router port
         :type lrouter_port:  string
         :returns:            :class:`Command` with no result

@@ -84,8 +84,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             mac='aa:aa:aa:aa:aa:aa',
             name='lrp-router-port-id',
             network='10.0.0.100/24')
-        self.l3_plugin._ovn.set_lrouter_port_in_lport.assert_called_once_with(
-            'router-port-id', 'lrp-router-port-id')
+        self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
+            assert_called_once_with('router-port-id', 'lrp-router-port-id')
 
     def test_remove_router_interface(self):
         router_id = 'router-id'

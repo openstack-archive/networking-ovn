@@ -395,7 +395,7 @@ class OvnNbSynchronizer(object):
                 if self.mode == SYNC_MODE_REPAIR:
                     LOG.debug('Deleting the port %s from OVN NB DB',
                               lport_info['port'])
-                    txn.add(self.ovn_api.delete_lport(
+                    txn.add(self.ovn_api.delete_lswitch_port(
                         lport_name=lport_info['port'],
-                        lswitch=lport_info['lswitch']))
+                        lswitch_name=lport_info['lswitch']))
         LOG.debug('OVN-NB Sync networks and ports finished')
