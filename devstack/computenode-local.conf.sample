@@ -68,12 +68,6 @@ VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
 # metadata to instances.
 ENABLE_ISOLATED_METADATA=True
 
-# If you enable the DHCP agent, you can configure the availability
-# zone name (default is nova).
-#[[post-config|$Q_DHCP_CONF_FILE]]
-#[AGENT]
-#availability_zone = nova
-
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git
 #enable_service skydive-agent
@@ -82,8 +76,19 @@ ENABLE_ISOLATED_METADATA=True
 # If you want to enable a provider network instead of the default private
 # network after your DevStack environment installation, you *must* set the
 # Q_USE_PROVIDER_NETWORKING to True, and give value to both PHYSICAL_NETWORK
-# and OVS_PHYSICAL_BRIDGE. Please note that this only works when Q_L3_ENABLED
-# is False and q-l3 is disabled.
+# and OVS_PHYSICAL_BRIDGE.
 #Q_USE_PROVIDER_NETWORKING=True
 #PHYSICAL_NETWORK=providernet
 #OVS_PHYSICAL_BRIDGE=br-provider
+#PUBLIC_INTERFACE=<public interface>
+
+# NOTE: DO NOT MOVE THIS SECTION FROM THE END OF THE FILE, AS IT
+# WON'T WORK OTHERWISE
+#
+# If you enable the DHCP agent, you can configure the availability
+# zone name (default is nova).
+#[[post-config|$Q_DHCP_CONF_FILE]]
+#[AGENT]
+#availability_zone = nova
+
+
