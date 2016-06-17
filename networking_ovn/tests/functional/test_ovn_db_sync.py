@@ -14,7 +14,7 @@
 
 import mock
 
-from networking_ovn import ovn_nb_sync
+from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
@@ -80,7 +80,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _delete_resources_in_nb_db(self):
         # TODO(numans)  Rename this function and also create resources
         # in OVN NB DB using the monitor IDL connection so that after the
-        # sync, these resources are deleted by the ovn_nb_sync from the
+        # sync, these resources are deleted by the ovn_db_sync from the
         # OVN NB DB.
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_nb_db_idl
@@ -223,7 +223,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _sync_resources(self, mode):
         # TODO(numans) - Need to sync ACLs, Static routes
-        nb_synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+        nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
 
         ctx = context.get_admin_context()

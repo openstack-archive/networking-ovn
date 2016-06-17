@@ -24,7 +24,7 @@ from neutron.plugins.ml2 import plugin as ml2_plugin
 from networking_ovn._i18n import _LI, _LE
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ml2 import mech_driver
-from networking_ovn import ovn_nb_sync
+from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 
 LOG = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def main():
     logging.setup(conf, 'neutron_ovn_db_sync_util')
     LOG.info(_LI('Started Neutron OVN db sync'))
     mode = ovn_config.get_ovn_neutron_sync_mode()
-    if mode not in [ovn_nb_sync.SYNC_MODE_LOG, ovn_nb_sync.SYNC_MODE_REPAIR]:
+    if mode not in [ovn_db_sync.SYNC_MODE_LOG, ovn_db_sync.SYNC_MODE_REPAIR]:
         LOG.error(_LE('Invalid sync mode : ["%s"]. Should be "log" or '
                       '"repair"'), mode)
         return
@@ -107,7 +107,7 @@ def main():
     ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
     ovn_driver._nb_ovn = ovn_api
 
-    synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+    synchronizer = ovn_db_sync.OvnNbSynchronizer(
         core_plugin, ovn_api, mode, ovn_driver)
 
     ctx = context.get_admin_context()

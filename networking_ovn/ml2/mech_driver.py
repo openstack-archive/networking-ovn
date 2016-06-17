@@ -38,7 +38,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
-from networking_ovn import ovn_nb_sync
+from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 
@@ -143,13 +143,13 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if trigger.im_class == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker
             # This sync neutron DB to OVN-NB DB only in inconsistent states
-            self.synchronizer = ovn_nb_sync.OvnNbSynchronizer(
+            self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
                 self._plugin,
                 self._nb_ovn,
                 config.get_ovn_neutron_sync_mode(),
                 self
             )
-            self.synchronizer.sync()
+            self.nb_synchronizer.sync()
 
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg_id = None
