@@ -1,4 +1,5 @@
 Q_PLUGIN=${Q_PLUGIN:-"ml2"}
+Q_AGENT=${Q_AGENT:-""}
 Q_ML2_PLUGIN_MECHANISM_DRIVERS=${Q_ML2_PLUGIN_MECHANISM_DRIVERS:-ovn,logger}
 
 # Whether to enable using OVN's L3 functionality. If this value is disabled,
