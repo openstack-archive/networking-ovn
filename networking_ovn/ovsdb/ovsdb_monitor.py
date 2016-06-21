@@ -23,12 +23,15 @@ from ovs.db import idl
 from ovs import poller
 
 from networking_ovn._i18n import _LE
+from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
 from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import helpers
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import config
 from neutron.common import utils as n_utils
+from neutron import manager
+from neutron.plugins.common import constants as plugin_constants
 from neutron import worker
 
 LOG = log.getLogger(__name__)
@@ -39,6 +42,8 @@ class ChassisEvent(row_event.RowEvent):
 
     def __init__(self, driver):
         self.driver = driver
+        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
+            plugin_constants.L3_ROUTER_NAT)
         table = 'Chassis'
         events = (self.ROW_CREATE, self.ROW_UPDATE, self.ROW_DELETE)
         super(ChassisEvent, self).__init__(events, table, None)
@@ -53,6 +58,8 @@ class ChassisEvent(row_event.RowEvent):
             phy_nets = list(mapping_dict)
 
         self.driver.update_segment_host_mapping(host, phy_nets)
+        if ovn_config.is_ovn_l3():
+            self.l3_plugin.schedule_unhosted_routers()
 
 
 class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):

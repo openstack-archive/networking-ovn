@@ -414,6 +414,12 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 class OvnSbSynchronizer(OvnDbSynchronizer):
     """Synchronizer class for SB."""
 
+    def __init__(self, core_plugin, ovn_api, ovn_driver):
+        super(OvnSbSynchronizer, self).__init__(
+            core_plugin, ovn_api, ovn_driver)
+        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
+            service_constants.L3_ROUTER_NAT)
+
     def _sync(self):
         """Method to sync the OVN_Southbound DB with neutron DB.
 
@@ -427,6 +433,8 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
 
         ctx = context.get_admin_context()
         self.sync_hostname_and_physical_networks(ctx)
+        if config.is_ovn_l3():
+            self.l3_plugin.schedule_unhosted_routers()
 
     def sync_hostname_and_physical_networks(self, ctx):
         LOG.debug('OVN-SB Sync hostname and physical networks started')

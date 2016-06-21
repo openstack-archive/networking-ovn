@@ -136,7 +136,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         self.mech_driver._nb_ovn = None
         self.mech_driver._sb_ovn = None
-        self.l3_plugin._nb_ovn = None
+        self.l3_plugin._nb_ovn_idl = None
+        self.l3_plugin._sb_ovn_idl = None
         self.monitor_idl_con = None
 
         self._start_ovsdb_server_and_idls()

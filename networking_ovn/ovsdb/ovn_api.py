@@ -349,6 +349,33 @@ class API(object):
         :returns:               :class:`Command` with no result
         """
 
+    @abc.abstractmethod
+    def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
+        """Return a dictionary of chassis name:list of router gateways
+
+        :param chassis_candidate_list:  List of possible chassis candidates
+        :type chassis_candidate_list:   []
+        :returns:                       {} of chassis to routers mapping
+        """
+
+    @abc.abstractmethod
+    def get_router_chassis_binding(self, router_id):
+        """Return the chassis to which the router is bound to
+
+        :param router_id:     The neutron router id
+        :type router_id:      string
+        :returns              string containing the chassis name
+        """
+
+    @abc.abstractmethod
+    def get_unhosted_routers(self, valid_chassis_list):
+        """Return a dictionary of routers gateways not hosted on chassis
+
+        :param valid_chassis_list: List of valid chassis
+        :returns                   List of routers not hosted on a valid
+                                   chassis
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):
@@ -358,4 +385,12 @@ class SbAPI(object):
 
         Hostname will be dict key, and a list of physnets will be dict
         value. And hostname and physnets are related to the same host.
+        """
+
+    @abc.abstractmethod
+    def get_all_chassis(self, chassis_type=None):
+        """Return a list of all chassis which match the compute_type
+
+        :param chassis_type:    The type of chassis
+        :type chassis_type:     string
         """

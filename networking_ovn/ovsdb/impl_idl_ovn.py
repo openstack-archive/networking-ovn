@@ -264,6 +264,52 @@ class OvsdbNbOvnIdl(ovn_api.API):
         return cmd.UpdateAddrSetCommand(self, name, addrs_add, addrs_remove,
                                         if_exists)
 
+    def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
+        chassis_bindings = {}
+        for chassis_name in chassis_candidate_list or []:
+            chassis_bindings.setdefault(chassis_name, [])
+        for lrouter in self._tables['Logical_Router'].rows.values():
+            if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
+                lrouter.external_ids):
+                continue
+            chassis_name = lrouter.options.get('chassis')
+            if not chassis_name:
+                continue
+            if (not chassis_candidate_list or
+                    chassis_name in chassis_candidate_list):
+                routers_hosted = chassis_bindings.setdefault(chassis_name, [])
+                routers_hosted.append(lrouter.name)
+        return chassis_bindings
+
+    def get_router_chassis_binding(self, router_name):
+        try:
+            router = idlutils.row_by_value(self.idl,
+                                           'Logical_Router',
+                                           'name',
+                                           router_name)
+            chassis_name = router.options.get('chassis')
+            if chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS:
+                return None
+            else:
+                return chassis_name
+        except idlutils.RowNotFound:
+            return None
+
+    def get_unhosted_routers(self, valid_chassis_list):
+        unhosted_routers = {}
+        for lrouter in self._tables['Logical_Router'].rows.values():
+            if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
+                lrouter.external_ids):
+                continue
+            chassis_name = lrouter.options.get('chassis')
+            # TODO(azbiswas): Handle the case when a chassis is no
+            # longer valid. This may involve moving conntrack states,
+            # so it needs to discussed in the OVN community first.
+            if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
+                    chassis_name not in valid_chassis_list):
+                unhosted_routers[lrouter.name] = lrouter.options
+        return unhosted_routers
+
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):
 
@@ -279,6 +325,8 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
             # We only need to know the content of Chassis in OVN_Southbound
             OvsdbSbOvnIdl.ovsdb_connection.start(driver,
                                                  table_name_list=['Chassis'])
+        else:
+            OvsdbSbOvnIdl.ovsdb_connection.start()
         self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
         self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
@@ -289,3 +337,11 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
             mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
             chassis_info_dict[ch.hostname] = mapping_dict.keys()
         return chassis_info_dict
+
+    def get_all_chassis(self, chassis_type=None):
+        # TODO(azbiswas): Use chassis_type as input once the compute type
+        # preference patch (as part of external ids) merges.
+        chassis_list = []
+        for ch in self.idl.tables['Chassis'].rows.values():
+            chassis_list.append(ch.name)
+        return chassis_list

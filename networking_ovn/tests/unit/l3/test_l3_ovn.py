@@ -55,6 +55,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             return_value=fakes.FakeOvsdbNbOvnIdl()
         ).start()
         mock.patch(
+            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._sb_ovn',
+            new_callable=mock.PropertyMock,
+            return_value=fakes.FakeOvsdbSbOvnIdl()
+        ).start()
+        mock.patch(
             'neutron.db.l3_db.L3_NAT_db_mixin.notify_router_interface_action'
         ).start()
         mock.patch(

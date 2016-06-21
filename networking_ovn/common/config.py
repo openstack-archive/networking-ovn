@@ -53,6 +53,14 @@ ovn_opts = [
                 help=_('Whether to use OVN native L3 support. Do not change '
                        'the value for existing deployments that contain '
                        'routers.')),
+    cfg.StrOpt("ovn_l3_scheduler",
+               default='leastloaded',
+               choices=('leastloaded', 'chance'),
+               help=_('The OVN L3 Scheduler type used to schedule router '
+                      'gateway ports on hypervisors/chassis. \n'
+                      'leastloaded - chassis with fewest gateway ports '
+                      'selected \n'
+                      'chance - chassis randomly selected')),
     cfg.StrOpt("vif_type",
                default=portbindings.VIF_TYPE_OVS,
                help=_("Type of VIF to be used for ports valid values are "
@@ -94,6 +102,10 @@ def get_ovn_neutron_sync_mode():
 
 def is_ovn_l3():
     return cfg.CONF.ovn.ovn_l3_mode
+
+
+def get_ovn_l3_scheduler():
+    return cfg.CONF.ovn.ovn_l3_scheduler
 
 
 def get_ovn_vif_type():

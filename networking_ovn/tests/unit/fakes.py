@@ -49,12 +49,16 @@ class FakeOvsdbNbOvnIdl(object):
         self.create_address_set = mock.Mock()
         self.delete_address_set = mock.Mock()
         self.update_address_set = mock.Mock()
+        self.get_all_chassis_router_bindings = mock.Mock()
+        self.get_router_chassis_binding = mock.Mock()
+        self.get_unhosted_routers = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
 
     def __init__(self, **kwargs):
         self.get_chassis_hostname_and_physnets = mock.Mock()
+        self.get_all_chassis = mock.Mock()
 
 
 class FakePlugin(object):

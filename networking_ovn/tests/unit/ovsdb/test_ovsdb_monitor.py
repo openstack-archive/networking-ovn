@@ -19,8 +19,11 @@ import uuid
 
 from ovs.db import idl as ovs_idl
 
+from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.unit.ml2 import test_mech_driver
+from neutron import manager
+from neutron.plugins.common import constants as service_constants
 
 
 OVN_NB_SCHEMA = {
@@ -189,6 +192,8 @@ class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
 class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
+    l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
+
     def setUp(self):
         super(TestOvnSbIdlNotifyHandler, self).setUp()
         sb_helper = ovs_idl.SchemaHelper(schema_json=OVN_SB_SCHEMA)
@@ -199,6 +204,12 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.sb_idl.post_initialize(self.driver)
         self.chassis_table = self.sb_idl.tables.get('Chassis')
         self.driver.update_segment_host_mapping = mock.Mock()
+        mgr = manager.NeutronManager.get_instance()
+        self.l3_plugin = mgr.get_service_plugins().get(
+            service_constants.L3_ROUTER_NAT)
+        if ovn_config.is_ovn_l3():
+            self.l3_plugin.schedule_unhosted_routers = mock.Mock()
+
         self.row_json = {
             "name": "fake-name",
             "hostname": "fake-hostname",
@@ -224,11 +235,19 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self._test_chassis_helper('create', self.row_json)
         self.driver.update_segment_host_mapping.assert_called_once_with(
             'fake-hostname', ['fake-phynet1'])
+        if ovn_config.is_ovn_l3():
+            self.assertEqual(
+                self.l3_plugin.schedule_unhosted_routers.call_count,
+                1)
 
     def test_chassis_delete_event(self):
         self._test_chassis_helper('delete', self.row_json)
         self.driver.update_segment_host_mapping.assert_called_once_with(
             'fake-hostname', [])
+        if ovn_config.is_ovn_l3():
+            self.assertEqual(
+                self.l3_plugin.schedule_unhosted_routers.call_count,
+                1)
 
     def test_chassis_update_event(self):
         old_row_json = copy.deepcopy(self.row_json)
@@ -237,3 +256,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self._test_chassis_helper('update', self.row_json, old_row_json)
         self.driver.update_segment_host_mapping.assert_called_once_with(
             'fake-hostname', ['fake-phynet1'])
+        if ovn_config.is_ovn_l3():
+            self.assertEqual(
+                self.l3_plugin.schedule_unhosted_routers.call_count,
+                1)

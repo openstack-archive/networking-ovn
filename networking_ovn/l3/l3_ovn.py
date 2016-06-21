@@ -13,6 +13,7 @@
 #
 
 import netaddr
+import six
 
 from neutron.common import utils as n_utils
 from neutron_lib import exceptions as n_exc
@@ -28,6 +29,7 @@ from networking_ovn._i18n import _LE, _LI
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions
 from networking_ovn.common import utils
+from networking_ovn.l3 import l3_ovn_scheduler
 from networking_ovn.ovsdb import impl_idl_ovn
 
 
@@ -49,15 +51,24 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def __init__(self):
         LOG.info(_LI("Starting OVNL3RouterPlugin"))
         super(OVNL3RouterPlugin, self).__init__()
-        self._nb_ovn = None
+        self._nb_ovn_idl = None
+        self._sb_ovn_idl = None
         self._plugin_property = None
+        self.scheduler = l3_ovn_scheduler.get_scheduler()
 
     @property
     def _ovn(self):
-        if self._nb_ovn is None:
+        if self._nb_ovn_idl is None:
             LOG.info(_LI("Getting OvsdbNbOvnIdl"))
-            self._nb_ovn = impl_idl_ovn.OvsdbNbOvnIdl(self)
-        return self._nb_ovn
+            self._nb_ovn_idl = impl_idl_ovn.OvsdbNbOvnIdl(self)
+        return self._nb_ovn_idl
+
+    @property
+    def _sb_ovn(self):
+        if self._sb_ovn_idl is None:
+            LOG.info(_LI("Getting OvsdbSbOvnIdl"))
+            self._sb_ovn_idl = impl_idl_ovn.OvsdbSbOvnIdl(self)
+        return self._sb_ovn_idl
 
     @property
     def _plugin(self):
@@ -244,3 +255,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                           if_exists=False
                                           ).execute(check_error=True)
         return router_interface_info
+
+    def schedule_unhosted_routers(self):
+        valid_chassis_list = self._sb_ovn.get_all_chassis()
+        unhosted_routers = self._ovn.get_unhosted_routers(valid_chassis_list)
+        if unhosted_routers:
+            with self._ovn.transaction(check_error=True) as txn:
+                for r_name, r_options in six.iteritems(unhosted_routers):
+                    chassis = self.scheduler.select(self._ovn, self._sb_ovn,
+                                                    r_name)
+                    r_options['chassis'] = chassis
+                    txn.add(self._ovn.update_lrouter(r_name,
+                                                     options=r_options))

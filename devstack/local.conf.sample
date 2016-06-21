@@ -61,6 +61,11 @@ disable_service q-agt
 #enable_service q-l3
 disable_service q-l3
 
+# If OVN_L3_Mode is True, the type of OVN L3 Scheduler to use. The OVN L3
+# Scheduler determines the hypervisor/chassis where a routers gateway should
+# be hosted in OVN. The default OVN L3 scheduler is leastloaded
+#OVN_L3_SCHEDULER=leastloaded
+
 # Whether or not to build custom openvswitch kernel modules from the ovs git
 # tree. This is enabled by default.  This is required unless your distro kernel
 # includes ovs+conntrack support.  This support was first released in Linux 4.3,
