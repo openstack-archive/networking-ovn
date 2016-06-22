@@ -28,6 +28,7 @@ from neutron.plugins.ml2 import config
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from networking_ovn.ovsdb import impl_idl_ovn
+from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional.resources import process
 
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
@@ -45,7 +46,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
     _extension_drivers = ['port_security']
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
 
-    def setUp(self):
+    def setUp(self, ovn_worker=False):
         config.cfg.CONF.set_override('extension_drivers',
                                      self._extension_drivers,
                                      group='ml2')
@@ -55,6 +56,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         config.cfg.CONF.set_override('vni_ranges',
                                      ['1:65536'],
                                      group='ml2_type_geneve')
+
         super(TestOVNFunctionalBase, self).setUp()
         mm = manager.NeutronManager.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
@@ -63,7 +65,18 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.l3_plugin = mgr.get_service_plugins().get(
             service_constants.L3_ROUTER_NAT)
         self.ovsdb_server_mgr = None
+        self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()
+
+    def tearDown(self):
+        # Need to set OvsdbNbOvnIdl.ovsdb_connection and
+        # OvsdbSbOvnIdl.ovsdb_connection to None.
+        # This is because, when the test worker runs the next functional test
+        # case, the plugin will try to use the ovsdb_connection from the
+        # previous test case and will cause the test case to fail.
+        impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
+        impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
+        super(TestOVNFunctionalBase, self).tearDown()
 
     def _start_ovsdb_server_and_idls(self):
         self.temp_dir = self.useFixture(fixtures.TempDir()).path
@@ -102,9 +115,13 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 num_attempts += 1
                 time.sleep(1)
 
+        trigger = mock.MagicMock()
+        if self.ovn_worker:
+            trigger.im_class = ovsdb_monitor.OvnWorker
+            cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
+
         # mech_driver.post_fork_initialize creates the IDL connections
-        self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY,
-                                              mock.MagicMock())
+        self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY, trigger)
 
     def idl_transaction(self, fake_api, check_error=False, log_errors=True,
                         **kwargs):
@@ -116,6 +133,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             self.ovsdb_server_mgr.stop()
 
         impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
+        impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         self.mech_driver._nb_ovn = None
         self.mech_driver._sb_ovn = None
         self.l3_plugin._nb_ovn = None
