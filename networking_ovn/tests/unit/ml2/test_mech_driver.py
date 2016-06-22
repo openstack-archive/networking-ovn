@@ -147,6 +147,17 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                     {}, {}, {})
             self.assertEqual(expected_acls, acls)
 
+        # Test with security groups disabled
+        with mock.patch('networking_ovn.common.acl.is_sg_enabled',
+                        return_value=False):
+            acls = ovn_acl.add_acls(self.mech_driver._plugin,
+                                    mock.Mock(),
+                                    self.fake_port_sg,
+                                    self.sg_cache,
+                                    self.sg_ports_cache,
+                                    self.subnet_cache)
+            self.assertEqual([], acls)
+
     def test_port_invalid_binding_profile(self):
         invalid_binding_profiles = [
             {'tag': 0,

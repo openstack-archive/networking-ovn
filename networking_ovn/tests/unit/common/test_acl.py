@@ -481,3 +481,28 @@ class TestACLs(base.TestCase):
             need_compare=False,
             is_add_acl=True
         )
+
+    def test_sg_disabled(self):
+        sg = fakes.FakeSecurityGroup.create_one_security_group().info()
+        port = fakes.FakePort.create_one_port({
+            'security_groups': [sg['id']]
+        }).info()
+
+        with mock.patch('networking_ovn.common.acl.is_sg_enabled',
+                        return_value=False):
+            acl_list = ovn_acl.add_acls(self.plugin,
+                                        self.admin_context,
+                                        port, {}, {}, {})
+            self.assertEqual([], acl_list)
+
+            ovn_acl.update_acls_for_security_group(self.plugin,
+                                                   self.admin_context,
+                                                   self.driver._ovn,
+                                                   sg['id'])
+            self.driver._ovn.update_acls.assert_not_called()
+
+            ovn_acl.refresh_remote_security_group(self.plugin,
+                                                  self.admin_context,
+                                                  self.driver._ovn,
+                                                  sg)
+            self.driver._ovn.update_acls.assert_not_called()

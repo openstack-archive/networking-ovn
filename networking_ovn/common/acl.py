@@ -13,9 +13,14 @@
 #
 
 from neutron_lib import constants as const
+from oslo_config import cfg
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
+
+
+def is_sg_enabled():
+    return cfg.CONF.SECURITYGROUP.enable_security_group
 
 
 def acl_direction(r, port):
@@ -300,6 +305,9 @@ def update_acls_for_security_group(plugin,
                                    exclude_ports=None,
                                    rule=None,
                                    is_add_acl=True):
+    # Skip ACLs if security groups aren't enabled
+    if not is_sg_enabled():
+        return
 
     # Setup the caches or use cache provided.
     sg_cache = sg_cache or {}
@@ -358,6 +366,11 @@ def update_acls_for_security_group(plugin,
 def add_acls(plugin, admin_context, port, sg_cache,
              sg_ports_cache, subnet_cache):
     acl_list = []
+
+    # Skip ACLs if security groups aren't enabled
+    if not is_sg_enabled():
+        return acl_list
+
     sec_groups = port.get('security_groups', [])
     if not sec_groups:
         return acl_list
@@ -401,6 +414,10 @@ def refresh_remote_security_group(plugin,
                                   sg_ports_cache=None,
                                   subnet_cache=None,
                                   exclude_ports=None):
+    # Skip ACLs if security groups aren't enabled
+    if not is_sg_enabled():
+        return
+
     # For sec_group, refresh acls for all other security groups that have
     # rules referencing sec_group as 'remote_group'.
     filters = {'remote_group_id': [sec_group]}

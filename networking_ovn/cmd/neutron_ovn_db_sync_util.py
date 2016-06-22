@@ -16,6 +16,7 @@ from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log as logging
 
+from neutron.agent import securitygroups_rpc
 from neutron import context
 from neutron import manager
 from neutron import opts as neutron_options
@@ -52,6 +53,8 @@ def setup_conf():
     conf = cfg.CONF
     ml2_group, ml2_opts = neutron_options.list_ml2_conf_opts()[0]
     cfg.CONF.register_cli_opts(ml2_opts, ml2_group)
+    cfg.CONF.register_cli_opts(securitygroups_rpc.security_group_opts,
+                               'SECURITYGROUP')
     ovn_group, ovn_opts = ovn_config.list_opts()[0]
     cfg.CONF.register_cli_opts(ovn_opts, group=ovn_group)
     db_group, neutron_db_opts = db_options.list_opts()[0]
