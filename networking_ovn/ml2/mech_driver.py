@@ -340,7 +340,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             tag = int(param_dict['tag'])
             if tag < 0 or tag > 4095:
                 msg = _('Invalid binding:profile. tag "%s" must be '
-                        'an int between 1 and 4096, inclusive.') % tag
+                        'an integer between 0 and 4095, inclusive') % tag
                 raise n_exc.InvalidInput(error_message=msg)
 
         return param_dict
