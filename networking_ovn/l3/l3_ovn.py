@@ -160,6 +160,16 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         self._ovn.delete_lrouter(router_name).execute(check_error=True)
         return ret_val
 
+    def get_networks_for_lrouter_port(self, context, port_fixed_ips):
+        networks = []
+        for fixed_ip in port_fixed_ips:
+            subnet_id = fixed_ip['subnet_id']
+            subnet = self._plugin.get_subnet(context, subnet_id)
+            cidr = netaddr.IPNetwork(subnet['cidr'])
+            networks.append("%s/%s" % (fixed_ip['ip_address'],
+                                       str(cidr.prefixlen)))
+        return networks
+
     def create_lrouter_port_in_ovn(self, context, router_id, port):
         """Create lrouter port in OVN
 
@@ -167,20 +177,38 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         @param port : LRouter port that needs to be created
         @return: Nothing
         """
-        subnet_id = port['fixed_ips'][0]['subnet_id']
-        subnet = self._plugin.get_subnet(context, subnet_id)
         lrouter = utils.ovn_name(router_id)
-        cidr = netaddr.IPNetwork(subnet['cidr'])
-        network = "%s/%s" % (port['fixed_ips'][0]['ip_address'],
-                             str(cidr.prefixlen))
+        networks = self.get_networks_for_lrouter_port(context,
+                                                      port['fixed_ips'])
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.add_lrouter_port(name=lrouter_port_name,
                                                lrouter=lrouter,
                                                mac=port['mac_address'],
-                                               network=network))
+                                               networks=networks))
 
+            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
+                    port['id'], lrouter_port_name))
+
+    def update_lrouter_port_in_ovn(self, context, router_id, port):
+        """Update lrouter port in OVN
+
+        @param router id : LRouter ID for the port that needs to be updated
+        @param port : LRouter port that needs to be updated
+        @return: Nothing
+        """
+        lrouter = utils.ovn_name(router_id)
+        networks = self.get_networks_for_lrouter_port(context,
+                                                      port['fixed_ips'])
+
+        lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
+        update = {'networks': networks}
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.update_lrouter_port(name=lrouter_port_name,
+                                                  lrouter=lrouter,
+                                                  if_exists=False,
+                                                  **update))
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                     port['id'], lrouter_port_name))
 
@@ -190,7 +218,13 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 context, router_id, interface_info)
 
         port = self._plugin.get_port(context, router_interface_info['port_id'])
-        self.create_lrouter_port_in_ovn(context, router_id, port)
+        if (len(router_interface_info['subnet_ids']) == 1 and
+                len(port['fixed_ips']) > 1):
+            # It's adding router interface by subnet, and the interface has
+            # already exist, update lrouter port 'networks' column.
+            self.update_lrouter_port_in_ovn(context, router_id, port)
+        else:
+            self.create_lrouter_port_in_ovn(context, router_id, port)
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -198,8 +232,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             super(OVNL3RouterPlugin, self).remove_router_interface(
                 context, router_id, interface_info)
         port_id = router_interface_info['port_id']
-        self._ovn.delete_lrouter_port(utils.ovn_lrouter_port_name(port_id),
-                                      utils.ovn_name(router_id),
-                                      if_exists=False
-                                      ).execute(check_error=True)
+        try:
+            port = self._plugin.get_port(context, port_id)
+            # The router interface port still exists, call ovn to update it.
+            self.update_lrouter_port_in_ovn(context, router_id, port)
+        except n_exc.PortNotFound:
+            # The router interface port doesn't exist any more, call ovn to
+            # delete it.
+            self._ovn.delete_lrouter_port(utils.ovn_lrouter_port_name(port_id),
+                                          utils.ovn_name(router_id),
+                                          if_exists=False
+                                          ).execute(check_error=True)
         return router_interface_info

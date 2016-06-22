@@ -14,6 +14,7 @@
 
 import mock
 
+from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 
 from neutron import manager
@@ -83,13 +84,45 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             lrouter='neutron-router-id',
             mac='aa:aa:aa:aa:aa:aa',
             name='lrp-router-port-id',
-            network='10.0.0.100/24')
+            networks=['10.0.0.100/24'])
         self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
             assert_called_once_with('router-port-id', 'lrp-router-port-id')
 
-    def test_remove_router_interface(self):
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    def test_add_router_interface_update_lrouter_port(self, getp, func):
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
+        func.return_value = {
+            'port_id': 'router-port-id',
+            'device_id': '',
+            'subnet_ids': ['subnet-id1'],
+            'fixed_ips': [
+                {'ip_address': '2001:db8::1', 'subnet_id': 'subnet-id1'},
+                {'ip_address': '2001:dba::1', 'subnet_id': 'subnet-id2'}],
+            'mac_address': 'aa:aa:aa:aa:aa:aa'
+        }
+        getp.return_value = {
+            'id': 'router-port-id',
+            'fixed_ips': [
+                {'ip_address': '2001:db8::1', 'subnet_id': 'subnet-id1'},
+                {'ip_address': '2001:dba::1', 'subnet_id': 'subnet-id2'}],
+        }
+        self.l3_plugin.add_router_interface(self.context, router_id,
+                                            interface_info)
+        self.l3_plugin._ovn.update_lrouter_port.assert_called_once_with(
+            if_exists=False,
+            lrouter='neutron-router-id',
+            name='lrp-router-port-id',
+            networks=['2001:db8::1/24', '2001:dba::1/24'])
+        self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
+            assert_called_once_with('router-port-id', 'lrp-router-port-id')
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    def test_remove_router_interface(self, getp):
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        getp.side_effect = n_exc.PortNotFound(port_id='router-port-id')
         with mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.'
                         'remove_router_interface',
                         return_value=interface_info):
@@ -98,6 +131,19 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_plugin._ovn.delete_lrouter_port.assert_called_once_with(
             'lrp-router-port-id', 'neutron-router-id', if_exists=False)
+
+    def test_remove_router_interface_update_lrouter_port(self):
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        with mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.'
+                        'remove_router_interface',
+                        return_value=interface_info):
+            self.l3_plugin.remove_router_interface(
+                self.context, router_id, interface_info)
+
+        self.l3_plugin._ovn.update_lrouter_port.assert_called_once_with(
+            if_exists=False, lrouter='neutron-router-id',
+            name='lrp-router-port-id', networks=['10.0.0.100/24'])
 
     @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
     def test_update_router_admin_state_no_change(self, func):
