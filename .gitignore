@@ -49,6 +49,7 @@ ChangeLog
 !/.mailmap
 !/.pylintrc
 !/.testr.conf
+!/devstack/lib
 etc
 
 # Vagrant directory
