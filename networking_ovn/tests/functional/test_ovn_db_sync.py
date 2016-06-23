@@ -22,23 +22,25 @@ from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
 from neutron import context
 from neutron.tests.unit.api import test_extensions
-from neutron.tests.unit.extensions import test_l3
+from neutron.tests.unit.extensions import test_extraroute
 
 
 class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestOvnNbSync, self).setUp()
-        ext_mgr = test_l3.L3TestExtensionManager()
+        ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
         self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
         self.create_lswitches = []
         self.create_lswitch_ports = []
         self.create_lrouters = []
         self.create_lrouter_ports = []
+        self.create_lrouter_routes = []
         self.delete_lswitches = []
         self.delete_lswitch_ports = []
         self.delete_lrouters = []
         self.delete_lrouter_ports = []
+        self.delete_lrouter_routes = []
 
     def _create_resources(self):
         n1 = self._make_network(self.fmt, 'n1', True)
@@ -76,6 +78,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.context, r1['id'], {'subnet_id': n2_s1['subnet']['id']})
         self.delete_lrouter_ports.append(('lrp-' + r1_p2['port_id'],
                                           'neutron-' + r1['id']))
+        self.l3_plugin.update_router(
+            self.context, r1['id'],
+            {'router': {'routes': [{'destination': '10.10.0.0/24',
+                                    'nexthop': '20.0.0.10'},
+                                   {'destination': '10.11.0.0/24',
+                                    'nexthop': '20.0.0.11'}]}})
+        self.create_lrouter_routes.append(('neutron-' + r1['id'],
+                                           '10.12.0.0/24',
+                                           '20.0.0.12'))
+        self.delete_lrouter_routes.append(('neutron-' + r1['id'],
+                                           '10.10.0.0/24',
+                                           '20.0.0.10'))
 
         r2 = self.l3_plugin.create_router(
             self.context,
@@ -85,6 +99,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                 name='n1-p4')
         self.l3_plugin.add_router_interface(
             self.context, r2['id'], {'port_id': n1_p4['port']['id']})
+        self.l3_plugin.update_router(
+            self.context, r2['id'],
+            {'router': {'routes': [{'destination': '10.20.0.0/24',
+                                    'nexthop': '10.0.0.20'}]}})
         self.create_lrouters.append('neutron-' + uuid.uuid4().hex)
         self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
                                           'neutron-' + r1['id']))
@@ -132,6 +150,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             for lrport, lrouter_name in self.delete_lrouter_ports:
                 txn.add(cmd.DelLRouterPortCommand(fake_api, lrport,
                                                   lrouter_name, True))
+
+            for lrouter_name, ip_prefix, nexthop in self.create_lrouter_routes:
+                txn.add(cmd.AddStaticRouteCommand(fake_api, lrouter_name,
+                                                  ip_prefix=ip_prefix,
+                                                  nexthop=nexthop))
+
+            for lrouter_name, ip_prefix, nexthop in self.delete_lrouter_routes:
+                txn.add(cmd.DelStaticRouteCommand(fake_api, lrouter_name,
+                                                  ip_prefix, nexthop, True))
 
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
@@ -188,7 +215,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _validate_routers_and_router_ports(self, should_match=True):
         db_routers = self._list('routers')
-        db_router_ids = [r['id'] for r in db_routers['routers']]
+        db_router_ids = []
+        db_routes = {}
+        for db_router in db_routers['routers']:
+            db_router_ids.append(db_router['id'])
+            db_routes[db_router['id']] = [db_route['destination'] +
+                                          db_route['nexthop']
+                                          for db_route in db_router['routes']]
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lrouter_ids = [
@@ -215,6 +248,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             r_ports = self._list('ports',
                                  query_params='device_id=%s' % (router_id))
             r_port_ids = [p['id'] for p in r_ports['ports']]
+            r_routes = db_routes[router_id]
 
             try:
                 lrouter = idlutils.row_by_value(
@@ -223,8 +257,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 lports = getattr(lrouter, 'ports', [])
                 plugin_lrouter_port_ids = [lport.name.replace('lrp-', '')
                                            for lport in lports]
+                sroutes = getattr(lrouter, 'static_routes', [])
+                plugin_routes = [sroute.ip_prefix + sroute.nexthop
+                                 for sroute in sroutes]
             except idlutils.RowNotFound:
                 plugin_lrouter_port_ids = []
+                plugin_routes = []
 
             try:
                 lrouter = idlutils.row_by_value(
@@ -233,12 +271,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 lports = getattr(lrouter, 'ports', [])
                 monitor_lrouter_port_ids = [lport.name.replace('lrp-', '')
                                             for lport in lports]
+                sroutes = getattr(lrouter, 'static_routes', [])
+                monitor_routes = [sroute.ip_prefix + sroute.nexthop
+                                  for sroute in sroutes]
             except idlutils.RowNotFound:
                 monitor_lrouter_port_ids = []
+                monitor_routes = []
 
             if should_match:
                 self.assertItemsEqual(r_port_ids, plugin_lrouter_port_ids)
                 self.assertItemsEqual(r_port_ids, monitor_lrouter_port_ids)
+                self.assertItemsEqual(r_routes, plugin_routes)
+                self.assertItemsEqual(r_routes, monitor_routes)
             else:
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_port_ids,
@@ -248,13 +292,21 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     AssertionError, self.assertItemsEqual, r_port_ids,
                     monitor_lrouter_port_ids)
 
+                self.assertRaises(
+                    AssertionError, self.assertItemsEqual, r_routes,
+                    plugin_routes)
+
+                self.assertRaises(
+                    AssertionError, self.assertItemsEqual, r_routes,
+                    monitor_routes)
+
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
         self._validate_ports(should_match=should_match)
         self._validate_routers_and_router_ports(should_match=should_match)
 
     def _sync_resources(self, mode):
-        # TODO(numans) - Need to sync ACLs, Static routes
+        # TODO(numans) - Need to sync ACLs
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
 
