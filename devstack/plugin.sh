@@ -47,7 +47,7 @@ OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
 NETWORKING_OVN_DIR=$DEST/networking-ovn
 
 # The branch to use from $OVN_REPO
-OVN_BRANCH=${OVN_BRANCH:-origin/master}
+OVN_BRANCH=${OVN_BRANCH:-master}
 
 # How to connect to ovsdb-server hosting the OVN SB database.
 OVN_SB_REMOTE=${OVN_SB_REMOTE:-tcp:$HOST_IP:6642}
