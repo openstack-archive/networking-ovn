@@ -71,14 +71,6 @@ disable_service q-l3
 # metadata to instances.
 ENABLE_ISOLATED_METADATA=True
 
-# Enable two DHCP agents per neutron subnet with support for availability
-# zones. Requires a multi-node deployment.
-#[[post-config|/$NEUTRON_CONF]]
-#[DEFAULT]
-#network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
-#dhcp_load_type = networks
-#dhcp_agents_per_network = 2
-
 # Enable QoS
 #enable_plugin neutron http://git.openstack.org/openstack/neutron
 #enable_service q-qos
@@ -88,24 +80,57 @@ ENABLE_ISOLATED_METADATA=True
 #enable_service skydive-analyzer
 #enable_service skydive-agent
 
+# If you want to enable a provider network instead of the default private
+# network after your DevStack environment installation, you *must* set
+# the Q_USE_PROVIDER_NETWORKING to True, and also give FIXED_RANGE,
+# NETWORK_GATEWAY and ALLOCATION_POOL option to the correct value that can
+# be used in your enviroment. Specifying Q_AGENT is needed to allow devstack
+# to run various "ip link set" and "ovs-vsctl" commands for the provider
+# network setup.
+#Q_AGENT=openvswitch
+#Q_USE_PROVIDER_NETWORKING=True
+#PHYSICAL_NETWORK=providernet
+#PROVIDER_NETWORK_TYPE=flat
+#PUBLIC_INTERFACE=<public interface>
+#OVS_PHYSICAL_BRIDGE=br-provider
+#PROVIDER_SUBNET_NAME=provider-subnet
+# use the following for IPv4
+#IP_VERSION=4
+#FIXED_RANGE=<CIDR for the Provider Network>
+#NETWORK_GATEWAY=<Provider Network Gateway>
+#ALLOCATION_POOL=<Provider Network Allocation Pool>
+# use the following for IPv4+IPv6
+#IP_VERSION=4+6
+#FIXED_RANGE=<CIDR for the Provider Network>
+#NETWORK_GATEWAY=<Provider Network Gateway>
+#ALLOCATION_POOL=<Provider Network Allocation Pool>
+# IPV6_PROVIDER_FIXED_RANGE=<v6 CDIR for the Provider Network>
+# IPV6_PROVIDER_NETWORK_GATEWAY=<v6 Gateway for the Provider Network>
+
+# If you wish to use the provider network for public access to the cloud,
+# set the following
+#Q_USE_PROVIDERNET_FOR_PUBLIC=True
+#PUBLIC_NETWORK_NAME=<Provider network name>
+#PUBLIC_NETWORK_GATEWAY=<Provider network gateway>
+#PUBLIC_PHYSICAL_NETWORK=<Provider network name>
+#IP_VERSION=4
+#PUBLIC_SUBNET_NAME=<provider subnet name>
+#Q_FLOATING_ALLOCATION_POOL=<Provider Network Allocation Pool>
+#FLOATING_RANGE=<CIDR for the Provider Network>
+
+# NOTE: DO NOT MOVE THESE SECTIONS FROM THE END OF THIS FILE
+# IF YOU DO, THEY WON'T WORK!!!!!
+#
+# Enable two DHCP agents per neutron subnet with support for availability
+# zones. Requires a multi-node deployment.
+#[[post-config|/$NEUTRON_CONF]]
+#[DEFAULT]
+#network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
+#dhcp_load_type = networks
+#dhcp_agents_per_network = 2
+
 # If you enable the DHCP agent, you can configure the availability
 # zone name (default is nova).
 #[[post-config|$Q_DHCP_CONF_FILE]]
 #[AGENT]
 #availability_zone = nova
-
-
-# If you want to enable a provider network instead of the default private
-# network after your DevStack environment installation, you *must* set
-# the Q_USE_PROVIDER_NETWORKING to True, and also give FIXED_RANGE,
-# NETWORK_GATEWAY and ALLOCATION_POOL option to the correct value that can
-# be used in your enviroment. Please note that this only works when Q_L3_ENABLED
-# is False and q-l3 is disabled.
-#Q_USE_PROVIDER_NETWORKING=True
-#PHYSICAL_NETWORK=providernet
-#PROVIDER_NETWORK_TYPE=flat
-#OVS_PHYSICAL_BRIDGE=br-provider
-#PROVIDER_SUBNET_NAME=provider-subnet
-#FIXED_RANGE=<CIDR for the Provider Network>
-#NETWORK_GATEWAY=<Provider Network Gateway>
-#ALLOCATION_POOL=<Provider Network Allocation Pool>
