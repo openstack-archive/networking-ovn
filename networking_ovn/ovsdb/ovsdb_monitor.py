@@ -213,7 +213,7 @@ class OvnIdl(idl.Idl):
         # receives from the ovsdb-server.
         # This event lock is required for the following reasons
         #  - If there are multiple neutron servers running, OvnWorkers of
-        #    these neutron servers would recieve the notify events from
+        #    these neutron servers would receive the notify events from
         #    idl.Idl
         #
         #  - we do not want all the neutron servers to handle these events
