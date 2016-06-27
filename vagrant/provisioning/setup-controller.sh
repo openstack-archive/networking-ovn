@@ -58,6 +58,16 @@ disable_service c-api c-sch c-vol tempest
 # as necessary for your environment.
 NETWORK_GATEWAY=172.16.1.1
 FIXED_RANGE=172.16.1.0/24
+
+# Use provider network for public.
+Q_USE_PROVIDERNET_FOR_PUBLIC=True
+PUBLIC_NETWORK_NAME=provider
+PUBLIC_NETWORK_GATEWAY="$gateway"
+PUBLIC_PHYSICAL_NETWORK=provider
+PUBLIC_SUBNET_NAME=provider-v4
+IPV6_PUBLIC_SUBNET_NAME=provider-v6
+Q_FLOATING_ALLOCATION_POOL="start=$start_ip,end=$end_ip"
+FLOATING_RANGE="$network"
 DEVSTACKEOF
 
 # Add unique post-config for DevStack here using a separate 'cat' with
@@ -78,20 +88,10 @@ DEVSTACKEOF
 
 devstack/stack.sh
 
-# Create the provider network with one IPv4 subnet.
+# Make the provider network shared and enable DHCP for its v4 subnet.
 source devstack/openrc admin admin
-neutron net-create provider --shared --router:external --provider:physical_network provider --provider:network_type flat
-neutron subnet-create provider --name provider-v4 --ip-version 4 --allocation-pool start=$start_ip,end=$end_ip --gateway $gateway $network
-
-# Create a router.
-source devstack/openrc demo demo
-neutron router-create router
-
-# Attach the private network IPv4 subnet that DevStack creates to the router.
-neutron router-interface-add router private-subnet
-
-# Set the gateway for the router as the provider network.
-neutron router-gateway-set router provider
+neutron net-update --shared $PUBLIC_NETWORK_NAME
+neutron subnet-update --enable_dhcp=True $PUBLIC_SUBNET_NAME
 
 # NFS server setup
 sudo apt-get update
