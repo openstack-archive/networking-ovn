@@ -25,10 +25,12 @@ from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron import context as n_context
 from neutron.db import provisioning_blocks
+from neutron.extensions import multiprovidernet as mpnet
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
 from neutron import manager
+from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 
@@ -182,6 +184,43 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                                sg_id,
                                                rule=sg_rule,
                                                is_add_acl=is_add_acl)
+
+    def create_network_precommit(self, context):
+        """Allocate resources for a new network.
+
+        :param context: NetworkContext instance describing the new
+        network.
+
+        Create a new network, allocating resources as necessary in the
+        database. Called inside transaction context on session. Call
+        cannot block.  Raising an exception will result in a rollback
+        of the current transaction.
+        """
+        network = context.current
+
+        # TODO(rtheis): Add support for multi-provider networks when
+        # routed networks are supported.
+        if self._get_attribute(network, mpnet.SEGMENTS):
+            msg = _('Multi-provider networks are not supported')
+            raise n_exc.InvalidInput(error_message=msg)
+
+        network_segments = context.network_segments
+        network_type = network_segments[0]['network_type']
+        segmentation_id = network_segments[0]['segmentation_id']
+        physical_network = network_segments[0]['physical_network']
+        LOG.debug('Creating network with type %(network_type)s, '
+                  'segmentation ID %(segmentation_id)s, '
+                  'physical network %(physical_network)s' %
+                  {'network_type': network_type,
+                   'segmentation_id': segmentation_id,
+                   'physical_network': physical_network})
+
+        if network_type not in [plugin_const.TYPE_LOCAL,
+                                plugin_const.TYPE_FLAT,
+                                plugin_const.TYPE_GENEVE,
+                                plugin_const.TYPE_VLAN]:
+            msg = _('Network type %s is not supported') % network_type
+            raise n_exc.InvalidInput(error_message=msg)
 
     def create_network_postcommit(self, context):
         """Create a network.

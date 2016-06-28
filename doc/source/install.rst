@@ -160,13 +160,40 @@ primary node. See the :ref:`faq` for more information.
 #. Configure the OVN ML2 driver. Edit the
    ``/etc/neutron/plugins/ml2/ml2_conf.ini`` file:
 
-   * Enable the OVN ML2 driver.
+   * Configure the OVN mechanism driver, the OVN tenant network type
+     and enable security groups with the port security extension.
 
      .. code-block:: ini
 
         [ml2]
         ...
         mechanism_drivers = ovn
+        extension_drivers = port_security
+        tenant_network_types = geneve
+        ...
+
+        [ml2_type_geneve]
+        ...
+        vni_ranges = 1:65536
+        max_header_size = 58
+        ...
+
+        [securitygroup]
+        ...
+        enable_security_group = true
+
+     .. note::
+
+        The ``vni_ranges`` option under ``[ml2_type_geneve]`` is used by the
+        networking service to allocate a network segment. However, OVN will
+        ignore network segment's VNI and calculate its own VNI. You may
+        modify this range to control the number of geneve networks that
+        can be created.
+
+     .. note::
+
+        The ``firewall_driver`` option under ``[securitygroup]`` is ignored
+        since the OVN ML2 driver itself handles security groups.
 
    * Configure OVS database access and the OVN L3 mode
 

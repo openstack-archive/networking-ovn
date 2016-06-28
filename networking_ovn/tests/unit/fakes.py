@@ -107,6 +107,64 @@ class FakeResource(object):
         return self._info
 
 
+class FakeNetwork(object):
+    """Fake one or more networks."""
+
+    @staticmethod
+    def create_one_network(attrs=None):
+        """Create a fake network.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :return:
+            A FakeResource object faking the network
+        """
+        attrs = attrs or {}
+
+        # Set default attributes.
+        fake_uuid = uuid.uuid4().hex
+        network_attrs = {
+            'id': 'network-id-' + fake_uuid,
+            'name': 'network-name-' + fake_uuid,
+            'status': 'ACTIVE',
+            'tenant_id': 'project-id-' + fake_uuid,
+            'admin_state_up': True,
+            'shared': False,
+            'subnets': [],
+            'provider:network_type': 'geneve',
+            'provider:physical_network': None,
+            'provider:segmentation_id': 10,
+            'router:external': False,
+            'availability_zones': [],
+            'availability_zone_hints': [],
+            'is_default': False,
+        }
+
+        # Overwrite default attributes.
+        network_attrs.update(attrs)
+
+        return FakeResource(info=copy.deepcopy(network_attrs),
+                            loaded=True)
+
+
+class FakeNetworkContext(object):
+    def __init__(self, network, segments):
+        self.fake_network = network
+        self.fake_segments = segments
+
+    @property
+    def current(self):
+        return self.fake_network
+
+    @property
+    def original(self):
+        return None
+
+    @property
+    def network_segments(self):
+        return self.fake_segments
+
+
 class FakePort(object):
     """Fake one or more ports."""
 
@@ -219,6 +277,34 @@ class FakeSecurityGroupRule(object):
         security_group_rule_attrs.update(attrs)
 
         return FakeResource(info=copy.deepcopy(security_group_rule_attrs),
+                            loaded=True)
+
+
+class FakeSegment(object):
+    """Fake one or more segments."""
+
+    @staticmethod
+    def create_one_segment(attrs=None):
+        """Create a fake segment.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :return:
+            A FakeResource object faking the segment
+        """
+        attrs = attrs or {}
+
+        # Set default attributes.
+        segment_attrs = {
+            'network_type': 'geneve',
+            'physical_network': None,
+            'segmentation_id': 10,
+        }
+
+        # Overwrite default attributes.
+        segment_attrs.update(attrs)
+
+        return FakeResource(info=copy.deepcopy(segment_attrs),
                             loaded=True)
 
 

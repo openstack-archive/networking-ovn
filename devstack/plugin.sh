@@ -68,6 +68,12 @@ OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 # to 1500 bytes.
 OVN_NATIVE_MTU=${OVN_NATIVE_MTU:-1500}
 
+# GENEVE overlay protocol overhead. Defaults to 58 bytes.
+# TODO(rtheis): This does not account for the 20 byte IPv6 MTU overhead.
+# This will need to be changed once https://review.openstack.org/#/c/320121/
+# is fixed.
+OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-58}
+
 # If using OVN_L3_MODE, this sets whether to create a public network and bridge.
 # If set to True, a public network and subnet(s) will be created, and a router
 # will be created to route the default private network to the public one.
@@ -146,6 +152,7 @@ function configure_ovn_plugin {
                 'from networking_ovn.common import extensions ;\
                  print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3)')
         fi
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ml2_type_geneve max_header_size=$OVN_GENEVE_OVERHEAD
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_nb_connection="$OVN_NB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_mode="$OVN_L3_MODE"
@@ -173,9 +180,8 @@ function configure_ovn_plugin {
         # issues.
         #
         # Calculate MTU for self-service/private networks accounting for
-        # GENEVE overlay protocol overhead of 58 bytes and configure the
-        # DHCP agent to provide it to instances. Only effective on neutron
-        # subnets with DHCP.
+        # GENEVE overlay protocol overhead and configure the DHCP agent to
+        # provide it to instances. Only effective on neutron subnets with DHCP.
         #
         # TODO (mkassawara): Temporary workaround for larger MTU problems
         # in neutron. Ideally, provider networks should use the native
@@ -183,7 +189,7 @@ function configure_ovn_plugin {
 
         iniset $Q_DHCP_CONF_FILE DEFAULT dnsmasq_config_file "/etc/neutron/dnsmasq.conf"
         if ! grep "dhcp-option=26" /etc/neutron/dnsmasq.conf ; then
-            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - 58))" | sudo tee -a /etc/neutron/dnsmasq.conf
+            echo "dhcp-option=26,$(($OVN_NATIVE_MTU - $OVN_GENEVE_OVERHEAD))" | sudo tee -a /etc/neutron/dnsmasq.conf
         fi
     fi
 }
