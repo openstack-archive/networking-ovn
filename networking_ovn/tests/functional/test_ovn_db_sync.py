@@ -13,7 +13,9 @@
 #    under the License.
 
 import mock
+import uuid
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
@@ -29,8 +31,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         super(TestOvnNbSync, self).setUp()
         ext_mgr = test_l3.L3TestExtensionManager()
         self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+        self.create_lswitches = []
+        self.create_lswitch_ports = []
+        self.create_lrouters = []
+        self.create_lrouter_ports = []
         self.delete_lswitches = []
-        self.delete_lports = []
+        self.delete_lswitch_ports = []
         self.delete_lrouters = []
         self.delete_lrouter_ports = []
 
@@ -43,8 +49,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             port = self._make_port(self.fmt, n1['network']['id'],
                                    name='n1-' + p)
             if p == 'p2':
-                self.delete_lports.append((port['port']['id'],
-                                           'neutron-' + n1['network']['id']))
+                self.delete_lswitch_ports.append(
+                    (port['port']['id'], 'neutron-' + n1['network']['id'])
+                )
 
         n2 = self._make_network(self.fmt, 'n2', True)
         res = self._create_subnet(self.fmt, n2['network']['id'],
@@ -54,6 +61,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             port = self._make_port(self.fmt, n2['network']['id'],
                                    name='n2-' + p)
 
+        self.create_lswitches.append('neutron-' + uuid.uuid4().hex)
+        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+                                          'neutron-' + n1['network']['id']))
         self.delete_lswitches.append('neutron-' + n2['network']['id'])
 
         r1 = self.l3_plugin.create_router(
@@ -75,27 +85,49 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                 name='n1-p4')
         self.l3_plugin.add_router_interface(
             self.context, r2['id'], {'port_id': n1_p4['port']['id']})
+        self.create_lrouters.append('neutron-' + uuid.uuid4().hex)
+        self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
+                                          'neutron-' + r1['id']))
         self.delete_lrouters.append('neutron-' + r2['id'])
 
-    def _delete_resources_in_nb_db(self):
-        # TODO(numans)  Rename this function and also create resources
-        # in OVN NB DB using the monitor IDL connection so that after the
-        # sync, these resources are deleted by the ovn_db_sync from the
-        # OVN NB DB.
+    def _modify_resources_in_nb_db(self):
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_nb_db_idl
         fake_api._tables = self.monitor_nb_db_idl.tables
 
         with self.idl_transaction(fake_api, check_error=True) as txn:
+            for lswitch_name in self.create_lswitches:
+                external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                                lswitch_name}
+                txn.add(cmd.AddLSwitchCommand(fake_api, lswitch_name, True,
+                                              external_ids=external_ids))
+
             for lswitch_name in self.delete_lswitches:
                 txn.add(cmd.DelLSwitchCommand(fake_api, lswitch_name, True))
 
-            for lport_name, lswitch_name in self.delete_lports:
+            for lport_name, lswitch_name in self.create_lswitch_ports:
+                external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY:
+                                lport_name}
+                txn.add(cmd.AddLSwitchPortCommand(fake_api, lport_name,
+                                                  lswitch_name, True,
+                                                  external_ids=external_ids))
+
+            for lport_name, lswitch_name in self.delete_lswitch_ports:
                 txn.add(cmd.DelLSwitchPortCommand(fake_api, lport_name,
                                                   lswitch_name, True))
 
+            for lrouter_name in self.create_lrouters:
+                external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                                lrouter_name}
+                txn.add(cmd.AddLRouterCommand(fake_api, lrouter_name, True,
+                                              external_ids=external_ids))
+
             for lrouter_name in self.delete_lrouters:
                 txn.add(cmd.DelLRouterCommand(fake_api, lrouter_name, True))
+
+            for lrport, lrouter_name in self.create_lrouter_ports:
+                txn.add(cmd.AddLRouterPortCommand(fake_api, lrport,
+                                                  lrouter_name))
 
             for lrport, lrouter_name in self.delete_lrouter_ports:
                 txn.add(cmd.DelLRouterPortCommand(fake_api, lrport,
@@ -230,14 +262,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         nb_synchronizer.sync_networks_and_ports(ctx)
         nb_synchronizer.sync_routers_and_rports(ctx)
 
-    def _test_ovn_nb_sync_helper(self, mode, delete_resources=True,
+    def _test_ovn_nb_sync_helper(self, mode, modify_resources=True,
                                  restart_ovsdb_processes=False,
                                  should_match_after_sync=True):
         self._create_resources()
         self._validate_resources(should_match=True)
 
-        if delete_resources:
-            self._delete_resources_in_nb_db()
+        if modify_resources:
+            self._modify_resources_in_nb_db()
 
         if restart_ovsdb_processes:
             # Restart the ovsdb-server and plugin idl.
@@ -245,7 +277,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             # OVN NB DB
             self.restart()
 
-        if delete_resources or restart_ovsdb_processes:
+        if modify_resources or restart_ovsdb_processes:
             self._validate_resources(should_match=False)
 
         self._sync_resources(mode)
@@ -257,7 +289,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def test_ovn_nb_sync_repair_delete_ovn_nb_db(self):
         # In this test case, the ovsdb-server for OVN NB DB is restarted
         # with empty OVN NB DB.
-        self._test_ovn_nb_sync_helper('repair', delete_resources=False,
+        self._test_ovn_nb_sync_helper('repair', modify_resources=False,
                                       restart_ovsdb_processes=True)
 
     def test_ovn_nb_sync_log(self):
