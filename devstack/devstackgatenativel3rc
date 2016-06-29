@@ -18,12 +18,13 @@
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #
 
-export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-dhcp
+export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
 if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
 
 # Begin list of exclusions.
 r="^(?!.*"
@@ -58,6 +59,15 @@ r="$r|(?:tempest\.api\.network\.admin\.test_lbaas.*)"
 r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
 r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
 r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
+
+# exclude dhcp agent tests
+r="$r|(?:tempest\.api\.network\.admin\.test_dhcp_agent_scheduler.*)"
+
+# exclude this test case because this expects dhcp interface to be present
+r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
+
+# exclude this test because there are no agents used by OVN
+r="$r|(?:tempest\.api\.network\.admin\.test_agent_management.*)"
 
 # exclude some unrelated stuff to make networking-ovn targeted runs go faster
 r="$r|(?:tempest\.api\.identity*)"

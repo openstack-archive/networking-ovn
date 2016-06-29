@@ -310,6 +310,79 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 unhosted_routers[lrouter.name] = lrouter.options
         return unhosted_routers
 
+    def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
+                         **columns):
+        return cmd.AddDHCPOptionsCommand(self, subnet_id, port_id=port_id,
+                                         may_exists=may_exists, **columns)
+
+    def delete_dhcp_options(self, subnet_id, port_id=None, if_exists=True):
+        return cmd.DelDHCPOptionsCommand(self, subnet_id, port_id=port_id,
+                                         if_exists=if_exists)
+
+    def get_subnet_dhcp_options(self, subnet_id):
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            port_id = external_ids.get('port_id')
+            if subnet_id == external_ids.get('subnet_id') and not port_id:
+                return {'cidr': row.cidr, 'options': dict(row.options),
+                        'external_ids': dict(external_ids)}
+
+    def get_port_dhcp_options(self, subnet_id, port_id):
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            if subnet_id == external_ids.get('subnet_id') and (
+                    port_id == external_ids.get('port_id')):
+                return {'cidr': row.cidr, 'options': dict(row.options),
+                        'external-ids': dict(external_ids)}
+
+    def compose_dhcp_options_commands(self, subnet_id, **columns):
+        # First add the subnet DHCP options.
+        commands = [self.add_dhcp_options(subnet_id, **columns)]
+
+        # Check if there are any port DHCP options which
+        # belongs to this 'subnet_id' and frame the commands to update them.
+        port_dhcp_options = []
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            port_id = external_ids.get('port_id')
+            if subnet_id == external_ids.get('subnet_id'):
+                if port_id:
+                    port_dhcp_options.append({'port_id': port_id,
+                                             'port_dhcp_opts': row.options})
+
+        for port_dhcp_opt in port_dhcp_options:
+            if columns.get('options'):
+                updated_opts = dict(columns['options'])
+                updated_opts.update(port_dhcp_opt['port_dhcp_opts'])
+            else:
+                updated_opts = {}
+            commands.append(
+                self.add_dhcp_options(subnet_id,
+                                      port_id=port_dhcp_opt['port_id'],
+                                      options=updated_opts))
+
+        return commands
+
+    def set_lswitch_port_dhcpv4_options(self, port_id, subnet_id,
+                                        check_port_id_in_external_ids=False):
+        dhcp_options_row = None
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            if subnet_id == external_ids.get('subnet_id'):
+                if check_port_id_in_external_ids:
+                    if port_id == external_ids.get('port_id'):
+                        dhcp_options_row = row
+                        break
+                else:
+                    dhcp_options_row = row
+                    break
+
+        lsp_columns = {'dhcpv4_options': []}
+        if dhcp_options_row:
+            lsp_columns['dhcpv4_options'] = [dhcp_options_row.uuid]
+
+        return self.set_lswitch_port(port_id, **lsp_columns)
+
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):
 

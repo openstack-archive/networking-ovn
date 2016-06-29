@@ -180,6 +180,7 @@ function configure_ovn_plugin {
         if [[ "$OVN_L3_MODE" == "True" ]]; then
             populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
         fi
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_native_dhcp="$OVN_NATIVE_DHCP"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
     fi

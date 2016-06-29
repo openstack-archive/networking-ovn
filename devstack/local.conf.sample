@@ -36,7 +36,6 @@ enable_service q-svc
 # node and enabling them on the compute node(s) to provide a more
 # realistic environment. For more information, see
 # computenode-local.conf.sample.
-enable_service q-dhcp
 enable_service q-meta
 
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
@@ -65,6 +64,14 @@ disable_service q-l3
 # Scheduler determines the hypervisor/chassis where a routers gateway should
 # be hosted in OVN. The default OVN L3 scheduler is leastloaded
 #OVN_L3_SCHEDULER=leastloaded
+
+# Whether to enable using OVN's native dhcp support. If this value is disabled,
+# OpenStack will use the q-dhcp functionality.  If you set
+# OVN_NATIVE_DHCP to False you must also enable the q-dhcp service.
+# By default OVN_NATIVE_DHCP is True
+#OVN_NATIVE_DHCP=False
+#enable_service q-dhcp
+disable_service q-dhcp
 
 # Whether or not to build custom openvswitch kernel modules from the ovs git
 # tree. This is enabled by default.  This is required unless your distro kernel

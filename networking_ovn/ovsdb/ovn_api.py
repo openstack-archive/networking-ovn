@@ -376,6 +376,98 @@ class API(object):
                                    chassis
         """
 
+    def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
+                         **columns):
+        """Adds the DHCP options specified in the @columns in DHCP_Options
+
+        If the DHCP options already exist in the DHC_Options table for
+        the @subnet_id (and @lsp_name), updates the row, else creates a new
+        row.
+
+        :param subnet_id:      The subnet id to which the DHCP options belong
+                               to
+        :type subnet_id:       string
+        :param port_id:        The port id to which the DHCP options belong to
+                               if specified
+        :type port_id:         string
+        :param may_exists:     If true, checks if the DHCP options for
+                               subnet_id exists or not. If it already exists,
+                               it updates the row with the columns specified.
+                               Else creates a new row.
+        :type may_exists:      bool
+        :type columns:         Dictionary of DHCP_Options columns
+                               Supported columns: see DHCP_Options table in
+                               OVN_Northbound
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def delete_dhcp_options(self, subnet_id, port_id=None, if_exists=True):
+        """Deletes the row in DHCP_Options for the @subnet_id (and @port_id)
+
+        :param subnet_id:      The subnet id to which the DHCP options belong
+                               to
+        :type subnet_id:       string
+        :param port_id:        Optional. The port id to which the DHCP options
+                               belong to if specified
+        :type port_id:         string
+        :param if_exists:      Do not fail if the DHCP_Options row does not
+                               exist
+        :type if_exists:       bool
+        """
+
+    @abc.abstractmethod
+    def get_subnet_dhcp_options(self, subnet_id):
+        """Returns the Subnet DHCP options as a dictionary
+
+        :param subnet_id:      The subnet id whose DHCP options to be returned
+        :type subnet_id:       string
+        :returns:              Returns the columns of the DHCP_Options as a
+                               dictionary
+        """
+
+    @abc.abstractmethod
+    def get_port_dhcp_options(self, subnet_id, port_id):
+        """Returns the Logical switch port DHCP_Options as a dictionary
+
+        :returns:              Returns the columns of the DHCP_Options as a
+                               dictionary belonging to the logical switch port
+                               and subnet specified in the @param port_id and
+                               @param subnet_id
+        """
+
+    @abc.abstractmethod
+    def compose_dhcp_options_commands(self, subnet_id, **columns):
+        """Returns a list of 'Command' objects to add the DHCP options in NB DB
+
+        Checks if there are DHCP_Options rows for the logical switch ports
+        belonging to the @subnet_id and if found adds into the `Command` list.
+
+        @param subnet_id:     The subnet id to which DHCP Options are to be
+                              added
+        @type subnet_id:      string
+        @type columns:        Dictionary of DHCP_Options columns
+        @returns:             List of 'Command' objects returned by
+                              'add_dhcp_options'
+        """
+
+    @abc.abstractmethod
+    def set_lswitch_port_dhcpv4_options(self, lport_name, subnet_id,
+                                        check_port_id_in_external_ids=False):
+        """Sets the 'dhcpv4_options' column of the Logical_Switch_Port
+
+        Retrieve the DHCP options for the logical switch port in
+        the 'DHCP_Options' table and set it in the 'dhcpv4_options' column.
+
+        @param lport_name:    Logical switch port name
+        @type lport_name:     string
+        @param subnet_id:     The subnet id to which the DHCP options belong to
+        @type subnet_id:      string
+        @type check_port_id_in_external_ids : If set to true, retrieves the
+                             'DHCP_Options' row belonging to the @lsp_name and
+                             sets it.
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):

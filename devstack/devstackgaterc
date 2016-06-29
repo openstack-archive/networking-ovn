@@ -24,6 +24,7 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_MODE=False"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=False"
 
 # Begin list of exclusions.
 r="^(?!.*"

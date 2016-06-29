@@ -12,6 +12,12 @@ if [[ "$OVN_L3_MODE" == "True" ]]; then
     ML2_L3_PLUGIN="networking_ovn.l3.l3_ovn.OVNL3RouterPlugin"
 fi
 
+# Whether to enable using OVN's native dhcp support. If this value is disabled,
+# OpenStack will use the q-dhcp functionality.  If you set
+# OVN_NATIVE_DHCP to False you must also enable the q-dhcp service.
+# By default OVN_NATIVE_DHCP is True
+OVN_NATIVE_DHCP=$(trueorfalse True OVN_NATIVE_DHCP)
+
 # This function is invoked by DevStack's Neutron plugin setup
 # code and is being overridden here since the OVN devstack
 # plugin will handle the install.

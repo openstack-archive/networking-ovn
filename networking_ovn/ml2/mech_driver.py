@@ -13,6 +13,7 @@
 #
 
 import collections
+import netaddr
 
 from neutron_lib.api import validators
 from neutron_lib import constants as const
@@ -23,8 +24,10 @@ from oslo_log import log
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
+from neutron.common import utils as n_utils
 from neutron import context as n_context
 from neutron.db import provisioning_blocks
+from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import multiprovidernet as mpnet
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
@@ -94,6 +97,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
+        self._init_dhcp_opt_codes()
 
     @property
     def _plugin(self):
@@ -123,6 +127,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             self.vif_details = {
                 portbindings.CAP_PORT_FILTER: self.sg_enabled,
             }
+
+    def _init_dhcp_opt_codes(self):
+        self._supported_dhcp_opts = [
+            'netmask', 'router', 'dns-server', 'log-server',
+            'lpr-server', 'swap-server', 'ip-forward-enable',
+            'policy-filter', 'default-ttl', 'mtu', 'router-discovery',
+            'router-solicitation', 'arp-timeout', 'ethernet-encap',
+            'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
+            'tftp-server']
 
     def subscribe(self):
         registry.subscribe(self.post_fork_initialize,
@@ -339,6 +352,84 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             utils.ovn_name(network['id']), if_exists=True).execute(
                 check_error=True)
 
+    def create_subnet_postcommit(self, context):
+        subnet = context.current
+        if subnet['enable_dhcp'] and config.is_ovn_dhcp():
+            self.add_subnet_dhcp_options_in_ovn(subnet,
+                                                context.network.current)
+
+    def update_subnet_postcommit(self, context):
+        subnet = context.current
+        if config.is_ovn_dhcp() and (
+            subnet['enable_dhcp'] or context.original['enable_dhcp']):
+            self.add_subnet_dhcp_options_in_ovn(subnet,
+                                                context.network.current)
+
+    def delete_subnet_postcommit(self, context):
+        subnet = context.current
+        if config.is_ovn_dhcp():
+            with self._nb_ovn.transaction(check_error=True) as txn:
+                txn.add(self._nb_ovn.delete_dhcp_options(subnet['id']))
+
+    def add_subnet_dhcp_options_in_ovn(self, subnet, network):
+        ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
+
+        txn_commands = self._nb_ovn.compose_dhcp_options_commands(
+            subnet['id'], **ovn_dhcp_options)
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            for cmd in txn_commands:
+                txn.add(cmd)
+
+    def _get_ovn_dhcp_options(self, subnet, network):
+        external_ids = {'subnet_id': subnet['id']}
+        dhcp_options = {'cidr': subnet['cidr'], 'options': {},
+                        'external_ids': external_ids}
+
+        if subnet['ip_version'] == 4 and subnet['enable_dhcp']:
+            dhcp_options['options'] = self._get_ovn_dhcpv4_opts(subnet,
+                                                                network)
+
+        return dhcp_options
+
+    def _get_ovn_dhcpv4_opts(self, subnet, network):
+        if not subnet['gateway_ip']:
+            return {}
+
+        default_lease_time = str(config.get_ovn_dhcp_default_lease_time())
+        mtu = network['mtu']
+        options = {
+            'server_id': subnet['gateway_ip'],
+            'server_mac': n_utils.get_random_mac(cfg.CONF.base_mac.split(':')),
+            'lease_time': default_lease_time,
+            'mtu': str(mtu),
+            'router': subnet['gateway_ip']
+        }
+
+        if subnet['dns_nameservers']:
+            dns_servers = '{'
+            for dns in subnet["dns_nameservers"]:
+                dns_servers += dns + ', '
+            dns_servers = dns_servers.strip(', ')
+            dns_servers += '}'
+            options['dns_server'] = dns_servers
+
+        # If subnet hostroutes are defined, add them in the
+        # 'classless_static_route' dhcp option
+        classless_static_routes = "{"
+        for route in subnet['host_routes']:
+            classless_static_routes += ("%s,%s, ") % (
+                route['destination'], route['nexthop'])
+
+        if classless_static_routes != "{":
+            # if there are static routes, then we need to add the
+            # default route in this option. As per RFC 3442 dhcp clients
+            # should ignore 'router' dhcp option (option 3)
+            # if option 121 is present.
+            classless_static_routes += "0.0.0.0/0,%s}" % (subnet['gateway_ip'])
+            options['classless_static_route'] = classless_static_routes
+
+        return options
+
     def create_port_precommit(self, context):
         """Allocate resources for a new port.
 
@@ -443,6 +534,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         ovn_port_info = self.get_ovn_port_options(port)
         self._insert_port_provisioning_block(port)
         self.create_port_in_ovn(port, ovn_port_info)
+        self.update_ovn_lsp_dhcpv4_options(port)
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
@@ -574,6 +666,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def update_port(self, port, original_port, qos_options=None):
         ovn_port_info = self.get_ovn_port_options(port, qos_options)
         self._update_port_in_ovn(original_port, port, ovn_port_info)
+        self.update_ovn_lsp_dhcpv4_options(port)
 
     def _update_port_in_ovn(self, original_port, port, ovn_port_info):
         external_ids = {
@@ -658,6 +751,77 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                         addrs_add=addr_add,
                                         addrs_remove=addr_remove))
 
+    def _delete_lsp_dhcpv4_options(self, port):
+        lsp_dhcp_options = None
+        subnet_id = None
+        for fixed_ip in port['fixed_ips']:
+            if netaddr.IPAddress(fixed_ip['ip_address']).version == 4:
+                lsp_dhcp_options = self._nb_ovn.get_port_dhcp_options(
+                    fixed_ip['subnet_id'], port['id'])
+                subnet_id = fixed_ip['subnet_id']
+                if lsp_dhcp_options:
+                    break
+
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            txn.add(self._nb_ovn.set_lswitch_port(port['id'],
+                                                  dhcpv4_options=[]))
+
+        if lsp_dhcp_options:
+            with self._nb_ovn.transaction(check_error=True) as txn:
+                txn.add(self._nb_ovn.delete_dhcp_options(subnet_id,
+                                                         port_id=port['id']))
+
+    def update_ovn_lsp_dhcpv4_options(self, port):
+        lsp_dhcpv4_options = {}
+        lsp_dhcp_disabled = False
+        for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
+            if edo['opt_name'] == 'dhcp_disabled' and (
+                    edo['opt_value'] in ['True', 'true']):
+                # OVN native DHCPv4 is disabled on this port
+                lsp_dhcp_disabled = True
+                break
+
+            if edo['ip_version'] != 4 or (
+                edo['opt_name'] not in self._supported_dhcp_opts):
+                continue
+
+            opt = edo['opt_name'].replace('-', '_')
+            lsp_dhcpv4_options[opt] = edo['opt_value']
+
+        if lsp_dhcp_disabled:
+            self._delete_lsp_dhcpv4_options(port)
+            return
+
+        # If the port has multiple IPv4 addresses, DHCPv4 options are set
+        # for the first address in port['fixed_ips']
+        subnet_dhcp_options = None
+        subnet_id = None
+        for fixed_ip in port['fixed_ips']:
+            if netaddr.IPAddress(fixed_ip['ip_address']).version == 4:
+                subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
+                    fixed_ip['subnet_id'])
+                subnet_id = fixed_ip['subnet_id']
+                if subnet_dhcp_options:
+                    break
+
+        if not subnet_dhcp_options:
+            return
+
+        if lsp_dhcpv4_options:
+            subnet_dhcp_options['options'].update(lsp_dhcpv4_options)
+            subnet_dhcp_options['external_ids'].update(
+                {'port_id': port['id']})
+            with self._nb_ovn.transaction(check_error=True) as txn:
+                txn.add(self._nb_ovn.add_dhcp_options(subnet_id,
+                                                      port_id=port['id'],
+                                                      **subnet_dhcp_options))
+
+        check_port_id_in_external_ids = True if lsp_dhcpv4_options else False
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            txn.add(self._nb_ovn.set_lswitch_port_dhcpv4_options(
+                port['id'], subnet_id,
+                check_port_id_in_external_ids=check_port_id_in_external_ids))
+
     def delete_port_postcommit(self, context):
         """Delete a port.
 
@@ -671,6 +835,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         deleted.
         """
         port = context.current
+        self._delete_lsp_dhcpv4_options(port)
         with self._nb_ovn.transaction(check_error=True) as txn:
             txn.add(self._nb_ovn.delete_lswitch_port(port['id'],
                     utils.ovn_name(port['network_id'])))

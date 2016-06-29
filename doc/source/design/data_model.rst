@@ -52,9 +52,17 @@ Subnet
         ipv6_ra_mode
         ipv6_address_mode
 
-Nothing is needed here for now.  When OVN supports DHCP, we will need to feed
-this info into OVN.
+Once a subnet is created, we should create an entry in the DHCP Options table
+with the DHCPv4 options.
 
+::
+
+    OVN northbound DB DHCP_Options:
+        cidr
+        options
+        external_ids: {
+            'subnet_id': subnet.id
+        }
 
 Port
 -------
@@ -87,6 +95,19 @@ table in the OVN northbound DB.
         port_security:
         external_ids: {'neutron:port_name': port.name}
 
+
+If the port has extra DHCP options defined, we should create an entry
+in the DHCP Options table in the OVN northbound DB.
+
+::
+
+    OVN northbound DB DHCP_Options:
+        cidr
+        options
+        external_ids: {
+            'subnet_id': subnet.id,
+            'port_id':  port.id
+        }
 
 Router
 ----------

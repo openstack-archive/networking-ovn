@@ -17,6 +17,8 @@ import netaddr
 from neutron_lib import constants as const
 from oslo_config import cfg
 
+
+from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
@@ -316,11 +318,12 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
     for ip in port['fixed_ips']:
         if netaddr.IPNetwork(ip['ip_address']).version != 4:
             continue
-        subnet = _get_subnet_from_cache(plugin,
-                                        admin_context,
-                                        subnet_cache,
-                                        ip['subnet_id'])
-        acl_list += add_acl_dhcp(port, subnet)
+        if not config.is_ovn_dhcp():
+            subnet = _get_subnet_from_cache(plugin,
+                                            admin_context,
+                                            subnet_cache,
+                                            ip['subnet_id'])
+            acl_list += add_acl_dhcp(port, subnet)
 
     # We create an ACL entry for each rule on each security group applied
     # to this port.
