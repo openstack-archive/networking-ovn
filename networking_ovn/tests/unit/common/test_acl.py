@@ -14,7 +14,6 @@
 
 import copy
 import mock
-import six
 
 from neutron_lib import constants as const
 
@@ -242,20 +241,15 @@ class TestACLs(base.TestCase):
                                                 acls_old_dict,
                                                 acls_new_dict,
                                                 acl_obj_dict)
-        # Sort the results for comparison
-        for row in six.itervalues(acl_dels):
-            row.sort()
-        for row in six.itervalues(acl_adds):
-            row.sort()
         # Expected Difference (Sorted)
         acl_del_exp = {lswitch_name: ['row3', 'row6']}
         acl_adds_exp = {lswitch_name:
                         [{'priority': 1002, 'direction': 'to-lport',
                           'match': 'ip6 && (ip.src == %s)' %
-                          (port1['fixed_ips'][1]['ip_address'])},
+                          (port2['fixed_ips'][1]['ip_address'])},
                          {'priority': 1002, 'direction': 'to-lport',
                           'match': 'ip6 && (ip.src == %s)' %
-                          (port2['fixed_ips'][1]['ip_address'])}]}
+                          (port1['fixed_ips'][1]['ip_address'])}]}
         self.assertEqual(acl_dels, acl_del_exp)
         self.assertEqual(acl_adds, acl_adds_exp)
 
@@ -272,10 +266,6 @@ class TestACLs(base.TestCase):
                                                          acls_old_dict,
                                                          acls_new_dict_copy,
                                                          acl_obj_dict)
-        for row in six.itervalues(new_acl_dels):
-            row.sort()
-        for row in six.itervalues(new_acl_adds):
-            row.sort()
         self.assertEqual(acl_dels, new_acl_dels)
         self.assertEqual(acl_adds, new_acl_adds)
 
