@@ -38,7 +38,7 @@ LOG = log.getLogger(__name__)
 
 class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         common_db_mixin.CommonDbMixin,
-                        extraroute_db.ExtraRoute_db_mixin):
+                        extraroute_db.ExtraRoute_dbonly_mixin):
     """Implementation of the OVN L3 Router Service Plugin.
 
     This class implements a L3 service plugin that provides
