@@ -37,7 +37,7 @@ Vagrant.configure(2) do |config|
     ovndb.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false,
       :args => "#{vagrant_config['ovndb']['mtu']} #{setup_base_common_args}"
     ovndb.vm.provision "shell", path: "provisioning/setup-db.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['ip']}"
-    config.vm.provider "virtualbox" do |vb|
+    ovndb.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovndb']['memory']
        vb.cpus = vagrant_config['ovndb']['cpus']
        vb.customize [
@@ -50,7 +50,7 @@ Vagrant.configure(2) do |config|
           ]
     end
 
-    config.vm.provider 'parallels' do |vb, override|
+    ovndb.vm.provider 'parallels' do |vb, override|
        vb.memory = vagrant_config['ovndb']['memory']
        vb.cpus = vagrant_config['ovndb']['cpus']
        vb.customize ['set', :id, '--nested-virt', 'on']
@@ -65,7 +65,7 @@ Vagrant.configure(2) do |config|
        override.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', 'boxcutter/ubuntu1404')
     end
 
-    config.vm.provider 'libvirt' do |vb, override|
+    ovndb.vm.provider 'libvirt' do |vb, override|
        vb.memory = vagrant_config['ovndb']['memory']
        vb.cpus = vagrant_config['ovndb']['cpus']
        vb.nested        = true
@@ -94,7 +94,7 @@ Vagrant.configure(2) do |config|
     ovncontroller.vm.provision "shell", path: "provisioning/setup-controller.sh", privileged: false,
       :args => "#{vagrant_config['ovndb']['ip']} #{vagrant_config['provider_start_ip']} #{vagrant_config['provider_end_ip']} " +
                "#{vagrant_config['provider_gateway']} #{vagrant_config['provider_network']} #{vagrant_config['ovn_vm_subnet']}"
-    config.vm.provider "virtualbox" do |vb|
+    ovncontroller.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovncontroller']['memory']
        vb.cpus = vagrant_config['ovncontroller']['cpus']
        vb.customize [
@@ -106,7 +106,7 @@ Vagrant.configure(2) do |config|
            "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
           ]
     end
-    config.vm.provider 'parallels' do |vb, override|
+    ovncontroller.vm.provider 'parallels' do |vb, override|
        vb.memory = vagrant_config['ovncontroller']['memory']
        vb.cpus = vagrant_config['ovncontroller']['cpus']
        vb.customize ['set', :id, '--nested-virt', 'on']
@@ -121,7 +121,7 @@ Vagrant.configure(2) do |config|
        override.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', 'boxcutter/ubuntu1404')
     end
 
-    config.vm.provider 'libvirt' do |vb, override|
+    ovncontroller.vm.provider 'libvirt' do |vb, override|
        vb.memory = vagrant_config['ovncontroller']['memory']
        vb.cpus = vagrant_config['ovncontroller']['cpus']
        vb.nested        = true
@@ -146,7 +146,7 @@ Vagrant.configure(2) do |config|
     ovnvtep.vm.provision "shell", path: "provisioning/setup-base.sh", privileged: false,
       :args => "#{vagrant_config['ovnvtep']['mtu']} #{setup_base_common_args}"
     ovnvtep.vm.provision "shell", path: "provisioning/setup-vtep.sh", privileged: false, :args => "#{vagrant_config['ovncontroller']['ip']} #{vagrant_config['ovndb']['ip']}"
-    config.vm.provider "virtualbox" do |vb|
+    ovnvtep.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovnvtep']['memory']
        vb.cpus = vagrant_config['ovnvtep']['cpus']
        vb.customize [
@@ -159,7 +159,7 @@ Vagrant.configure(2) do |config|
           ]
     end
 
-    config.vm.provider 'parallels' do |vb, override|
+    ovnvtep.vm.provider 'parallels' do |vb, override|
        vb.memory = vagrant_config['ovnvtep']['memory']
        vb.cpus = vagrant_config['ovnvtep']['cpus']
        vb.customize ['set', :id, '--nested-virt', 'on']
@@ -174,7 +174,7 @@ Vagrant.configure(2) do |config|
        override.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', 'boxcutter/ubuntu1404')
     end
 
-    config.vm.provider 'libvirt' do |vb, override|
+    ovnvtep.vm.provider 'libvirt' do |vb, override|
        vb.memory = vagrant_config['ovnvtep']['memory']
        vb.cpus = vagrant_config['ovnvtep']['cpus']
        vb.nested        = true
@@ -201,7 +201,7 @@ Vagrant.configure(2) do |config|
       :args => "#{vagrant_config['ovncompute1']['mtu']} #{setup_base_common_args}"
     ovncompute1.vm.provision "shell", path: "provisioning/setup-compute.sh", privileged: false,
       :args => "#{vagrant_config['ovncontroller']['ip']} #{vagrant_config['ovndb']['ip']}"
-    config.vm.provider "virtualbox" do |vb|
+    ovncompute1.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovncompute1']['memory']
        vb.cpus = vagrant_config['ovncompute1']['cpus']
        vb.customize [
@@ -213,7 +213,7 @@ Vagrant.configure(2) do |config|
            "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
           ]
     end
-    config.vm.provider 'parallels' do |vb, override|
+    ovncompute1.vm.provider 'parallels' do |vb, override|
        vb.memory = vagrant_config['ovncompute1']['memory']
        vb.cpus = vagrant_config['ovncompute1']['cpus']
        vb.customize ['set', :id, '--nested-virt', 'on']
@@ -228,7 +228,7 @@ Vagrant.configure(2) do |config|
        override.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', 'boxcutter/ubuntu1404')
     end
 
-    config.vm.provider 'libvirt' do |vb, override|
+    ovncompute1.vm.provider 'libvirt' do |vb, override|
        vb.memory = vagrant_config['ovncompute1']['memory']
        vb.cpus = vagrant_config['ovncompute1']['cpus']
        vb.nested        = true
@@ -255,7 +255,7 @@ Vagrant.configure(2) do |config|
       :args => "#{vagrant_config['ovncompute2']['mtu']} #{setup_base_common_args}"
     ovncompute2.vm.provision "shell", path: "provisioning/setup-compute.sh", privileged: false,
       :args => "#{vagrant_config['ovncontroller']['ip']} #{vagrant_config['ovndb']['ip']}"
-    config.vm.provider "virtualbox" do |vb|
+    ovncompute2.vm.provider "virtualbox" do |vb|
        vb.memory = vagrant_config['ovncompute2']['memory']
        vb.cpus = vagrant_config['ovncompute2']['cpus']
        vb.customize [
@@ -267,7 +267,7 @@ Vagrant.configure(2) do |config|
            "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000
           ]
     end
-    config.vm.provider 'parallels' do |vb, override|
+    ovncompute2.vm.provider 'parallels' do |vb, override|
        vb.memory = vagrant_config['ovncompute2']['memory']
        vb.cpus = vagrant_config['ovncompute2']['cpus']
        vb.customize ['set', :id, '--nested-virt', 'on']
@@ -282,7 +282,7 @@ Vagrant.configure(2) do |config|
        override.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', 'boxcutter/ubuntu1404')
     end
 
-    config.vm.provider 'libvirt' do |vb, override|
+    ovncompute2.vm.provider 'libvirt' do |vb, override|
        vb.memory = vagrant_config['ovncompute2']['memory']
        vb.cpus = vagrant_config['ovncompute2']['cpus']
        vb.nested        = true
