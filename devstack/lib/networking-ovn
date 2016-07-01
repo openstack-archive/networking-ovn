@@ -104,6 +104,23 @@ function is_ovn_service_enabled {
     return 1
 }
 
+# NOTE(rtheis): Function copied from DevStack _neutron_ovs_base_setup_bridge
+# and _neutron_ovs_base_add_bridge with the call to neutron-ovs-cleanup
+# removed. The call is not relevant for OVN, as it is specific to the use
+# of Neutron's OVS agent and hangs when running stack.sh because
+# neutron-ovs-cleanup uses the OVSDB native interface.
+function ovn_base_setup_bridge {
+    local bridge=$1
+    local addbr_cmd="sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge"
+
+    if [ "$OVS_DATAPATH_TYPE" != "system" ] ; then
+        addbr_cmd="$addbr_cmd -- set Bridge $bridge datapath_type=${OVS_DATAPATH_TYPE}"
+    fi
+
+    $addbr_cmd
+    sudo ovs-vsctl --no-wait br-set-external-id $bridge bridge-id $bridge
+}
+
 
 # Entry Points
 # ------------
@@ -310,7 +327,7 @@ function start_ovs {
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$HOST_IP"
 
-        _neutron_ovs_base_setup_bridge br-int
+        ovn_base_setup_bridge br-int
         ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
         local ovswd_logfile="ovs-switchd.log.${CURRENT_LOG_TIME}"
@@ -320,13 +337,13 @@ function start_ovs {
         sudo sh -c "ulimit -n 32000 && exec ovs-vswitchd --pidfile --detach -vconsole:off --log-file=$LOGDIR/ovs-vswitchd.log"
 
         if is_provider_network; then
-            _neutron_ovs_base_setup_bridge $OVS_PHYSICAL_BRIDGE
+            ovn_base_setup_bridge $OVS_PHYSICAL_BRIDGE
             ovs-vsctl set open . external-ids:ovn-bridge-mappings=${PHYSICAL_NETWORK}:${OVS_PHYSICAL_BRIDGE}
         fi
     fi
 
     if is_ovn_service_enabled ovn-controller-vtep ; then
-        _neutron_ovs_base_setup_bridge br-vtep
+        ovn_base_setup_bridge br-vtep
         vtep-ctl add-ps br-vtep
         vtep-ctl set Physical_Switch br-vtep tunnel_ips=$HOST_IP
         sudo /usr/local/share/openvswitch/scripts/ovs-vtep --log-file=$LOGDIR/ovs-vtep.log --pidfile --detach br-vtep

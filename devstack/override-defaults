@@ -18,11 +18,3 @@ fi
 function neutron_plugin_install_agent_packages {
     :
 }
-
-# NOTE(rtheis): Override the neutron-ovs-cleanup command run as part of
-# DevStack neutron OVS bridge setup and neutron L3 agent setup. The command
-# does not appear to be needed and hangs when running stack.sh because it
-# uses the OVSDB native interface.
-function neutron-ovs-cleanup {
-    :
-}
