@@ -126,7 +126,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def subscribe(self):
         registry.subscribe(self.post_fork_initialize,
                            resources.PROCESS,
-                           events.AFTER_CREATE)
+                           events.AFTER_INIT)
 
         # Handle security group/rule notifications
         if self.sg_enabled:
