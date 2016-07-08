@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import abc
+
 from datetime import datetime
 from eventlet import greenthread
 import itertools
@@ -35,19 +37,31 @@ SYNC_MODE_LOG = 'log'
 SYNC_MODE_REPAIR = 'repair'
 
 
-class OvnNbSynchronizer(object):
-    """Synchronizer class for NB."""
+@six.add_metaclass(abc.ABCMeta)
+class OvnDbSynchronizer(object):
 
-    def __init__(self, core_plugin, ovn_api, mode, ovn_driver):
-        self.core_plugin = core_plugin
+    def __init__(self, core_plugin, ovn_api, ovn_driver):
         self.ovn_driver = ovn_driver
-        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
         self.ovn_api = ovn_api
-        self.mode = mode
+        self.core_plugin = core_plugin
 
     def sync(self):
         greenthread.spawn_n(self._sync)
+
+    @abc.abstractmethod
+    def _sync(self):
+        """Method to sync the OVN DB."""
+
+
+class OvnNbSynchronizer(OvnDbSynchronizer):
+    """Synchronizer class for NB."""
+
+    def __init__(self, core_plugin, ovn_api, mode, ovn_driver):
+        super(OvnNbSynchronizer, self).__init__(
+            core_plugin, ovn_api, ovn_driver)
+        self.mode = mode
+        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
+            service_constants.L3_ROUTER_NAT)
 
     def _sync(self):
         if self.mode == SYNC_MODE_OFF:
@@ -399,3 +413,31 @@ class OvnNbSynchronizer(object):
                         lport_name=lport_info['port'],
                         lswitch_name=lport_info['lswitch']))
         LOG.debug('OVN-NB Sync networks and ports finished')
+
+
+class OvnSbSynchronizer(OvnDbSynchronizer):
+    """Synchronizer class for SB."""
+
+    def _sync(self):
+        """Method to sync the OVN_Southbound DB with neutron DB.
+
+        OvnSbSynchronizer will sync data from OVN_Southbound to neutron. And
+        the synchronization will always be performed, no matter what mode it
+        is.
+        """
+        # Initial delay until service is up
+        greenthread.sleep(10)
+        LOG.debug("Starting OVN-Southbound DB sync process")
+
+        ctx = context.get_admin_context()
+        self.sync_hostname_and_physical_networks(ctx)
+
+    def sync_hostname_and_physical_networks(self, ctx):
+        LOG.debug('OVN-SB Sync hostname and physical networks started')
+        host_phynets_map = self.ovn_api.get_chassis_hostname_and_physnets()
+        # TODO(xiaohhui): There is no function in neutron to check the existing
+        # SegmentHostMapping. So update to neutron will always be triggered.
+        # Neutron will update the DB if necessary.
+        for host, phynets in six.iteritems(host_phynets_map):
+            self.ovn_driver.update_segment_host_mapping(host, phynets)
+        LOG.debug('OVN-SB Sync hostname and physical networks finished')

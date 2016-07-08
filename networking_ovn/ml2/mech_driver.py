@@ -33,6 +33,7 @@ from neutron import manager
 from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
+from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _, _LI, _LW
 from networking_ovn.common import acl as ovn_acl
@@ -156,6 +157,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 self
             )
             self.nb_synchronizer.sync()
+
+            # This sync neutron DB to OVN-SB DB only in inconsistent states
+            self.sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
+                self._plugin,
+                self._sb_ovn,
+                self
+            )
+            self.sb_synchronizer.sync()
 
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg_id = None
@@ -714,3 +723,19 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._plugin.update_port_status(n_context.get_admin_context(),
                                         port_id,
                                         const.PORT_STATUS_DOWN)
+
+    def update_segment_host_mapping(self, host, phy_nets):
+        """Update SegmentHostMapping in DB"""
+        if not host:
+            return
+
+        ctx = n_context.get_admin_context()
+        segments = segment_service_db.get_segments_with_phys_nets(
+            ctx, phy_nets)
+
+        available_seg_ids = {
+            segment['id'] for segment in segments
+            if segment['network_type'] in ('flat', 'vlan')}
+
+        segment_service_db.update_segment_host_mapping(
+            ctx, host, available_seg_ids)

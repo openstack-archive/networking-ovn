@@ -23,6 +23,7 @@ from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import config
 from neutron.tests import tools
+from neutron.tests.unit.extensions import test_segment
 from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
@@ -39,6 +40,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def setUp(self):
         impl_idl_ovn.OvsdbNbOvnIdl = fakes.FakeOvsdbNbOvnIdl()
+        impl_idl_ovn.OvsdbSbOvnIdl = fakes.FakeOvsdbSbOvnIdl()
         config.cfg.CONF.set_override('extension_drivers',
                                      self._extension_drivers,
                                      group='ml2')
@@ -53,6 +55,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver.initialize()
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
+        self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
 
         self.fake_subnet = fakes.FakeSubnet.create_one_subnet().info()
         self.fake_port_no_sg = fakes.FakePort.create_one_port().info()
@@ -378,6 +381,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         mm = manager.NeutronManager.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
+        self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.mech_driver._insert_port_provisioning_block = mock.Mock()
         self.mech_driver.vif_type = portbindings.VIF_TYPE_OVS
 
@@ -444,3 +448,50 @@ class TestOVNMechansimDriverPortSecurity(
         test_ext_portsecurity.PSExtDriverTestCase,
         OVNMechanismDriverTestCase):
     pass
+
+
+class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
+    _mechanism_drivers = ['logger', 'ovn']
+
+    def setUp(self):
+        super(TestOVNMechansimDriverSegment, self).setUp()
+        mm = manager.NeutronManager.get_plugin().mechanism_manager
+        self.mech_driver = mm.mech_drivers['ovn'].obj
+        self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
+        self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
+
+    def _test_segment_host_mapping(self):
+        host = 'hostname'
+        with self.network() as network:
+            network = network['network']
+        segment1 = self._test_create_segment(
+            network_id=network['id'], physical_network='phys_net1',
+            segmentation_id=200, network_type='vlan')['segment']
+
+        self._test_create_segment(
+            network_id=network['id'],
+            segmentation_id=200,
+            network_type='vxlan')['segment']
+        self.mech_driver.update_segment_host_mapping(host, ['phys_net1'])
+        segments_host_db = self._get_segments_for_host(host)
+        self.assertEqual({segment1['id']}, set(segments_host_db))
+        return network['id'], host
+
+    def test_update_segment_host_mapping(self):
+        network_id, host = self._test_segment_host_mapping()
+
+        # Update the mapping
+        segment2 = self._test_create_segment(
+            network_id=network_id, physical_network='phys_net2',
+            segmentation_id=201, network_type='vlan')['segment']
+        self.mech_driver.update_segment_host_mapping(host, ['phys_net2'])
+        segments_host_db = self._get_segments_for_host(host)
+        self.assertEqual({segment2['id']}, set(segments_host_db))
+
+    def test_clear_segment_host_mapping(self):
+        _, host = self._test_segment_host_mapping()
+
+        # Clear the mapping
+        self.mech_driver.update_segment_host_mapping(host, [])
+        segments_host_db = self._get_segments_for_host(host)
+        self.assertEqual({}, segments_host_db)

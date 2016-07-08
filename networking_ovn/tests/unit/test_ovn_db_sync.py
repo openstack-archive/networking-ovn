@@ -389,3 +389,29 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       del_network_list, del_port_list,
                                       add_static_route_list,
                                       del_static_route_list)
+
+
+class TestOvnSbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
+
+    def test_ovn_sb_sync(self):
+        ovn_sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
+            self.plugin,
+            self.mech_driver._sb_ovn,
+            self.mech_driver)
+        ovn_api = ovn_sb_synchronizer.ovn_api
+        hostname_with_physnets = {'hostname1': ['physnet1', 'physnet2'],
+                                  'hostname2': ['physnet1']}
+        ovn_api.get_chassis_hostname_and_physnets.return_value = (
+            hostname_with_physnets)
+        ovn_driver = ovn_sb_synchronizer.ovn_driver
+        ovn_driver.update_segment_host_mapping = mock.Mock()
+
+        ovn_sb_synchronizer.sync_hostname_and_physical_networks(mock.ANY)
+        self.assertEqual(
+            len(hostname_with_physnets),
+            ovn_driver.update_segment_host_mapping.call_count)
+        update_segment_host_mapping_calls = [mock.call(
+            host, hostname_with_physnets[host])
+            for host in hostname_with_physnets]
+        ovn_driver.update_segment_host_mapping.assert_has_calls(
+            update_segment_host_mapping_calls, any_order=True)
