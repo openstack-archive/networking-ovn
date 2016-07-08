@@ -24,14 +24,19 @@ creates a ``flat`` provider network ``provider`` using the provider bridge
 Create a provider network
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. On each compute node, create the provider bridge and map the provider
-   network to it.
+#. On each compute node, create the provider bridge, map the provider
+   network to it, and add the underlying physical or logical (typically
+   a bond) network interface to it.
 
    .. code-block:: console
 
       # ovs-vsctl --may-exist add-br br-provider -- set bridge br-provider \
         protocols=OpenFlow13
       # ovs-vsctl set open . external-ids:ovn-bridge-mappings=provider:br-provider
+      # ovs-vsctl --may-exist add-port br-provider INTERFACE_NAME
+
+   Replace ``INTERFACE_NAME`` with the name of the underlying network
+   interface.
 
    .. note::
 
@@ -341,7 +346,7 @@ and metadata such as name resolution.
    .. code-block:: console
 
       $ openstack subnet create --network provider --subnet-range \
-        203.0.113.0/24--allocation-pool start=203.0.113.101,end=203.0.113.250 \
+        203.0.113.0/24 --allocation-pool start=203.0.113.101,end=203.0.113.250 \
         --dns-nameserver 8.8.8.8,8.8.4.4 --gateway 203.0.113.1 provider-v4
         +-------------------+--------------------------------------+
         | Field             | Value                                |

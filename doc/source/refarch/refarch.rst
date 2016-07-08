@@ -3,9 +3,10 @@ Reference architecture
 ======================
 
 The reference architecture defines the minimum environment necessary
-for a basic evaluation of OpenStack with Open Virtual Network (OVN)
-integration for the Networking service. You can deploy this environment
-manually using the :ref:`Installation Guide <installation>` or using
+to deploy OpenStack with Open Virtual Network (OVN) integration for
+the Networking service in production with sufficient expectations
+of scale and performance. For evaluation purposes, you can deploy this
+environment using the :ref:`Installation Guide <installation>` or
 `Vagrant <https://github.com/openstack/networking-ovn/tree/master/vagrant>`_.
 Any scaling or performance evaluations should use bare metal instead of
 virtual machines.
@@ -13,7 +14,7 @@ virtual machines.
 Layout
 ------
 
-The minimum environment includes four nodes.
+The reference architecture includes a minimum of four nodes.
 
 The controller node contains the following components that provide enough
 functionality to launch basic instances:
@@ -32,6 +33,11 @@ The database node contains the following components:
   northbound database (``ovnnb.db``)
 * Open vSwitch (OVS) database service (``ovsdb-server``) for the OVN
   southbound database (``ovnsb.db``)
+
+.. note::
+
+   For functional evaluation only, you can combine the controller and
+   database nodes.
 
 The two compute nodes contain the following components:
 
@@ -107,6 +113,11 @@ output in this section uses these commands with various output filters.
    $ ovn-sbctl list Datapath_Binding
    $ ovn-sbctl list Port_Binding
    $ ovn-sbctl list MAC_Binding
+
+.. note::
+
+   By default, you must run these commands from the node containing
+   the OVN databases.
 
 .. _refarch-adding-compute-node:
 
