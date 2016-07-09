@@ -249,6 +249,17 @@ class OvsdbNbOvnIdl(ovn_api.API):
         return cmd.DelStaticRouteCommand(self, lrouter, ip_prefix, nexthop,
                                          if_exists)
 
+    def create_address_set(self, name, may_exist=True, **columns):
+        return cmd.AddAddrSetCommand(self, name, may_exist, **columns)
+
+    def delete_address_set(self, name, if_exists=True, **columns):
+        return cmd.DelAddrSetCommand(self, name, if_exists)
+
+    def update_address_set(self, name, addrs_add, addrs_remove,
+                           if_exists=True):
+        return cmd.UpdateAddrSetCommand(self, name, addrs_add, addrs_remove,
+                                        if_exists)
+
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):
 

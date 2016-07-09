@@ -35,7 +35,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                        'gateway_ip': '10.0.0.1',
                        'ip_version': 4,
                        'shared': False}
-        self.matches = [["", True], ["", False], ["", True], ["", False]]
+        self.matches = ["", "", "", ""]
 
         self.networks = [{'id': 'n1'},
                          {'id': 'n2'}]
@@ -175,7 +175,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             return_value=self.subnet
         ).start()
         mock.patch(
-            "networking_ovn.common.acl._acl_remote_group_id",
+            "networking_ovn.common.acl.acl_remote_group_id",
             side_effect=self.matches
         ).start()
         core_plugin.get_security_group = mock.MagicMock(

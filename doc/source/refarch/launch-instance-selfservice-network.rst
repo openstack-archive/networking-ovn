@@ -30,6 +30,16 @@ launching an instance.
       type                : ""
       up                  : true
 
+#. The OVN mechanism driver updates the appropriate Address Set object(s)
+   with the address of the new instance:
+
+   .. code-block:: console
+
+      _uuid               : d0becdea-e1ed-48c4-9afc-e278cdef4629
+      addresses           : ["192.168.1.5", "203.0.113.103"]
+      external_ids        : {"neutron:security_group_name"=default}
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
+
 #. The OVN mechanism driver creates ACL entries for this port and
    any other ports in the project.
 
@@ -104,7 +114,15 @@ launching an instance.
       direction           : to-lport
       external_ids        : {"neutron:lport"="eaf36f62-5629-4ec4-b8b9-5e562c40e7ae"}
       log                 : false
-      match               : "outport == \"eaf36f62-5629-4ec4-b8b9-5e562c40e7ae\" && ip4 && (ip4.src == 203.0.113.103)"
+      match               : "outport == \"eaf36f62-5629-4ec4-b8b9-5e562c40e7ae\" && ip4 && ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
+      priority            : 1002
+
+      _uuid               : 7f7a92ff-b7e9-49b0-8be0-0dc388035df3
+      action              : allow-related
+      direction           : to-lport
+      external_ids        : {"neutron:lport"="eaf36f62-5629-4ec4-b8b9-5e562c40e7ae"}
+      log                 : false
+      match               : "outport == \"eaf36f62-5629-4ec4-b8b9-5e562c40e7ae\" && ip6 && ip6.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
       priority            : 1002
 
 #. The OVN mechanism driver updates the logical switch information with
@@ -117,6 +135,7 @@ launching an instance.
                              2bf5b7ed-008e-4676-bba5-71fe58897886,
                              330b4e27-074f-446a-849b-9ab0018b65c5,
                              683f52f2-4be6-4bd7-a195-6c782daa7840,
+                             7f7a92ff-b7e9-49b0-8be0-0dc388035df3,
                              8160f0b4-b344-43d5-bbd4-ca63a71aa4fc,
                              97c6b8ca-14ea-4812-8571-95d640a88f4f,
                              9cfd8eb5-5daa-422e-8fe8-bd22fd7fa826,
@@ -128,53 +147,327 @@ launching an instance.
                              67c2737c-b380-492b-883b-438048b48e56,
                              c754d1d2-a7fb-4dd0-b14c-c076962b06b9]
 
-#. If the project contains instances on another network that use the same
-   security group and that security group contains a ``remote_group_id``
-   value, the OVN mechanism driver creates ACLs to handle communication among
-   those instances and updates the provider network logical switch record
-   because the driver cannot determine whether external means connect the
-   networks.
+#. With address sets, it is no longer necessary for the OVN mechanism
+   driver to create separate ACLs for other instances in the project.
+   That is handled automagically via address sets.
 
-   * Access control lists
+#. The OVN northbound service translates the updated Address Set object(s)
+   into updated Address Set objects in the OVN southbound database:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        _uuid               : 7ca6ec49-f0a0-45d4-a839-dd1c9a9b8203
-        action              : allow-related
-        direction           : to-lport
-        external_ids        : {"neutron:lport"="cafd4862-c69c-46e4-b3d2-6141ce06b205"}
-        log                 : false
-        match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && (ip4.src == 192.168.1.5)"
-        priority            : 1002
+      _uuid               : 2addbee3-7084-4fff-8f7b-15b1efebdaff
+      addresses           : ["192.168.1.5", "203.0.113.103"]
+      name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
 
-        _uuid               : a012e647-da2f-4ca7-8344-5cf15bd2f257
-        action              : allow-related
-        direction           : to-lport
-        external_ids        : {"neutron:lport"="cafd4862-c69c-46e4-b3d2-6141ce06b205"}
-        log                 : false
-        match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip6"
-        priority            : 1002
+#. The OVN northbound service adds a Datapath Binding for the new Logical
+   Switch object:
 
-   * Logical ports
+   .. code-block:: console
 
-     .. code-block:: console
+      _uuid               : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      external_ids        : {logical-switch="4d85514d-3910-4edd-9257-5582f671dfa1"}
+      tunnel_key          : 71
 
-        _uuid               : 924500c4-8580-4d5f-a7ad-8769f6e58ff5
-        acls                : [05a92f66-be48-461e-a7f1-b07bfbd3e667,
-                               36dbb1b1-cd30-4454-a0bf-923646eb7c3f,
-                               37f18377-d6c3-4c44-9e4d-2170710e50ff,
-                               7b3f63b8-e69a-476c-ad3d-37de043232b2,
-                               7ca6ec49-f0a0-45d4-a839-dd1c9a9b8203,
-                               a012e647-da2f-4ca7-8344-5cf15bd2f257,
-                               a5a787b8-7040-4b63-a20a-551bd73eb3d1,
-                               a61d0068-b1aa-4900-9882-e0671d1fc131,
-                               f8d27bfc-4d74-4e73-8fac-c84585443efd]
-        external_ids        : {"neutron:network_name"=provider}
-        name                : "neutron-670efade-7cd0-4d87-8a04-27f366eb8941"
-        ports               : [38cf8b52-47c4-4e93-be8d-06bf71f6a7c9,
-                               5e144ab9-3e08-4910-b936-869bbbf254c8,
-                               a576b812-9c3e-4cfb-9752-5d8500b3adf9,
-                               cc891503-1259-47a1-9349-1c0293876664]
+#. The OVN northbound service adds Logical Flows based on the updated
+   Address Set, ACL and Logical_Switch_Port objects:
+
+   .. code-block:: console
+
+      _uuid               : 7a558e7b-ed7a-424f-a0cf-ab67d2d832d7
+      chassis             : b67d6da9-0222-4ab1-a852-ab2607610bf8
+      datapath            : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      logical_port        : "e9cb7857-4cb1-4e91-aae5-165a7ab5b387"
+      mac                 : ["fa:16:3e:b6:a3:54 192.168.1.5"]
+      options             : {}
+      parent_port         : []
+      tag                 : []
+      tunnel_key          : 3
+      type                : ""
+
+#. The OVN northbound service adds Logical Flows based on the updated
+   Address Set, ACL and Logical_Switch_Port objects:
+
+   .. code-block:: console
+
+      _uuid               : 1bfc1a20-2b27-4405-a830-5039e95e62e1
+      actions             : "next;"
+      external_ids        : {stage-name="ls_in_port_sec_l2"}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.src == {fa:16:3e:b6:a3:54}"
+      pipeline            : ingress
+      priority            : 50
+      table_id            : 0
+
+      _uuid               : 9a8e17de-4ed6-4b9f-9818-59d4d4a6c5c6
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_port_sec_ip}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.src == fa:16:3e:b6:a3:54 && ip4.src == 0.0.0.0 && ip4.dst == 255.255.255.255 && udp.src == 68 && udp.dst == 67"
+      pipeline            : ingress
+      priority            : 90
+      table_id            : 1
+
+      _uuid               : cb0b5fb5-c648-4487-ab06-4432ffe32afc
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_port_sec_ip}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.src == fa:16:3e:b6:a3:54 && ip4.src == {192.168.1.5}"
+      pipeline            : ingress
+      priority            : 90
+      table_id            : 1
+
+      _uuid               : 85ab2e88-16e9-49d1-8b53-45fc06626135
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_in_port_sec_ip}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.src == fa:16:3e:b6:a3:54 && ip"
+      pipeline            : ingress
+      priority            : 80
+      table_id            : 1
+
+      _uuid               : bb64af3e-ce8e-45eb-a9eb-76647f01ae24
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_port_sec_nd}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.src == fa:16:3e:b6:a3:54 && arp.sha == fa:16:3e:b6:a3:54 && (arp.spa == 192.168.1.5 )"
+      pipeline            : ingress
+      priority            : 90
+      table_id            : 2
+
+      _uuid               : d3a26184-9ab3-4ef9-b855-926c3195454d
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_in_port_sec_nd}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && (arp || nd)"
+      pipeline            : ingress
+      priority            : 80
+      table_id            : 2
+
+      _uuid               : a7402b96-79f9-4bde-a970-57628cd0163e
+      actions             : "ct_next;"
+      external_ids        : {stage-name=ls_in_pre_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ip
+      pipeline            : ingress
+      priority            : 100
+      table_id            : 3
+
+      _uuid               : 83262081-4b11-4e14-b8b5-c0c519cd77f7
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
+      pipeline            : ingress
+      priority            : 65535
+      table_id            : 4
+
+      _uuid               : 7b565d14-8660-4bd0-ad35-bb88f30ec207
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
+      pipeline            : ingress
+      priority            : 65535
+      table_id            : 4
+
+      _uuid               : b2d96717-c8c7-43c8-9440-ca86bafbc7de
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ct.inv
+      pipeline            : ingress
+      priority            : 65535
+      table_id            : 4
+
+      _uuid               : 6231381e-ffc2-404c-b957-fc5655dd9b47
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : nd
+      pipeline            : ingress
+      priority            : 65535
+      table_id            : 4
+
+      _uuid               : dc41eeaa-9094-4137-9dd6-9a0234f1390e
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.new && (inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip6)"
+      pipeline            : ingress
+      priority            : 2002
+      table_id            : 4
+
+      _uuid               : f3d2e7bb-c8ad-4c03-a1bb-7d3c67f3a430
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && (ip4.dst == 255.255.255.255 || ip4.dst == 192.168.1.0/24) && udp && udp.src == 68 && udp.dst == 67"
+      pipeline            : ingress
+      priority            : 2002
+      table_id            : 4
+
+      _uuid               : da80a53c-c95e-4957-86af-dc57d4cb68af
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.new && (inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4)"
+      pipeline            : ingress
+      priority            : 2002
+      table_id            : 5
+
+      _uuid               : 7130081e-0aa8-44c2-bd91-16f41d71f973
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip"
+      pipeline            : ingress
+      priority            : 2001
+      table_id            : 4
+
+      _uuid               : c7477c15-2afe-466f-9ac4-08aafc914976
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ip
+      pipeline            : ingress
+      priority            : 1
+      table_id            : 4
+
+      _uuid               : 1bd6df02-c0e9-403d-8b23-82de10a7bcd7
+      actions             : "eth.dst = eth.src; eth.src = fa:16:3e:b6:a3:54; arp.op = 2; /* ARP reply */ arp.tha = arp.sha; arp.sha = fa:16:3e:b6:a3:54; arp.tpa = arp.spa; arp.spa = 192.168.1.5; outport = inport; inport = \"\"; /* Allow sending out inport. */ output;"
+      external_ids        : {stage-name=ls_in_arp_nd_rsp}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "arp.tpa == 192.168.1.5 && arp.op == 1"
+      pipeline            : ingress
+      priority            : 50
+      table_id            : 5
+
+      _uuid               : 40ddfda2-ac70-4e5d-ba89-afb264685598
+      actions             : "outport = \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\"; output;"
+      external_ids        : {stage-name="ls_in_l2_lkup"}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "eth.dst == fa:16:3e:b6:a3:54"
+      pipeline            : ingress
+      priority            : 50
+      table_id            : 8
+
+      _uuid               : 5a7bac75-9d80-489d-b154-c0936ef4775f
+      actions             : "ct_next;"
+      external_ids        : {stage-name=ls_out_pre_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ip
+      pipeline            : egress
+      priority            : 100
+      table_id            : 0
+
+      _uuid               : 47df3a86-75e1-45da-9ae9-3ff0446cbbd4
+      actions             : "next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : nd
+      pipeline            : egress
+      priority            : 65535
+      table_id            : 1
+
+      _uuid               : 02ec4bcd-c053-4078-badb-ed796d739748
+      actions             : "next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
+      pipeline            : egress
+      priority            : 65535
+      table_id            : 1
+
+      _uuid               : 8232d5f5-8665-485c-a0ed-d591029c96f8
+      actions             : "next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
+      pipeline            : egress
+      priority            : 65535
+      table_id            : 1
+
+      _uuid               : 7868923f-d6a4-4e30-9fab-0b03a4f5efd2
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ct.inv
+      pipeline            : egress
+      priority            : 65535
+      table_id            : 1
+
+      _uuid               : 4e8bc540-8d46-4fd7-8a69-3bb33b29b100
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.new && (outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip6 && ip6.src == $as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc)"
+      pipeline            : egress
+      priority            : 2002
+      table_id            : 1
+
+      _uuid               : 7277edee-0152-4067-8183-71d086dc9ca1
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "ct.new && (outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc)"
+      pipeline            : egress
+      priority            : 2002
+      table_id            : 1
+
+      _uuid               : dbb5c2e0-0a4a-4cd3-beb0-b5265b14fb6c
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && ip4.src == 192.168.1.0/24 && udp && udp.src == 67 && udp.dst == 68"
+      pipeline            : egress
+      priority            : 2002
+      table_id            : 1
+
+      _uuid               : af90b42d-e0a9-4a30-9669-675a40e4e5c1
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip"
+      pipeline            : egress
+      priority            : 2001
+      table_id            : 1
+
+      _uuid               : ec9418c3-f639-410e-be4d-a41b1276aaa1
+      actions             : "ct_commit; next;"
+      external_ids        : {stage-name=ls_out_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : ip
+      pipeline            : egress
+      priority            : 1
+      table_id            : 1
+
+      _uuid               : 588855bd-04c1-408e-a4ed-94f5067769e9
+      actions             : "next;"
+      external_ids        : {stage-name=ls_out_port_sec_ip}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == fa:16:3e:b6:a3:54 && ip4.dst == {255.255.255.255, 224.0.0.0/4, 192.168.1.5}"
+      pipeline            : egress
+      priority            : 90
+      table_id            : 2
+
+      _uuid               : 474b1659-e788-44ba-84e0-4f5319cf769d
+      actions             : "drop;"
+      external_ids        : {stage-name=ls_out_port_sec_ip}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == fa:16:3e:b6:a3:54 && ip"
+      pipeline            : egress
+      priority            : 80
+      table_id            : 2
+
+      _uuid               : 45c695e6-3a0f-46c3-8d2f-3f9fea7d94f6
+      actions             : "output;"
+      external_ids        : {stage-name="ls_out_port_sec_l2"}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == {fa:16:3e:b6:a3:54}"
+      pipeline            : egress
+      priority            : 50
+      table_id            : 3
 
 #. The OVN controller service on each compute node translates these objects
    into flows on the integration bridge ``br-int``. Exact flows depend on

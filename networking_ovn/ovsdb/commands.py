@@ -582,3 +582,72 @@ class DelStaticRouteCommand(BaseCommand):
                 route.delete()
                 break
         setattr(lrouter, 'static_routes', static_routes)
+
+
+class AddAddrSetCommand(BaseCommand):
+    def __init__(self, api, name, may_exist, **columns):
+        super(AddAddrSetCommand, self).__init__(api)
+        self.name = name
+        self.columns = columns
+        self.may_exist = may_exist
+
+    def run_idl(self, txn):
+        if self.may_exist:
+            addrset = idlutils.row_by_value(self.api.idl, 'Address_Set',
+                                            'name', self.name, None)
+            if addrset:
+                return
+        row = txn.insert(self.api._tables['Address_Set'])
+        row.name = self.name
+        for col, val in self.columns.items():
+            setattr(row, col, val)
+
+
+class DelAddrSetCommand(BaseCommand):
+    def __init__(self, api, name, if_exists):
+        super(DelAddrSetCommand, self).__init__(api)
+        self.name = name
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            addrset = idlutils.row_by_value(self.api.idl, 'Address_Set',
+                                            'name', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Address set %s does not exist. "
+                    "Can't delete.") % self.name
+            raise RuntimeError(msg)
+
+        self.api._tables['Address_Set'].rows[addrset.uuid].delete()
+
+
+class UpdateAddrSetCommand(BaseCommand):
+    def __init__(self, api, name, addrs_add, addrs_remove, if_exists):
+        super(UpdateAddrSetCommand, self).__init__(api)
+        self.name = name
+        self.addrs_add = addrs_add
+        self.addrs_remove = addrs_remove
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            addrset = idlutils.row_by_value(self.api.idl, 'Address_Set',
+                                            'name', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Address set %s does not exist. "
+                    "Can't update addresses") % self.name
+            raise RuntimeError(msg)
+
+        addrset.verify('addresses')
+        addresses_col = getattr(addrset, 'addresses', [])
+        if self.addrs_add:
+            for addr_add in self.addrs_add:
+                addresses_col.append(addr_add)
+        if self.addrs_remove:
+            for addr_remove in self.addrs_remove:
+                addresses_col.remove(addr_remove)
+        setattr(addrset, 'addresses', addresses_col)
