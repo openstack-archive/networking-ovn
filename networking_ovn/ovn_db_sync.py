@@ -182,7 +182,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         self.remove_common_acls(neutron_acls, nb_acls)
 
-        LOG.debug('ACLs-to-be-addded %d ACLs-to-be-removed %d' %
+        LOG.debug('ACLs-to-be-added %d ACLs-to-be-removed %d' %
                   (len(list(itertools.chain(*six.itervalues(neutron_acls)))),
                    len(list(itertools.chain(*six.itervalues(nb_acls))))))
 
