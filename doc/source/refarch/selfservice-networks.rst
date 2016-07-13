@@ -725,18 +725,18 @@ during creation of a subnet on a self-service network.
             idle_age=3, priority=0,metadata=0x5
             actions=resubmit(,54)
         cookie=0x0, duration=5.398s, table=54, n_packets=6, n_bytes=508,
-            idle_age=3, priority=0,metadata=0x7
+            idle_age=3, priority=0,metadata=0x5
             actions=resubmit(,55)
         cookie=0x0, duration=5.398s, table=55, n_packets=6, n_bytes=508,
-            idle_age=3, priority=100,metadata=0x7,
+            idle_age=3, priority=100,metadata=0x5,
                 dl_dst=01:00:00:00:00:00/01:00:00:00:00:00
             actions=resubmit(,64)
         cookie=0x0, duration=5.398s, table=55, n_packets=0, n_bytes=0,
-            idle_age=5, priority=50,reg7=0x1,metadata=0x7
+            idle_age=5, priority=50,reg7=0x1,metadata=0x5
             actions=resubmit(,64)
         cookie=0x0, duration=5.398s, table=55, n_packets=0, n_bytes=0,
-            idle_age=5, priority=50,reg7=0x2,metadata=0x7
+            idle_age=5, priority=50,reg7=0x2,metadata=0x5
             actions=resubmit(,64)
         cookie=0x0, duration=5.397s, table=64, n_packets=6, n_bytes=508,
-            idle_age=3, priority=100,reg7=0x1,metadata=0x7
+            idle_age=3, priority=100,reg7=0x1,metadata=0x5
             actions=output:9
