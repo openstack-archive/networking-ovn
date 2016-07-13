@@ -20,6 +20,7 @@ from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 from oslo_log import log
+import six
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
@@ -141,6 +142,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         registry.subscribe(self.post_fork_initialize,
                            resources.PROCESS,
                            events.AFTER_INIT)
+
+        registry.subscribe(self._add_segment_host_mapping_for_segment,
+                           resources.SEGMENT,
+                           events.PRECOMMIT_CREATE)
 
         # Handle security group/rule notifications
         if self.sg_enabled:
@@ -947,3 +952,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         segment_service_db.update_segment_host_mapping(
             ctx, host, available_seg_ids)
+
+    def _add_segment_host_mapping_for_segment(self, resource, event, trigger,
+                                              context, segment):
+        phynet = segment.physical_network
+        if not phynet:
+            return
+
+        host_phynets_map = self._sb_ovn.get_chassis_hostname_and_physnets()
+        hosts = {host for host, phynets in six.iteritems(host_phynets_map)
+                 if phynet in phynets}
+        segment_service_db.map_segment_to_hosts(context, segment.id, hosts)

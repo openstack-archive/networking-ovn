@@ -64,6 +64,7 @@ class FakeOvsdbSbOvnIdl(object):
 
     def __init__(self, **kwargs):
         self.get_chassis_hostname_and_physnets = mock.Mock()
+        self.get_chassis_hostname_and_physnets.return_value = {}
         self.get_all_chassis = mock.Mock()
 
 
