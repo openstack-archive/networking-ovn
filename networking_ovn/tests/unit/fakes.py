@@ -37,6 +37,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.update_lrouter = mock.Mock()
         self.delete_lrouter = mock.Mock()
         self.add_lrouter_port = mock.Mock()
+        self.update_lrouter_port = mock.Mock()
         self.delete_lrouter_port = mock.Mock()
         self.set_lrouter_port_in_lswitch_port = mock.Mock()
         self.add_acl = mock.Mock()
