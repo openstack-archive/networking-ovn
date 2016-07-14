@@ -1,0 +1,5 @@
+register_project_for_upgrade networking-ovn
+
+devstack_localrc target enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn
+devstack_localrc target enable_service ovn-northd ovn-controller
+devstack_localrc target disable_service q-l3 q-agt

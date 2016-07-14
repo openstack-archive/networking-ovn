@@ -78,6 +78,9 @@ OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-58}
 # setting this to true in a multinode devstack setup
 OVN_L3_CREATE_PUBLIC_NETWORK=$(trueorfalse False OVN_L3_CREATE_PUBLIC_NETWORK)
 
+# ml2/config for neutron_sync_mode
+OVN_NEUTRON_SYNC_MODE=${OVN_NEUTRON_SYNC_MODE:-log}
+
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
@@ -169,6 +172,7 @@ function configure_ovn_plugin {
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_nb_connection="$OVN_NB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_mode="$OVN_L3_MODE"
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn neutron_sync_mode="$OVN_NEUTRON_SYNC_MODE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
     fi
