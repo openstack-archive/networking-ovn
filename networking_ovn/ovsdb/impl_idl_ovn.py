@@ -387,6 +387,18 @@ class OvsdbNbOvnIdl(ovn_api.API):
 
         return self.set_lswitch_port(port_id, **lsp_columns)
 
+    def get_address_sets(self):
+        address_sets = {}
+        for row in self._tables['Address_Set'].rows.values():
+            if ovn_const.OVN_SG_NAME_EXT_ID_KEY not in (row.external_ids):
+                continue
+            name = getattr(row, 'name')
+            data = {}
+            for row_key in six.iterkeys(getattr(row, "_data", {})):
+                data[row_key] = getattr(row, row_key)
+            address_sets[name] = data
+        return address_sets
+
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):
 

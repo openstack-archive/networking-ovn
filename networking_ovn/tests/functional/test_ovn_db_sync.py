@@ -18,12 +18,11 @@ import uuid
 
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
-from neutron.callbacks import events
-from neutron.callbacks import resources
 from neutron import context
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
@@ -47,6 +46,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.delete_lrouter_ports = []
         self.delete_lrouter_routes = []
         self.delete_acls = []
+        self.create_address_sets = []
+        self.delete_address_sets = []
+        self.update_address_sets = []
 
     def _create_resources(self):
         n1 = self._make_network(self.fmt, 'n1', True)
@@ -121,6 +123,17 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           'neutron-' + r1['id']))
         self.delete_lrouters.append('neutron-' + r2['id'])
 
+        address_set_name = n1_p4['port']['security_groups'][0]
+        self.create_address_sets.extend([('fake_sg', 'ip4'),
+                                         ('fake_sg', 'ip6')])
+        self.delete_address_sets.append((address_set_name, 'ip6'))
+        address_adds = ['10.0.0.101', '10.0.0.102']
+        address_dels = []
+        for address in n1_p4['port']['fixed_ips']:
+            address_dels.append(address['ip_address'])
+        self.update_address_sets.append((address_set_name, 'ip4',
+                                         address_adds, address_dels))
+
     def _modify_resources_in_nb_db(self):
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_nb_db_idl
@@ -179,6 +192,22 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             for lport_name, lswitch_name in self.delete_acls:
                 txn.add(cmd.DelACLCommand(fake_api, lswitch_name,
                                           lport_name, True))
+
+            for name, ip_version in self.create_address_sets:
+                ovn_name = utils.ovn_addrset_name(name, ip_version)
+                external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: name}
+                txn.add(cmd.AddAddrSetCommand(fake_api, ovn_name, True,
+                                              external_ids=external_ids))
+
+            for name, ip_version in self.delete_address_sets:
+                ovn_name = utils.ovn_addrset_name(name, ip_version)
+                txn.add(cmd.DelAddrSetCommand(fake_api, ovn_name,
+                                              True))
+
+            for name, ip_version, ip_adds, ip_dels in self.update_address_sets:
+                ovn_name = utils.ovn_addrset_name(name, ip_version)
+                txn.add(cmd.UpdateAddrSetCommand(fake_api, ovn_name,
+                                                 ip_adds, ip_dels, True))
 
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
@@ -370,26 +399,49 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     AssertionError, self.assertItemsEqual, r_routes,
                     monitor_routes)
 
+    def _validate_address_sets(self, should_match=True):
+        db_ports = self._list('ports')['ports']
+        db_sgs = {}
+        for port in db_ports:
+            sg_ids = port.get('security_groups', [])
+            addresses = acl_utils.acl_port_ips(port)
+            for sg_id in sg_ids:
+                for ip_version in addresses:
+                    name = utils.ovn_addrset_name(sg_id, ip_version)
+                    addr_list = db_sgs.setdefault(name, [])
+                    addr_list.extend(addresses[ip_version])
+
+        _plugin_nb_ovn = self.mech_driver._nb_ovn
+        nb_address_sets = _plugin_nb_ovn.get_address_sets()
+        nb_sgs = {}
+        for nb_sgid, nb_values in six.iteritems(nb_address_sets):
+            nb_sgs[nb_sgid] = nb_values['addresses']
+        mn_sgs = {}
+        for row in self.monitor_nb_db_idl.tables['Address_Set'].rows.values():
+            mn_sgs[getattr(row, 'name')] = getattr(row, 'addresses')
+
+        if should_match:
+            self.assertItemsEqual(nb_sgs, db_sgs)
+            self.assertItemsEqual(mn_sgs, db_sgs)
+        else:
+            self.assertRaises(AssertionError, self.assertItemsEqual,
+                              nb_sgs, db_sgs)
+            self.assertRaises(AssertionError, self.assertItemsEqual,
+                              mn_sgs, db_sgs)
+
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
         self._validate_ports(should_match=should_match)
         self._validate_acls(should_match=should_match)
         self._validate_routers_and_router_ports(should_match=should_match)
+        self._validate_address_sets(should_match=should_match)
 
     def _sync_resources(self, mode):
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
 
         ctx = context.get_admin_context()
-        # TODO(rtheis): Temporarily synchronize all security groups until the
-        # sync Address Set support is available. This is needed since the
-        # entire OVN NB DB is deleted during the *repair_delete_ovn_nb_db test.
-        # See https://review.openstack.org/#/c/341882/ for the coming support.
-        for sg in self.plugin.get_security_groups(ctx):
-            self.mech_driver._process_sg_notification(resources.SECURITY_GROUP,
-                                                      events.AFTER_CREATE,
-                                                      None,
-                                                      security_group=sg)
+        nb_synchronizer.sync_address_sets(ctx)
         nb_synchronizer.sync_networks_and_ports(ctx)
         nb_synchronizer.sync_acls(ctx)
         nb_synchronizer.sync_routers_and_rports(ctx)

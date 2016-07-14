@@ -28,6 +28,7 @@ from neutron.services.segments import db as segments_db
 from networking_ovn._i18n import _LW
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import config
+from networking_ovn.common import constants as const
 from networking_ovn.common import utils
 import six
 
@@ -74,6 +75,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug("Starting OVN-Northbound DB sync process")
 
         ctx = context.get_admin_context()
+        self.sync_address_sets(ctx)
         self.sync_networks_and_ports(ctx)
         self.sync_acls(ctx)
         self.sync_routers_and_rports(ctx)
@@ -116,6 +118,24 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     neutron_acls[port].remove(acl)
                     nb_acls[port].remove(acl)
 
+    def compute_address_set_difference(self, neutron_sgs, nb_sgs):
+        neutron_sgs_name_set = set(neutron_sgs.keys())
+        nb_sgs_name_set = set(nb_sgs.keys())
+        sgnames_to_add = list(neutron_sgs_name_set - nb_sgs_name_set)
+        sgnames_to_delete = list(nb_sgs_name_set - neutron_sgs_name_set)
+        sgs_common = list(neutron_sgs_name_set & nb_sgs_name_set)
+        sgs_to_update = {}
+        for sg_name in sgs_common:
+            neutron_addr_set = set(neutron_sgs[sg_name]['addresses'])
+            nb_addr_set = set(nb_sgs[sg_name]['addresses'])
+            addrs_to_add = list(neutron_addr_set - nb_addr_set)
+            addrs_to_delete = list(nb_addr_set - neutron_addr_set)
+            if addrs_to_add or addrs_to_delete:
+                sgs_to_update[sg_name] = {'name': sg_name,
+                                          'addrs_add': addrs_to_add,
+                                          'addrs_remove': addrs_to_delete}
+        return sgnames_to_add, sgnames_to_delete, sgs_to_update
+
     def get_acls(self, context):
         """create the list of ACLS in OVN.
 
@@ -147,6 +167,64 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 acl_list_dict[key] = list([acl])
         return acl_list_dict
 
+    def get_address_sets(self):
+        return self.ovn_api.get_address_sets()
+
+    def sync_address_sets(self, ctx):
+        """Sync Address Sets between neutron and NB.
+
+        @param ctx: neutron context
+        @type  ctx: object of type neutron.context.Context
+        @var   db_ports: List of ports from neutron DB
+        """
+        LOG.debug('Address-Set-SYNC: started @ %s' % str(datetime.now()))
+
+        neutron_sgs = {}
+        with ctx.session.begin(subtransactions=True):
+            db_sgs = self.core_plugin.get_security_groups(ctx)
+            db_ports = self.core_plugin.get_ports(ctx)
+
+        for sg in db_sgs:
+            for ip_version in ['ip4', 'ip6']:
+                name = utils.ovn_addrset_name(sg['id'], ip_version)
+                neutron_sgs[name] = {
+                    'name': name, 'addresses': [],
+                    'external_ids': {const.OVN_SG_NAME_EXT_ID_KEY:
+                                     sg['name']}}
+
+        for port in db_ports:
+            sg_ids = port.get('security_groups', [])
+            if port.get('fixed_ips') and sg_ids:
+                addresses = acl_utils.acl_port_ips(port)
+                for sg_id in sg_ids:
+                    for ip_version in addresses:
+                        name = utils.ovn_addrset_name(sg_id, ip_version)
+                        neutron_sgs[name]['addresses'].extend(
+                            addresses[ip_version])
+
+        nb_sgs = self.get_address_sets()
+
+        sgnames_to_add, sgnames_to_delete, sgs_to_update =\
+            self.compute_address_set_difference(neutron_sgs, nb_sgs)
+
+        LOG.debug('Address_Sets added %d, removed %d, updated %d',
+                  len(sgnames_to_add), len(sgnames_to_delete),
+                  len(sgs_to_update))
+
+        if self.mode == SYNC_MODE_REPAIR:
+            LOG.debug('Address-Set-SYNC: transaction started @ %s' %
+                      str(datetime.now()))
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for sgname in sgnames_to_add:
+                    sg = neutron_sgs[sgname]
+                    txn.add(self.ovn_api.create_address_set(**sg))
+                for sgname, sg in six.iteritems(sgs_to_update):
+                    txn.add(self.ovn_api.update_address_set(**sg))
+                for sgname in sgnames_to_delete:
+                    txn.add(self.ovn_api.delete_address_set(name=sgname))
+            LOG.debug('Address-Set-SYNC: transaction finished @ %s' %
+                      str(datetime.now()))
+
     def sync_acls(self, ctx):
         """Sync ACLs between neutron and NB.
 
@@ -162,6 +240,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         """
         LOG.debug('ACL-SYNC: started @ %s' %
                   str(datetime.now()))
+
         db_ports = {}
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
@@ -169,22 +248,17 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         sg_cache = {}
         subnet_cache = {}
         neutron_acls = {}
-        for port_id, port in db_ports.items():
+        for port_id, port in six.iteritems(db_ports):
             if port['security_groups']:
+                acl_list = acl_utils.add_acls(self.core_plugin,
+                                              ctx,
+                                              port,
+                                              sg_cache,
+                                              subnet_cache)
                 if port_id in neutron_acls:
-                    neutron_acls[port_id].extend(
-                        acl_utils.add_acls(self.core_plugin,
-                                           ctx,
-                                           port,
-                                           sg_cache,
-                                           subnet_cache))
+                    neutron_acls[port_id].extend(acl_list)
                 else:
-                    neutron_acls[port_id] = \
-                        acl_utils.add_acls(self.core_plugin,
-                                           ctx,
-                                           port,
-                                           sg_cache,
-                                           subnet_cache)
+                    neutron_acls[port_id] = acl_list
 
         nb_acls = self.get_acls(ctx)
 

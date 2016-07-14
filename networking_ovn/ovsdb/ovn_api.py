@@ -481,6 +481,13 @@ class API(object):
                              sets it.
         """
 
+    @abc.abstractmethod
+    def get_address_sets(self):
+        """Gets all address sets in the OVN_Northbound DB
+
+        :returns: dictionary indexed by name, DB columns as values
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):

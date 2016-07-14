@@ -14,6 +14,7 @@
 
 import mock
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
@@ -121,6 +122,25 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
               'match': 'outport == "p2n2" && ip4 && '
               'ip4.src == 10.0.0.0/24 && udp && '
               'udp.src == 67 && udp.dst == 68'}]}
+        self.address_sets_ovn = {
+            'as_ip4_sg1': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                                            'all-tcp'},
+                           'name': 'as_ip4_sg1',
+                           'addresses': ['10.0.0.4']},
+            'as_ip4_sg2': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                                            'all-tcpe'},
+                           'name': 'as_ip4_sg2',
+                           'addresses': []},
+            'as_ip6_sg2': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                                            'all-tcpe'},
+                           'name': 'as_ip6_sg2',
+                           'addresses': ['fd79:e1c:a55::816:eff:eff:ff2',
+                                         'fd79:e1c:a55::816:eff:eff:ff3']},
+            'as_ip4_del': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                                            'all-delete'},
+                           'name': 'as_ip4_delete',
+                           'addresses': ['10.0.0.4']},
+            }
 
         self.routers = [{'id': 'r1', 'routes': []},
                         {'id': 'r2', 'routes': [{'nexthop': '40.0.0.100',
@@ -182,6 +202,11 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             side_effect=self.security_groups)
         ovn_nb_synchronizer.get_acls = mock.Mock()
         ovn_nb_synchronizer.get_acls.return_value = self.acls_ovn
+        core_plugin.get_security_groups = mock.MagicMock(
+            return_value=self.security_groups)
+        ovn_nb_synchronizer.get_address_sets = mock.Mock()
+        ovn_nb_synchronizer.get_address_sets.return_value =\
+            self.address_sets_ovn
         # end of acl-sync block
 
         # The following block is used for router and router port syncing tests
@@ -228,6 +253,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.add_static_route = mock.Mock()
         ovn_api.delete_static_route = mock.Mock()
 
+        ovn_api.create_address_set = mock.Mock()
+        ovn_api.delete_address_set = mock.Mock()
+        ovn_api.update_address_set = mock.Mock()
+
     def _test_ovn_nb_sync_helper(self, ovn_nb_synchronizer,
                                  networks, ports,
                                  routers, router_ports,
@@ -235,7 +264,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                  del_router_list, del_router_port_list,
                                  create_network_list, create_port_list,
                                  del_network_list, del_port_list,
-                                 add_static_route_list, del_static_route_list):
+                                 add_static_route_list, del_static_route_list,
+                                 add_address_set_list, del_address_set_list,
+                                 update_address_set_list):
         self._test_mocks_helper(ovn_nb_synchronizer)
 
         core_plugin = ovn_nb_synchronizer.core_plugin
@@ -243,6 +274,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_driver = ovn_nb_synchronizer.ovn_driver
         l3_plugin = ovn_nb_synchronizer.l3_plugin
 
+        ovn_nb_synchronizer.sync_address_sets(mock.MagicMock())
         ovn_nb_synchronizer.sync_networks_and_ports(mock.ANY)
         ovn_nb_synchronizer.sync_acls(mock.ANY)
         ovn_nb_synchronizer.sync_routers_and_rports(mock.ANY)
@@ -325,6 +357,30 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.delete_lrouter_port.assert_has_calls(
             delete_lrouter_port_calls, any_order=True)
 
+        create_address_set_calls = [mock.call(**a)
+                                    for a in add_address_set_list]
+        self.assertEqual(
+            ovn_api.create_address_set.call_count,
+            len(add_address_set_list))
+        ovn_api.create_address_set.assert_has_calls(
+            create_address_set_calls, any_order=True)
+
+        del_address_set_calls = [mock.call(**d)
+                                 for d in del_address_set_list]
+        self.assertEqual(
+            ovn_api.delete_address_set.call_count,
+            len(del_address_set_list))
+        ovn_api.delete_address_set.assert_has_calls(
+            del_address_set_calls, any_order=True)
+
+        update_address_set_calls = [mock.call(**u)
+                                    for u in update_address_set_list]
+        self.assertEqual(
+            ovn_api.update_address_set.call_count,
+            len(update_address_set_list))
+        ovn_api.update_address_set.assert_has_calls(
+            update_address_set_calls, any_order=True)
+
     def test_ovn_nb_sync_mode_repair(self):
         create_network_list = [{'net': {'id': 'n2'}, 'ext_ids': {}}]
         del_network_list = ['neutron-n3']
@@ -348,6 +404,20 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
         create_router_port_list = self.get_sync_router_ports
 
+        add_address_set_list = [
+            {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                              'all-tcp'},
+             'name': 'as_ip6_sg1',
+             'addresses': ['fd79:e1c:a55::816:eff:eff:ff2']}]
+        del_address_set_list = [{'name': 'as_ip4_del'}]
+        update_address_set_list = [
+            {'addrs_remove': [],
+             'addrs_add': ['10.0.0.4'],
+             'name': 'as_ip4_sg2'},
+            {'addrs_remove': ['fd79:e1c:a55::816:eff:eff:ff3'],
+             'addrs_add': [],
+             'name': 'as_ip6_sg2'}]
+
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, 'repair', self.mech_driver)
         self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
@@ -361,7 +431,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       create_network_list, create_port_list,
                                       del_network_list, del_port_list,
                                       add_static_route_list,
-                                      del_static_route_list)
+                                      del_static_route_list,
+                                      add_address_set_list,
+                                      del_address_set_list,
+                                      update_address_set_list)
 
     def test_ovn_nb_sync_mode_log(self):
         create_network_list = []
@@ -374,6 +447,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_router_port_list = []
         add_static_route_list = []
         del_static_route_list = []
+        add_address_set_list = []
+        del_address_set_list = []
+        update_address_set_list = []
 
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, 'log', self.mech_driver)
@@ -388,7 +464,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       create_network_list, create_port_list,
                                       del_network_list, del_port_list,
                                       add_static_route_list,
-                                      del_static_route_list)
+                                      del_static_route_list,
+                                      add_address_set_list,
+                                      del_address_set_list,
+                                      update_address_set_list)
 
 
 class TestOvnSbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
