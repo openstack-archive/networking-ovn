@@ -160,17 +160,8 @@ launching an instance.
       addresses           : ["192.168.1.5", "203.0.113.103"]
       name                : "as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc"
 
-#. The OVN northbound service adds a Datapath Binding for the new Logical
-   Switch object:
-
-   .. code-block:: console
-
-      _uuid               : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
-      external_ids        : {logical-switch="4d85514d-3910-4edd-9257-5582f671dfa1"}
-      tunnel_key          : 71
-
-#. The OVN northbound service adds Logical Flows based on the updated
-   Address Set, ACL and Logical_Switch_Port objects:
+#. The OVN northbound service adds a Port Binding for the new Logical
+   Switch Port object:
 
    .. code-block:: console
 
@@ -178,12 +169,25 @@ launching an instance.
       chassis             : b67d6da9-0222-4ab1-a852-ab2607610bf8
       datapath            : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       logical_port        : "e9cb7857-4cb1-4e91-aae5-165a7ab5b387"
-      mac                 : ["fa:16:3e:b6:a3:54 192.168.1.5"]
+      mac                 : ["fa:16:3e:b6:91:70 192.168.1.5"]
       options             : {}
       parent_port         : []
       tag                 : []
       tunnel_key          : 3
       type                : ""
+
+#. The OVN northbound service updates the flooding multicast group
+   for the logical datapath with the new port binding:
+
+   .. code-block:: console
+
+      _uuid               : c08d0102-c414-4a47-98d9-dd3fa9f9901c
+      datapath            : 0b214af6-8910-489c-926a-fd0ed16a8251
+      name                : _MC_flood
+      ports               : [3e463ca0-951c-46fd-b6cf-05392fa3aa1f,
+                             794a6f03-7941-41ed-b1c6-0e00c1e18da0,
+                             fa7b294d-2a62-45ae-8de3-a41c002de6de]
+      tunnel_key          : 65535
 
 #. The OVN northbound service adds Logical Flows based on the updated
    Address Set, ACL and Logical_Switch_Port objects:
@@ -217,7 +221,7 @@ launching an instance.
       priority            : 90
       table_id            : 1
 
-      _uuid               : 85ab2e88-16e9-49d1-8b53-45fc06626135
+      _uuid               : 84ab2e88-16e9-49d1-8b53-45fc06626135
       actions             : "drop;"
       external_ids        : {stage-name=ls_in_port_sec_ip}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
@@ -244,8 +248,17 @@ launching an instance.
       priority            : 80
       table_id            : 2
 
+      _uuid               : aafb8c76-e7d6-4ebc-8211-1057e81b8571
+      actions             : "next;"
+      external_ids        : {stage-name=ls_in_pre_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : nd
+      pipeline            : ingress
+      priority            : 110
+      table_id            : 3
+
       _uuid               : a7402b96-79f9-4bde-a970-57628cd0163e
-      actions             : "ct_next;"
+      actions             : "reg0[0] = 1; next;"
       external_ids        : {stage-name=ls_in_pre_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : ip
@@ -260,7 +273,7 @@ launching an instance.
       match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
       pipeline            : ingress
       priority            : 65535
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : 7b565d14-8660-4bd0-ad35-bb88f30ec207
       actions             : "next;"
@@ -269,7 +282,7 @@ launching an instance.
       match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
       pipeline            : ingress
       priority            : 65535
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : b2d96717-c8c7-43c8-9440-ca86bafbc7de
       actions             : "drop;"
@@ -278,7 +291,7 @@ launching an instance.
       match               : ct.inv
       pipeline            : ingress
       priority            : 65535
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : 6231381e-ffc2-404c-b957-fc5655dd9b47
       actions             : "next;"
@@ -287,34 +300,34 @@ launching an instance.
       match               : nd
       pipeline            : ingress
       priority            : 65535
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : dc41eeaa-9094-4137-9dd6-9a0234f1390e
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_in_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "ct.new && (inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip6)"
       pipeline            : ingress
       priority            : 2002
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : f3d2e7bb-c8ad-4c03-a1bb-7d3c67f3a430
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_in_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && (ip4.dst == 255.255.255.255 || ip4.dst == 192.168.1.0/24) && udp && udp.src == 68 && udp.dst == 67"
       pipeline            : ingress
       priority            : 2002
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : da80a53c-c95e-4957-86af-dc57d4cb68af
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_in_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "ct.new && (inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4)"
       pipeline            : ingress
       priority            : 2002
-      table_id            : 5
+      table_id            : 6
 
       _uuid               : 7130081e-0aa8-44c2-bd91-16f41d71f973
       actions             : "drop;"
@@ -323,10 +336,10 @@ launching an instance.
       match               : "inport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip"
       pipeline            : ingress
       priority            : 2001
-      table_id            : 4
+      table_id            : 6
 
       _uuid               : c7477c15-2afe-466f-9ac4-08aafc914976
-      actions             : "next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_in_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : ip
@@ -341,7 +354,7 @@ launching an instance.
       match               : "arp.tpa == 192.168.1.5 && arp.op == 1"
       pipeline            : ingress
       priority            : 50
-      table_id            : 5
+      table_id            : 9
 
       _uuid               : 40ddfda2-ac70-4e5d-ba89-afb264685598
       actions             : "outport = \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\"; output;"
@@ -350,16 +363,25 @@ launching an instance.
       match               : "eth.dst == fa:16:3e:b6:a3:54"
       pipeline            : ingress
       priority            : 50
-      table_id            : 8
+      table_id            : 10
+
+      _uuid               : 62aee60d-9a38-47ce-889a-e0f79d6ce6db
+      actions             : "next;"
+      external_ids        : {stage-name=ls_out_pre_acl}
+      logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
+      match               : nd
+      pipeline            : egress
+      priority            : 110
+      table_id            : 1
 
       _uuid               : 5a7bac75-9d80-489d-b154-c0936ef4775f
-      actions             : "ct_next;"
+      actions             : "reg0[0] = 1; next;"
       external_ids        : {stage-name=ls_out_pre_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : ip
       pipeline            : egress
       priority            : 100
-      table_id            : 0
+      table_id            : 1
 
       _uuid               : 47df3a86-75e1-45da-9ae9-3ff0446cbbd4
       actions             : "next;"
@@ -368,7 +390,7 @@ launching an instance.
       match               : nd
       pipeline            : egress
       priority            : 65535
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 02ec4bcd-c053-4078-badb-ed796d739748
       actions             : "next;"
@@ -377,7 +399,7 @@ launching an instance.
       match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
       pipeline            : egress
       priority            : 65535
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 8232d5f5-8665-485c-a0ed-d591029c96f8
       actions             : "next;"
@@ -386,7 +408,7 @@ launching an instance.
       match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
       pipeline            : egress
       priority            : 65535
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 7868923f-d6a4-4e30-9fab-0b03a4f5efd2
       actions             : "drop;"
@@ -395,34 +417,34 @@ launching an instance.
       match               : ct.inv
       pipeline            : egress
       priority            : 65535
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 4e8bc540-8d46-4fd7-8a69-3bb33b29b100
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_out_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "ct.new && (outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip6 && ip6.src == $as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc)"
       pipeline            : egress
       priority            : 2002
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 7277edee-0152-4067-8183-71d086dc9ca1
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_out_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "ct.new && (outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc)"
       pipeline            : egress
       priority            : 2002
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : dbb5c2e0-0a4a-4cd3-beb0-b5265b14fb6c
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_out_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip4 && ip4.src == 192.168.1.0/24 && udp && udp.src == 67 && udp.dst == 68"
       pipeline            : egress
       priority            : 2002
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : af90b42d-e0a9-4a30-9669-675a40e4e5c1
       actions             : "drop;"
@@ -431,16 +453,16 @@ launching an instance.
       match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && ip"
       pipeline            : egress
       priority            : 2001
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : ec9418c3-f639-410e-be4d-a41b1276aaa1
-      actions             : "ct_commit; next;"
+      actions             : "reg0[1] = 1; next;"
       external_ids        : {stage-name=ls_out_acl}
       logical_datapath    : 3f6e16b5-a03a-48e5-9b60-7b7a0396c425
       match               : ip
       pipeline            : egress
       priority            : 1
-      table_id            : 1
+      table_id            : 4
 
       _uuid               : 588855bd-04c1-408e-a4ed-94f5067769e9
       actions             : "next;"
@@ -449,7 +471,7 @@ launching an instance.
       match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == fa:16:3e:b6:a3:54 && ip4.dst == {255.255.255.255, 224.0.0.0/4, 192.168.1.5}"
       pipeline            : egress
       priority            : 90
-      table_id            : 2
+      table_id            : 6
 
       _uuid               : 474b1659-e788-44ba-84e0-4f5319cf769d
       actions             : "drop;"
@@ -458,7 +480,7 @@ launching an instance.
       match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == fa:16:3e:b6:a3:54 && ip"
       pipeline            : egress
       priority            : 80
-      table_id            : 2
+      table_id            : 6
 
       _uuid               : 45c695e6-3a0f-46c3-8d2f-3f9fea7d94f6
       actions             : "output;"
@@ -467,7 +489,7 @@ launching an instance.
       match               : "outport == \"e9cb7857-4cb1-4e91-aae5-165a7ab5b387\" && eth.dst == {fa:16:3e:b6:a3:54}"
       pipeline            : egress
       priority            : 50
-      table_id            : 3
+      table_id            : 7
 
 #. The OVN controller service on each compute node translates these objects
    into flows on the integration bridge ``br-int``. Exact flows depend on
@@ -498,83 +520,103 @@ launching an instance.
                 load:0x3->NXM_NX_REG6[],resubmit(,16)
         cookie=0x0, duration=187.408s, table=16, n_packets=122, n_bytes=10556,
             idle_age=1, priority=50,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=resubmit(,17)
+                dl_src=fa:16:3e:15:7d:13
+            actions=resubmit(,17)
         cookie=0x0, duration=187.408s, table=17, n_packets=2, n_bytes=684,
             idle_age=84, priority=90,udp,reg6=0x3,metadata=0x5,
                 dl_src=fa:16:3e:15:7d:13,nw_src=0.0.0.0,nw_dst=255.255.255.255,
-                tp_src=68,tp_dst=67 actions=resubmit(,18)
+                tp_src=68,tp_dst=67
+            actions=resubmit(,18)
         cookie=0x0, duration=187.408s, table=17, n_packets=98, n_bytes=8276,
             idle_age=1, priority=90,ip,reg6=0x3,metadata=0x5,
                 dl_src=fa:16:3e:15:7d:13,nw_src=192.168.1.5
             actions=resubmit(,18)
         cookie=0x0, duration=187.408s, table=17, n_packets=17, n_bytes=1386,
             idle_age=55, priority=80,ipv6,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=drop
+                dl_src=fa:16:3e:15:7d:13
+            actions=drop
         cookie=0x0, duration=187.408s, table=17, n_packets=0, n_bytes=0,
             idle_age=187, priority=80,ip,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=drop
+                dl_src=fa:16:3e:15:7d:13
+            actions=drop
         cookie=0x0, duration=187.408s, table=18, n_packets=5, n_bytes=210,
             idle_age=10, priority=90,arp,reg6=0x3,metadata=0x5,
                 dl_src=fa:16:3e:15:7d:13,arp_spa=192.168.1.5,
-            arp_sha=fa:16:3e:15:7d:13 actions=resubmit(,19)
+            arp_sha=fa:16:3e:15:7d:13
+            actions=resubmit(,19)
         cookie=0x0, duration=187.408s, table=18, n_packets=0, n_bytes=0,
             idle_age=187, priority=80,icmp6,reg6=0x3,metadata=0x5,
-                icmp_type=135,icmp_code=0 actions=drop
+                icmp_type=135,icmp_code=0
+            actions=drop
         cookie=0x0, duration=187.408s, table=18, n_packets=0, n_bytes=0,
             idle_age=187, priority=80,icmp6,reg6=0x3,metadata=0x5,
-                icmp_type=136,icmp_code=0 actions=drop
+                icmp_type=136,icmp_code=0
+            actions=drop
         cookie=0x0, duration=187.408s, table=18, n_packets=0, n_bytes=0,
-            idle_age=187, priority=80,arp,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=187.408s, table=19, n_packets=0, n_bytes=0,
-            idle_age=187, priority=100,ipv6,metadata=0x5
-            actions=ct(table=20,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=187.408s, table=19, n_packets=150, n_bytes=13766,
-            idle_age=1, priority=100,ip,metadata=0x5
-            actions=ct(table=20,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=187.408s, table=20, n_packets=100, n_bytes=8450,
-            idle_age=1, priority=65535,ct_state=-new+est-rel-inv+trk,
-                metadata=0x5 actions=resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2002,udp,reg6=0x3,metadata=0x5,
+            idle_age=187, priority=80,arp,reg6=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=33, n_bytes=4081,
+            idle_age=0, priority=100,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=100,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,20)
+        cookie=0x0, duration=47.068s, table=22, n_packets=15, n_bytes=1392,
+            idle_age=0, priority=65535,ct_state=-new+est-rel-inv+trk,
+                metadata=0x5
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=-new-est+rel-inv+trk,
+                metadata=0x5
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=+inv+trk,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,ct_state=+new+trk,ipv6,reg6=0x3,
+                metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=16, n_bytes=1922,
+            idle_age=2, priority=2002,ct_state=+new+trk,ip,reg6=0x3,
+                metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,udp,reg6=0x3,metadata=0x5,
+                nw_dst=255.255.255.255,tp_src=68,tp_dst=67
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,udp,reg6=0x3,metadata=0x5,
                 nw_dst=192.168.1.0/24,tp_src=68,tp_dst=67
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=476.272s, table=20, n_packets=0, n_bytes=0,
-            idle_age=476, priority=2002,ct_state=+new+trk,ip,reg6=0x4,
-                metadata=0x4
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=65535,ct_state=-new-est+rel-inv+trk,
-                metadata=0x5 actions=resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=65535,ct_state=+inv+trk,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.069s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ipv6,reg6=0x3,metadata=0x5
             actions=drop
-        cookie=0x0, duration=476.272s, table=20, n_packets=0, n_bytes=0,
-            idle_age=476, priority=2002,udp,reg6=0x4,metadata=0x4,
-                nw_dst=255.255.255.255,tp_src=68,tp_dst=67
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2002,udp,reg6=0x3,metadata=0x5,
-                nw_dst=255.255.255.255,tp_src=68,tp_dst=67
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=476.273s, table=20, n_packets=0, n_bytes=0,
-            idle_age=476, priority=2001,ipv6,reg6=0x4,metadata=0x4
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ip,reg6=0x3,metadata=0x5
             actions=drop
-        cookie=0x0, duration=476.272s, table=20, n_packets=0, n_bytes=0,
-            idle_age=476, priority=2001,ip,reg6=0x4,metadata=0x4 actions=drop
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2001,ip,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2001,ipv6,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=476.273s, table=20, n_packets=0, n_bytes=0,
-            idle_age=476, priority=1,ipv6,metadata=0x4
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=0, n_bytes=0,
-            idle_age=187, priority=1,ipv6,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=187.408s, table=20, n_packets=2, n_bytes=766,
-            idle_age=84, priority=1,ip,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=179.457s, table=21, n_packets=2, n_bytes=84,
+        cookie=0x0, duration=47.068s, table=22, n_packets=2, n_bytes=767,
+            idle_age=27, priority=1,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=1,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=179.457s, table=25, n_packets=2, n_bytes=84,
             idle_age=33, priority=50,arp,metadata=0x5,arp_tpa=192.168.1.5,
                 arp_op=1
             actions=move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],
@@ -585,97 +627,103 @@ launching an instance.
                 load:0xc0a80105->NXM_OF_ARP_SPA[],
                 move:NXM_NX_REG6[]->NXM_NX_REG7[],
                 load:0->NXM_NX_REG6[],load:0->NXM_OF_IN_PORT[],resubmit(,32)
-        cookie=0x0, duration=187.408s, table=22, n_packets=50, n_bytes=4806,
+        cookie=0x0, duration=187.408s, table=26, n_packets=50, n_bytes=4806,
             idle_age=1, priority=50,metadata=0x5,dl_dst=fa:16:3e:15:7d:13
             actions=load:0x3->NXM_NX_REG7[],resubmit(,32)
         cookie=0x0, duration=469.575s, table=33, n_packets=74, n_bytes=7040,
             idle_age=305, priority=100,reg7=0x4,metadata=0x4
             actions=load:0x1->NXM_NX_REG7[],resubmit(,33)
-        cookie=0x0, duration=51424.070s, table=33, n_packets=18, n_bytes=1980,
-            idle_age=84, hard_age=179, priority=100,reg7=0xffff,metadata=0x5
-            actions=load:0x3->NXM_NX_REG5[],load:0x2->NXM_NX_REG7[],
-                resubmit(,34),load:0x4->NXM_NX_REG5[],load:0x3->NXM_NX_REG7[],
-                resubmit(,34),load:0xffff->NXM_NX_REG7[]
         cookie=0x0, duration=179.460s, table=34, n_packets=2, n_bytes=684,
             idle_age=84, priority=100,reg6=0x3,reg7=0x3,metadata=0x5
             actions=drop
-        cookie=0x0, duration=187.408s, table=48, n_packets=161, n_bytes=15137,
-            idle_age=1, priority=100,ip,metadata=0x5
-            actions=ct(table=49,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=187.408s, table=48, n_packets=0, n_bytes=0,
-            idle_age=187, priority=100,ipv6,metadata=0x5
-            actions=ct(table=49,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=65535,ct_state=-new-est+rel-inv+trk,
-                metadata=0x5 actions=resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=124, n_bytes=10473,
-            idle_age=1, priority=65535,ct_state=-new+est-rel-inv+trk,
-                metadata=0x5 actions=resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=65535,ct_state=+inv+trk,metadata=0x5
+        cookie=0x0, duration=47.069s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=34, n_bytes=4455,
+            idle_age=0, priority=100,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=100,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,50)
+        cookie=0x0, duration=47.069s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=+inv+trk,metadata=0x5
             actions=drop
-        cookie=0x0, duration=476.273s, table=49, n_packets=0, n_bytes=0,
-            idle_age=476, priority=2002,udp,reg7=0x4,metadata=0x4,
-                nw_src=203.0.113.0/24,tp_src=67,tp_dst=68
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=3, n_bytes=1140,
-            idle_age=84, priority=2002,udp,reg7=0x3,metadata=0x5,
-                nw_src=192.168.1.0/24,tp_src=67,tp_dst=68
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=348.014s, table=49, n_packets=0, n_bytes=0,
-            idle_age=348, priority=2002,ct_state=+new+trk,icmp,reg7=0x4,
-                metadata=0x4
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=12, n_bytes=1176,
-            idle_age=41, priority=2002,ct_state=+new+trk,icmp,reg7=0x3,
+        cookie=0x0, duration=47.069s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=22, n_bytes=2000,
+            idle_age=0, priority=65535,ct_state=-new+est-rel-inv+trk,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2002,ct_state=+new+trk,ip,reg7=0x3,
+            actions=resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=-new-est+rel-inv+trk,
+                metadata=0x5
+            actions=resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,ct_state=+new+trk,ip,reg7=0x3,
+                metadata=0x5,nw_src=192.168.1.5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,ct_state=+new+trk,ip,reg7=0x3,
                 metadata=0x5,nw_src=203.0.113.103
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.236s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2002,ct_state=+new+trk,ip,reg7=0x4,
-                metadata=0x4,nw_src=192.168.1.5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2002,ct_state=+new+trk,ipv6,reg7=0x3,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=3, n_bytes=1141,
+            idle_age=27, priority=2002,udp,reg7=0x3,metadata=0x5,
+                nw_src=192.168.1.0/24,tp_src=67,tp_dst=68
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=39.497s, table=52, n_packets=0, n_bytes=0,
+            idle_age=39, priority=2002,ct_state=+new+trk,ipv6,reg7=0x3,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2001,ipv6,reg7=0x3,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ip,reg7=0x3,metadata=0x5
             actions=drop
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=2001,ip,reg7=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=187.408s, table=49, n_packets=22, n_bytes=2348,
-            idle_age=1, priority=1,ip,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=49, n_packets=0, n_bytes=0,
-            idle_age=187, priority=1,ipv6,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=187.408s, table=50, n_packets=0, n_bytes=0,
-            idle_age=187, priority=90,ip,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13,nw_dst=224.0.0.0/4
-            actions=resubmit(,51)
-        cookie=0x0, duration=187.408s, table=50, n_packets=111, n_bytes=10413,
-            idle_age=1, priority=90,ip,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13,nw_dst=192.168.1.5
-            actions=resubmit(,51)
-        cookie=0x0, duration=187.408s, table=50, n_packets=0, n_bytes=0,
-            idle_age=187, priority=90,ip,reg7=0x3,metadata=0x5,
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ipv6,reg7=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=52, n_packets=9, n_bytes=1314,
+            idle_age=2, priority=1,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=47.068s, table=52, n_packets=0, n_bytes=0,
+            idle_age=47, priority=1,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=47.068s, table=54, n_packets=23, n_bytes=2945,
+            idle_age=0, priority=90,ip,reg7=0x3,metadata=0x5,
+                dl_dst=fa:16:3e:15:7d:13,nw_dst=192.168.1.11
+            actions=resubmit(,55)
+        cookie=0x0, duration=47.068s, table=54, n_packets=0, n_bytes=0,
+            idle_age=47, priority=90,ip,reg7=0x3,metadata=0x5,
                 dl_dst=fa:16:3e:15:7d:13,nw_dst=255.255.255.255
-            actions=resubmit(,51)
-        cookie=0x0, duration=187.408s, table=50, n_packets=0, n_bytes=0,
-            idle_age=187, priority=80,ipv6,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=drop
-        cookie=0x0, duration=187.408s, table=50, n_packets=0, n_bytes=0,
-            idle_age=187, priority=80,ip,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=drop
-        cookie=0x0, duration=187.408s, table=51, n_packets=116, n_bytes=10623,
-            idle_age=1, priority=50,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=resubmit(,64)
+            actions=resubmit(,55)
+        cookie=0x0, duration=47.068s, table=54, n_packets=0, n_bytes=0,
+            idle_age=47, priority=90,ip,reg7=0x3,metadata=0x5,
+                dl_dst=fa:16:3e:15:7d:13,nw_dst=224.0.0.0/4
+            actions=resubmit(,55)
+        cookie=0x0, duration=47.068s, table=54, n_packets=0, n_bytes=0,
+            idle_age=47, priority=80,ip,reg7=0x3,metadata=0x5,
+                dl_dst=fa:16:3e:15:7d:13
+            actions=drop
+        cookie=0x0, duration=47.068s, table=54, n_packets=0, n_bytes=0,
+            idle_age=47, priority=80,ipv6,reg7=0x3,metadata=0x5,
+                dl_dst=fa:16:3e:15:7d:13
+            actions=drop
+        cookie=0x0, duration=47.068s, table=55, n_packets=25, n_bytes=3029,
+            idle_age=0, priority=50,reg7=0x3,metadata=0x7,
+                dl_dst=fa:16:3e:15:7d:13
+            actions=resubmit(,64)
         cookie=0x0, duration=179.460s, table=64, n_packets=116, n_bytes=10623,
-            idle_age=1, priority=100,reg7=0x3,metadata=0x5 actions=output:12
+            idle_age=1, priority=100,reg7=0x3,metadata=0x5
+            actions=output:12
 
    * For each compute node that only contains a DHCP agent on the subnet,
      OVN creates the following flows:
@@ -684,7 +732,8 @@ launching an instance.
 
         cookie=0x0, duration=192.587s, table=16, n_packets=0, n_bytes=0,
             idle_age=192, priority=50,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=resubmit(,17)
+                dl_src=fa:16:3e:15:7d:13
+            actions=resubmit(,17)
         cookie=0x0, duration=192.587s, table=17, n_packets=0, n_bytes=0,
             idle_age=192, priority=90,ip,reg6=0x3,metadata=0x5,
                 dl_src=fa:16:3e:15:7d:13,nw_src=192.168.1.5
@@ -696,65 +745,91 @@ launching an instance.
             actions=resubmit(,18)
         cookie=0x0, duration=192.587s, table=17, n_packets=0, n_bytes=0,
             idle_age=192, priority=80,ipv6,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=drop
+                dl_src=fa:16:3e:15:7d:13
+            actions=drop
         cookie=0x0, duration=192.587s, table=17, n_packets=0, n_bytes=0,
             idle_age=192, priority=80,ip,reg6=0x3,metadata=0x5,
-                dl_src=fa:16:3e:15:7d:13 actions=drop
+                dl_src=fa:16:3e:15:7d:13
+            actions=drop
         cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
             idle_age=192, priority=90,arp,reg6=0x3,metadata=0x5,
                 dl_src=fa:16:3e:15:7d:13,arp_spa=192.168.1.5,
-                arp_sha=fa:16:3e:15:7d:13 actions=resubmit(,19)
+                arp_sha=fa:16:3e:15:7d:13
+            actions=resubmit(,19)
         cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
-            idle_age=192, priority=80,arp,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
-            idle_age=192, priority=80,icmp6,reg6=0x3,metadata=0x5,
-                icmp_type=135,icmp_code=0 actions=drop
-        cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
-            idle_age=192, priority=80,icmp6,reg6=0x3,metadata=0x5,
-                icmp_type=136,icmp_code=0 actions=drop
-        cookie=0x0, duration=192.587s, table=19, n_packets=0, n_bytes=0,
-            idle_age=192, priority=100,ipv6,metadata=0x5
-            actions=ct(table=20,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=192.587s, table=19, n_packets=61, n_bytes=5607,
-            idle_age=6, priority=100,ip,metadata=0x5
-            actions=ct(table=20,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=192.587s, table=20, n_packets=48, n_bytes=4057,
-            idle_age=6, priority=65535,ct_state=-new+est-rel-inv+trk,
-                metadata=0x5 actions=resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=65535,ct_state=-new-est+rel-inv+trk,
-                metadata=0x5 actions=resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=65535,ct_state=+inv+trk,metadata=0x5
+            idle_age=192, priority=80,arp,reg6=0x3,metadata=0x5
             actions=drop
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2002,ct_state=+new+trk,ipv6,reg6=0x3,
+        cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
+            idle_age=192, priority=80,icmp6,reg6=0x3,metadata=0x5,
+                icmp_type=135,icmp_code=0
+            actions=drop
+        cookie=0x0, duration=192.587s, table=18, n_packets=0, n_bytes=0,
+            idle_age=192, priority=80,icmp6,reg6=0x3,metadata=0x5,
+                icmp_type=136,icmp_code=0
+            actions=drop
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=33, n_bytes=4081,
+            idle_age=0, priority=100,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,20)
+        cookie=0x0, duration=47.068s, table=19, n_packets=0, n_bytes=0,
+            idle_age=47, priority=100,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,20)
+        cookie=0x0, duration=47.068s, table=22, n_packets=15, n_bytes=1392,
+            idle_age=0, priority=65535,ct_state=-new+est-rel-inv+trk,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2002,ct_state=+new+trk,ip,reg6=0x3,
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=-new-est+rel-inv+trk,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2002,udp,reg6=0x3,metadata=0x5,
-                nw_dst=192.168.1.0/24,tp_src=68,tp_dst=67
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2002,udp,reg6=0x3,metadata=0x5,
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=65535,ct_state=+inv+trk,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,ct_state=+new+trk,ipv6,reg6=0x3,
+                metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=16, n_bytes=1922,
+            idle_age=2, priority=2002,ct_state=+new+trk,ip,reg6=0x3,
+                metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,udp,reg6=0x3,metadata=0x5,
                 nw_dst=255.255.255.255,tp_src=68,tp_dst=67
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2001,ip,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2001,ipv6,reg6=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=20, n_packets=0, n_bytes=0,
-            idle_age=192, priority=1,ipv6,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=192.587s, table=20, n_packets=13, n_bytes=1550,
-            idle_age=46, priority=1,ip,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,21)
-        cookie=0x0, duration=184.638s, table=21, n_packets=4, n_bytes=168,
-            idle_age=1, priority=50,arp,metadata=0x5,arp_tpa=192.168.1.5,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2002,udp,reg6=0x3,metadata=0x5,
+                nw_dst=192.168.1.0/24,tp_src=68,tp_dst=67
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.069s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ipv6,reg6=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=2001,ip,reg6=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=47.068s, table=22, n_packets=2, n_bytes=767,
+            idle_age=27, priority=1,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=47.068s, table=22, n_packets=0, n_bytes=0,
+            idle_age=47, priority=1,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,23)
+        cookie=0x0, duration=179.457s, table=25, n_packets=2, n_bytes=84,
+            idle_age=33, priority=50,arp,metadata=0x5,arp_tpa=192.168.1.5,
                 arp_op=1
             actions=move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],
                 mod_dl_src:fa:16:3e:15:7d:13,load:0x2->NXM_OF_ARP_OP[],
@@ -764,7 +839,7 @@ launching an instance.
                 load:0xc0a80105->NXM_OF_ARP_SPA[],
                 move:NXM_NX_REG6[]->NXM_NX_REG7[],
                 load:0->NXM_NX_REG6[],load:0->NXM_OF_IN_PORT[],resubmit(,32)
-        cookie=0x0, duration=192.587s, table=22, n_packets=61, n_bytes=5607,
+        cookie=0x0, duration=192.587s, table=26, n_packets=61, n_bytes=5607,
             idle_age=6, priority=50,metadata=0x5,dl_dst=fa:16:3e:15:7d:13
             actions=load:0x3->NXM_NX_REG7[],resubmit(,32)
         cookie=0x0, duration=184.640s, table=32, n_packets=61, n_bytes=5607,
@@ -772,79 +847,95 @@ launching an instance.
             actions=load:0x5->NXM_NX_TUN_ID[0..23],
                 set_field:0x3/0xffffffff->tun_metadata0,
                 move:NXM_NX_REG6[0..14]->NXM_NX_TUN_METADATA0[16..30],output:4
-        cookie=0x0, duration=192.587s, table=48, n_packets=0, n_bytes=0,
-            idle_age=192, priority=100,ipv6,metadata=0x5
-            actions=ct(table=49,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=192.587s, table=48, n_packets=52, n_bytes=4920,
-            idle_age=6, priority=100,ip,metadata=0x5
-            actions=ct(table=49,zone=NXM_NX_REG5[0..15])
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+        cookie=0x0, duration=47.069s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=135,
+                icmp_code=0
+            actions=resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=110,icmp6,metadata=0x5,icmp_type=136,
+                icmp_code=0
+            actions=resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=34, n_bytes=4455,
+            idle_age=0, priority=100,ip,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,50)
+        cookie=0x0, duration=47.068s, table=49, n_packets=0, n_bytes=0,
+            idle_age=47, priority=100,ipv6,metadata=0x5
+            actions=load:0x1->NXM_NX_REG0[0],resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=65535,ct_state=+inv+trk,
-                metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+                metadata=0x5
+            actions=drop
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=65535,ct_state=-new-est+rel-inv+trk,
-                metadata=0x5 actions=resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=27, n_bytes=2316,
+                metadata=0x5
+            actions=resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=27, n_bytes=2316,
             idle_age=6, priority=65535,ct_state=-new+est-rel-inv+trk,
-                metadata=0x5 actions=resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+                metadata=0x5
+            actions=resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=2002,ct_state=+new+trk,icmp,reg7=0x3,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=2002,ct_state=+new+trk,ipv6,reg7=0x3,
                 metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=2002,udp,reg7=0x3,metadata=0x5,
                 nw_src=192.168.1.0/24,tp_src=67,tp_dst=68
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=2002,ct_state=+new+trk,ip,reg7=0x3,
                 metadata=0x5,nw_src=203.0.113.103
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2001,ip,reg7=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
-            idle_age=192, priority=2001,ipv6,reg7=0x3,metadata=0x5 actions=drop
-        cookie=0x0, duration=192.587s, table=49, n_packets=25, n_bytes=2604,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,50)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
+            idle_age=192, priority=2001,ip,reg7=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
+            idle_age=192, priority=2001,ipv6,reg7=0x3,metadata=0x5
+            actions=drop
+        cookie=0x0, duration=192.587s, table=52, n_packets=25, n_bytes=2604,
             idle_age=6, priority=1,ip,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=49, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=192.587s, table=52, n_packets=0, n_bytes=0,
             idle_age=192, priority=1,ipv6,metadata=0x5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=192.587s, table=50, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=192.587s, table=54, n_packets=0, n_bytes=0,
             idle_age=192, priority=90,ip,reg7=0x3,metadata=0x5,
                 dl_dst=fa:16:3e:15:7d:13,nw_dst=224.0.0.0/4
-            actions=resubmit(,51)
-        cookie=0x0, duration=192.587s, table=50, n_packets=0, n_bytes=0,
+            actions=resubmit(,55)
+        cookie=0x0, duration=192.587s, table=54, n_packets=0, n_bytes=0,
             idle_age=192, priority=90,ip,reg7=0x3,metadata=0x5,
                 dl_dst=fa:16:3e:15:7d:13,nw_dst=255.255.255.255
-            actions=resubmit(,51)
-        cookie=0x0, duration=192.587s, table=50, n_packets=0, n_bytes=0,
+            actions=resubmit(,55)
+        cookie=0x0, duration=192.587s, table=54, n_packets=0, n_bytes=0,
             idle_age=192, priority=90,ip,reg7=0x3,metadata=0x5,
                 dl_dst=fa:16:3e:15:7d:13,nw_dst=192.168.1.5
-            actions=resubmit(,51)
-        cookie=0x0, duration=192.587s, table=50, n_packets=0, n_bytes=0,
+            actions=resubmit(,55)
+        cookie=0x0, duration=192.587s, table=54, n_packets=0, n_bytes=0,
             idle_age=192, priority=80,ipv6,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=drop
-        cookie=0x0, duration=192.587s, table=50, n_packets=0, n_bytes=0,
+                dl_dst=fa:16:3e:15:7d:13
+            actions=drop
+        cookie=0x0, duration=192.587s, table=54, n_packets=0, n_bytes=0,
             idle_age=192, priority=80,ip,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=drop
-        cookie=0x0, duration=192.587s, table=51, n_packets=0, n_bytes=0,
+                dl_dst=fa:16:3e:15:7d:13
+            actions=drop
+        cookie=0x0, duration=192.587s, table=55, n_packets=0, n_bytes=0,
             idle_age=192, priority=50,reg7=0x3,metadata=0x5,
-                dl_dst=fa:16:3e:15:7d:13 actions=resubmit(,64)
+                dl_dst=fa:16:3e:15:7d:13
+            actions=resubmit(,64)
 
    * For each compute node that contains neither the instance nor a DHCP
      agent on the subnet, OVN creates the following flows:
 
      .. code-block:: console
 
-        cookie=0x0, duration=189.763s, table=49, n_packets=0, n_bytes=0,
+        cookie=0x0, duration=189.763s, table=52, n_packets=0, n_bytes=0,
             idle_age=189, priority=2002,ct_state=+new+trk,ipv6,reg7=0x4,
                 metadata=0x4
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
-        cookie=0x0, duration=189.763s, table=49, n_packets=0, n_bytes=0,
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
+        cookie=0x0, duration=189.763s, table=52, n_packets=0, n_bytes=0,
             idle_age=189, priority=2002,ct_state=+new+trk,ip,reg7=0x4,
                 metadata=0x4,nw_src=192.168.1.5
-            actions=ct(commit,zone=NXM_NX_REG5[0..15]),resubmit(,50)
+            actions=load:0x1->NXM_NX_REG0[1],resubmit(,53)
