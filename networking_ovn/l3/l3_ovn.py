@@ -161,13 +161,13 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return ret_val
 
     def get_networks_for_lrouter_port(self, context, port_fixed_ips):
-        networks = []
+        networks = set()
         for fixed_ip in port_fixed_ips:
             subnet_id = fixed_ip['subnet_id']
             subnet = self._plugin.get_subnet(context, subnet_id)
             cidr = netaddr.IPNetwork(subnet['cidr'])
-            networks.append("%s/%s" % (fixed_ip['ip_address'],
-                                       str(cidr.prefixlen)))
+            networks.add("%s/%s" % (fixed_ip['ip_address'],
+                                    str(cidr.prefixlen)))
         return networks
 
     def create_lrouter_port_in_ovn(self, context, router_id, port):
@@ -220,8 +220,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         port = self._plugin.get_port(context, router_interface_info['port_id'])
         if (len(router_interface_info['subnet_ids']) == 1 and
                 len(port['fixed_ips']) > 1):
-            # It's adding router interface by subnet, and the interface has
-            # already exist, update lrouter port 'networks' column.
+            # NOTE(lizk) It's adding a subnet onto an already existing router
+            # interface port, try to update lrouter port 'networks' column.
             self.update_lrouter_port_in_ovn(context, router_id, port)
         else:
             self.create_lrouter_port_in_ovn(context, router_id, port)

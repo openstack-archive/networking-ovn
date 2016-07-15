@@ -245,9 +245,13 @@ class AddLRouterPortCommand(BaseCommand):
         try:
             idlutils.row_by_value(self.api.idl, 'Logical_Router_Port',
                                   'name', self.name)
-            # TODO(chandrav) This might be a case of multiple prefixes
-            # on the same port. yet to figure out if and how OVN needs
-            # to cater to this case
+            # The LRP entry with certain name has already exist, raise an
+            # exception to notice caller. It's caller's responsibility to
+            # call UpdateLRouterPortCommand to get LRP entry processed
+            # correctly.
+            msg = _("Logical Router Port with name \"%s\" "
+                    "already exists.") % self.name
+            raise RuntimeError(msg)
         except idlutils.RowNotFound:
             lrouter_port = txn.insert(self.api._tables['Logical_Router_Port'])
             lrouter_port.name = self.name
