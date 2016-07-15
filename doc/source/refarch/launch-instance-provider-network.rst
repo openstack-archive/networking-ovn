@@ -212,302 +212,133 @@ launching an instance.
 
    .. code-block:: console
 
-      _uuid               : c0796be7-4638-4881-be76-4a8f825b13ee
-      actions             : "next;"
-      external_ids        : {stage-name="ls_in_port_sec_l2"}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.src == {fa:16:3e:1c:ca:6a}"
-      pipeline            : ingress
-      priority            : 50
-      table_id            : 0
-
-      _uuid               : 5cd409a5-e393-4a55-a7ec-5dc44e1815e0
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_port_sec_ip}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.src == fa:16:3e:1c:ca:6a && ip4.src == {203.0.113.103}"
-      pipeline            : ingress
-      priority            : 90
-      table_id            : 1
-
-      _uuid               : b28927b9-ed03-4269-8f03-0f86e798e1ea
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_port_sec_ip}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.src == fa:16:3e:1c:ca:6a && ip4.src == 0.0.0.0 && ip4.dst == 255.255.255.255 && udp.src == 68 && udp.dst == 67"
-      pipeline            : ingress
-      priority            : 90
-      table_id            : 1
-
-      _uuid               : 809f59f9-97bb-48e3-82bf-b9afa6b5347e
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_in_port_sec_ip}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.src == fa:16:3e:1c:ca:6a && ip"
-      pipeline            : ingress
-      priority            : 80
-      table_id            : 1
-
-      _uuid               : 9ceb90b0-a672-4343-9a42-37b1d5fc5849
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_port_sec_nd}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.src == fa:16:3e:1c:ca:6a && arp.sha == fa:16:3e:1c:ca:6a && (arp.spa == 203.0.113.103 )"
-      pipeline            : ingress
-      priority            : 90
-      table_id            : 2
-
-      _uuid               : be53cd1e-d56b-4820-bad6-0e92e8413970
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_in_port_sec_nd}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && (arp || nd)"
-      pipeline            : ingress
-      priority            : 80
-      table_id            : 2
-
-      _uuid               : 4adda518-accf-4c43-ae36-64911489cdee
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_pre_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : nd
-      pipeline            : ingress
-      priority            : 110
-      table_id            : 3
-
-      _uuid               : 671a9d40-70b2-4ff6-b630-332de60625c5
-      actions             : "reg0[0] = 1; next;"
-      external_ids        : {stage-name=ls_in_pre_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ip
-      pipeline            : ingress
-      priority            : 100
-      table_id            : 3
-
-      _uuid               : 311f0dd6-ae2d-4402-b184-dada2be10317
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ct.inv
-      pipeline            : ingress
-      priority            : 65535
-      table_id            : 6
-
-      _uuid               : 33f0815e-ae8c-4bad-aed8-61551b73eaf7
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : nd
-      pipeline            : ingress
-      priority            : 65535
-      table_id            : 6
-
-      _uuid               : ade43c96-7680-4ae7-80f2-69d06e7b781f
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
-      pipeline            : ingress
-      priority            : 65535
-      table_id            : 6
-
-      _uuid               : bb736c3d-0f71-484a-a400-10d7c7f999e7
-      actions             : "next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
-      pipeline            : ingress
-      priority            : 65535
-      table_id            : 6
-
-      _uuid               : 62bd45f4-f5b0-460a-80b4-436e92966c9d
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.new && (inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip6)"
-      pipeline            : ingress
-      priority            : 2002
-      table_id            : 6
-
-      _uuid               : 99ab37ec-d99a-498f-9be6-e0d300b920bb
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && (ip4.dst == 255.255.255.255 || ip4.dst == 203.0.113.0/24) && udp && udp.src == 68 && udp.dst == 67"
-      pipeline            : ingress
-      priority            : 2002
-      table_id            : 6
-
-      _uuid               : ab2bd9d9-de38-4d1f-8f7c-e94c3ad6d5c2
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.new && (inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4)"
-      pipeline            : ingress
-      priority            : 2002
-      table_id            : 6
-
-      _uuid               : 5249ef1b-c129-48af-b222-084fcd5a29c8
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "inport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip"
-      pipeline            : ingress
-      priority            : 2001
-      table_id            : 6
-
-      _uuid               : 172ad9c5-a47d-4931-a3e3-b612f7a6b5fc
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_in_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ip
-      pipeline            : ingress
-      priority            : 1
-      table_id            : 6
-
-      _uuid               : 6a15e881-87cd-40a6-b2a1-d609b25617c5
-      actions             : "eth.dst = eth.src; eth.src = fa:16:3e:1c:ca:6a; arp.op = 2; /* ARP reply \*/ arp.tha = arp.sha; arp.sha = fa:16:3e:1c:ca:6a; arp.tpa = arp.spa; arp.spa = 203.0.113.103; outport = inport; inport = \"\"; /* Allow sending out inport. \*/ output;"
-      external_ids        : {stage-name=ls_in_arp_rsp}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "arp.tpa == 203.0.113.103 && arp.op == 1"
-      pipeline            : ingress
-      priority            : 50
-      table_id            : 9
-
-      _uuid               : 77f563d1-a249-4e54-a01e-f150ac83aeaf
-      actions             : "outport = \"cafd4862-c69c-46e4-b3d2-6141ce06b205\"; output;"
-      external_ids        : {stage-name="ls_in_l2_lkup"}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "eth.dst == fa:16:3e:1c:ca:6a"
-      pipeline            : ingress
-      priority            : 50
-      table_id            : 10
-
-      _uuid               : 0b16f2c0-f9b8-43c4-a516-948797a96668
-      actions             : "next;"
-      external_ids        : {stage-name=ls_out_pre_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : nd
-      pipeline            : egress
-      priority            : 110
-      table_id            : 1
-
-      _uuid               : bd7875a2-86ba-4d18-ad2f-626dd312ff23
-      actions             : "reg0[0] = 1; next;"
-      external_ids        : {stage-name=ls_out_pre_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ip
-      pipeline            : egress
-      priority            : 100
-      table_id            : 1
-
-      _uuid               : e620ec59-7595-4673-9d1b-8b5d36b873fc
-      actions             : "next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "!ct.est && ct.rel && !ct.new && !ct.inv"
-      pipeline            : egress
-      priority            : 65535
-      table_id            : 4
-
-      _uuid               : 90931328-8b6d-437d-b122-3e61b4a434dd
-      actions             : "next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.est && !ct.rel && !ct.new && !ct.inv"
-      pipeline            : egress
-      priority            : 65535
-      table_id            : 4
-
-      _uuid               : 0eeb89b0-1180-4476-aa8c-49fb880c2daa
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ct.inv
-      pipeline            : egress
-      priority            : 65535
-      table_id            : 4
-
-      _uuid               : b6b6bbe7-9175-45e0-9453-37a88647a306
-      actions             : "next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : nd
-      pipeline            : egress
-      priority            : 65535
-      table_id            : 4
-
-      _uuid               : 9c23c6b1-567a-4cab-804f-c448c23fe9ad
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : 1f4ced55-be6a-45ee-8abd-496c7c1194ae
-      match               : "ct.new && (outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip6 && ip6.src == $as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc)"
-      pipeline            : egress
-      priority            : 2002
-      table_id            : 1
-
-      _uuid               : ace32153-664e-45fc-ae94-3a1ed7a1153a
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "ct.new && (outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc)"
-      pipeline            : egress
-      priority            : 2002
-      table_id            : 1
-
-      _uuid               : 51b8139c-867e-4581-af09-121cec56beb9
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip4 && ip4.src == 203.0.113.0/24 && udp && udp.src == 67 && udp.dst == 68"
-      pipeline            : egress
-      priority            : 2002
-      table_id            : 4
-
-      _uuid               : 9d9d9f97-82ef-444a-a4e7-15a11d939650
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && ip"
-      pipeline            : egress
-      priority            : 2001
-      table_id            : 4
-
-      _uuid               : dce378f9-ae6b-40f1-9baa-1b853ac0138d
-      actions             : "reg0[1] = 1; next;"
-      external_ids        : {stage-name=ls_out_acl}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : ip
-      pipeline            : egress
-      priority            : 1
-      table_id            : 4
-
-      _uuid               : 8f2fca0c-25f2-4043-8b54-075e4e559996
-      actions             : "next;"
-      external_ids        : {stage-name=ls_out_port_sec_ip}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.dst == fa:16:3e:1c:ca:6a && ip4.dst == {255.255.255.255, 224.0.0.0/4, 203.0.113.103}"
-      pipeline            : egress
-      priority            : 90
-      table_id            : 6
-
-      _uuid               : cf700de1-053a-4ca9-a94a-f1b1889fd6a8
-      actions             : "drop;"
-      external_ids        : {stage-name=ls_out_port_sec_ip}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.dst == fa:16:3e:1c:ca:6a && ip"
-      pipeline            : egress
-      priority            : 80
-      table_id            : 6
-
-      _uuid               : 8866a2b9-426d-444f-94dd-f36f0f79eda5
-      actions             : "output;"
-      external_ids        : {stage-name="ls_out_port_sec_l2"}
-      logical_datapath    : bd0ab2b3-4cf4-4289-9529-ef430f6a89e6
-      match               : "outport == \"cafd4862-c69c-46e4-b3d2-6141ce06b205\" && eth.dst == {fa:16:3e:1c:ca:6a}"
-      pipeline            : egress
-      priority            : 50
-      table_id            : 7
+      Datapath: bd0ab2b3-4cf4-4289-9529-ef430f6a89e6  Pipeline: ingress
+        table= 0(  ls_in_port_sec_l2), priority=   50,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.src == {fa:16:3e:1c:ca:6a}),
+          action=(next;)
+        table= 1(  ls_in_port_sec_ip), priority=   90,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.src == fa:16:3e:1c:ca:6a && ip4.src == {203.0.113.103}),
+          action=(next;)
+        table= 1(  ls_in_port_sec_ip), priority=   90,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.src == fa:16:3e:1c:ca:6a && ip4.src == 0.0.0.0 &&
+                 ip4.dst == 255.255.255.255 && udp.src == 68 && udp.dst == 67),
+          action=(next;)
+        table= 1(  ls_in_port_sec_ip), priority=   80,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.src == fa:16:3e:1c:ca:6a && ip),
+          action=(drop;)
+        table= 2(  ls_in_port_sec_nd), priority=   90,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.src == fa:16:3e:1c:ca:6a &&
+                 arp.sha == fa:16:3e:1c:ca:6a && (arp.spa == 203.0.113.103 )),
+          action=(next;)
+        table= 2(  ls_in_port_sec_nd), priority=   80,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 (arp || nd)),
+          action=(drop;)
+        table= 3(      ls_in_pre_acl), priority=  110,
+          match=(nd),
+          action=(next;)
+        table= 3(      ls_in_pre_acl), priority=  100,
+          match=(ip),
+          action=(reg0[0] = 1; next;)
+        table= 6(          ls_in_acl), priority=65535,
+          match=(ct.inv),
+          action=(drop;)
+        table= 6(          ls_in_acl), priority=65535,
+          match=(nd),
+          action=(next;)
+        table= 6(          ls_in_acl), priority=65535,
+          match=(ct.est && !ct.rel && !ct.new && !ct.inv),
+          action=(next;)
+        table= 6(          ls_in_acl), priority=65535,
+          match=(!ct.est && ct.rel && !ct.new && !ct.inv),
+          action=(next;)
+        table= 6(          ls_in_acl), priority= 2002,
+          match=(ct.new && (inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205"
+                 && ip6)),
+          action=(reg0[1] = 1; next;)
+        table= 6(          ls_in_acl), priority= 2002,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip4 &&
+                 (ip4.dst == 255.255.255.255 || ip4.dst == 203.0.113.0/24) &&
+                 udp && udp.src == 68 && udp.dst == 67),
+          action=(reg0[1] = 1; next;)
+        table= 6(          ls_in_acl), priority= 2002,
+          match=(ct.new && (inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 ip4)),
+          action=(reg0[1] = 1; next;)
+        table= 6(          ls_in_acl), priority= 2001,
+          match=(inport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip),
+          action=(drop;)
+        table= 6(          ls_in_acl), priority=    1,
+          match=(ip),
+          action=(reg0[1] = 1; next;)
+        table= 9(      ls_in_arp_rsp), priority=   50,
+          match=(arp.tpa == 203.0.113.103 && arp.op == 1),
+          action=(eth.dst = eth.src; eth.src = fa:16:3e:1c:ca:6a;
+                  arp.op = 2; /* ARP reply */ arp.tha = arp.sha;
+                  arp.sha = fa:16:3e:1c:ca:6a; arp.tpa = arp.spa;
+                  arp.spa = 203.0.113.103; outport = inport;
+                  inport = ""; /* Allow sending out inport. */ output;)
+        table=10(      ls_in_l2_lkup), priority=   50,
+          match=(eth.dst == fa:16:3e:1c:ca:6a),
+          action=(outport = "cafd4862-c69c-46e4-b3d2-6141ce06b205"; output;)
+      Datapath: bd0ab2b3-4cf4-4289-9529-ef430f6a89e6  Pipeline: egress
+        table= 1(     ls_out_pre_acl), priority=  110,
+          match=(nd),
+          action=(next;)
+        table= 1(     ls_out_pre_acl), priority=  100,
+          match=(ip),
+          action=(reg0[0] = 1; next;)
+        table= 4(         ls_out_acl), priority=65535,
+          match=(!ct.est && ct.rel && !ct.new && !ct.inv),
+          action=(next;)
+        table= 4(         ls_out_acl), priority=65535,
+          match=(ct.est && !ct.rel && !ct.new && !ct.inv),
+          action=(next;)
+        table= 4(         ls_out_acl), priority=65535,
+          match=(ct.inv),
+          action=(drop;)
+        table= 4(         ls_out_acl), priority=65535,
+          match=(nd),
+          action=(next;)
+        table= 4(         ls_out_acl), priority= 2002,
+          match=(ct.new &&
+                 (outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip6 &&
+                  ip6.src == $as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc)),
+          action=(reg0[1] = 1; next;)
+        table= 4(         ls_out_acl), priority= 2002,
+          match=(ct.new &&
+                 (outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip4 &&
+                  ip4.src == $as_ip4_90a78a43_b549_4bee_8822_21fcccab58dc)),
+          action=(reg0[1] = 1; next;)
+        table= 4(         ls_out_acl), priority= 2002,
+          match=(outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip4 &&
+                 ip4.src == 203.0.113.0/24 && udp && udp.src == 67 &&
+                 udp.dst == 68),
+          action=(reg0[1] = 1; next;)
+        table= 4(         ls_out_acl), priority= 2001,
+          match=(outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" && ip),
+          action=(drop;)
+        table= 4(         ls_out_acl), priority=    1,
+          match=(ip),
+          action=(reg0[1] = 1; next;)
+        table= 6( ls_out_port_sec_ip), priority=   90,
+          match=(outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.dst == fa:16:3e:1c:ca:6a &&
+                 ip4.dst == {255.255.255.255, 224.0.0.0/4, 203.0.113.103}),
+          action=(next;)
+        table= 6( ls_out_port_sec_ip), priority=   80,
+          match=(outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.dst == fa:16:3e:1c:ca:6a && ip),
+          action=(drop;)
+        table= 7( ls_out_port_sec_l2), priority=   50,
+          match=(outport == "cafd4862-c69c-46e4-b3d2-6141ce06b205" &&
+                 eth.dst == {fa:16:3e:1c:ca:6a}),
+          action=(output;)
 
 #. The OVN controller service on each compute node translates these objects
    into flows on the integration bridge ``br-int``. Exact flows depend on

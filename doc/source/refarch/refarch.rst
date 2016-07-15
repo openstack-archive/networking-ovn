@@ -110,7 +110,7 @@ output in this section uses these commands with various output filters.
    $ ovn-sbctl list Chassis
    $ ovn-sbctl list Encap
    $ ovn-nbctl list Address_Set
-   $ ovn-sbctl list Logical_Flow
+   $ ovn-sbctl lflow-list
    $ ovn-sbctl list Multicast_Group
    $ ovn-sbctl list Datapath_Binding
    $ ovn-sbctl list Port_Binding

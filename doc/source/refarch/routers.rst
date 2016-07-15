@@ -71,113 +71,38 @@ creating a router.
 
      .. code-block:: console
 
-        _uuid               : 12afc7b5-a8a8-4af4-9f85-b14cec5ff2fe
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_admission}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "vlan.present || eth.src[40]"
-        pipeline            : ingress
-        priority            : 100
-        table_id            : 0
-
-        _uuid               : 4c6e0756-9acc-4d71-8af5-43261cb42b85
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.mcast || ip4.src == 255.255.255.255 || ip4.src == 127.0.0.0/8 || ip4.dst == 127.0.0.0/8 || ip4.src == 0.0.0.0/8 || ip4.dst == 0.0.0.0/8"
-        pipeline            : ingress
-        priority            : 100
-        table_id            : 1
-
-        _uuid               : 12e78010-2404-4e30-9358-6930123dcb6b
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.mcast"
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 1
-
-        _uuid               : 7eac84b6-40db-4c50-b241-1409bc7319ea
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : eth.bcast
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 1
-
-        _uuid               : 7742fae9-974d-4ecd-a3f3-6aac2c942480
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4 && ip.ttl == {0, 1}"
-        pipeline            : ingress
-        priority            : 30
-        table_id            : 1
-
-        _uuid               : 5b17b9c7-97f5-40be-b432-77a5873d136b
-        actions             : "next;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : ingress
-        priority            : 0
-        table_id            : 1
-
-        _uuid               : f6f41c6e-0dfd-493a-aab0-66c9b7120a48
-        actions             : "next;"
-        external_ids        : {stage-name=lr_in_unsnat}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : ingress
-        priority            : 0
-        table_id            : 2
-
-        _uuid               : 75443a02-01f4-45d5-8d6e-ed6ff156ef6c
-        actions             : "next;"
-        external_ids        : {stage-name=lr_in_dnat}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : ingress
-        priority            : 0
-        table_id            : 3
-
-        _uuid               : ab430e23-38e4-4bf4-a26a-8ed08703f4f9
-        actions             : "get_arp(outport, reg0); next;"
-        external_ids        : {stage-name=lr_in_arp_resolve}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : ingress
-        priority            : 0
-        table_id            : 5
-
-        _uuid               : 9fab764b-e8e0-4c50-9ea9-3ed8f105fea1
-        actions             : "arp { eth.dst = ff:ff:ff:ff:ff:ff; arp.spa = reg1; arp.op = 1; output; };"
-        external_ids        : {stage-name=lr_in_arp_request}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "eth.dst == 00:00:00:00:00:00"
-        pipeline            : ingress
-        priority            : 100
-        table_id            : 6
-
-        _uuid               : 8f1c640b-2fc6-4c8a-a4fb-c0ecbfd7e20c
-        actions             : "output;"
-        external_ids        : {stage-name=lr_in_arp_request}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : ingress
-        priority            : 0
-        table_id            : 6
-
-        _uuid               : 1221e9e0-6c47-4241-9768-d04090c3589d
-        actions             : "next;"
-        external_ids        : {stage-name=lr_out_snat}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "1"
-        pipeline            : egress
-        priority            : 0
-        table_id            : 0
+        Datapath: 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa  Pipeline: ingress
+          table= 0(    lr_in_admission), priority=  100,
+            match=(vlan.present || eth.src[40]),
+            action=(drop;)
+          table= 1(     lr_in_ip_input), priority=  100,
+            match=(ip4.mcast || ip4.src == 255.255.255.255 ||
+                   ip4.src == 127.0.0.0/8 || ip4.dst == 127.0.0.0/8 ||
+                   ip4.src == 0.0.0.0/8 || ip4.dst == 0.0.0.0/8),
+            action=(drop;)
+          table= 1(     lr_in_ip_input), priority=   50, match=(ip4.mcast),
+            action=(drop;)
+          table= 1(     lr_in_ip_input), priority=   50, match=(eth.bcast),
+            action=(drop;)
+          table= 1(     lr_in_ip_input), priority=   30,
+            match=(ip4 && ip.ttl == {0, 1}), action=(drop;)
+          table= 1(     lr_in_ip_input), priority=    0, match=(1),
+            action=(next;)
+          table= 2(       lr_in_unsnat), priority=    0, match=(1),
+            action=(next;)
+          table= 3(         lr_in_dnat), priority=    0, match=(1),
+            action=(next;)
+          table= 5(  lr_in_arp_resolve), priority=    0, match=(1),
+            action=(get_arp(outport, reg0); next;)
+          table= 6(  lr_in_arp_request), priority=  100,
+            match=(eth.dst == 00:00:00:00:00:00),
+            action=(arp { eth.dst = ff:ff:ff:ff:ff:ff; arp.spa = reg1;
+                    arp.op = 1; output; };)
+          table= 6(  lr_in_arp_request), priority=    0, match=(1),
+            action=(output;)
+        Datapath: 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa  Pipeline: egress
+          table= 0(        lr_out_snat), priority=    0, match=(1),
+            action=(next;)
 
 #. The OVN controller service on each compute node translates these objects
    into flows on the integration bridge ``br-int``.
@@ -333,133 +258,69 @@ adding a subnet as an interface on a router.
 
      .. code-block:: console
 
-        _uuid               : c58a3b04-6e35-43c8-9983-0a7d060a02fc
-        actions             : "next;"
-        external_ids        : {stage-name=lr_in_admission}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "(eth.mcast || eth.dst == fa:16:3e:0c:55:62) && inport == \"lrp-5b72d278-5b16-44a6-9aa0-9e513a429506\""
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 0
-
-        _uuid               : 121d432f-8e5b-41c2-8e38-55e1fb71c67c
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.src == {192.168.1.1, 192.168.1.255}"
-        pipeline            : ingress
-        priority            : 100
-        table_id            : 1
-
-        _uuid               : 5ef30c51-1718-4241-866f-4cabd64ccd7e
-        actions             : "ip4.dst = ip4.src; ip4.src = 192.168.1.1; ip.ttl = 255; icmp4.type = 0; inport = \"\"; /* Allow sending out inport. \*/ next; "
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.dst == 192.168.1.1 && icmp4.type == 8 && icmp4.code == 0"
-        pipeline            : ingress
-        priority            : 90
-        table_id            : 1
-
-        _uuid               : b7b5dd69-c91d-4f71-9bbe-882bec0ed07d
-        actions             : "eth.dst = eth.src; eth.src = fa:16:3e:0c:55:62; arp.op = 2; /* ARP reply \*/ arp.tha = arp.sha; arp.sha = fa:16:3e:0c:55:62; arp.tpa = arp.spa; arp.spa = 192.168.1.1; outport = \"lrp-5b72d278-5b16-44a6-9aa0-9e513a429506\"; inport = \"\"; /* Allow sending out inport. \*/ output;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "inport == \"lrp-5b72d278-5b16-44a6-9aa0-9e513a429506\" && arp.tpa == 192.168.1.1 && arp.op == 1"
-        pipeline            : ingress
-        priority            : 90
-        table_id            : 1
-
-        _uuid               : e9cbd06b-32a9-4c7f-aaf2-797a4c94e44f
-        actions             : "drop;"
-        external_ids        : {stage-name=lr_in_ip_input}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.dst == 192.168.1.1"
-        pipeline            : ingress
-        priority            : 60
-        table_id            : 1
-
-        _uuid               : 27cc1784-077f-4543-8eb2-8d4d52d85800
-        actions             : "ip.ttl--; reg0 = ip4.dst; reg1 = 192.168.1.1; eth.src = fa:16:3e:0c:55:62; outport = \"lrp-5b72d278-5b16-44a6-9aa0-9e513a429506\"; next;"
-        external_ids        : {stage-name=lr_in_ip_routing}
-        logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-        match               : "ip4.dst == 192.168.1.0/255.255.255.0"
-        pipeline            : ingress
-        priority            : 24
-        table_id            : 4
-
-        _uuid               : ffcde1a4-3cb6-4441-b469-31640926072a
-        actions             : "eth.dst = eth.src; eth.src = fa:16:3e:0c:55:62; arp.op = 2; /* ARP reply \*/ arp.tha = arp.sha; arp.sha = fa:16:3e:0c:55:62; arp.tpa = arp.spa; arp.spa = 192.168.1.1; outport = inport; inport = \"\"; /* Allow sending out inport. \*/ output;"
-        external_ids        : {stage-name=ls_in_arp_rsp}
-        logical_datapath    : 4aef86e4-e54a-4c83-bb27-d65c670d4b51
-        match               : "arp.tpa == 192.168.1.1 && arp.op == 1"
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 9
-
-        _uuid               : 492f9185-77fe-4a0e-b17a-32ca5b875fa6
-        actions             : "output;"
-        external_ids        : {stage-name=lr_out_delivery}
-        logical_datapath    : 4aef86e4-e54a-4c83-bb27-d65c670d4b51
-        match               : "outport == \"lrp-5b72d278-5b16-44a6-9aa0-9e513a429506"
-        pipeline            : egress
-        priority            : 100
-        table_id            : 1
+        Datapath: 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa  Pipeline: ingress
+          table= 0(    lr_in_admission), priority=   50,
+            match=((eth.mcast || eth.dst == fa:16:3e:0c:55:62) &&
+                   inport == "lrp-5b72d278-5b16-44a6-9aa0-9e513a429506"),
+            action=(next;)
+          table= 1(     lr_in_ip_input), priority=  100,
+            match=(ip4.src == {192.168.1.1, 192.168.1.255}), action=(drop;)
+          table= 1(     lr_in_ip_input), priority=   90,
+            match=(ip4.dst == 192.168.1.1 && icmp4.type == 8 &&
+                   icmp4.code == 0),
+            action=(ip4.dst = ip4.src; ip4.src = 192.168.1.1; ip.ttl = 255;
+                    icmp4.type = 0;
+                    inport = ""; /* Allow sending out inport. */ next; )
+          table= 1(     lr_in_ip_input), priority=   90,
+            match=(inport == "lrp-5b72d278-5b16-44a6-9aa0-9e513a429506" &&
+                   arp.tpa == 192.168.1.1 && arp.op == 1),
+            action=(eth.dst = eth.src; eth.src = fa:16:3e:0c:55:62;
+                    arp.op = 2; /* ARP reply */ arp.tha = arp.sha;
+                    arp.sha = fa:16:3e:0c:55:62; arp.tpa = arp.spa;
+                    arp.spa = 192.168.1.1;
+                    outport = "lrp-5b72d278-5b16-44a6-9aa0-9e513a429506";
+                    inport = ""; /* Allow sending out inport. */ output;)
+          table= 1(     lr_in_ip_input), priority=   60,
+            match=(ip4.dst == 192.168.1.1), action=(drop;)
+          table= 4(   lr_in_ip_routing), priority=   24,
+            match=(ip4.dst == 192.168.1.0/255.255.255.0),
+            action=(ip.ttl--; reg0 = ip4.dst; reg1 = 192.168.1.1;
+                    eth.src = fa:16:3e:0c:55:62;
+                    outport = "lrp-5b72d278-5b16-44a6-9aa0-9e513a429506";
+                    next;)
+        Datapath: 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa  Pipeline: egress
+          table= 1(    lr_out_delivery), priority=  100,
+            match=(outport == "lrp-5b72d278-5b16-44a6-9aa0-9e513a429506),
+            action=(output;)
 
    * Logical flows in the logical switch datapath
 
-        _uuid               : f63972a1-5ce6-4ec0-a1b3-771e1d31acca
-        actions             : "next;"
-        external_ids        : {stage-name="ls_in_port_sec_l2"}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "inport == \"5b72d278-5b16-44a6-9aa0-9e513a429506\""
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 0
+     .. code-block:: console
 
-        _uuid               : 53bafcb3-71d9-4bc3-bf88-45cd22c3e1b9
-        actions             : "next;"
-        external_ids        : {stage-name=ls_in_pre_acl}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "ip && inport == \"5b72d278-5b16-44a6-9aa0-9e513a429506\""
-        pipeline            : ingress
-        priority            : 110
-        table_id            : 3
-
-        _uuid               : ffcde1a4-3cb6-4441-b469-31640926072a
-        actions             : "eth.dst = eth.src; eth.src = fa:16:3e:0c:55:62; arp.op = 2; /* ARP reply \*/ arp.tha = arp.sha; arp.sha = fa:16:3e:0c:55:62; arp.tpa = arp.spa; arp.spa = 192.168.1.1; outport = inport; inport = \"\"; /* Allow sending out inport. \*/ output;"
-        external_ids        : {stage-name=ls_in_arp_rsp}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "arp.tpa == 192.168.1.1 && arp.op == 1"
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 9
-
-        _uuid               : 399904bb-77b0-4b0d-b613-59e460bca3f9
-        actions             : "outport = \"f112b99a-8ccc-4c52-8733-7593fa0966ea\"; output;"
-        external_ids        : {stage-name="ls_in_l2_lkup"}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "eth.dst == fa:16:3e:fa:76:8f"
-        pipeline            : ingress
-        priority            : 50
-        table_id            : 10
-
-        _uuid               : 76bdd49d-904e-418e-ba11-1cc2940ec4da
-        actions             : "next;"
-        external_ids        : {stage-name=ls_out_pre_acl}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "ip && outport == \"f112b99a-8ccc-4c52-8733-7593fa0966ea\""
-        pipeline            : egress
-        priority            : 110
-        table_id            : 1
-
-        _uuid               : d998b3da-c2ff-4113-986d-f1efca174d3c
-        actions             : "output;"
-        external_ids        : {stage-name="ls_out_port_sec_l2"}
-        logical_datapath    : 611d35e8-b1e1-442c-bc07-7c6192ad6216
-        match               : "outport == \"f112b99a-8ccc-4c52-8733-7593fa0966ea\""
-        pipeline            : egress
-        priority            : 50
-        table_id            : 7
+        Datapath: 611d35e8-b1e1-442c-bc07-7c6192ad6216  Pipeline: ingress
+          table= 0(  ls_in_port_sec_l2), priority=   50,
+            match=(inport == "5b72d278-5b16-44a6-9aa0-9e513a429506"),
+            action=(next;)
+          table= 3(      ls_in_pre_acl), priority=  110,
+            match=(ip && inport == "5b72d278-5b16-44a6-9aa0-9e513a429506"),
+            action=(next;)
+          table= 9(      ls_in_arp_rsp), priority=   50,
+            match=(arp.tpa == 192.168.1.1 && arp.op == 1),
+            action=(eth.dst = eth.src; eth.src = fa:16:3e:0c:55:62;
+                    arp.op = 2; /* ARP reply */ arp.tha = arp.sha;
+                    arp.sha = fa:16:3e:0c:55:62; arp.tpa = arp.spa;
+                    arp.spa = 192.168.1.1; outport = inport;
+                    inport = ""; /* Allow sending out inport. */ output;)
+          table=10(      ls_in_l2_lkup), priority=   50,
+            match=(eth.dst == fa:16:3e:fa:76:8f),
+            action=(outport = "f112b99a-8ccc-4c52-8733-7593fa0966ea"; output;)
+        Datapath: 611d35e8-b1e1-442c-bc07-7c6192ad6216  Pipeline: egress
+          table= 1(     ls_out_pre_acl), priority=  110,
+            match=(ip && outport == "f112b99a-8ccc-4c52-8733-7593fa0966ea"),
+            action=(next;)
+          table= 7( ls_out_port_sec_l2), priority=   50,
+            match=(outport == "f112b99a-8ccc-4c52-8733-7593fa0966ea"),
+            action=(output;)
 
    * Port bindings
 
@@ -505,14 +366,11 @@ adding a subnet as an interface on a router.
 
    .. code-block:: console
 
-      _uuid               : 09fc0ddf-c5d5-45d7-b5e5-f30c988c17b0
-      actions             : "eth.dst = fa:16:3e:b6:91:70; next;"
-      external_ids        : {stage-name=lr_in_arp_resolve}
-      logical_datapath    : 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa
-      match               : "outport == \"lrp-f112b99a-8ccc-4c52-8733-7593fa0966ea\" && reg0 == 192.168.1.11"
-      pipeline            : ingress
-      priority            : 100
-      table_id            : 5
+      Datapath: 4a7485c6-a1ef-46a5-b57c-5ddb6ac15aaa  Pipeline: ingress
+        table= 5(  lr_in_arp_resolve), priority=  100,
+          match=(outport == "lrp-f112b99a-8ccc-4c52-8733-7593fa0966ea" &&
+                 reg0 == 192.168.1.11),
+          action=(eth.dst = fa:16:3e:b6:91:70; next;)
 
 #. On each compute node, the OVN controller service creates patch ports,
    similar to the following example.
