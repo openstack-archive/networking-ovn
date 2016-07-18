@@ -1,5 +1,8 @@
 register_project_for_upgrade networking-ovn
 
+devstack_localrc base disable_service ovn-northd ovn-controller
+devstack_localrc base enable_service q-agt q-meta q-metering s-account s-container s-object s-proxy
 devstack_localrc target enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn
-devstack_localrc target enable_service ovn-northd ovn-controller
-devstack_localrc target disable_service q-l3 q-agt
+devstack_localrc target PUBLIC_BRIDGE=br-ex
+devstack_localrc target enable_service s-account s-container s-object s-proxy
+devstack_localrc target disable_service q-agt
