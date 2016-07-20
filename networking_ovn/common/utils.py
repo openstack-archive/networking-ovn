@@ -48,5 +48,6 @@ def ovn_addrset_name(sg_id, ip_version):
     # The name of the address set for the given security group id and ip
     # version. The format is:
     #   as-<ip version>-<security group uuid>
-    # with all '-' replaced with '_'.
+    # with all '-' replaced with '_'. This replacement is necessary
+    # because OVN doesn't support '-' in an address set name.
     return ('as-%s-%s' % (ip_version, sg_id)).replace('-', '_')
