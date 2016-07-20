@@ -171,6 +171,7 @@ primary node. See the :ref:`faq` for more information.
         type_drivers = local,flat,vlan,geneve
         tenant_network_types = geneve
         extension_drivers = port_security
+        overlay_ip_version = 4
 
     .. note::
 
@@ -178,15 +179,20 @@ primary node. See the :ref:`faq` for more information.
        ``tenant_network_types`` option. The first network type
        in the list becomes the default self-service network type.
 
-   * Configure the Geneve ID range and maximum header size. IPv4 and IPv6
-     endpoints should use a header size of 58 and 78 bytes, respectively.
+       To use IPv6 for all overlay (tunnel) network endpoints,
+       set the ``overlay_ip_version`` option to ``6``.
+
+   * Configure the Geneve ID range and maximum header size. The IP version
+     overhead (20 bytes for IPv4 (default) or 40 bytes for IPv6) is added
+     to the maximum header size based on the ML2 ``overlay_ip_version``
+     option.
 
      .. code-block:: ini
 
         [ml2_type_geneve]
         ...
         vni_ranges = 1:65536
-        max_header_size = 58
+        max_header_size = 38
 
      .. note::
 

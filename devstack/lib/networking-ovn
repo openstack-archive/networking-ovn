@@ -63,12 +63,11 @@ OVN_UUID=${OVN_UUID:-}
 # unless the distro kernel includes ovs+conntrack support.
 OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 
-# GENEVE overlay protocol overhead. Defaults to 58 bytes. The ML2 framework
-# will use this to configure the DHCP agent MTU option.
-# TODO(rtheis): This does not account for the 20 byte IPv6 MTU overhead.
-# This will need to be changed once https://review.openstack.org/#/c/320121/
-# is fixed.
-OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-58}
+# GENEVE overlay protocol overhead. Defaults to 38 bytes plus the IP version
+# overhead (20 bytes for IPv4 (default) or 40 bytes for IPv6) which is determined
+# based on the ML2 overlay_ip_version option. The ML2 framework will use this to
+# configure the DHCP agent MTU option.
+OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-38}
 
 # If using OVN_L3_MODE, this sets whether to create a public network and bridge.
 # If set to True, a public network and subnet(s) will be created, and a router
