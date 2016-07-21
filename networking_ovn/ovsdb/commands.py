@@ -542,16 +542,21 @@ class UpdateACLsCommand(BaseCommand):
                 self._get_update_data_without_compare()
 
         for lswitch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
+            acl_del_objs = acl_del_objs_dict.get(lswitch_name, [])
+            acl_add_values = acl_add_values_dict.get(lswitch_name, [])
+
+            # Continue if no ACLs to add or delete.
+            if not acl_del_objs and not acl_add_values:
+                continue
+
             lswitch.verify('acls')
             acls = getattr(lswitch, 'acls', [])
 
             # Delete ACLs
-            acl_del_objs = acl_del_objs_dict.get(lswitch_name, [])
             if acl_del_objs:
                 self._delete_acls(lswitch_name, acls, acl_del_objs)
 
             # Add new ACLs
-            acl_add_values = acl_add_values_dict.get(lswitch_name, [])
             if acl_add_values:
                 self._add_acls(txn, acls, acl_add_values)
 

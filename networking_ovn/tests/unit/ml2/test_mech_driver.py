@@ -419,32 +419,27 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
                     # Remove the default security group.
                     self.nb_ovn.set_lswitch_port.reset_mock()
-                    self.nb_ovn.delete_acl.reset_mock()
-                    self.nb_ovn.add_acl.reset_mock()
+                    self.nb_ovn.update_acls.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
                     data = {'port': {'security_groups': []}}
                     self._update('ports', port1['port']['id'], data)
                     self.assertEqual(
                         1, self.nb_ovn.set_lswitch_port.call_count)
                     self.assertEqual(
-                        1, self.nb_ovn.delete_acl.call_count)
-                    self.nb_ovn.add_acl.assert_not_called()
+                        1, self.nb_ovn.update_acls.call_count)
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
 
                     # Add the default security group.
                     self.nb_ovn.set_lswitch_port.reset_mock()
-                    self.nb_ovn.delete_acl.reset_mock()
-                    self.nb_ovn.add_acl.reset_mock()
+                    self.nb_ovn.update_acls.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
                     data = {'port': {'security_groups': [sg_id]}}
                     self._update('ports', port1['port']['id'], data)
                     self.assertEqual(
                         1, self.nb_ovn.set_lswitch_port.call_count)
                     self.assertEqual(
-                        1, self.nb_ovn.delete_acl.call_count)
-                    self.assertEqual(
-                        8, self.nb_ovn.add_acl.call_count)
+                        1, self.nb_ovn.update_acls.call_count)
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
 
@@ -455,33 +450,25 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                set_context=True, tenant_id='test') as port1:
                     # Update the port name.
                     self.nb_ovn.set_lswitch_port.reset_mock()
-                    self.nb_ovn.delete_acl.reset_mock()
-                    self.nb_ovn.add_acl.reset_mock()
+                    self.nb_ovn.update_acls.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
                     data = {'port': {'name': 'rtheis'}}
                     self._update('ports', port1['port']['id'], data)
                     self.assertEqual(
                         1, self.nb_ovn.set_lswitch_port.call_count)
-                    self.assertEqual(
-                        1, self.nb_ovn.delete_acl.call_count)
-                    self.assertEqual(
-                        8, self.nb_ovn.add_acl.call_count)
+                    self.nb_ovn.update_acls.assert_not_called()
                     self.nb_ovn.update_address_set.assert_not_called()
 
                     # Update the port fixed IPs
                     self.nb_ovn.set_lswitch_port.reset_mock()
-                    self.nb_ovn.delete_acl.reset_mock()
-                    self.nb_ovn.add_acl.reset_mock()
+                    self.nb_ovn.update_acls.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
-                    data = {'port': {'fixed_ips':
-                                     [{'subnet_id': subnet1['subnet']['id']}]}}
+                    data = {'port': {'fixed_ips': []}}
                     self._update('ports', port1['port']['id'], data)
                     self.assertEqual(
                         1, self.nb_ovn.set_lswitch_port.call_count)
                     self.assertEqual(
-                        1, self.nb_ovn.delete_acl.call_count)
-                    self.assertEqual(
-                        8, self.nb_ovn.add_acl.call_count)
+                        1, self.nb_ovn.update_acls.call_count)
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
 

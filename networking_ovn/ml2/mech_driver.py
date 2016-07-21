@@ -594,25 +594,31 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     options=ovn_port_info.options,
                     enabled=port['admin_state_up'],
                     port_security=ovn_port_info.port_security))
-            # Note that the ovsdb IDL suppresses the transaction down to what
-            # has actually changed.
-            txn.add(self._nb_ovn.delete_acl(
-                    utils.ovn_name(port['network_id']),
-                    port['id']))
-            acls_new = ovn_acl.add_acls(self._plugin,
-                                        admin_context,
-                                        port,
-                                        sg_cache,
-                                        subnet_cache)
-            for acl in acls_new:
-                txn.add(self._nb_ovn.add_acl(**acl))
 
-            # Refresh remote security groups for changed security groups
+            # Determine if security groups or fixed IPs are updated.
             old_sg_ids = set(original_port.get('security_groups', []))
             new_sg_ids = set(port.get('security_groups', []))
             detached_sg_ids = old_sg_ids - new_sg_ids
             attached_sg_ids = new_sg_ids - old_sg_ids
+            is_fixed_ips_updated = \
+                original_port.get('fixed_ips') != port.get('fixed_ips')
 
+            # Refresh ACLs for changed security groups or fixed IPs.
+            if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated:
+                # Note that update_acls will compare the port's ACLs to
+                # ensure only the necessary ACLs are added and deleted
+                # on the transaction.
+                acls_new = ovn_acl.add_acls(self._plugin,
+                                            admin_context,
+                                            port,
+                                            sg_cache,
+                                            subnet_cache)
+                txn.add(self._nb_ovn.update_acls([port['network_id']],
+                                                 [port],
+                                                 {port['id']: acls_new},
+                                                 need_compare=True))
+
+            # Refresh address sets for changed security groups or fixed IPs.
             if (len(port.get('fixed_ips')) != 0 or
                     len(original_port.get('fixed_ips')) != 0):
                 addresses = ovn_acl.acl_port_ips(port)
@@ -634,7 +640,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                 addrs_add=None,
                                 addrs_remove=addresses_old[ip_version]))
 
-                if original_port.get('fixed_ips') != port.get('fixed_ips'):
+                if is_fixed_ips_updated:
                     # We have refreshed address sets for attached and detached
                     # security groups, so now we only need to take care of
                     # unchanged security groups.
