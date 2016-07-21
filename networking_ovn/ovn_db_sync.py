@@ -319,6 +319,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                       "sync routers and router ports")
             return
 
+        # TODO(chandrav): Add sync support for NAT, bug #1629076.
         LOG.debug('OVN-NB Sync Routers and Router ports started')
         db_routers = {}
         db_router_ports = {}

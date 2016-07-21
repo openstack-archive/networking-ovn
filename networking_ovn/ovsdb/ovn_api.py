@@ -447,6 +447,66 @@ class API(object):
         :returns: dictionary indexed by name, DB columns as values
         """
 
+    @abc.abstractmethod
+    def get_router_port_options(self, lsp_name):
+        """Get options set for lsp of type router
+
+        :returns: router port options
+        """
+
+    @abc.abstractmethod
+    def add_nat_rule_in_lrouter(self, lrouter, **columns):
+        """Add NAT rule in logical router
+
+
+        :param lrouter:      The unique name of the lrouter
+        :type lrouter:       string
+        :param columns:      Dictionary of nat columns
+                             Supported columns: type, logical_ip, external_ip
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def delete_nat_rule_in_lrouter(self, lrouter, type, logical_ip,
+                                   external_ip, if_exists=True):
+        """Delete NAT rule in logical router
+
+        :param lrouter:      The unique name of the lrouter
+        :type lrouter:       string
+        :param type:         Type of nat. Supported values are 'snat', 'dnat'
+                             and 'dnat_and_snat'
+        :type type:          string
+        :param logical_ip:   IP or network that needs to be natted
+        :type logical_ip:    string
+        :param logical_ip:   External IP to be used for nat
+        :type external_ip:   string
+        :type if_exists:     bool
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def add_nat_ip_to_lrport_peer_options(self, lport, nat_ip):
+        """Add nat address in peer port of lrouter port
+
+        :param lport:   The unique name of the lswitch port
+        :type lport:    string
+        :param nat_ip:  nat ip to be added
+        :type nat_ip:   string
+        :returns:       :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
+        """Delete nat address from peer port of lrouter port
+
+        :param lport:   The unique name of the lswitch port
+        :type lport:    string
+        :param nat_ip:  nat ip to be removed
+        :type nat_ip:   string
+        :returns:       :class:`Command` with no result
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):

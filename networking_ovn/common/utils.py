@@ -26,6 +26,26 @@ def ovn_name(id):
     return 'neutron-%s' % id
 
 
+def ovn_gateway_router_name(id):
+    "Ovn Gateway Router"
+    return 'ogr-%s' % id
+
+
+def ovn_transit_ls_name(id):
+    "Ovn Transit Logical Switch"
+    return '%s-%s' % (constants.OVN_TRANSIT_LS_NAME_PREFIX, id)
+
+
+def ovn_dtsp_name(id):
+    "Distributed Transit switch port"
+    return 'dtsp-%s' % id
+
+
+def ovn_gtsp_name(id):
+    "Gateway Transit switch port"
+    return 'gtsp-%s' % id
+
+
 def ovn_lrouter_port_name(id):
     # The name of the OVN lrouter port entry will be lrp-<UUID>
     # This is to distinguish with the name of the connected lswitch patch port,

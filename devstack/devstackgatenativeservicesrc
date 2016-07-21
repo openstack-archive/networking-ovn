@@ -24,6 +24,9 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
 
 if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
@@ -53,22 +56,8 @@ r="^(?!.*"
 # exclude the slow tag (part of the default for 'full')
 r="$r(?:.*\[.*\bslow\b.*\])"
 
-# exclude things that aren't fully implemented yet in the OVN native L3 agent
-
-# NOTE: Re-enable floating ip tests once floating IPs are implemented
-# in OVN (bug 1514995).
-r="$r|(?:tempest\.api\.compute\.floating_ips.*)"
-r="$r|(?:tempest\.api\.network\.admin\.test_floating_ips_admin_actions.*)"
-r="$r|(?:tempest\.api\.network\.test_floating_ips.*)"
-r="$r|(?:tempest\.scenario\.test_minimum_basic.*)"
-r="$r|(?:tempest\.scenario\.test_network_advanced_server_ops.*)"
-r="$r|(?:tempest\.scenario\.test_network_basic_ops.*)"
+# TODO(chandrav): Opened bug #1629073 to track this
 r="$r|(?:tempest\.scenario\.test_network_v6.*)"
-r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops.*)"
-r="$r|(?:tempest\.scenario\.test_shelve_instance.*)"
-r="$r|(?:tempest\.scenario\.test_snapshot_pattern.*)"
-r="$r|(?:tempest\.scenario\.test_stamp_pattern.*)"
-r="$r|(?:tempest\.scenario\.test_volume_boot_pattern.*)"
 
 # exclude things that just aren't enabled with OVN
 r="$r|(?:tempest\.api\.network\.admin\.test_l3_agent_scheduler.*)"
