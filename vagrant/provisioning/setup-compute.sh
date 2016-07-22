@@ -34,6 +34,11 @@ SCREEN_LOGDIR=/opt/stack/log/data
 # Enable the DHCP and metadata services on the compute node.
 enable_service q-dhcp q-meta
 
+# Use provider network for public.
+Q_USE_PROVIDERNET_FOR_PUBLIC=True
+OVS_PHYSICAL_BRIDGE=br-provider
+PHYSICAL_NETWORK=provider
+
 # Until OVN supports NAT, the private network IP address range
 # must not conflict with IP address ranges on the host. Change
 # as necessary for your environment.
