@@ -58,6 +58,11 @@ if [ ! -d "networking-ovn/.git" ]; then
     git clone https://git.openstack.org/openstack/networking-ovn.git
 fi
 
+# Use networking-ovn in vagrant home directory when stacking.
+sudo mkdir /opt/stack
+sudo chown vagrant:vagrant /opt/stack
+ln -s ~/networking-ovn /opt/stack/networking-ovn
+
 # We need swap space to do any sort of scale testing with the Vagrant config.
 # Without this, we quickly run out of RAM and the kernel starts whacking things.
 sudo rm -f /swapfile1
