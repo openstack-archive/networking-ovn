@@ -84,7 +84,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             lrouter='neutron-router-id',
             mac='aa:aa:aa:aa:aa:aa',
             name='lrp-router-port-id',
-            networks=set(['10.0.0.100/24']))
+            networks=['10.0.0.100/24'])
         self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
             assert_called_once_with('router-port-id', 'lrp-router-port-id')
 
@@ -108,13 +108,14 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 {'ip_address': '2001:db8::1', 'subnet_id': 'subnet-id1'},
                 {'ip_address': '2001:dba::1', 'subnet_id': 'subnet-id2'}],
         }
+        fake_rtr_intf_networks = ['2001:db8::1/24', '2001:dba::1/24']
         self.l3_plugin.add_router_interface(self.context, router_id,
                                             interface_info)
-        self.l3_plugin._ovn.update_lrouter_port.assert_called_once_with(
-            if_exists=False,
-            lrouter='neutron-router-id',
-            name='lrp-router-port-id',
-            networks=set(['2001:db8::1/24', '2001:dba::1/24']))
+        called_args_dict = (
+            self.l3_plugin._ovn.update_lrouter_port.call_args_list[0][1])
+        self.assertEqual(1, self.l3_plugin._ovn.update_lrouter_port.call_count)
+        self.assertItemsEqual(fake_rtr_intf_networks,
+                              called_args_dict.get('networks', []))
         self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
             assert_called_once_with('router-port-id', 'lrp-router-port-id')
 
@@ -143,7 +144,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_plugin._ovn.update_lrouter_port.assert_called_once_with(
             if_exists=False, lrouter='neutron-router-id',
-            name='lrp-router-port-id', networks=set(['10.0.0.100/24']))
+            name='lrp-router-port-id', networks=['10.0.0.100/24'])
 
     @mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.update_router')
     def test_update_router_admin_state_no_change(self, func):

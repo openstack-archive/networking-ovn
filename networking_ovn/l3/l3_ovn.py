@@ -168,7 +168,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             cidr = netaddr.IPNetwork(subnet['cidr'])
             networks.add("%s/%s" % (fixed_ip['ip_address'],
                                     str(cidr.prefixlen)))
-        return networks
+        return list(networks)
 
     def create_lrouter_port_in_ovn(self, context, router_id, port):
         """Create lrouter port in OVN
