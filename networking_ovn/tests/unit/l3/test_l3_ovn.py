@@ -212,9 +212,6 @@ class OVNL3BaseForTests(test_db_base_plugin_v2.NeutronDbPluginV2TestCase):
         super(OVNL3BaseForTests, self).setUp(plugin=plugin,
                                              ext_mgr=ext_mgr,
                                              service_plugins=service_plugins)
-        mgr = manager.NeutronManager.get_instance()
-        self.plugin = mgr.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
         patcher = mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
@@ -226,11 +223,7 @@ class OVNL3BaseForTests(test_db_base_plugin_v2.NeutronDbPluginV2TestCase):
 class OVNL3TestCase(OVNL3BaseForTests,
                     test_l3.L3NatTestCaseBase,
                     test_l3.L3NatDBTestCaseMixin):
-
-    # NOTE(rtheis): Skip test since the test L3 plugin doesn't
-    # implement the update_port() method.
-    def test_router_add_interface_port(self):
-        pass
+    pass
 
 
 class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
