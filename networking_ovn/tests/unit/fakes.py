@@ -88,6 +88,8 @@ class FakeOvsdbSbOvnIdl(object):
         self.get_chassis_hostname_and_physnets = mock.Mock()
         self.get_chassis_hostname_and_physnets.return_value = {}
         self.get_all_chassis = mock.Mock()
+        self.get_chassis_datapath_and_iface_types = mock.Mock()
+        self.get_chassis_datapath_and_iface_types.return_value = ('fake', '')
 
 
 class FakeOvsdbTransaction(object):

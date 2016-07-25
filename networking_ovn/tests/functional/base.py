@@ -144,6 +144,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 time.sleep(1)
 
         num_attempts = 0
+
+        # Create monitor IDL connection to the OVN SB DB.
+        # This monitor IDL connection can be used to
+        #  - Create chassis rows
+        #  - Update chassis columns etc.
         while num_attempts < 3:
             try:
                 self.monitor_sb_idl_con = connection.Connection(
@@ -192,8 +197,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
         self._start_ovsdb_server_and_idls()
 
-    def add_fake_chassis(self, host, physical_nets=None):
+    def add_fake_chassis(self, host, physical_nets=None, external_ids=None):
         physical_nets = physical_nets or []
+        external_ids = external_ids or {}
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_sb_db_idl
         fake_api._tables = self.monitor_sb_db_idl.tables
@@ -202,7 +208,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                   for i, phys_net in enumerate(physical_nets)])
         name = uuid.uuid4().hex
         with self.sb_idl_transaction(fake_api, check_error=True) as txn:
-            external_ids = {'ovn-bridge-mappings': bridge_mapping}
+            external_ids['ovn-bridge-mappings'] = bridge_mapping
             txn.add(AddFakeChassisCommand(fake_api, name, "172.24.4.10",
                                           external_ids=external_ids,
                                           hostname=host))

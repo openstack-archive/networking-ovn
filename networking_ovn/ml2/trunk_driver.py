@@ -12,14 +12,19 @@
 
 from oslo_config import cfg
 
-from networking_ovn.common import config
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
+from neutron.extensions import portbindings
 from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk.drivers import base as trunk_base
 
+
+SUPPORTED_INTERFACES = (
+    portbindings.VIF_TYPE_OVS,
+    portbindings.VIF_TYPE_VHOST_USER,
+)
 
 SUPPORTED_SEGMENTATION_TYPES = (
     trunk_consts.VLAN,
@@ -100,7 +105,7 @@ class OVNTrunkDriver(trunk_base.DriverBase):
     def create(cls, plugin_driver):
         cls.plugin_driver = plugin_driver
         return cls(OVN_ML2_MECH_DRIVER_NAME,
-                   (config.get_ovn_vif_type(),),
+                   SUPPORTED_INTERFACES,
                    SUPPORTED_SEGMENTATION_TYPES,
                    None,
                    can_trunk_bound_port=True)

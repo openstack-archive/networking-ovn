@@ -62,6 +62,10 @@ ovn_opts = [
                       'selected \n'
                       'chance - chassis randomly selected')),
     cfg.StrOpt("vif_type",
+               deprecated_for_removal=True,
+               deprecated_reason="The port VIF type is now determined based "
+                                 "on the OVN chassis information when the "
+                                 "port is bound to a host.",
                default=portbindings.VIF_TYPE_OVS,
                help=_("Type of VIF to be used for ports valid values are "
                       "(%(ovs)s, %(dpdk)s) default %(ovs)s") % {
@@ -113,10 +117,6 @@ def is_ovn_l3():
 
 def get_ovn_l3_scheduler():
     return cfg.CONF.ovn.ovn_l3_scheduler
-
-
-def get_ovn_vif_type():
-    return cfg.CONF.ovn.vif_type
 
 
 def get_ovn_vhost_sock_dir():
