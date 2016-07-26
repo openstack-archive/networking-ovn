@@ -13,8 +13,10 @@
 #    under the License.
 
 import mock
+import six
 import uuid
 
+from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
@@ -36,11 +38,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_lrouters = []
         self.create_lrouter_ports = []
         self.create_lrouter_routes = []
+        self.create_acls = []
         self.delete_lswitches = []
         self.delete_lswitch_ports = []
         self.delete_lrouters = []
         self.delete_lrouter_ports = []
         self.delete_lrouter_routes = []
+        self.delete_acls = []
 
     def _create_resources(self):
         n1 = self._make_network(self.fmt, 'n1', True)
@@ -50,10 +54,17 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         for p in ['p1', 'p2', 'p3']:
             port = self._make_port(self.fmt, n1['network']['id'],
                                    name='n1-' + p)
-            if p == 'p2':
-                self.delete_lswitch_ports.append(
-                    (port['port']['id'], 'neutron-' + n1['network']['id'])
-                )
+            lport_name = port['port']['id']
+            lswitch_name = 'neutron-' + n1['network']['id']
+            if p == 'p1':
+                fake_subnet = {'cidr': '11.11.11.11/24'}
+                dhcp_acls = acl_utils.add_acl_dhcp(port['port'], fake_subnet)
+                for dhcp_acl in dhcp_acls:
+                    self.create_acls.append(dhcp_acl)
+            elif p == 'p2':
+                self.delete_lswitch_ports.append((lport_name, lswitch_name))
+            elif p == 'p3':
+                self.delete_acls.append((lport_name, lswitch_name))
 
         n2 = self._make_network(self.fmt, 'n2', True)
         res = self._create_subnet(self.fmt, n2['network']['id'],
@@ -160,6 +171,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(cmd.DelStaticRouteCommand(fake_api, lrouter_name,
                                                   ip_prefix, nexthop, True))
 
+            for acl in self.create_acls:
+                txn.add(cmd.AddACLCommand(fake_api, **acl))
+
+            for lport_name, lswitch_name in self.delete_acls:
+                txn.add(cmd.DelACLCommand(fake_api, lswitch_name,
+                                          lport_name, True))
+
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
         db_net_ids = [net['id'] for net in db_networks['networks']]
@@ -212,6 +230,56 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_port_ids,
                 monitor_lport_ids)
+
+    def _build_acl_to_compare(self, acl):
+        acl_to_compare = {}
+        for acl_key in six.iterkeys(getattr(acl, "_data", {})):
+            try:
+                acl_to_compare[acl_key] = getattr(acl, acl_key)
+            except AttributeError:
+                pass
+        return acl_to_compare
+
+    def _validate_acls(self, should_match=True):
+        # Get the neutron DB ACLs.
+        db_acls = []
+        sg_cache = {}
+        subnet_cache = {}
+        for db_port in self._list('ports')['ports']:
+            acls = acl_utils.add_acls(self.plugin,
+                                      context.get_admin_context(),
+                                      db_port,
+                                      sg_cache,
+                                      subnet_cache)
+            for acl in acls:
+                acl.pop('lport')
+                acl.pop('lswitch')
+                db_acls.append(acl)
+
+        # Get the list of ACLs stored in the OVN plugin IDL.
+        _plugin_nb_ovn = self.mech_driver._nb_ovn
+        plugin_acls = []
+        for row in _plugin_nb_ovn._tables['Logical_Switch'].rows.values():
+            for acl in getattr(row, 'acls', []):
+                plugin_acls.append(self._build_acl_to_compare(acl))
+
+        # Get the list of ACLs stored in the OVN monitor IDL.
+        monitor_nb_ovn = self.monitor_nb_db_idl
+        monitor_acls = []
+        for row in monitor_nb_ovn.tables['Logical_Switch'].rows.values():
+            for acl in getattr(row, 'acls', []):
+                monitor_acls.append(self._build_acl_to_compare(acl))
+
+        if should_match:
+            self.assertItemsEqual(db_acls, plugin_acls)
+            self.assertItemsEqual(db_acls, monitor_acls)
+        else:
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual,
+                db_acls, plugin_acls)
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual,
+                db_acls, monitor_acls)
 
     def _validate_routers_and_router_ports(self, should_match=True):
         db_routers = self._list('routers')
@@ -303,15 +371,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
         self._validate_ports(should_match=should_match)
+        self._validate_acls(should_match=should_match)
         self._validate_routers_and_router_ports(should_match=should_match)
 
     def _sync_resources(self, mode):
-        # TODO(numans) - Need to sync ACLs
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
 
         ctx = context.get_admin_context()
         nb_synchronizer.sync_networks_and_ports(ctx)
+        nb_synchronizer.sync_acls(ctx)
         nb_synchronizer.sync_routers_and_rports(ctx)
 
     def _test_ovn_nb_sync_helper(self, mode, modify_resources=True,
