@@ -678,9 +678,11 @@ class UpdateAddrSetCommand(BaseCommand):
         addrset.verify('addresses')
         addresses_col = getattr(addrset, 'addresses', [])
         if self.addrs_add:
+            # OVN will ignore duplicate addresses.
             for addr_add in self.addrs_add:
                 addresses_col.append(addr_add)
         if self.addrs_remove:
+            # OVN will ignore addresses that don't exist.
             for addr_remove in self.addrs_remove:
                 addresses_col.remove(addr_remove)
         setattr(addrset, 'addresses', addresses_col)

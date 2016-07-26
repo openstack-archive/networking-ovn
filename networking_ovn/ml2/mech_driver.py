@@ -618,13 +618,17 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             sg_ids = port.get('security_groups', [])
             if port.get('fixed_ips') and sg_ids:
                 addresses = ovn_acl.acl_port_ips(port)
+                # NOTE(rtheis): Fail port creation if the address set doesn't
+                # exist. This prevents ports from being created on any security
+                # groups out-of-sync between neutron and OVN.
                 for sg_id in sg_ids:
                     for ip_version in addresses:
                         if addresses[ip_version]:
                             txn.add(self._nb_ovn.update_address_set(
                                 name=utils.ovn_addrset_name(sg_id, ip_version),
                                 addrs_add=addresses[ip_version],
-                                addrs_remove=None))
+                                addrs_remove=None,
+                                if_exists=False))
 
     def update_port_precommit(self, context):
         """Update resources of a port.

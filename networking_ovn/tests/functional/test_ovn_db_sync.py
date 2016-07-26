@@ -20,6 +20,8 @@ from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
+from neutron.callbacks import events
+from neutron.callbacks import resources
 from neutron import context
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
@@ -311,6 +313,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
 
         ctx = context.get_admin_context()
+        # TODO(rtheis): Temporarily synchronize all security groups until the
+        # sync Address Set support is available. This is needed since the
+        # entire OVN NB DB is deleted during the *repair_delete_ovn_nb_db test.
+        # See https://review.openstack.org/#/c/341882/ for the coming support.
+        for sg in self.plugin.get_security_groups(ctx):
+            self.mech_driver._process_sg_notification(resources.SECURITY_GROUP,
+                                                      events.AFTER_CREATE,
+                                                      None,
+                                                      security_group=sg)
         nb_synchronizer.sync_networks_and_ports(ctx)
         nb_synchronizer.sync_routers_and_rports(ctx)
 
