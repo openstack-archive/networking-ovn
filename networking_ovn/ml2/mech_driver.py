@@ -175,16 +175,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg = kwargs.get('security_group')
         external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: sg['name']}
-        for ip_version in ['ip4', 'ip6']:
-            if event == events.AFTER_CREATE:
-                self._nb_ovn.create_address_set(
-                    name=utils.ovn_addrset_name(sg['id'], ip_version),
-                    external_ids=external_ids).execute(
-                    check_error=True)
-            elif event == events.BEFORE_DELETE:
-                self._nb_ovn.delete_address_set(
-                    name=utils.ovn_addrset_name(sg['id'], ip_version)).execute(
-                    check_error=True)
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            for ip_version in ['ip4', 'ip6']:
+                if event == events.AFTER_CREATE:
+                    txn.add(self._nb_ovn.create_address_set(
+                            name=utils.ovn_addrset_name(sg['id'], ip_version),
+                            external_ids=external_ids))
+                elif event == events.BEFORE_DELETE:
+                    txn.add(self._nb_ovn.delete_address_set(
+                            name=utils.ovn_addrset_name(sg['id'], ip_version)))
 
     def _process_sg_rule_notification(
             self, resource, event, trigger, **kwargs):
