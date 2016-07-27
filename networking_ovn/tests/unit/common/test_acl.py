@@ -486,8 +486,8 @@ class TestACLs(base.TestCase):
                                                self.admin_context,
                                                self.driver._nb_ovn,
                                                sg['id'],
-                                               sg_ports_cache=sg_ports_cache,
-                                               rule=sg_rule)
+                                               sg_rule,
+                                               sg_ports_cache=sg_ports_cache)
         self.driver._nb_ovn.update_acls.assert_called_once_with(
             [port['network_id']],
             mock.ANY,
@@ -543,7 +543,8 @@ class TestACLs(base.TestCase):
             ovn_acl.update_acls_for_security_group(self.plugin,
                                                    self.admin_context,
                                                    self.driver._ovn,
-                                                   sg['id'])
+                                                   sg['id'],
+                                                   None)
             self.driver._ovn.update_acls.assert_not_called()
 
             addresses = ovn_acl.acl_port_ips(port)

@@ -238,22 +238,15 @@ def update_acls_for_security_group(plugin,
                                    admin_context,
                                    ovn,
                                    security_group_id,
-                                   sg_cache=None,
+                                   security_group_rule,
                                    sg_ports_cache=None,
-                                   subnet_cache=None,
-                                   exclude_ports=None,
-                                   rule=None,
                                    is_add_acl=True):
     # Skip ACLs if security groups aren't enabled
     if not is_sg_enabled():
         return
 
-    # Setup the caches or use cache provided.
-    sg_cache = sg_cache or {}
+    # Get the security group ports.
     sg_ports_cache = sg_ports_cache or {}
-    subnet_cache = subnet_cache or {}
-    exclude_ports = exclude_ports or []
-
     sg_ports = _get_sg_ports_from_cache(plugin,
                                         admin_context,
                                         sg_ports_cache,
@@ -261,41 +254,26 @@ def update_acls_for_security_group(plugin,
 
     # ACLs associated with a security group may span logical switches
     sg_port_ids = [binding['port_id'] for binding in sg_ports]
-    sg_port_ids = list(set(sg_port_ids) - set(exclude_ports))
+    sg_port_ids = list(set(sg_port_ids))
     port_list = plugin.get_ports(admin_context,
                                  filters={'id': sg_port_ids})
     lswitch_names = set([p['network_id'] for p in port_list])
     acl_new_values_dict = {}
 
-    # NOTE(lizk): When a certain rule is given, we can directly locate
-    # the affected acl records, so no need to compare new acl values with
-    # existing acl objects, such as case create_security_group_rule or
-    # delete_security_group_rule is calling this. But for other cases,
-    # since we don't know which acl records need be updated, compare will
-    # be needed.
-    need_compare = True
-    if rule:
-        need_compare = False
-        for port in port_list:
-            acl = _add_sg_rule_acl_for_port(port, rule)
-            if acl:
-                # Remove lport and lswitch since we don't need them
-                acl.pop('lport')
-                acl.pop('lswitch')
-                acl_new_values_dict[port['id']] = acl
-    else:
-        for port in port_list:
-            acls_new = add_acls(plugin,
-                                admin_context,
-                                port,
-                                sg_cache,
-                                subnet_cache)
-            acl_new_values_dict[port['id']] = acls_new
+    # NOTE(lizk): We can directly locate the affected acl records,
+    # so no need to compare new acl values with existing acl objects.
+    for port in port_list:
+        acl = _add_sg_rule_acl_for_port(port, security_group_rule)
+        if acl:
+            # Remove lport and lswitch since we don't need them
+            acl.pop('lport')
+            acl.pop('lswitch')
+            acl_new_values_dict[port['id']] = acl
 
     ovn.update_acls(list(lswitch_names),
                     iter(port_list),
                     acl_new_values_dict,
-                    need_compare=need_compare,
+                    need_compare=False,
                     is_add_acl=is_add_acl).execute(check_error=True)
 
 
