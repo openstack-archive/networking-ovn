@@ -95,6 +95,12 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             self.ovsdb_server_mgr.get_ovsdb_connection_path(db_type='sb'),
             'ovn')
         num_attempts = 0
+        # 5 seconds should be more than enough for the transaction to complete
+        # for the test cases.
+        # This also fixes the bug #1607639.
+        cfg.CONF.set_override(
+            'ovsdb_connection_timeout', 5,
+            'ovn')
 
         # Created monitor IDL connection to the OVN NB DB.
         # This monitor IDL connection can be used to

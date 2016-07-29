@@ -17,7 +17,7 @@ import mock
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
-from neutron.agent.linux import utils as n_utils
+from neutron.common import utils as n_utils
 
 
 class TestNBDbMonitor(base.TestOVNFunctionalBase):
