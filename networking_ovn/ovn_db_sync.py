@@ -315,9 +315,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                             if_exists=False))
             for sroute in update_sroutes_list:
                 if sroute['add']:
-                    LOG.warning("Router %s static routes %s found in "
-                                "Neutron but not in OVN", sroute['id'],
-                                sroute['add'])
+                    LOG.warning(_LW("Router %(id)s static routes %(route)s "
+                                    "found in Neutron but not in OVN"),
+                                {'id': sroute['id'], 'route': sroute['add']})
                     if self.mode == SYNC_MODE_REPAIR:
                         LOG.warning(_LW("Add static routes %s to OVN NB DB"),
                                     sroute['add'])
@@ -327,9 +327,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                 ip_prefix=route['destination'],
                                 nexthop=route['nexthop']))
                 if sroute['del']:
-                    LOG.warning("Router %s static routes %s found in "
-                                "OVN but not in Neutron", sroute['id'],
-                                sroute['del'])
+                    LOG.warning(_LW("Router %(id)s static routes %(route)s "
+                                    "found in OVN but not in Neutron"),
+                                {'id': sroute['id'], 'route': sroute['del']})
                     if self.mode == SYNC_MODE_REPAIR:
                         LOG.warning(_LW("Delete static routes %s from OVN "
                                         "NB DB"), sroute['del'])
