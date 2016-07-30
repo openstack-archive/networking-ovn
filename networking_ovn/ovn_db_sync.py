@@ -90,6 +90,13 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         self.ovn_driver.create_network_in_ovn(net, {}, physnet, segid)
 
     def _create_port_in_ovn(self, ctx, port):
+        # Remove any old ACLs for the port to avoid creating duplicate ACLs.
+        self.ovn_api.delete_acl(
+            utils.ovn_name(port['network_id']),
+            port['id']).execute(check_error=True)
+
+        # Create the port in OVN. This will include ACL and Address Set
+        # updates as needed.
         ovn_port_info = self.ovn_driver.get_ovn_port_options(port)
         self.ovn_driver.create_port_in_ovn(port, ovn_port_info)
 
