@@ -684,7 +684,8 @@ class UpdateAddrSetCommand(BaseCommand):
         if self.addrs_remove:
             # OVN will ignore addresses that don't exist.
             for addr_remove in self.addrs_remove:
-                addresses_col.remove(addr_remove)
+                if addr_remove in addresses_col:
+                    addresses_col.remove(addr_remove)
         setattr(addrset, 'addresses', addresses_col)
 
 
