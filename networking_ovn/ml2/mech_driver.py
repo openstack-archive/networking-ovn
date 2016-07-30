@@ -151,9 +151,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                resources.SECURITY_GROUP,
                                events.BEFORE_DELETE)
             registry.subscribe(self._process_sg_rule_notification,
-                               resources.SECURITY_GROUP,
-                               events.AFTER_UPDATE)
-            registry.subscribe(self._process_sg_rule_notification,
                                resources.SECURITY_GROUP_RULE,
                                events.AFTER_CREATE)
             registry.subscribe(self._process_sg_rule_notification,
@@ -205,17 +202,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         is_add_acl = True
 
         admin_context = n_context.get_admin_context()
-        if resource == resources.SECURITY_GROUP:
-            sg_id = kwargs.get('security_group_id')
-        elif resource == resources.SECURITY_GROUP_RULE:
-            if event == events.AFTER_CREATE:
-                sg_rule = kwargs.get('security_group_rule')
-                sg_id = sg_rule['security_group_id']
-            elif event == events.BEFORE_DELETE:
-                sg_rule = self._plugin.get_security_group_rule(
-                    admin_context, kwargs.get('security_group_rule_id'))
-                sg_id = sg_rule['security_group_id']
-                is_add_acl = False
+        if event == events.AFTER_CREATE:
+            sg_rule = kwargs.get('security_group_rule')
+            sg_id = sg_rule['security_group_id']
+        elif event == events.BEFORE_DELETE:
+            sg_rule = self._plugin.get_security_group_rule(
+                admin_context, kwargs.get('security_group_rule_id'))
+            sg_id = sg_rule['security_group_id']
+            is_add_acl = False
 
         # TODO(russellb) It's possible for Neutron and OVN to get out of sync
         # here. If updating ACls fails somehow, we're out of sync until another
@@ -224,7 +218,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                                admin_context,
                                                self._nb_ovn,
                                                sg_id,
-                                               rule=sg_rule,
+                                               sg_rule,
                                                is_add_acl=is_add_acl)
 
     def create_network_precommit(self, context):

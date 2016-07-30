@@ -103,17 +103,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.nb_ovn.delete_address_set.assert_has_calls(
             delete_address_set_calls, any_order=True)
 
-    def test__process_sg_rule_notifications_sg_update(self):
-        with mock.patch(
-            'networking_ovn.common.acl.update_acls_for_security_group'
-        ) as ovn_acl_up:
-            self.mech_driver._process_sg_rule_notification(
-                resources.SECURITY_GROUP, events.AFTER_UPDATE, {},
-                security_group_id='sg_id')
-            ovn_acl_up.assert_called_once_with(
-                mock.ANY, mock.ANY, mock.ANY,
-                'sg_id', is_add_acl=True, rule=None)
-
     def test__process_sg_rule_notifications_sgr_create(self):
         with mock.patch(
             'networking_ovn.common.acl.update_acls_for_security_group'
@@ -124,7 +113,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 security_group_rule=rule)
             ovn_acl_up.assert_called_once_with(
                 mock.ANY, mock.ANY, mock.ANY,
-                'sg_id', is_add_acl=True, rule=rule)
+                'sg_id', rule, is_add_acl=True)
 
     def test_process_sg_rule_notifications_sgr_delete(self):
         rule = {'security_group_id': 'sg_id'}
@@ -141,7 +130,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     security_group_rule=rule)
                 ovn_acl_up.assert_called_once_with(
                     mock.ANY, mock.ANY, mock.ANY,
-                    'sg_id', is_add_acl=False, rule=rule)
+                    'sg_id', rule, is_add_acl=False)
 
     def test_add_acls_no_sec_group(self):
         acls = ovn_acl.add_acls(self.mech_driver._plugin,
