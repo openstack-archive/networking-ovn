@@ -682,7 +682,8 @@ class UpdateAddrSetCommand(BaseCommand):
                 addresses_col.append(addr_add)
         if self.addrs_remove:
             for addr_remove in self.addrs_remove:
-                addresses_col.remove(addr_remove)
+                if addr_remove in addresses_col:
+                    addresses_col.remove(addr_remove)
         setattr(addrset, 'addresses', addresses_col)
 
 
