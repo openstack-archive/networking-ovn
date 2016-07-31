@@ -405,13 +405,21 @@ class TestOvnSbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             hostname_with_physnets)
         ovn_driver = ovn_sb_synchronizer.ovn_driver
         ovn_driver.update_segment_host_mapping = mock.Mock()
+        hosts_in_neutron = {'hostname2', 'hostname3'}
 
-        ovn_sb_synchronizer.sync_hostname_and_physical_networks(mock.ANY)
-        self.assertEqual(
-            len(hostname_with_physnets),
-            ovn_driver.update_segment_host_mapping.call_count)
-        update_segment_host_mapping_calls = [mock.call(
-            host, hostname_with_physnets[host])
-            for host in hostname_with_physnets]
-        ovn_driver.update_segment_host_mapping.assert_has_calls(
-            update_segment_host_mapping_calls, any_order=True)
+        with mock.patch.object(ovn_db_sync.segments_db,
+                               'get_hosts_mapped_with_segments',
+                               return_value=hosts_in_neutron):
+            ovn_sb_synchronizer.sync_hostname_and_physical_networks(mock.ANY)
+            all_hosts = set(hostname_with_physnets.keys()) | hosts_in_neutron
+            self.assertEqual(
+                len(all_hosts),
+                ovn_driver.update_segment_host_mapping.call_count)
+            update_segment_host_mapping_calls = [mock.call(
+                host, hostname_with_physnets[host])
+                for host in hostname_with_physnets]
+            update_segment_host_mapping_calls += [
+                mock.call(host, []) for host in
+                hosts_in_neutron - set(hostname_with_physnets.keys())]
+            ovn_driver.update_segment_host_mapping.assert_has_calls(
+                update_segment_host_mapping_calls, any_order=True)
