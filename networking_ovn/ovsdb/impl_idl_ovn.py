@@ -369,6 +369,28 @@ class OvsdbNbOvnIdl(ovn_api.API):
                         'uuid': row.uuid}
         return None
 
+    def get_all_dhcp_options(self):
+        dhcp_options = {'subnets': {}, 'ports': {}}
+
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            if not external_ids.get('subnet_id'):
+                # This row is not created by OVN ML2 driver. Ignore it.
+                continue
+
+            if not external_ids.get('port_id'):
+                dhcp_options['subnets'][external_ids['subnet_id']] = {
+                    'cidr': row.cidr, 'options': dict(row.options),
+                    'external_ids': dict(external_ids),
+                    'uuid': row.uuid}
+            else:
+                dhcp_options['ports'][external_ids['port_id']] = {
+                    'cidr': row.cidr, 'options': dict(row.options),
+                    'external_ids': dict(external_ids),
+                    'uuid': row.uuid}
+
+        return dhcp_options
+
     def get_port_dhcp_options(self, subnet_id, port_id):
         for row in self._tables['DHCP_Options'].rows.values():
             external_ids = getattr(row, 'external_ids', {})

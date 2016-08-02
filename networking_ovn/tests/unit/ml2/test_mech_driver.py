@@ -709,12 +709,12 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         super(TestOVNMechansimDriverDHCPOptions, self).tearDown()
         n_utils.get_random_mac = self.orig_get_random_mac
 
-    def _test__get_ovn_dhcp_options_helper(self, subnet, network,
-                                           expected_dhcp_options):
-        dhcp_options = self.mech_driver._get_ovn_dhcp_options(subnet, network)
+    def _test_get_ovn_dhcp_options_helper(self, subnet, network,
+                                          expected_dhcp_options):
+        dhcp_options = self.mech_driver.get_ovn_dhcp_options(subnet, network)
         self.assertEqual(expected_dhcp_options, dhcp_options)
 
-    def test__get_ovn_dhcp_options(self):
+    def test_get_ovn_dhcp_options(self):
         subnet = {'id': 'foo-subnet',
                   'cidr': '10.0.0.0/24',
                   'ip_version': 4,
@@ -738,10 +738,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             '{20.0.0.4,10.0.0.100, 0.0.0.0/0,10.0.0.1}'
         }
 
-        self._test__get_ovn_dhcp_options_helper(subnet, network,
-                                                expected_dhcp_options)
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options)
 
-    def test__get_ovn_dhcp_options_dhcp_disabled(self):
+    def test_get_ovn_dhcp_options_dhcp_disabled(self):
         subnet = {'id': 'foo-subnet',
                   'cidr': '10.0.0.0/24',
                   'ip_version': 4,
@@ -756,10 +756,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                  'external_ids': {'subnet_id': 'foo-subnet'},
                                  'options': {}}
 
-        self._test__get_ovn_dhcp_options_helper(subnet, network,
-                                                expected_dhcp_options)
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options)
 
-    def test__get_ovn_dhcp_options_no_gw_ip(self):
+    def test_get_ovn_dhcp_options_no_gw_ip(self):
         subnet = {'id': 'foo-subnet',
                   'cidr': '10.0.0.0/24',
                   'ip_version': 4,
@@ -774,10 +774,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                  'external_ids': {'subnet_id': 'foo-subnet'},
                                  'options': {}}
 
-        self._test__get_ovn_dhcp_options_helper(subnet, network,
-                                                expected_dhcp_options)
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options)
 
-    def test__get_ovn_dhcp_options_ipv6_subnet(self):
+    def test_get_ovn_dhcp_options_ipv6_subnet(self):
         subnet = {'id': 'foo-subnet',
                   'cidr': 'ae70::/24',
                   'ip_version': 6,
@@ -788,10 +788,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                  'external_ids': {'subnet_id': 'foo-subnet'},
                                  'options': {}}
 
-        self._test__get_ovn_dhcp_options_helper(subnet, network,
-                                                expected_dhcp_options)
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options)
 
-    def test__get_port_dhcpv4_options_port_dhcp_opts_set(self):
+    def test_get_port_dhcpv4_options_port_dhcp_opts_set(self):
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
@@ -808,7 +808,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             'uuid': 'foo-uuid'}
 
         self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = 'foo-val'
-        dhcpv4_options = self.mech_driver._get_port_dhcpv4_options(port)
+        dhcpv4_options = self.mech_driver.get_port_dhcpv4_options(port)
         self.assertEqual('foo-val', dhcpv4_options)
 
         # Since the port has extra DHCPv4 options defined, a new DHCP_Options
@@ -823,7 +823,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self.mech_driver._nb_ovn.add_dhcp_options.assert_called_once_with(
             'foo-subnet', port_id='foo-port', **expected_dhcp_options)
 
-    def test__get_port_dhcpv4_options_port_dhcp_opts_not_set(self):
+    def test_get_port_dhcpv4_options_port_dhcp_opts_not_set(self):
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
@@ -837,7 +837,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             expected_dhcpv4_opts)
 
         self.assertEqual(expected_dhcpv4_opts,
-                         self.mech_driver._get_port_dhcpv4_options(port))
+                         self.mech_driver.get_port_dhcpv4_options(port))
 
         # Since the port has no extra DHCPv4 options defined, no new
         # DHCP_Options row should be created and logical switch port DHCPv4
@@ -845,7 +845,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test__get_port_dhcpv4_options_port_dhcp_disabled(self):
+    def test_get_port_dhcpv4_options_port_dhcp_disabled(self):
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
@@ -855,7 +855,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                  'opt_value': 'True'}]
         }
 
-        self.assertIsNone(self.mech_driver._get_port_dhcpv4_options(port))
+        self.assertIsNone(self.mech_driver.get_port_dhcpv4_options(port))
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
@@ -867,7 +867,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             'fixed_ips': ['fake']
         }
 
-        self.assertIsNone(self.mech_driver._get_port_dhcpv4_options(port))
+        self.assertIsNone(self.mech_driver.get_port_dhcpv4_options(port))
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()

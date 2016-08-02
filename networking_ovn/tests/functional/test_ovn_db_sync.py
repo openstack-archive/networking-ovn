@@ -53,6 +53,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_address_sets = []
         self.delete_address_sets = []
         self.update_address_sets = []
+        self.expected_dhcp_options_rows = []
+        self.reset_lport_dhcpv4_options = []
+        self.stale_lport_dhcpv4_options = []
+        self.orphaned_lport_dhcpv4_options = []
+        self.lport_dhcpv4_disabled = {}
+        self.missed_dhcpv4_options = []
+        self.dirty_dhcpv4_options = []
 
     def _create_resources(self):
         n1 = self._make_network(self.fmt, 'n1', True)
@@ -60,14 +67,27 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                   '10.0.0.0/24')
         n1_s1 = self.deserialize(self.fmt, res)
         res = self._create_subnet(self.fmt, n1['network']['id'],
-                                  '2001:dba::/64', ip_version=6)
+                                  '2001:dba::/64', ip_version=6,
+                                  enable_dhcp=False)
         n1_s2 = self.deserialize(self.fmt, res)
         res = self._create_subnet(self.fmt, n1['network']['id'],
-                                  '2001:dbb::/64', ip_version=6)
+                                  '2001:dbb::/64', ip_version=6,
+                                  enable_dhcp=False)
         n1_s3 = self.deserialize(self.fmt, res)
-        for p in ['p1', 'p2', 'p3']:
+        self.expected_dhcp_options_rows.append({
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': n1_s1['subnet']['id']},
+            'options': {'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n1['network']['mtu']),
+                        'router': n1_s1['subnet']['gateway_ip']}})
+
+        update_port_ids = []
+        for p in ['p1', 'p2', 'p3', 'p4', 'p5']:
             port = self._make_port(self.fmt, n1['network']['id'],
-                                   name='n1-' + p)
+                                   name='n1-' + p,
+                                   device_owner='compute:None')
             lport_name = port['port']['id']
             lswitch_name = 'neutron-' + n1['network']['id']
             if p == 'p1':
@@ -77,16 +97,95 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     self.create_acls.append(dhcp_acl)
             elif p == 'p2':
                 self.delete_lswitch_ports.append((lport_name, lswitch_name))
+                update_port_ids.append(port['port']['id'])
+                self.expected_dhcp_options_rows.append({
+                    'cidr': '10.0.0.0/24',
+                    'external_ids': {'subnet_id': n1_s1['subnet']['id'],
+                                     'port_id': port['port']['id']},
+                    'options': {'server_id': '10.0.0.1',
+                                'server_mac': '01:02:03:04:05:06',
+                                'lease_time': str(12 * 60 * 60),
+                                'mtu': str(n1['network']['mtu']),
+                                'router': n1_s1['subnet']['gateway_ip'],
+                                'tftp_server': '20.0.0.20',
+                                'dns_server': '8.8.8.8'}})
+                self.dirty_dhcpv4_options.append({
+                    'subnet_id': n1_s1['subnet']['id'],
+                    'port_id': lport_name})
             elif p == 'p3':
                 self.delete_acls.append((lport_name, lswitch_name))
+                self.reset_lport_dhcpv4_options.append(lport_name)
+            elif p == 'p4':
+                self.lport_dhcpv4_disabled.update({
+                    lport_name:
+                    self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                        n1_s1['subnet']['id'])['uuid']})
+                data = {'port': {
+                    'extra_dhcp_opts': [{'ip_version': 4,
+                                         'opt_name': 'dhcp_disabled',
+                                         'opt_value': 'True'}]}}
+                port_req = self.new_update_request('ports', data, lport_name)
+                port_req.get_response(self.api)
+            elif p == 'p5':
+                self.stale_lport_dhcpv4_options.append({
+                    'subnet_id': n1_s1['subnet']['id'],
+                    'port_id': port['port']['id'],
+                    'cidr': '10.0.0.0/24',
+                    'options': {'server_id': '10.0.0.254',
+                                'server_mac': '01:02:03:04:05:06',
+                                'lease_time': str(3 * 60 * 60),
+                                'mtu': str(n1['network']['mtu'] / 2),
+                                'router': '10.0.0.254',
+                                'tftp_server': '20.0.0.234',
+                                'dns_server': '8.8.8.8'},
+                    'external_ids': {'subnet_id': n1_s1['subnet']['id'],
+                                     'port_id': port['port']['id']},
+                    })
+        self.dirty_dhcpv4_options.append({'subnet_id': n1_s1['subnet']['id']})
 
         n2 = self._make_network(self.fmt, 'n2', True)
         res = self._create_subnet(self.fmt, n2['network']['id'],
                                   '20.0.0.0/24')
         n2_s1 = self.deserialize(self.fmt, res)
+        self.expected_dhcp_options_rows.append({
+            'cidr': '20.0.0.0/24',
+            'external_ids': {'subnet_id': n2_s1['subnet']['id']},
+            'options': {'server_id': '20.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n2['network']['mtu']),
+                        'router': n2_s1['subnet']['gateway_ip']}})
+
         for p in ['p1', 'p2']:
             port = self._make_port(self.fmt, n2['network']['id'],
-                                   name='n2-' + p)
+                                   name='n2-' + p,
+                                   device_owner='compute:None')
+            if p == 'p1':
+                update_port_ids.append(port['port']['id'])
+                self.expected_dhcp_options_rows.append({
+                    'cidr': '20.0.0.0/24',
+                    'external_ids': {'subnet_id': n2_s1['subnet']['id'],
+                                     'port_id': port['port']['id']},
+                    'options': {'server_id': '20.0.0.1',
+                                'server_mac': '01:02:03:04:05:06',
+                                'lease_time': str(12 * 60 * 60),
+                                'mtu': str(n1['network']['mtu']),
+                                'router': n2_s1['subnet']['gateway_ip'],
+                                'tftp_server': '20.0.0.20',
+                                'dns_server': '8.8.8.8'}})
+        self.missed_dhcpv4_options.append(
+            self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n2_s1['subnet']['id'])['uuid'])
+
+        for port_id in update_port_ids:
+            data = {'port': {'extra_dhcp_opts': [{'ip_version': 4,
+                                                  'opt_name': 'tftp-server',
+                                                  'opt_value': '20.0.0.20'},
+                                                 {'ip_version': 4,
+                                                  'opt_name': 'dns-server',
+                                                  'opt_value': '8.8.8.8'}]}}
+            port_req = self.new_update_request('ports', data, port_id)
+            port_req.get_response(self.api)
 
         self.create_lswitches.append('neutron-' + uuid.uuid4().hex)
         self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
@@ -127,10 +226,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.context,
             {'router': {'name': 'r2', 'admin_state_up': True,
                         'tenant_id': self._tenant_id}})
-        n1_p4 = self._make_port(self.fmt, n1['network']['id'],
-                                name='n1-p4')
+        n1_p6 = self._make_port(self.fmt, n1['network']['id'],
+                                name='n1-p6')
         self.l3_plugin.add_router_interface(
-            self.context, r2['id'], {'port_id': n1_p4['port']['id']})
+            self.context, r2['id'], {'port_id': n1_p6['port']['id']})
         self.l3_plugin.update_router(
             self.context, r2['id'],
             {'router': {'routes': [{'destination': '10.20.0.0/24',
@@ -140,13 +239,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           'neutron-' + r1['id']))
         self.delete_lrouters.append('neutron-' + r2['id'])
 
-        address_set_name = n1_p4['port']['security_groups'][0]
+        address_set_name = n1_p6['port']['security_groups'][0]
         self.create_address_sets.extend([('fake_sg', 'ip4'),
                                          ('fake_sg', 'ip6')])
         self.delete_address_sets.append((address_set_name, 'ip6'))
         address_adds = ['10.0.0.101', '10.0.0.102']
         address_dels = []
-        for address in n1_p4['port']['fixed_ips']:
+        for address in n1_p6['port']['fixed_ips']:
             address_dels.append(address['ip_address'])
         self.update_address_sets.append((address_set_name, 'ip4',
                                          address_adds, address_dels))
@@ -156,9 +255,42 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         res = self._create_subnet(self.fmt, n3['network']['id'],
                                   '30.0.0.0/24')
         n3_s1 = self.deserialize(self.fmt, res)
-        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+        self.expected_dhcp_options_rows.append({
+            'cidr': '30.0.0.0/24',
+            'external_ids': {'subnet_id': n3_s1['subnet']['id']},
+            'options': {'server_id': '30.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n3['network']['mtu']),
+                        'router': n3_s1['subnet']['gateway_ip']}})
+        fake_port_id1 = uuid.uuid4().hex
+        fake_port_id2 = uuid.uuid4().hex
+        self.create_lswitch_ports.append(('neutron-' + fake_port_id1,
                                           'neutron-' + n3['network']['id']))
-        fake_port = {'id': uuid.uuid4().hex, 'network_id': n3['network']['id']}
+        self.create_lswitch_ports.append(('neutron-' + fake_port_id2,
+                                          'neutron-' + n3['network']['id']))
+        stale_dhcpv4_options1 = {
+            'subnet_id': n3_s1['subnet']['id'],
+            'port_id': fake_port_id1,
+            'cidr': '30.0.0.0/24',
+            'options': {'server_id': '30.0.0.254',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(3 * 60 * 60),
+                        'mtu': str(n3['network']['mtu'] / 2),
+                        'router': '30.0.0.254',
+                        'tftp_server': '30.0.0.234',
+                        'dns_server': '8.8.8.8'},
+            'external_ids': {'subnet_id': n3_s1['subnet']['id'],
+                             'port_id': fake_port_id1},
+            }
+        self.stale_lport_dhcpv4_options.append(stale_dhcpv4_options1)
+        stale_dhcpv4_options2 = stale_dhcpv4_options1.copy()
+        stale_dhcpv4_options2.update({
+            'port_id': fake_port_id2,
+            'external_ids': {'subnet_id': n3_s1['subnet']['id'],
+                             'port_id': fake_port_id2}})
+        self.orphaned_lport_dhcpv4_options.append(fake_port_id2)
+        fake_port = {'id': fake_port_id1, 'network_id': n3['network']['id']}
         dhcp_acls = acl_utils.add_acl_dhcp(fake_port, n3_s1['subnet'])
         for dhcp_acl in dhcp_acls:
             self.create_acls.append(dhcp_acl)
@@ -243,6 +375,40 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(cmd.UpdateAddrSetCommand(fake_api, ovn_name,
                                                  ip_adds, ip_dels, True))
 
+            for lport_name in self.reset_lport_dhcpv4_options:
+                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
+                                                  dhcpv4_options=[]))
+
+            for dhcp_opts in self.stale_lport_dhcpv4_options:
+                txn.add(cmd.AddDHCPOptionsCommand(
+                    fake_api, dhcp_opts['subnet_id'],
+                    port_id=dhcp_opts['port_id'],
+                    cidr=dhcp_opts['cidr'],
+                    options=dhcp_opts['options'],
+                    external_ids=dhcp_opts['external_ids']))
+
+            for row_uuid in self.missed_dhcpv4_options:
+                txn.add(cmd.DelDHCPOptionsCommand(fake_api, row_uuid))
+
+            for dhcp_opts in self.dirty_dhcpv4_options:
+                txn.add(cmd.AddDHCPOptionsCommand(
+                    fake_api, dhcp_opts['subnet_id'],
+                    port_id=dhcp_opts.get('port_id'), options={'foo': 'bar'}))
+
+            for port_id in self.lport_dhcpv4_disabled:
+                txn.add(cmd.SetLSwitchPortCommand(
+                    fake_api, port_id, True,
+                    dhcpv4_options=[self.lport_dhcpv4_disabled[port_id]]))
+
+        with self.nb_idl_transaction(fake_api, check_error=True) as txn:
+            for dhcp_opts in self.stale_lport_dhcpv4_options:
+                if dhcp_opts['port_id'] in self.orphaned_lport_dhcpv4_options:
+                    continue
+                uuid = self.mech_driver._nb_ovn.get_port_dhcp_options(
+                    dhcp_opts['subnet_id'], dhcp_opts['port_id'])
+                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
+                                                  dhcpv4_options=[uuid]))
+
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
         db_net_ids = [net['id'] for net in db_networks['networks']]
@@ -273,20 +439,40 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _validate_ports(self, should_match=True):
         db_ports = self._list('ports')
         db_port_ids = [port['id'] for port in db_ports['ports']]
+        db_port_ids_dhcpv4_valid = set(
+            port['id'] for port in db_ports['ports']
+            if not port['device_owner'].startswith(
+                constants.DEVICE_OWNER_PREFIXES))
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lport_ids = [
             row.name for row in (
                 _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())]
+        plugin_lport_ids_dhcpv4_enabled = [
+            row.name for row in (
+                _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if row.dhcpv4_options]
 
         monitor_lport_ids = [
             row.name for row in (
                 self.monitor_nb_db_idl.tables['Logical_Switch_Port'].
                 rows.values())]
+        monitor_lport_ids_dhcpv4_enabled = [
+            row.name for row in (
+                _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if row.dhcpv4_options]
 
         if should_match:
             self.assertItemsEqual(db_port_ids, plugin_lport_ids)
             self.assertItemsEqual(db_port_ids, monitor_lport_ids)
+
+            expected_dhcp_options_ports_ids = (
+                db_port_ids_dhcpv4_valid.difference(
+                    set(self.lport_dhcpv4_disabled.keys())))
+            self.assertItemsEqual(expected_dhcp_options_ports_ids,
+                                  plugin_lport_ids_dhcpv4_enabled)
+            self.assertItemsEqual(expected_dhcp_options_ports_ids,
+                                  monitor_lport_ids_dhcpv4_enabled)
         else:
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_port_ids,
@@ -295,6 +481,48 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_port_ids,
                 monitor_lport_ids)
+
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual, db_port_ids,
+                plugin_lport_ids_dhcpv4_enabled)
+
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual, db_port_ids,
+                monitor_lport_ids_dhcpv4_enabled)
+
+    def _validate_dhcp_opts(self, should_match=True):
+        observed_plugin_dhcp_options_rows = []
+        _plugin_nb_ovn = self.mech_driver._nb_ovn
+        for row in _plugin_nb_ovn._tables['DHCP_Options'].rows.values():
+            opts = dict(row.options)
+            opts['server_mac'] = '01:02:03:04:05:06'
+            observed_plugin_dhcp_options_rows.append({
+                'cidr': row.cidr, 'external_ids': row.external_ids,
+                'options': opts})
+
+        observed_monitor_dhcp_options_rows = []
+        for row in self.monitor_nb_db_idl.tables['DHCP_Options'].rows.values():
+            opts = dict(row.options)
+            opts['server_mac'] = '01:02:03:04:05:06'
+            observed_monitor_dhcp_options_rows.append({
+                'cidr': row.cidr, 'external_ids': row.external_ids,
+                'options': opts})
+
+        if should_match:
+            self.assertItemsEqual(self.expected_dhcp_options_rows,
+                                  observed_plugin_dhcp_options_rows)
+            self.assertItemsEqual(self.expected_dhcp_options_rows,
+                                  observed_monitor_dhcp_options_rows)
+        else:
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual,
+                self.expected_dhcp_options_rows,
+                observed_plugin_dhcp_options_rows)
+
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual,
+                self.expected_dhcp_options_rows,
+                observed_monitor_dhcp_options_rows)
 
     def _build_acl_to_compare(self, acl):
         acl_to_compare = {}
@@ -492,6 +720,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
         self._validate_ports(should_match=should_match)
+        self._validate_dhcp_opts(should_match=should_match)
         self._validate_acls(should_match=should_match)
         self._validate_routers_and_router_ports(should_match=should_match)
         self._validate_address_sets(should_match=should_match)
@@ -502,7 +731,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         ctx = context.get_admin_context()
         nb_synchronizer.sync_address_sets(ctx)
-        nb_synchronizer.sync_networks_and_ports(ctx)
+        nb_synchronizer.sync_networks_ports_and_dhcp_opts(ctx)
         nb_synchronizer.sync_acls(ctx)
         nb_synchronizer.sync_routers_and_rports(ctx)
 

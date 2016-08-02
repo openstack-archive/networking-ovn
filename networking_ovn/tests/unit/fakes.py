@@ -78,6 +78,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_subnet_dhcp_options.return_value = {}
         self.get_port_dhcp_options = mock.Mock()
         self.get_port_dhcp_options.return_value = {}
+        self.get_all_dhcp_options = mock.Mock()
         self.compose_dhcp_options_commands = mock.MagicMock()
 
 

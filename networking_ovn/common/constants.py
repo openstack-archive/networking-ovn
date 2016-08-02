@@ -43,3 +43,11 @@ ACL_ACTION_ALLOW = 'allow'
 # the options column of the Logical Router. This value is used to detect
 # unhosted router gateways to schedule.
 OVN_GATEWAY_INVALID_CHASSIS = 'neutron-ovn-invalid-chassis'
+
+SUPPORTED_DHCP_OPTS = [
+    'netmask', 'router', 'dns-server', 'log-server',
+    'lpr-server', 'swap-server', 'ip-forward-enable',
+    'policy-filter', 'default-ttl', 'mtu', 'router-discovery',
+    'router-solicitation', 'arp-timeout', 'ethernet-encap',
+    'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
+    'tftp-server']

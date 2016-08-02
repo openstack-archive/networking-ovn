@@ -76,7 +76,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         ctx = context.get_admin_context()
         self.sync_address_sets(ctx)
-        self.sync_networks_and_ports(ctx)
+        self.sync_networks_ports_and_dhcp_opts(ctx)
         self.sync_acls(ctx)
         self.sync_routers_and_rports(ctx)
 
@@ -439,8 +439,130 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                 nexthop=route['nexthop']))
         LOG.debug('OVN-NB Sync routers and router ports finished')
 
-    def sync_networks_and_ports(self, ctx):
-        LOG.debug('OVN-NB Sync networks and ports started')
+    def _sync_subnet_dhcp_options(self, ctx, db_networks,
+                                  ovn_subnet_dhcp_options):
+        if not config.is_ovn_dhcp():
+            return
+
+        LOG.debug('OVN-NB Sync DHCP options for Neutron subnets started')
+
+        db_subnets = {}
+        for subnet in self.core_plugin.get_subnets(ctx):
+            if subnet['enable_dhcp']:
+                db_subnets[subnet['id']] = subnet
+
+        del_subnet_dhcp_opts_list = []
+        for subnet_id, ovn_dhcp_opts in ovn_subnet_dhcp_options.items():
+            if subnet_id in db_subnets:
+                network = db_networks[utils.ovn_name(
+                    db_subnets[subnet_id]['network_id'])]
+                server_mac = ovn_dhcp_opts['options'].get('server_mac')
+                dhcp_options = self.ovn_driver.get_ovn_dhcp_options(
+                    db_subnets[subnet_id], network, server_mac=server_mac)
+                # Verify that the cidr and options are also in sync.
+                if dhcp_options['cidr'] == ovn_dhcp_opts['cidr'] and (
+                        dhcp_options['options'] == ovn_dhcp_opts['options']):
+                    del db_subnets[subnet_id]
+                else:
+                    db_subnets[subnet_id]['ovn_dhcp_options'] = dhcp_options
+            else:
+                del_subnet_dhcp_opts_list.append(ovn_dhcp_opts)
+
+        for subnet_id, subnet in db_subnets.items():
+            LOG.warning(_LW('DHCP options for subnet %s is present in '
+                            'Neutron but out of sync for OVN'), subnet_id)
+            if self.mode == SYNC_MODE_REPAIR:
+                try:
+                    LOG.debug('Adding/Updating DHCP options for subnet %s in '
+                              ' OVN NB DB', subnet_id)
+                    network = db_networks[utils.ovn_name(subnet['network_id'])]
+                    # ovn_driver.add_subnet_dhcp_options_in_ovn doesn't create
+                    # a new row in DHCP_Options if the row already exists.
+                    # See commands.AddDHCPOptionsCommand.
+                    self.ovn_driver.add_subnet_dhcp_options_in_ovn(
+                        subnet, network, subnet.get('ovn_dhcp_options'))
+                except RuntimeError:
+                    LOG.warning(_LW('Adding/Updating DHCP options for subnet '
+                                    '%s failed in OVN NB DB'), subnet_id)
+
+        txn_commands = []
+        for dhcp_opt in del_subnet_dhcp_opts_list:
+            LOG.warning(_LW('Out of sync subnet DHCP options for subnet %s '
+                            'found in OVN NB DB which needs to be deleted'),
+                        dhcp_opt['external_ids']['subnet_id'])
+            if self.mode == SYNC_MODE_REPAIR:
+                LOG.debug('Deleting subnet DHCP options for subnet %s ',
+                          dhcp_opt['external_ids']['subnet_id'])
+                txn_commands.append(self.ovn_api.delete_dhcp_options(
+                    dhcp_opt['uuid']))
+
+        if txn_commands:
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for cmd in txn_commands:
+                    txn.add(cmd)
+        LOG.debug('OVN-NB Sync DHCP options for Neutron subnets finished')
+
+    def _sync_port_dhcp_options(self, ctx, ports_need_sync_dhcp_opts,
+                                ovn_port_dhcp_options):
+        if not config.is_ovn_dhcp():
+            return
+
+        LOG.debug('OVN-NB Sync DHCP options for Neutron ports with extra '
+                  'dhcp options assigned started')
+
+        txn_commands = []
+        for port in ports_need_sync_dhcp_opts:
+            if self.mode == SYNC_MODE_REPAIR:
+                LOG.debug('Updating DHCP options for port %s in OVN NB DB',
+                          port['id'])
+                dhcp_opts = self.ovn_driver.get_port_dhcpv4_options(port)
+                if not dhcp_opts:
+                    # If the Logical_Switch_Port.dhcpv4_options no longer
+                    # refers a port dhcp options created in DHCP_Options
+                    # earlier, that port dhcp options will be deleted
+                    # in the following ovn_port_dhcp_options handling.
+                    txn_commands.append(self.ovn_api.set_lswitch_port(
+                        lport_name=port['id'],
+                        dhcpv4_options=[]))
+                elif port['id'] in ovn_port_dhcp_options:
+                    # When the Logical_Switch_Port.dhcpv4_options refers a port
+                    # dhcp options in DHCP_Options earlier, if the extra dhcp
+                    # options has changed, ovn_driver.get_port_dhcpv4_options
+                    # should udpate it, if removed, it will be deleted
+                    # in the following ovn_port_dhcp_options handling.
+                    if dhcp_opts['external_ids'].get('port_id') is not None:
+                        ovn_port_dhcp_options.pop(port['id'])
+                elif 'uuid' in dhcp_opts:
+                    # If the Logical_Switch_Port.dhcpv4_options is already
+                    # in sync, then this transaction will be a no-op.
+                    txn_commands.append(self.ovn_api.set_lswitch_port(
+                        lport_name=port['id'],
+                        dhcpv4_options=[dhcp_opts['uuid']]))
+
+        for port_id, dhcp_opt in ovn_port_dhcp_options.items():
+            LOG.warning(
+                _LW('Out of sync port DHCP options for (subnet %(subnet_id)s'
+                    ' port %(port_id)s) found in OVN NB DB which needs to be '
+                    'deleted'),
+                {'subnet_id': dhcp_opt['external_ids']['subnet_id'],
+                 'port_id': port_id})
+
+            if self.mode == SYNC_MODE_REPAIR:
+                LOG.debug('Deleting port DHCP options for (subnet %s, port '
+                          '%s)', dhcp_opt['external_ids']['subnet_id'],
+                          port_id)
+                txn_commands.append(self.ovn_api.delete_dhcp_options(
+                    dhcp_opt['uuid']))
+
+        if txn_commands:
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for cmd in txn_commands:
+                    txn.add(cmd)
+        LOG.debug('OVN-NB Sync DHCP options for Neutron ports with extra '
+                  'dhcp options assigned finished')
+
+    def sync_networks_ports_and_dhcp_opts(self, ctx):
+        LOG.debug('OVN-NB Sync networks, ports and DHCP options started')
         db_networks = {}
         for net in self.core_plugin.get_networks(ctx):
             db_networks[utils.ovn_name(net['id'])] = net
@@ -449,6 +571,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
 
+        ovn_all_dhcp_options = self.ovn_api.get_all_dhcp_options()
+        db_network_cache = dict(db_networks)
+
+        ports_need_sync_dhcp_opts = []
         lswitches = self.ovn_api.get_all_logical_switches_with_ports()
         del_lswitchs_list = []
         del_lports_list = []
@@ -456,7 +582,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             if lswitch['name'] in db_networks:
                 for lport in lswitch['ports']:
                     if lport in db_ports:
-                        del db_ports[lport]
+                        ports_need_sync_dhcp_opts.append(db_ports.pop(lport))
                     else:
                         del_lports_list.append({'port': lport,
                                                 'lswitch': lswitch['name']})
@@ -476,6 +602,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning(_LW("Create network in OVN NB failed for"
                                     " network %s"), network['id'])
 
+        self._sync_subnet_dhcp_options(
+            ctx, db_network_cache, ovn_all_dhcp_options['subnets'])
+
         for port_id, port in db_ports.items():
             LOG.warning(_LW("Port found in Neutron but not in OVN "
                             "DB, port_id=%s"), port['id'])
@@ -484,6 +613,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.debug('Creating the port %s in OVN NB DB',
                               port['id'])
                     self._create_port_in_ovn(ctx, port)
+                    if port_id in ovn_all_dhcp_options['ports']:
+                        _, lsp_opts = utils.get_lsp_dhcpv4_opts(port)
+                        if lsp_opts:
+                            ovn_all_dhcp_options['ports'].pop(port_id)
                 except RuntimeError:
                     LOG.warning(_LW("Create port in OVN NB failed for"
                                     " port %s"), port['id'])
@@ -507,7 +640,16 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     txn.add(self.ovn_api.delete_lswitch_port(
                         lport_name=lport_info['port'],
                         lswitch_name=lport_info['lswitch']))
-        LOG.debug('OVN-NB Sync networks and ports finished')
+                    if lport_info['port'] in ovn_all_dhcp_options['ports']:
+                        LOG.debug('Deleting port DHCP options for (port %s)',
+                                  lport_info['port'])
+                        txn.add(self.ovn_api.delete_dhcp_options(
+                                ovn_all_dhcp_options['ports'].pop(
+                                    lport_info['port'])['uuid']))
+
+        self._sync_port_dhcp_options(ctx, ports_need_sync_dhcp_opts,
+                                     ovn_all_dhcp_options['ports'])
+        LOG.debug('OVN-NB Sync networks, ports and DHCP options finished')
 
 
 class OvnSbSynchronizer(OvnDbSynchronizer):

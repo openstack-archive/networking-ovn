@@ -99,7 +99,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
-        self._init_dhcp_opt_codes()
 
     @property
     def _plugin(self):
@@ -129,15 +128,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             self.vif_details = {
                 portbindings.CAP_PORT_FILTER: self.sg_enabled,
             }
-
-    def _init_dhcp_opt_codes(self):
-        self._supported_dhcp_opts = [
-            'netmask', 'router', 'dns-server', 'log-server',
-            'lpr-server', 'swap-server', 'ip-forward-enable',
-            'policy-filter', 'default-ttl', 'mtu', 'router-discovery',
-            'router-solicitation', 'arp-timeout', 'ethernet-encap',
-            'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
-            'tftp-server']
 
     def subscribe(self):
         registry.subscribe(self.post_fork_initialize,
@@ -382,8 +372,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     txn.add(self._nb_ovn.delete_dhcp_options(
                         subnet_dhcp_options['uuid']))
 
-    def add_subnet_dhcp_options_in_ovn(self, subnet, network):
-        ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
+    def add_subnet_dhcp_options_in_ovn(self, subnet, network,
+                                       ovn_dhcp_options=None):
+        if not ovn_dhcp_options:
+            ovn_dhcp_options = self.get_ovn_dhcp_options(subnet, network)
 
         txn_commands = self._nb_ovn.compose_dhcp_options_commands(
             subnet['id'], **ovn_dhcp_options)
@@ -391,18 +383,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             for cmd in txn_commands:
                 txn.add(cmd)
 
-    def _get_ovn_dhcp_options(self, subnet, network):
+    def get_ovn_dhcp_options(self, subnet, network, server_mac=None):
         external_ids = {'subnet_id': subnet['id']}
         dhcp_options = {'cidr': subnet['cidr'], 'options': {},
                         'external_ids': external_ids}
 
         if subnet['ip_version'] == 4 and subnet['enable_dhcp']:
-            dhcp_options['options'] = self._get_ovn_dhcpv4_opts(subnet,
-                                                                network)
+            dhcp_options['options'] = self._get_ovn_dhcpv4_opts(
+                subnet, network, server_mac=server_mac)
 
         return dhcp_options
 
-    def _get_ovn_dhcpv4_opts(self, subnet, network):
+    def _get_ovn_dhcpv4_opts(self, subnet, network, server_mac=None):
         if not subnet['gateway_ip']:
             return {}
 
@@ -410,11 +402,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         mtu = network['mtu']
         options = {
             'server_id': subnet['gateway_ip'],
-            'server_mac': n_utils.get_random_mac(cfg.CONF.base_mac.split(':')),
             'lease_time': default_lease_time,
             'mtu': str(mtu),
             'router': subnet['gateway_ip']
         }
+
+        if server_mac:
+            options['server_mac'] = server_mac
+        else:
+            options['server_mac'] = n_utils.get_random_mac(
+                cfg.CONF.base_mac.split(':'))
 
         if subnet['dns_nameservers']:
             dns_servers = '{'
@@ -589,7 +586,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 addresses += ' ' + ip['ip_address']
             port_security = self._get_allowed_addresses_from_port(port)
 
-        port_dhcpv4_options_info = self._get_port_dhcpv4_options(port)
+        port_dhcpv4_options_info = self.get_port_dhcpv4_options(port)
         dhcpv4_options = []
         if port_dhcpv4_options_info and 'uuid' in port_dhcpv4_options_info:
             dhcpv4_options = [port_dhcpv4_options_info['uuid']]
@@ -801,26 +798,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # has extra DHCP options defined.
             return self._nb_ovn.delete_dhcp_options(lsp_dhcp_options['uuid'])
 
-    def _get_port_dhcpv4_options(self, port):
-        """Returns the DHCPv4 options for the port."""
-        lsp_dhcpv4_options = {}
-        lsp_dhcp_disabled = False
-        if port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES):
-            lsp_dhcp_disabled = True
-        else:
-            for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
-                if edo['opt_name'] == 'dhcp_disabled' and (
-                        edo['opt_value'] in ['True', 'true']):
-                    # OVN native DHCPv4 is disabled on this port
-                    lsp_dhcp_disabled = True
-                    break
-
-                if edo['ip_version'] != 4 or (
-                    edo['opt_name'] not in self._supported_dhcp_opts):
-                    continue
-
-                opt = edo['opt_name'].replace('-', '_')
-                lsp_dhcpv4_options[opt] = edo['opt_value']
+    def get_port_dhcpv4_options(self, port, original_port=None):
+        lsp_dhcp_disabled, lsp_dhcpv4_opts = utils.get_lsp_dhcpv4_opts(port)
 
         if lsp_dhcp_disabled:
             return
@@ -842,7 +821,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # May be a sync is required in such cases ?
             return
 
-        if not lsp_dhcpv4_options:
+        if not lsp_dhcpv4_opts:
             return subnet_dhcp_options
 
         # This port has extra DHCP options defined.
@@ -852,9 +831,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # but the Logical_Switch_Port create or update transaction fails
         # we need to delete the DHCP_Options row created else it will be
         # an orphan row.
-        subnet_dhcp_options['options'].update(lsp_dhcpv4_options)
+        subnet_dhcp_options['options'].update(lsp_dhcpv4_opts)
         subnet_dhcp_options['external_ids'].update(
             {'port_id': port['id']})
+        LOG.debug('Creating port dhcp options for port %s in OVN NB DB',
+                  port['id'])
         with self._nb_ovn.transaction(check_error=True) as txn:
             txn.add(self._nb_ovn.add_dhcp_options(
                 subnet_id, port_id=port['id'],
