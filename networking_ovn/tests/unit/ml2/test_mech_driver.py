@@ -793,7 +793,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self._test__get_ovn_dhcp_options_helper(subnet, network,
                                                 expected_dhcp_options)
 
-    def test_update_ovn_lsp_dhcpv4_options_port_dhcp_opts_set(self):
+    def test__get_port_dhcpv4_options_port_dhcp_opts_set(self):
         port = {
             'id': 'foo-port',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
@@ -805,8 +805,12 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = {
             'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'}}
-        self.mech_driver.update_ovn_lsp_dhcpv4_options(port)
+            'options': {'router': '10.0.0.1', 'mtu': '1400'},
+            'uuid': 'foo-uuid'}
+
+        self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = 'foo-val'
+        dhcpv4_options = self.mech_driver._get_port_dhcpv4_options(port)
+        self.assertEqual('foo-val', dhcpv4_options)
 
         # Since the port has extra DHCPv4 options defined, a new DHCP_Options
         # row should be created and logical switch port DHCPv4 options should
@@ -819,30 +823,29 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                              'ntp_server': '8.8.8.8'}}
         self.mech_driver._nb_ovn.add_dhcp_options.assert_called_once_with(
             'foo-subnet', port_id='foo-port', **expected_dhcp_options)
-        self.mech_driver._nb_ovn.set_lswitch_port_dhcpv4_options.\
-            assert_called_once_with('foo-port', 'foo-subnet',
-                                    check_port_id_in_external_ids=True)
 
-    def test_update_ovn_lsp_dhcpv4_options_port_dhcp_opts_not_set(self):
+    def test__get_port_dhcpv4_options_port_dhcp_opts_not_set(self):
         port = {
             'id': 'foo-port',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
                            'ip_address': '10.0.0.11'}]}
 
-        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = {
+        expected_dhcpv4_opts = {
             'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
             'options': {'router': '10.0.0.1', 'mtu': '1400'}}
-        self.mech_driver.update_ovn_lsp_dhcpv4_options(port)
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = (
+            expected_dhcpv4_opts)
+
+        self.assertEqual(expected_dhcpv4_opts,
+                         self.mech_driver._get_port_dhcpv4_options(port))
 
         # Since the port has no extra DHCPv4 options defined, no new
         # DHCP_Options row should be created and logical switch port DHCPv4
         # options should point to the subnet DHCPv4 options.
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.set_lswitch_port_dhcpv4_options.\
-            assert_called_once_with('foo-port', 'foo-subnet',
-                                    check_port_id_in_external_ids=False)
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test_update_ovn_lsp_dhcpv4_options_port_dhcp_disabled(self):
+    def test__get_port_dhcpv4_options_port_dhcp_disabled(self):
         port = {
             'id': 'foo-port',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
@@ -851,15 +854,12 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                                  'opt_value': 'True'}]
         }
 
-        self.mech_driver._delete_lsp_dhcpv4_options = mock.Mock()
-        self.mech_driver.update_ovn_lsp_dhcpv4_options(port)
-        self.mech_driver._delete_lsp_dhcpv4_options.assert_called_once_with(
-            port)
+        self.assertIsNone(self.mech_driver._get_port_dhcpv4_options(port))
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.set_lswitch_port_dhcpv4_options.\
-            assert_not_called()
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test__delete_lsp_dhcpv4_options(self):
+    def test__get_delete_lsp_dhcpv4_options_cmd(self):
         port = {
             'id': 'foo-port',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
@@ -868,10 +868,25 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = {
             'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
-            'options': {'router': '10.0.0.1', 'mtu': '1400'}}
+            'options': {'router': '10.0.0.1', 'mtu': '1400'},
+            'uuid': 'foo-uuid'}
 
-        self.mech_driver._delete_lsp_dhcpv4_options(port)
-        self.mech_driver._nb_ovn.set_lswitch_port.assert_called_once_with(
-            'foo-port', dhcpv4_options=[])
+        self.mech_driver._nb_ovn.delete_dhcp_options.return_value = 'foo-cmd'
+        self.assertEqual(
+            'foo-cmd',
+            self.mech_driver._get_delete_lsp_dhcpv4_options_cmd(port))
         self.mech_driver._nb_ovn.delete_dhcp_options.assert_called_once_with(
-            'foo-subnet', port_id='foo-port')
+            'foo-uuid')
+
+    def test__get_delete_lsp_dhcpv4_options_cmd_no_lsp_opts(self):
+        port = {
+            'id': 'foo-port',
+            'fixed_ips': [{'subnet_id': 'foo-subnet',
+                           'ip_address': '10.0.0.11'}],
+        }
+
+        self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = None
+
+        self.assertIsNone(
+            self.mech_driver._get_delete_lsp_dhcpv4_options_cmd(port))
+        self.mech_driver._nb_ovn.delete_dhcp_options.assert_not_called()
