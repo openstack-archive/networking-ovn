@@ -149,6 +149,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                events.AFTER_CREATE)
             registry.subscribe(self._process_sg_notification,
                                resources.SECURITY_GROUP,
+                               events.AFTER_UPDATE)
+            registry.subscribe(self._process_sg_notification,
+                               resources.SECURITY_GROUP,
                                events.BEFORE_DELETE)
             registry.subscribe(self._process_sg_rule_notification,
                                resources.SECURITY_GROUP_RULE,
@@ -189,6 +192,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             for ip_version in ['ip4', 'ip6']:
                 if event == events.AFTER_CREATE:
                     txn.add(self._nb_ovn.create_address_set(
+                            name=utils.ovn_addrset_name(sg['id'], ip_version),
+                            external_ids=external_ids))
+                elif event == events.AFTER_UPDATE:
+                    txn.add(self._nb_ovn.update_address_set_ext_ids(
                             name=utils.ovn_addrset_name(sg['id'], ip_version),
                             external_ids=external_ids))
                 elif event == events.BEFORE_DELETE:
