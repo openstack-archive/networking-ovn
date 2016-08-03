@@ -12,7 +12,10 @@ features:
       neutron layer-3 agent) The native OVN implementation supports
       distributed routing. However, it currently lacks support for
       floating IP addresses and NAT.
-    * DHCP (conventional neuron DHCP agent)
+    * DHCP (native OVN implementation or conventional neuron DHCP agent)
+      The native implementation supports distributed DHCP. However,
+      it currently lacks IPv6 support and support for the Neutron
+      internal DNS and metadata proxy features.
     * Metadata (conventional neutron metadata agent)
     * DPDK - May be used with OVS using either the Linux kernel
       datapath or the DPDK datapath.
@@ -21,10 +24,10 @@ features:
     extensions, ``agent``, ``Address Scopes`` \*,
     ``Allowed Address Pairs``, ``Auto Allocated Topology Services``,
     ``Availability Zone``, ``Default Subnetpools``,
-    ``DHCP Agent Scheduler``, ``Distributed Virtual Router`` \*,
+    ``DHCP Agent Scheduler`` \*\*, ``Distributed Virtual Router`` \*,
     ``DNS Integration`` \*, ``HA Router extension`` \*,
     ``L3 Agent Scheduler`` \*,
-    ``Network Availability Zone``, ``Network IP Availability``,
+    ``Network Availability Zone`` \*\*, ``Network IP Availability``,
     ``Neutron external network``, ``Neutron Extra DHCP opts``,
     ``Neutron Extra Route``,
     ``Neutron L3 Configurable external gateway mode`` \*,
@@ -38,3 +41,5 @@ features:
     ``Tag support`` and ``Time Stamp Fields``.
 
     (\*) Only applicable when conventional neutron layer-3 agent enabled.
+
+    (\*\*) Only applicable when conventional DHCP agent enabled.
