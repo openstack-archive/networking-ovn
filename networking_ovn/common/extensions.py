@@ -50,6 +50,7 @@ ML2_SUPPORTED_API_EXTENSIONS = [
     'provider',
     'quotas',
     'rbac-policies',
+    'revisions',
     'security-group',
     'standard-attr-description',
     'subnet_allocation',

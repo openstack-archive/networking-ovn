@@ -32,6 +32,7 @@ features:
     ``Network MTU``, ``Port Binding``, ``Port Security``,
     ``Provider Network``, ``Quality of Service``,
     ``Quota management support``, ``RBAC Policies``,
+    ``Resource revision numbers``,
     ``Router Availability Zone`` \*, ``security-group``,
     ``standard-attr-description``, ``Subnet Allocation``,
     ``Tag support`` and ``Time Stamp Fields``.
