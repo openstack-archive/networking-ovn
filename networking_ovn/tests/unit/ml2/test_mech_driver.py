@@ -18,6 +18,7 @@ from webob import exc
 from neutron_lib import exceptions as n_exc
 
 from neutron.callbacks import events
+from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron.extensions import portbindings
@@ -638,6 +639,11 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
 
     def _test_segment_host_mapping(self):
+        # Disable the callback to update SegmentHostMapping by default, so
+        # that update_segment_host_mapping is the only path to add the mapping
+        registry.unsubscribe(
+            self.mech_driver._add_segment_host_mapping_for_segment,
+            resources.SEGMENT, events.PRECOMMIT_CREATE)
         host = 'hostname'
         with self.network() as network:
             network = network['network']
@@ -672,6 +678,25 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         self.mech_driver.update_segment_host_mapping(host, [])
         segments_host_db = self._get_segments_for_host(host)
         self.assertEqual({}, segments_host_db)
+
+    def test_update_segment_host_mapping_with_new_segment(self):
+        hostname_with_physnets = {'hostname1': ['phys_net1', 'phys_net2'],
+                                  'hostname2': ['phys_net1']}
+        ovn_sb_api = self.mech_driver._sb_ovn
+        ovn_sb_api.get_chassis_hostname_and_physnets.return_value = (
+            hostname_with_physnets)
+        self.mech_driver.subscribe()
+        with self.network() as network:
+            network_id = network['network']['id']
+        segment = self._test_create_segment(
+            network_id=network_id, physical_network='phys_net2',
+            segmentation_id=201, network_type='vlan')['segment']
+        segments_host_db1 = self._get_segments_for_host('hostname1')
+        # A new SegmentHostMapping should be created for hostname1
+        self.assertEqual({segment['id']}, set(segments_host_db1))
+
+        segments_host_db2 = self._get_segments_for_host('hostname2')
+        self.assertFalse(set(segments_host_db2))
 
 
 class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
