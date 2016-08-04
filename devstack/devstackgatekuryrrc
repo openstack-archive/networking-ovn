@@ -18,9 +18,10 @@
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #
 
-export OVERRIDE_ENABLED_SERVICES=kuryr,etcd-server,docker-engine,key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,rabbit,tempest,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-dhcp,q-meta
+export OVERRIDE_ENABLED_SERVICES=kuryr,etcd-server,docker-engine,key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,rabbit,tempest,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-meta
 
 export PROJECTS="openstack/networking-ovn openstack/kuryr $PROJECTS"
 export DEVSTACK_LOCAL_CONFIG="enable_plugin networking-ovn git://git.openstack.org/openstack/networking-ovn"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin kuryr http://git.openstack.org/openstack/kuryr"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_MODE=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
