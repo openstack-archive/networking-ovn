@@ -22,18 +22,13 @@ OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
 
 class TestOVNParentTagPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
 
-    # NOTE(rtheis): The neutron ML2 plugin does not provide drivers with
-    # an interface to validate port bindings. As a result, a 500 error
-    # (i.e. MechanismDriverError) is expected when the port binding
-    # information is invalid.
-
     def test_create_port_with_invalid_parent(self):
         binding = {OVN_PROFILE: {"parent_name": 'invalid', 'tag': 1}}
         with self.network() as n:
             with self.subnet(n):
                 self._create_port(
                     self.fmt, n['network']['id'],
-                    expected_res_status=500,
+                    expected_res_status=404,
                     arg_list=(OVN_PROFILE,),
                     **binding)
 
@@ -58,5 +53,5 @@ class TestOVNParentTagPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
                     binding[OVN_PROFILE]['parent_name'] = p['port']['id']
                     self._create_port(self.fmt, n['network']['id'],
                                       arg_list=(OVN_PROFILE,),
-                                      expected_res_status=500,
+                                      expected_res_status=400,
                                       **binding)
