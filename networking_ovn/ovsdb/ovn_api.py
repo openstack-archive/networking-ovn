@@ -350,6 +350,19 @@ class API(object):
         """
 
     @abc.abstractmethod
+    def update_address_set_ext_ids(self, name, external_ids, if_exists=True):
+        """Update external IDs for an address set
+
+        :param name:          The name of the address set
+        :type name:           string
+        :param external_ids:  The external IDs for the address set
+        :type external_ids:   dict
+        :param if_exists:     Do not fail if the address set does not exist
+        :type if_exists:      bool
+        :returns:             :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
     def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
         """Return a dictionary of chassis name:list of router gateways
 

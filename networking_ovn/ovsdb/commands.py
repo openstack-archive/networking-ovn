@@ -689,6 +689,31 @@ class UpdateAddrSetCommand(BaseCommand):
         setattr(addrset, 'addresses', addresses_col)
 
 
+class UpdateAddrSetExtIdsCommand(BaseCommand):
+    def __init__(self, api, name, external_ids, if_exists):
+        super(UpdateAddrSetExtIdsCommand, self).__init__(api)
+        self.name = name
+        self.external_ids = external_ids
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            addrset = idlutils.row_by_value(self.api.idl, 'Address_Set',
+                                            'name', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Address set %s does not exist. "
+                    "Can't update external IDs") % self.name
+            raise RuntimeError(msg)
+
+        addrset.verify('external_ids')
+        addrset_external_ids = getattr(addrset, 'external_ids', {})
+        for ext_id_key, ext_id_value in six.iteritems(self.external_ids):
+            addrset_external_ids[ext_id_key] = ext_id_value
+        addrset.external_ids = addrset_external_ids
+
+
 class DHCPOptionsCommand(BaseCommand):
 
     def __init__(self, api, subnet_id, port_id=None):

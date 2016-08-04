@@ -264,6 +264,10 @@ class OvsdbNbOvnIdl(ovn_api.API):
         return cmd.UpdateAddrSetCommand(self, name, addrs_add, addrs_remove,
                                         if_exists)
 
+    def update_address_set_ext_ids(self, name, external_ids, if_exists=True):
+        return cmd.UpdateAddrSetExtIdsCommand(self, name, external_ids,
+                                              if_exists)
+
     def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
         chassis_bindings = {}
         for chassis_name in chassis_candidate_list or []:
