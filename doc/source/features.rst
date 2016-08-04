@@ -85,6 +85,8 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | RBAC Policies                    | rbac-policies             |
 +----------------------------------+---------------------------+
+| Resource revision numbers        | revisions                 |
++----------------------------------+---------------------------+
 | Router Availability Zone *       | router_availability_zone  |
 +----------------------------------+---------------------------+
 | security-group                   | security-group            |
