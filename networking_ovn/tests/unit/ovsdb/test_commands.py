@@ -21,6 +21,110 @@ from networking_ovn.tests import base
 from networking_ovn.tests.unit import fakes
 
 
+class TestBaseCommandHelpers(base.TestCase):
+    def setUp(self):
+        super(TestBaseCommandHelpers, self).setUp()
+        self.column = 'ovn'
+        self.new_value = '1'
+        self.old_value = '2'
+
+    def _get_fake_row_mutate(self):
+        return fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={self.column: []},
+            methods={'addvalue': None, 'delvalue': None})
+
+    def _get_fake_row_no_mutate(self, column_value=None):
+        column_value = column_value or []
+        return fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={self.column: column_value})
+
+    def test__addvalue_to_list_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._addvalue_to_list(
+            fake_row_mutate, self.column, self.new_value)
+        fake_row_mutate.addvalue.assert_called_once_with(
+            self.column, self.new_value)
+        fake_row_mutate.verify.assert_not_called()
+
+    def _test__addvalue_to_list_no_mutate(self, fake_row):
+        commands._addvalue_to_list(fake_row, self.column, self.new_value)
+        fake_row.verify.assert_called_once_with(self.column)
+        self.assertEqual([self.new_value], fake_row.ovn)
+
+    def test__addvalue_to_list_new_no_mutate(self):
+        fake_row_new = self._get_fake_row_no_mutate()
+        self._test__addvalue_to_list_no_mutate(fake_row_new)
+
+    def test__addvalue_to_list_exists_no_mutate(self):
+        fake_row_exists = self._get_fake_row_no_mutate(
+            column_value=[self.new_value])
+        self._test__addvalue_to_list_no_mutate(fake_row_exists)
+
+    def test__delvalue_from_list_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._delvalue_from_list(
+            fake_row_mutate, self.column, self.old_value)
+        fake_row_mutate.delvalue.assert_called_once_with(
+            self.column, self.old_value)
+        fake_row_mutate.verify.assert_not_called()
+
+    def _test__delvalue_from_list_no_mutate(self, fake_row):
+        commands._delvalue_from_list(fake_row, self.column, self.old_value)
+        fake_row.verify.assert_called_once_with(self.column)
+        self.assertEqual([], fake_row.ovn)
+
+    def test__delvalue_from_list_new_no_mutate(self):
+        fake_row_new = self._get_fake_row_no_mutate()
+        self._test__delvalue_from_list_no_mutate(fake_row_new)
+
+    def test__delvalue_from_list_exists_no_mutate(self):
+        fake_row_exists = self._get_fake_row_no_mutate(
+            column_value=[self.old_value])
+        self._test__delvalue_from_list_no_mutate(fake_row_exists)
+
+    def test__updatevalues_in_list_empty_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._updatevalues_in_list(fake_row_mutate, self.column, [], [])
+        fake_row_mutate.addvalue.assert_not_called()
+        fake_row_mutate.delvalue.assert_not_called()
+        fake_row_mutate.verify.assert_not_called()
+
+    def test__updatevalues_in_list_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._updatevalues_in_list(
+            fake_row_mutate, self.column,
+            new_values=[self.new_value],
+            old_values=[self.old_value])
+        fake_row_mutate.addvalue.assert_called_once_with(
+            self.column, self.new_value)
+        fake_row_mutate.delvalue.assert_called_once_with(
+            self.column, self.old_value)
+        fake_row_mutate.verify.assert_not_called()
+
+    def test__updatevalues_in_list_empty_no_mutate(self):
+        fake_row_no_mutate = self._get_fake_row_no_mutate()
+        commands._updatevalues_in_list(fake_row_no_mutate, self.column, [], [])
+        fake_row_no_mutate.verify.assert_called_once_with(self.column)
+        self.assertEqual([], fake_row_no_mutate.ovn)
+
+    def _test__updatevalues_in_list_no_mutate(self, fake_row):
+        commands._updatevalues_in_list(
+            fake_row, self.column,
+            new_values=[self.new_value],
+            old_values=[self.old_value])
+        fake_row.verify.assert_called_once_with(self.column)
+        self.assertEqual([self.new_value], fake_row.ovn)
+
+    def test__updatevalues_in_list_new_no_mutate(self):
+        fake_row_new = self._get_fake_row_no_mutate()
+        self._test__updatevalues_in_list_no_mutate(fake_row_new)
+
+    def test__updatevalues_in_list_exists_no_mutate(self):
+        fake_row_exists = self._get_fake_row_no_mutate(
+            column_value=[self.old_value, self.new_value])
+        self._test__updatevalues_in_list_no_mutate(fake_row_exists)
+
+
 class TestBaseCommand(base.TestCase):
     def setUp(self):
         super(TestBaseCommand, self).setUp()
