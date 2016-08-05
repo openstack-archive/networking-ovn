@@ -19,7 +19,9 @@ services:
 
 * DHCP
 
-  Currently uses conventional DHCP agent which supports availability zones.
+  Native implementation or conventional DHCP agent. The native implementation
+  supports distributed DHCP. However, it currently lacks IPv6 support and
+  support for the Neutron internal DNS and metadata proxy features.
 
 * Metadata
 
@@ -47,7 +49,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Default Subnetpools              | default-subnetpools       |
 +----------------------------------+---------------------------+
-| DHCP Agent Scheduler             | dhcp_agent_scheduler      |
+| DHCP Agent Scheduler **          | dhcp_agent_scheduler      |
 +----------------------------------+---------------------------+
 | Distributed Virtual Router *     | dvr                       |
 +----------------------------------+---------------------------+
@@ -57,7 +59,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | L3 Agent Scheduler *             | l3_agent_scheduler        |
 +----------------------------------+---------------------------+
-| Network Availability Zone        | network_availability_zone |
+| Network Availability Zone **     | network_availability_zone |
 +----------------------------------+---------------------------+
 | Network IP Availability          | network-ip-availability   |
 +----------------------------------+---------------------------+
@@ -102,3 +104,5 @@ The following Neutron API extensions are supported with OVN:
 
 
 (\*) Only applicable when conventional layer-3 agent enabled.
+
+(\*\*) Only applicable when conventional DHCP agent enabled.

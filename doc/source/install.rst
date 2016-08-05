@@ -242,7 +242,8 @@ primary node. See the :ref:`faq` for more information.
         The ``firewall_driver`` option under ``[securitygroup]`` is ignored
         since the OVN ML2 driver itself handles security groups.
 
-   * Configure OVS database access, the OVN L3 mode and OVN L3 scheduler
+   * Configure OVS database access, the OVN L3 mode and scheduler, and
+     the OVN DHCP mode
 
      .. code-block:: ini
 
@@ -252,6 +253,7 @@ primary node. See the :ref:`faq` for more information.
         ovn_sb_connection = tcp:IP_ADDRESS:6642
         ovn_l3_mode = OVN_L3_MODE
         ovn_l3_scheduler = OVN_L3_SCHEDULER
+        ovn_native_dhcp = OVN_NATIVE_DHCP
 
      .. note::
 
@@ -263,19 +265,21 @@ primary node. See the :ref:`faq` for more information.
         ``OVN_L3_SCHEDULER`` with ``leastloaded`` if you want the scheduler
         to select a compute node with the least number of gateway routers
         or ``chance`` if you want the scheduler to randomly select a compute
-        node from the available list of compute nodes.
+        node from the available list of compute nodes. And finally, replace
+        ``OVN_NATIVE_DHCP`` with ``True`` if you want to enable the native
+        DHCP service else ``False`` to use the conventional DHCP agent.
 
 #. Start the ``neutron-server`` service.
 
 Network nodes
 -------------
 
-Deployments using native layer-3 services do not require conventional
-network nodes because connectivity to external networks (including VTEP
-gateways) and routing occurs on compute nodes. OVN currently relies on
-conventional DHCP and metadata agents that typically operate on network
-nodes. However, you can deploy these agents on controller or compute
-nodes.
+Deployments using OVN native layer-3 and DHCP services do not require
+conventional network nodes because connectivity to external networks
+(including VTEP gateways) and routing occurs on compute nodes.
+OVN currently relies on the conventional metadata agent that typically
+operates on network nodes. However, you can deploy this agent on
+controller or compute nodes.
 
 Compute nodes
 -------------

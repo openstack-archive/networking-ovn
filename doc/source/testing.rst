@@ -105,8 +105,9 @@ their names correlate with the output from ``neutron net-list``::
     $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
     {"neutron:network_name"=private}
 
-There will be one port created automatically.  This port corresponds to the
-Neutron DHCP agent that is providing DHCP services to the ``private`` network.
+There will be one port created automatically when not using OVN native DHCP.
+This port corresponds to the Neutron DHCP agent that is providing DHCP services
+to the ``private`` network.
 
 ::
 
