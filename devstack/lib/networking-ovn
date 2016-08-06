@@ -63,6 +63,12 @@ OVN_UUID=${OVN_UUID:-}
 # unless the distro kernel includes ovs+conntrack support.
 OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
 
+# Whether or not to install the ovs python module from ovs source.  This can be
+# used to test and validate new ovs python features.  This should only be used
+# for development purposes since the ovs python version is controlled by OpenStack
+# requirements.
+OVN_INSTALL_OVS_PYTHON_MODULE=$(trueorfalse False OVN_INSTALL_OVS_PYTHON_MODULE)
+
 # GENEVE overlay protocol overhead. Defaults to 38 bytes plus the IP version
 # overhead (20 bytes for IPv4 (default) or 40 bytes for IPv6) which is determined
 # based on the ML2 overlay_ip_version option. The ML2 framework will use this to
@@ -252,6 +258,12 @@ function install_ovn {
     compile_ovs $OVN_BUILD_MODULES
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
+
+    # Install ovs python module from ovs source.
+    if [[ "$OVN_INSTALL_OVS_PYTHON_MODULE" == "True" ]]; then
+        sudo pip uninstall -y ovs
+        sudo pip install -e $DEST/$OVS_REPO_NAME/python
+    fi
 }
 
 function start_ovs {
