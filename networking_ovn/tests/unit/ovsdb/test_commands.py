@@ -291,17 +291,85 @@ class TestUpdateACLsCommand(TestBaseCommand):
 
 
 class TestAddStaticRouteCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddStaticRouteCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lrouter_not_found(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.AddStaticRouteCommand(self.ovn_api, 'fake-lrouter')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_static_route_add(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            fake_static_route = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+            self.transaction.insert.return_value = fake_static_route
+            cmd = commands.AddStaticRouteCommand(
+                self.ovn_api, fake_lrouter.name,
+                nexthop='40.0.0.100',
+                ip_prefix='30.0.0.0/24')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lrouter_static_route_table)
+            self.assertEqual('40.0.0.100', fake_static_route.nexthop)
+            self.assertEqual('30.0.0.0/24', fake_static_route.ip_prefix)
+            fake_lrouter.verify.assert_called_once_with('static_routes')
+            self.assertEqual([fake_static_route.uuid],
+                             fake_lrouter.static_routes)
 
 
 class TestDelStaticRouteCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelStaticRouteCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lrouter_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelStaticRouteCommand(
+                self.ovn_api, 'fake-lrouter',
+                '30.0.0.0/24', '40.0.0.100',
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_no_exist_ignore(self):
+        self._test_lrouter_no_exist(if_exists=True)
+
+    def test_lrouter_no_exist_fail(self):
+        self._test_lrouter_no_exist(if_exists=False)
+
+    def test_static_route_del(self):
+        fake_static_route = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ip_prefix': '50.0.0.0/24', 'nexthop': '40.0.0.101'})
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'static_routes': [fake_static_route]})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.DelStaticRouteCommand(
+                self.ovn_api, fake_lrouter.name,
+                fake_static_route.ip_prefix, fake_static_route.nexthop,
+                if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lrouter.verify.assert_called_once_with('static_routes')
+            self.assertEqual([], fake_lrouter.static_routes)
+
+    def test_static_route_del_not_found(self):
+        fake_static_route1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ip_prefix': '50.0.0.0/24', 'nexthop': '40.0.0.101'})
+        fake_static_route2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ip_prefix': '60.0.0.0/24', 'nexthop': '70.0.0.101'})
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'static_routes': [fake_static_route2]})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.DelStaticRouteCommand(
+                self.ovn_api, fake_lrouter.name,
+                fake_static_route1.ip_prefix, fake_static_route1.nexthop,
+                if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lrouter.verify.assert_not_called()
+            self.assertEqual([mock.ANY], fake_lrouter.static_routes)
 
 
 class TestAddAddrSetCommand(TestBaseCommand):
