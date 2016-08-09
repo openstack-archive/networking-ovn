@@ -16,7 +16,9 @@ import mock
 
 from neutron.agent.ovsdb.native import idlutils
 
+from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils as ovn_utils
 from networking_ovn.ovsdb import commands
 from networking_ovn.tests import base
 from networking_ovn.tests.unit import fakes
@@ -411,24 +413,175 @@ class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
 
 
 class TestAddACLCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddACLCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lswitch_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.AddACLCommand(
+                self.ovn_api, 'fake-lswitch', 'fake-lsp')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_acl_add(self):
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            fake_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+            self.transaction.insert.return_value = fake_acl
+            cmd = commands.AddACLCommand(
+                self.ovn_api, fake_lswitch.name, 'fake-lsp', match='*')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.acl_table)
+            fake_lswitch.verify.assert_called_once_with('acls')
+            self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
+            self.assertEqual({'neutron:lport': 'fake-lsp'},
+                             fake_acl.external_ids)
+            self.assertEqual('*', fake_acl.match)
 
 
 class TestDelACLCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelACLCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lswitch_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelACLCommand(
+                self.ovn_api, 'fake-lswitch', 'fake-lsp',
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_no_exist_ignore(self):
+        self._test_lswitch_no_exist(if_exists=True)
+
+    def test_lswitch_no_exist_fail(self):
+        self._test_lswitch_no_exist(if_exists=False)
+
+    def test_acl_del(self):
+        fake_lsp_name = 'fake-lsp'
+        fake_acl_del = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'neutron:lport': fake_lsp_name}})
+        fake_acl_save = mock.ANY
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'acls': [fake_acl_del, fake_acl_save]})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            cmd = commands.DelACLCommand(
+                self.ovn_api, fake_lswitch.name, fake_lsp_name,
+                if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lswitch.verify.assert_called_once_with('acls')
+            self.assertEqual([fake_acl_save], fake_lswitch.acls)
 
 
 class TestUpdateACLsCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestUpdateACLsCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lswitch_no_exist(self):
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.get_acls_for_lswitches.return_value = ({}, {}, {})
+        cmd = commands.UpdateACLsCommand(
+            self.ovn_api, [fake_lswitch.name], port_list=[],
+            acl_new_values_dict={},
+            need_compare=True)
+        cmd.run_idl(self.transaction)
+        self.transaction.insert.assert_not_called()
+        fake_lswitch.verify.assert_not_called()
+
+    def _test_acl_update_no_acls(self, need_compare):
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.get_acls_for_lswitches.return_value = (
+            {}, {}, {fake_lswitch.name: fake_lswitch})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            cmd = commands.UpdateACLsCommand(
+                self.ovn_api, [fake_lswitch.name], port_list=[],
+                acl_new_values_dict={},
+                need_compare=need_compare)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_not_called()
+            fake_lswitch.verify.assert_not_called()
+
+    def test_acl_update_compare_no_acls(self):
+        self._test_acl_update_no_acls(need_compare=True)
+
+    def test_acl_update_no_compare_no_acls(self):
+        self._test_acl_update_no_acls(need_compare=False)
+
+    def test_acl_update_compare_acls(self):
+        fake_sg_rule = \
+            fakes.FakeSecurityGroupRule.create_one_security_group_rule().info()
+        fake_port = fakes.FakePort.create_one_port().info()
+        fake_add_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'match': 'add_acl'})
+        fake_del_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'match': 'del_acl'})
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': ovn_utils.ovn_name(fake_port['network_id']),
+                   'acls': []})
+        add_acl = ovn_acl.add_sg_rule_acl_for_port(
+            fake_port, fake_sg_rule, 'add_acl')
+        self.ovn_api.get_acls_for_lswitches.return_value = (
+            {fake_port['id']: [fake_del_acl.match]},
+            {fake_del_acl.match: fake_del_acl},
+            {fake_lswitch.name.replace('neutron-', ''): fake_lswitch})
+        cmd = commands.UpdateACLsCommand(
+            self.ovn_api, [fake_port['network_id']],
+            [fake_port], {fake_port['id']: [add_acl]},
+            need_compare=True)
+        self.transaction.insert.return_value = fake_add_acl
+        cmd.run_idl(self.transaction)
+        self.transaction.insert.assert_called_once_with(
+            self.ovn_api.acl_table)
+        fake_lswitch.verify.assert_called_with('acls')
+        self.assertEqual([fake_add_acl.uuid], fake_lswitch.acls)
+
+    def test_acl_update_no_compare_add_acls(self):
+        fake_sg_rule = \
+            fakes.FakeSecurityGroupRule.create_one_security_group_rule().info()
+        fake_port = fakes.FakePort.create_one_port().info()
+        fake_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'match': '*'})
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': ovn_utils.ovn_name(fake_port['network_id'])})
+        add_acl = ovn_acl.add_sg_rule_acl_for_port(
+            fake_port, fake_sg_rule, '*')
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            self.transaction.insert.return_value = fake_acl
+            cmd = commands.UpdateACLsCommand(
+                self.ovn_api, [fake_port['network_id']],
+                [fake_port], {fake_port['id']: add_acl},
+                need_compare=False,
+                is_add_acl=True)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.acl_table)
+            fake_lswitch.verify.assert_called_once_with('acls')
+            self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
+
+    def test_acl_update_no_compare_del_acls(self):
+        fake_sg_rule = \
+            fakes.FakeSecurityGroupRule.create_one_security_group_rule().info()
+        fake_port = fakes.FakePort.create_one_port().info()
+        fake_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'match': '*'})
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': ovn_utils.ovn_name(fake_port['network_id']),
+                   'acls': [fake_acl]})
+        del_acl = ovn_acl.add_sg_rule_acl_for_port(
+            fake_port, fake_sg_rule, '*')
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            cmd = commands.UpdateACLsCommand(
+                self.ovn_api, [fake_port['network_id']],
+                [fake_port], {fake_port['id']: del_acl},
+                need_compare=False,
+                is_add_acl=False)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_not_called()
+            fake_lswitch.verify.assert_called_with('acls')
+            self.assertEqual([], fake_lswitch.acls)
 
 
 class TestAddStaticRouteCommand(TestBaseCommand):
