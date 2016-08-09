@@ -23,6 +23,25 @@ class FakeOvsdbNbOvnIdl(object):
     def __init__(self, **kwargs):
         def _fake(*args, **kwargs):
             return mock.MagicMock()
+        self.lswitch_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.lsp_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.lrouter_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.lrouter_static_route_table = \
+            FakeOvsdbTable.create_one_ovsdb_table()
+        self.lrp_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.addrset_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.acl_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.dhcp_options_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self._tables = {}
+        self._tables['Logical_Switch'] = self.lswitch_table
+        self._tables['Logical_Switch_Port'] = self.lsp_table
+        self._tables['Logical_Router'] = self.lrouter_table
+        self._tables['Logical_Router_Port'] = self.lrp_table
+        self._tables['Logical_Router_Static_Route'] = \
+            self.lrouter_static_route_table
+        self._tables['ACL'] = self.acl_table
+        self._tables['Address_Set'] = self.addrset_table
+        self._tables['DHCP_Options'] = self.dhcp_options_table
         self.transaction = _fake
         self.create_lswitch = mock.Mock()
         self.set_lswitch_ext_id = mock.Mock()
@@ -68,6 +87,11 @@ class FakeOvsdbSbOvnIdl(object):
         self.get_chassis_hostname_and_physnets = mock.Mock()
         self.get_chassis_hostname_and_physnets.return_value = {}
         self.get_all_chassis = mock.Mock()
+
+
+class FakeOvsdbTransaction(object):
+    def __init__(self, **kwargs):
+        self.insert = mock.Mock()
 
 
 class FakePlugin(object):
@@ -186,6 +210,71 @@ class FakeNetworkContext(object):
     @property
     def network_segments(self):
         return self.fake_segments
+
+
+class FakeOvsdbRow(FakeResource):
+    """Fake one or more OVSDB rows."""
+
+    @staticmethod
+    def create_one_ovsdb_row(attrs=None, methods=None):
+        """Create a fake OVSDB row.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :param Dictionary methods:
+            A dictionary with all methods
+        :return:
+            A FakeResource object faking the OVSDB row
+        """
+        attrs = attrs or {}
+        methods = methods or {}
+
+        # Set default attributes.
+        fake_uuid = uuid.uuid4().hex
+        ovsdb_row_attrs = {
+            'uuid': fake_uuid,
+            'name': 'name-' + fake_uuid
+        }
+
+        # Set default methods.
+        ovsdb_row_methods = {
+            'delete': None,
+            'verify': None,
+        }
+
+        # Overwrite default attributes and methods.
+        ovsdb_row_attrs.update(attrs)
+        ovsdb_row_methods.update(methods)
+
+        return FakeResource(info=copy.deepcopy(ovsdb_row_attrs),
+                            loaded=True,
+                            methods=copy.deepcopy(ovsdb_row_methods))
+
+
+class FakeOvsdbTable(FakeResource):
+    """Fake one or more OVSDB tables."""
+
+    @staticmethod
+    def create_one_ovsdb_table(attrs=None):
+        """Create a fake OVSDB table.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :return:
+            A FakeResource object faking the OVSDB table
+        """
+        attrs = attrs or {}
+
+        # Set default attributes.
+        ovsdb_table_attrs = {
+            'rows': {},
+        }
+
+        # Overwrite default attributes.
+        ovsdb_table_attrs.update(attrs)
+
+        return FakeResource(info=copy.deepcopy(ovsdb_table_attrs),
+                            loaded=True)
 
 
 class FakePort(object):
