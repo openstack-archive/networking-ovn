@@ -16,6 +16,7 @@ import mock
 
 from neutron.agent.ovsdb.native import idlutils
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.ovsdb import commands
 from networking_ovn.tests import base
 from networking_ovn.tests.unit import fakes
@@ -193,10 +194,41 @@ class TestDelLSwitchCommand(TestBaseCommand):
 
 
 class TestLSwitchSetExternalIdCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestLSwitchSetExternalIdCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lswitch_extid_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.LSwitchSetExternalIdCommand(
+                self.ovn_api, 'fake-lswitch',
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, 'neutron-network',
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_no_exist_ignore(self):
+        self._test_lswitch_extid_update_no_exist(if_exists=True)
+
+    def test_lswitch_no_exist_fail(self):
+        self._test_lswitch_extid_update_no_exist(if_exists=False)
+
+    def test_lswitch_extid_update(self):
+        network_name = 'private'
+        new_network_name = 'private-new'
+        ext_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network_name}
+        new_ext_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: new_network_name}
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            cmd = commands.LSwitchSetExternalIdCommand(
+                self.ovn_api, fake_lswitch.name,
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY,
+                new_network_name,
+                if_exists=True)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_lswitch.external_ids)
 
 
 class TestAddLSwitchPortCommand(TestBaseCommand):
@@ -207,10 +239,55 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
 
 
 class TestSetLSwitchPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestSetLSwitchPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lswitch_port_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.SetLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_port_no_exist_ignore(self):
+        self._test_lswitch_port_update_no_exist(if_exists=True)
+
+    def test_lswitch_port_no_exist_fail(self):
+        self._test_lswitch_port_update_no_exist(if_exists=False)
+
+    def test_lswitch_port_update(self):
+        ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}
+        new_ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test-new'}
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lsp):
+            cmd = commands.SetLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, if_exists=True,
+                external_ids=new_ext_ids)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_lsp.external_ids)
+
+    def test_lswitch_port_update_del_dhcp(self):
+        ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}
+        new_ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test-new'}
+        fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'port_id': 'fake-lsp'}})
+        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+            fake_dhcp_options
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': 'fake-lsp',
+                   'external_ids': ext_ids,
+                   'dhcpv4_options': [fake_dhcp_options]})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lsp):
+            cmd = commands.SetLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, if_exists=True,
+                external_ids=new_ext_ids)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_lsp.external_ids)
+            fake_dhcp_options.delete.assert_called_once_with()
 
 
 class TestDelLSwitchPortCommand(TestBaseCommand):
@@ -228,10 +305,35 @@ class TestAddLRouterCommand(TestBaseCommand):
 
 
 class TestUpdateLRouterCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestUpdateLRouterCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lrouter_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdateLRouterCommand(
+                self.ovn_api, 'fake-lrouter', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_no_exist_ignore(self):
+        self._test_lrouter_update_no_exist(if_exists=True)
+
+    def test_lrouter_no_exist_fail(self):
+        self._test_lrouter_update_no_exist(if_exists=False)
+
+    def test_lrouter_update(self):
+        ext_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'richard'}
+        new_ext_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'richard-new'}
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.UpdateLRouterCommand(
+                self.ovn_api, fake_lrouter.name, if_exists=True,
+                external_ids=new_ext_ids)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_lrouter.external_ids)
 
 
 class TestDelLRouterCommand(TestBaseCommand):
@@ -249,10 +351,35 @@ class TestAddLRouterPortCommand(TestBaseCommand):
 
 
 class TestUpdateLRouterPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestUpdateLRouterPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lrouter_port_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdateLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_port_no_exist_ignore(self):
+        self._test_lrouter_port_update_no_exist(if_exists=True)
+
+    def test_lrouter_port_no_exist_fail(self):
+        self._test_lrouter_port_update_no_exist(if_exists=False)
+
+    def test_lrouter_port_update(self):
+        old_networks = []
+        new_networks = ['10.1.0.0/24']
+        fake_lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'networks': old_networks})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrp):
+            cmd = commands.UpdateLRouterPortCommand(
+                self.ovn_api, fake_lrp.name, 'fake-lrouter', if_exists=True,
+                networks=new_networks)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_networks, fake_lrp.networks)
 
 
 class TestDelLRouterPortCommand(TestBaseCommand):
@@ -263,10 +390,24 @@ class TestDelLRouterPortCommand(TestBaseCommand):
 
 
 class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestSetLRouterPortInLSwitchPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lswitch_port_no_exist_fail(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.SetLRouterPortInLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', 'fake-lrp')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_port_router_update(self):
+        lrp_name = 'fake-lrp'
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lsp):
+            cmd = commands.SetLRouterPortInLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, lrp_name)
+            cmd.run_idl(self.transaction)
+            self.assertEqual({'router-port': lrp_name}, fake_lsp.options)
+            self.assertEqual('router', fake_lsp.type)
 
 
 class TestAddACLCommand(TestBaseCommand):
@@ -319,17 +460,87 @@ class TestDelAddrSetCommand(TestBaseCommand):
 
 
 class TestUpdateAddrSetCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestUpdateAddrSetCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_addrset_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdateAddrSetCommand(
+                self.ovn_api, 'fake-addrset',
+                addrs_add=[], addrs_remove=[],
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_addrset_no_exist_ignore(self):
+        self._test_addrset_update_no_exist(if_exists=True)
+
+    def test_addrset_no_exist_fail(self):
+        self._test_addrset_update_no_exist(if_exists=False)
+
+    def _test_addrset_update(self, addrs_add=None, addrs_del=None):
+        save_address = '10.0.0.1'
+        initial_addresses = [save_address]
+        final_addresses = [save_address]
+        if addrs_add:
+            for addr_add in addrs_add:
+                final_addresses.append(addr_add)
+        if addrs_del:
+            for addr_del in addrs_del:
+                initial_addresses.append(addr_del)
+        fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'addresses': initial_addresses})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_addrset):
+            cmd = commands.UpdateAddrSetCommand(
+                self.ovn_api, fake_addrset.name,
+                addrs_add=addrs_add, addrs_remove=addrs_del,
+                if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_addrset.verify.assert_called_once_with('addresses')
+            self.assertEqual(final_addresses, fake_addrset.addresses)
+
+    def test_addrset_update_add(self):
+        self._test_addrset_update(addrs_add=['10.0.0.4'])
+
+    def test_addrset_update_del(self):
+        self._test_addrset_update(addrs_del=['10.0.0.2'])
 
 
 class TestUpdateAddrSetExtIdsCommand(TestBaseCommand):
     def setUp(self):
         super(TestUpdateAddrSetExtIdsCommand, self).setUp()
+        self.ext_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'default'}
 
-    # TODO(rtheis): Add unit tests.
+    def _test_addrset_extids_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdateAddrSetExtIdsCommand(
+                self.ovn_api, 'fake-addrset', self.ext_ids,
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_addrset_no_exist_ignore(self):
+        self._test_addrset_extids_update_no_exist(if_exists=True)
+
+    def test_addrset_no_exist_fail(self):
+        self._test_addrset_extids_update_no_exist(if_exists=False)
+
+    def test_addrset_extids_update(self):
+        new_ext_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'default-new'}
+        fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': self.ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_addrset):
+            cmd = commands.UpdateAddrSetExtIdsCommand(
+                self.ovn_api, fake_addrset.name,
+                new_ext_ids, if_exists=True)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_addrset.external_ids)
 
 
 class TestAddDHCPOptionsCommand(TestBaseCommand):
