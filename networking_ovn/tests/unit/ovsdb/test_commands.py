@@ -143,6 +143,18 @@ class TestAddLSwitchCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_not_called()
 
+    def test_lswitch_add_exists(self):
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.lswitch_table.rows[fake_lswitch.uuid] = fake_lswitch
+        self.transaction.insert.return_value = fake_lswitch
+        cmd = commands.AddLSwitchCommand(
+            self.ovn_api, fake_lswitch.name, may_exist=False)
+        cmd.run_idl(self.transaction)
+        # NOTE(rtheis): Mocking the transaction allows this insert
+        # to succeed when it normally would fail due the duplicate name.
+        self.transaction.insert.assert_called_once_with(
+            self.ovn_api.lswitch_table)
+
     def _test_lswitch_add(self, may_exist=True):
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=None):
@@ -200,10 +212,63 @@ class TestLSwitchSetExternalIdCommand(TestBaseCommand):
 
 
 class TestAddLSwitchPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddLSwitchPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lswitch_not_found(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.AddLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', 'fake-lswitch', may_exist=True)
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lswitch_port_exists(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=mock.ANY):
+            cmd = commands.AddLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', 'fake-lswitch', may_exist=True)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lswitch_port_add_exists(self):
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lswitch):
+            fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+            self.ovn_api.lsp_table.rows[fake_lsp.uuid] = fake_lsp
+            self.transaction.insert.return_value = fake_lsp
+            cmd = commands.AddLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, fake_lswitch.name,
+                may_exist=False)
+            cmd.run_idl(self.transaction)
+            # NOTE(rtheis): Mocking the transaction allows this insert
+            # to succeed when it normally would fail due the duplicate name.
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lsp_table)
+
+    def _test_lswitch_port_add(self, may_exist=True):
+        lsp_name = 'fake-lsp'
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lswitch, None]):
+            fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+                attrs={'foo': None})
+            self.transaction.insert.return_value = fake_lsp
+            cmd = commands.AddLSwitchPortCommand(
+                self.ovn_api, lsp_name, fake_lswitch.name,
+                may_exist=may_exist, foo='bar')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lsp_table)
+            fake_lswitch.verify.assert_called_once_with('ports')
+            self.assertEqual(lsp_name, fake_lsp.name)
+            self.assertEqual([fake_lsp.uuid], fake_lswitch.ports)
+            self.assertEqual('bar', fake_lsp.foo)
+
+    def test_lswitch_port_add_may_exist(self):
+        self._test_lswitch_port_add(may_exist=True)
+
+    def test_lswitch_port_add_ignore_exists(self):
+        self._test_lswitch_port_add(may_exist=False)
 
 
 class TestSetLSwitchPortCommand(TestBaseCommand):
@@ -214,10 +279,52 @@ class TestSetLSwitchPortCommand(TestBaseCommand):
 
 
 class TestDelLSwitchPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelLSwitchPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lswitch_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=['fake-lsp', idlutils.RowNotFound]):
+            cmd = commands.DelLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', 'fake-lswitch', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_no_exist_ignore(self):
+        self._test_lswitch_no_exist(if_exists=True)
+
+    def test_lswitch_no_exist_fail(self):
+        self._test_lswitch_no_exist(if_exists=False)
+
+    def _test_lswitch_port_del_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelLSwitchPortCommand(
+                self.ovn_api, 'fake-lsp', 'fake-lswitch', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lswitch_port_no_exist_ignore(self):
+        self._test_lswitch_port_del_no_exist(if_exists=True)
+
+    def test_lswitch_port_no_exist_fail(self):
+        self._test_lswitch_port_del_no_exist(if_exists=False)
+
+    def test_lswitch_port_del(self):
+        fake_lsp = mock.MagicMock()
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ports': [fake_lsp]})
+        self.ovn_api.lsp_table.rows[fake_lsp.uuid] = fake_lsp
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lsp, fake_lswitch]):
+            cmd = commands.DelLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, fake_lswitch.name, if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lsp.delete.assert_called_once_with()
+            self.assertEqual([], fake_lswitch.ports)
 
 
 class TestAddLRouterCommand(TestBaseCommand):
@@ -242,10 +349,40 @@ class TestDelLRouterCommand(TestBaseCommand):
 
 
 class TestAddLRouterPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddLRouterPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lrouter_not_found(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.AddLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lrouter_port_exists(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=mock.ANY):
+            cmd = commands.AddLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lrouter_port_add(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lrouter,
+                                            idlutils.RowNotFound]):
+            fake_lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+                attrs={'foo': None})
+            self.transaction.insert.return_value = fake_lrp
+            cmd = commands.AddLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', fake_lrouter.name, foo='bar')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lrp_table)
+            self.assertEqual('fake-lrp', fake_lrp.name)
+            fake_lrouter.verify.assert_called_once_with('ports')
+            self.assertEqual([fake_lrp], fake_lrouter.ports)
+            self.assertEqual('bar', fake_lrp.foo)
 
 
 class TestUpdateLRouterPortCommand(TestBaseCommand):
@@ -256,10 +393,42 @@ class TestUpdateLRouterPortCommand(TestBaseCommand):
 
 
 class TestDelLRouterPortCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelLRouterPortCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lrouter_port_del_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_port_no_exist_ignore(self):
+        self._test_lrouter_port_del_no_exist(if_exists=True)
+
+    def test_lrouter_port_no_exist_fail(self):
+        self._test_lrouter_port_del_no_exist(if_exists=False)
+
+    def test_lrouter_no_exist(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[mock.ANY, idlutils.RowNotFound]):
+            cmd = commands.DelLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', if_exists=True)
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_port_del(self):
+        fake_lrp = mock.MagicMock()
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ports': [fake_lrp]})
+        self.ovn_api.lrp_table.rows[fake_lrp.uuid] = fake_lrp
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lrp, fake_lrouter]):
+            cmd = commands.DelLRouterPortCommand(
+                self.ovn_api, fake_lrp.name, fake_lrouter.name, if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lrouter.verify.assert_called_once_with('ports')
+            self.assertEqual([], fake_lrouter.ports)
 
 
 class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
