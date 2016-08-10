@@ -134,6 +134,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.update_address_sets.append((address_set_name, 'ip4',
                                          address_adds, address_dels))
 
+        # Create a network and subnet with orphaned OVN resources.
+        n3 = self._make_network(self.fmt, 'n3', True)
+        res = self._create_subnet(self.fmt, n3['network']['id'],
+                                  '30.0.0.0/24')
+        n3_s1 = self.deserialize(self.fmt, res)
+        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+                                          'neutron-' + n3['network']['id']))
+        fake_port = {'id': uuid.uuid4().hex, 'network_id': n3['network']['id']}
+        dhcp_acls = acl_utils.add_acl_dhcp(fake_port, n3_s1['subnet'])
+        for dhcp_acl in dhcp_acls:
+            self.create_acls.append(dhcp_acl)
+
     def _modify_resources_in_nb_db(self):
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_nb_db_idl
