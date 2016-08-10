@@ -55,7 +55,8 @@ LOG = log.getLogger(__name__)
 OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
                                                      'addresses',
                                                      'port_security',
-                                                     'parent_name', 'tag'])
+                                                     'parent_name', 'tag',
+                                                     'dhcpv4_options'])
 
 
 class OVNMechanismDriver(driver_api.MechanismDriver):
@@ -375,7 +376,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet = context.current
         if config.is_ovn_dhcp():
             with self._nb_ovn.transaction(check_error=True) as txn:
-                txn.add(self._nb_ovn.delete_dhcp_options(subnet['id']))
+                subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
+                    subnet['id'])
+                txn.add(self._nb_ovn.delete_dhcp_options(
+                    subnet_dhcp_options['uuid']))
 
     def add_subnet_dhcp_options_in_ovn(self, subnet, network):
         ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
@@ -540,7 +544,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         ovn_port_info = self.get_ovn_port_options(port)
         self._insert_port_provisioning_block(port)
         self.create_port_in_ovn(port, ovn_port_info)
-        self.update_ovn_lsp_dhcpv4_options(port)
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
@@ -566,7 +569,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return list(allowed_addresses)
 
-    def get_ovn_port_options(self, port, qos_options=None):
+    def get_ovn_port_options(self, port, qos_options=None, original_port=None):
         binding_profile = self.validate_and_get_data_from_binding_profile(port)
         if qos_options is None:
             qos_options = self.qos_driver.get_qos_options(port)
@@ -591,8 +594,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 addresses += ' ' + ip['ip_address']
             port_security = self._get_allowed_addresses_from_port(port)
 
+        port_dhcpv4_options_info = self._get_port_dhcpv4_options(
+            port, original_port=original_port)
+        dhcpv4_options = []
+        if port_dhcpv4_options_info and 'uuid' in port_dhcpv4_options_info:
+            dhcpv4_options = [port_dhcpv4_options_info['uuid']]
+
         return OvnPortInfo(port_type, options, [addresses], port_security,
-                           parent_name, tag)
+                           parent_name, tag, dhcpv4_options)
 
     def create_port_in_ovn(self, port, ovn_port_info):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
@@ -615,7 +624,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     enabled=port.get('admin_state_up'),
                     options=ovn_port_info.options,
                     type=ovn_port_info.type,
-                    port_security=ovn_port_info.port_security))
+                    port_security=ovn_port_info.port_security,
+                    dhcpv4_options=ovn_port_info.dhcpv4_options))
+
             acls_new = ovn_acl.add_acls(self._plugin, admin_context,
                                         port, sg_cache, subnet_cache)
             for acl in acls_new:
@@ -674,9 +685,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self.update_port(port, original_port)
 
     def update_port(self, port, original_port, qos_options=None):
-        ovn_port_info = self.get_ovn_port_options(port, qos_options)
+        ovn_port_info = self.get_ovn_port_options(port, qos_options,
+                                                  original_port=original_port)
         self._update_port_in_ovn(original_port, port, ovn_port_info)
-        self.update_ovn_lsp_dhcpv4_options(port)
 
     def _update_port_in_ovn(self, original_port, port, ovn_port_info):
         external_ids = {
@@ -695,7 +706,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     type=ovn_port_info.type,
                     options=ovn_port_info.options,
                     enabled=port['admin_state_up'],
-                    port_security=ovn_port_info.port_security))
+                    port_security=ovn_port_info.port_security,
+                    dhcpv4_options=ovn_port_info.dhcpv4_options))
 
             # Determine if security groups or fixed IPs are updated.
             old_sg_ids = set(original_port.get('security_groups', []))
@@ -761,27 +773,30 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                         addrs_add=addr_add,
                                         addrs_remove=addr_remove))
 
-    def _delete_lsp_dhcpv4_options(self, port):
+            if not ovn_port_info.dhcpv4_options:
+                # Check if the DHCP_Options row exist for this port.
+                # We need to delete it as it is no longer referenced by this
+                # port.
+                cmd = self._get_delete_lsp_dhcpv4_options_cmd(port)
+                if cmd:
+                    txn.add(cmd)
+
+    def _get_delete_lsp_dhcpv4_options_cmd(self, port):
         lsp_dhcp_options = None
-        subnet_id = None
         for fixed_ip in port['fixed_ips']:
             if netaddr.IPAddress(fixed_ip['ip_address']).version == 4:
                 lsp_dhcp_options = self._nb_ovn.get_port_dhcp_options(
                     fixed_ip['subnet_id'], port['id'])
-                subnet_id = fixed_ip['subnet_id']
                 if lsp_dhcp_options:
                     break
 
-        with self._nb_ovn.transaction(check_error=True) as txn:
-            txn.add(self._nb_ovn.set_lswitch_port(port['id'],
-                                                  dhcpv4_options=[]))
-
         if lsp_dhcp_options:
-            with self._nb_ovn.transaction(check_error=True) as txn:
-                txn.add(self._nb_ovn.delete_dhcp_options(subnet_id,
-                                                         port_id=port['id']))
+            # Delete the DHCP_Options row created for this port.
+            # A separate DHCP_Options row would have be created since the port
+            # has extra DHCP options defined.
+            return self._nb_ovn.delete_dhcp_options(lsp_dhcp_options['uuid'])
 
-    def update_ovn_lsp_dhcpv4_options(self, port):
+    def _get_port_dhcpv4_options(self, port, original_port=None):
         lsp_dhcpv4_options = {}
         lsp_dhcp_disabled = False
         for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
@@ -799,7 +814,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             lsp_dhcpv4_options[opt] = edo['opt_value']
 
         if lsp_dhcp_disabled:
-            self._delete_lsp_dhcpv4_options(port)
             return
 
         # If the port has multiple IPv4 addresses, DHCPv4 options are set
@@ -815,22 +829,38 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     break
 
         if not subnet_dhcp_options:
+            # Ideally this should not happen.
+            # May be a sync is required in such cases ?
             return
 
-        if lsp_dhcpv4_options:
-            subnet_dhcp_options['options'].update(lsp_dhcpv4_options)
-            subnet_dhcp_options['external_ids'].update(
-                {'port_id': port['id']})
-            with self._nb_ovn.transaction(check_error=True) as txn:
-                txn.add(self._nb_ovn.add_dhcp_options(subnet_id,
-                                                      port_id=port['id'],
-                                                      **subnet_dhcp_options))
+        if not lsp_dhcpv4_options:
+            if original_port and original_port.get(edo_ext.EXTRADHCPOPTS, []):
+                # Extra DHCP options were define for this port.
+                # Delete the DHCP_Options row created for this port earlier.
+                cmd = self._get_delete_lsp_dhcpv4_options_cmd(original_port)
+                if cmd:
+                    with self._nb_ovn.transaction(check_error=True) as txn:
+                        txn.add(cmd)
+            return subnet_dhcp_options
 
-        check_port_id_in_external_ids = True if lsp_dhcpv4_options else False
+        # This port has extra DHCP options defined.
+        # So we need to create a new row in DHCP_Options table for this
+        # port.
+        # TODO(numans) In cases where the below transaction is successful
+        # but the Logical_Switch_Port create or update transaction fails
+        # we need to delete the DHCP_Options row created else it will be
+        # an orphan row.
+        subnet_dhcp_options['options'].update(lsp_dhcpv4_options)
+        subnet_dhcp_options['external_ids'].update(
+            {'port_id': port['id']})
         with self._nb_ovn.transaction(check_error=True) as txn:
-            txn.add(self._nb_ovn.set_lswitch_port_dhcpv4_options(
-                port['id'], subnet_id,
-                check_port_id_in_external_ids=check_port_id_in_external_ids))
+            txn.add(self._nb_ovn.add_dhcp_options(
+                subnet_id, port_id=port['id'],
+                cidr=subnet_dhcp_options['cidr'],
+                options=subnet_dhcp_options['options'],
+                external_ids=subnet_dhcp_options['external_ids']))
+
+        return self._nb_ovn.get_port_dhcp_options(subnet_id, port['id'])
 
     def delete_port_postcommit(self, context):
         """Delete a port.
@@ -845,7 +875,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         deleted.
         """
         port = context.current
-        self._delete_lsp_dhcpv4_options(port)
         with self._nb_ovn.transaction(check_error=True) as txn:
             txn.add(self._nb_ovn.delete_lswitch_port(port['id'],
                     utils.ovn_name(port['network_id'])))
@@ -861,6 +890,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                 name=utils.ovn_addrset_name(sg_id, ip_version),
                                 addrs_add=None,
                                 addrs_remove=addresses[ip_version]))
+
+                # Delete the DHCP_Options row if created for this port.
+                # A separate DHCP_Options row would have be created if the port
+                # has extra DHCP options defined.
+                for fixed_ip in port['fixed_ips']:
+                    if netaddr.IPAddress(fixed_ip['ip_address']).version == 4:
+                        lsp_dhcp_options = self._nb_ovn.get_port_dhcp_options(
+                            fixed_ip['subnet_id'], port['id'])
+                        if lsp_dhcp_options:
+                            txn.add(self._nb_ovn.delete_dhcp_options(
+                                lsp_dhcp_options['uuid']))
+                            break
 
     def bind_port(self, context):
         """Attempt to bind a port.

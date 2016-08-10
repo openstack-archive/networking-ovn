@@ -415,15 +415,11 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def delete_dhcp_options(self, subnet_id, port_id=None, if_exists=True):
-        """Deletes the row in DHCP_Options for the @subnet_id (and @port_id)
+    def delete_dhcp_options(self, row_uuid, if_exists=True):
+        """Deletes the row in DHCP_Options with the @row_uuid
 
-        :param subnet_id:      The subnet id to which the DHCP options belong
-                               to
-        :type subnet_id:       string
-        :param port_id:        Optional. The port id to which the DHCP options
-                               belong to if specified
-        :type port_id:         string
+        :param row_uuid:       The UUID of the row to be deleted.
+        :type row_uuid:        string
         :param if_exists:      Do not fail if the DHCP_Options row does not
                                exist
         :type if_exists:       bool
@@ -462,23 +458,6 @@ class API(object):
         @type columns:        Dictionary of DHCP_Options columns
         @returns:             List of 'Command' objects returned by
                               'add_dhcp_options'
-        """
-
-    @abc.abstractmethod
-    def set_lswitch_port_dhcpv4_options(self, lport_name, subnet_id,
-                                        check_port_id_in_external_ids=False):
-        """Sets the 'dhcpv4_options' column of the Logical_Switch_Port
-
-        Retrieve the DHCP options for the logical switch port in
-        the 'DHCP_Options' table and set it in the 'dhcpv4_options' column.
-
-        @param lport_name:    Logical switch port name
-        @type lport_name:     string
-        @param subnet_id:     The subnet id to which the DHCP options belong to
-        @type subnet_id:      string
-        @type check_port_id_in_external_ids : If set to true, retrieves the
-                             'DHCP_Options' row belonging to the @lsp_name and
-                             sets it.
         """
 
     @abc.abstractmethod

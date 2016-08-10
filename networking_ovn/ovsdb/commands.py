@@ -714,11 +714,12 @@ class UpdateAddrSetExtIdsCommand(BaseCommand):
         addrset.external_ids = addrset_external_ids
 
 
-class DHCPOptionsCommand(BaseCommand):
-
-    def __init__(self, api, subnet_id, port_id=None):
-        super(DHCPOptionsCommand, self).__init__(api)
-        self.api = api
+class AddDHCPOptionsCommand(BaseCommand):
+    def __init__(self, api, subnet_id, port_id=None, may_exists=True,
+                 **columns):
+        super(AddDHCPOptionsCommand, self).__init__(api)
+        self.columns = columns
+        self.may_exists = may_exists
         self.subnet_id = subnet_id
         self.port_id = port_id
 
@@ -729,15 +730,6 @@ class DHCPOptionsCommand(BaseCommand):
             if self.subnet_id == external_ids.get('subnet_id'):
                 if self.port_id == port_id:
                     return row
-
-
-class AddDHCPOptionsCommand(DHCPOptionsCommand):
-    def __init__(self, api, subnet_id, port_id=None, may_exists=True,
-                 **columns):
-        super(AddDHCPOptionsCommand, self).__init__(api, subnet_id,
-                                                    port_id=port_id)
-        self.columns = columns
-        self.may_exists = may_exists
 
     def run_idl(self, txn):
         row = None
@@ -750,20 +742,17 @@ class AddDHCPOptionsCommand(DHCPOptionsCommand):
             setattr(row, col, val)
 
 
-class DelDHCPOptionsCommand(DHCPOptionsCommand):
-    def __init__(self, api, subnet_id, port_id=None, if_exists=True):
-        super(DelDHCPOptionsCommand, self).__init__(api, subnet_id,
-                                                    port_id=port_id)
+class DelDHCPOptionsCommand(BaseCommand):
+    def __init__(self, api, row_uuid, if_exists=True):
+        super(DelDHCPOptionsCommand, self).__init__(api)
         self.if_exists = if_exists
+        self.row_uuid = row_uuid
 
     def run_idl(self, txn):
-        dhcp_options_row = self._get_dhcp_options_row()
-        if not dhcp_options_row:
+        if self.row_uuid not in self.api._tables['DHCP_Options'].rows:
             if self.if_exists:
                 return
-            msg = _("DHCP Options for subnet_id %(lswitch)s , port_id"
-                    " % (port_id)s does not exist") % {
-                        'subnet_id': self.subnet_id, 'port_id': self.port_id}
+            msg = _("DHCP Options row %s does not exist") % self.row_uuid
             raise RuntimeError(msg)
 
-        self.api._tables['DHCP_Options'].rows[dhcp_options_row.uuid].delete()
+        self.api._tables['DHCP_Options'].rows[self.row_uuid].delete()

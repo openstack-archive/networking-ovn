@@ -299,3 +299,115 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
 
         del expected_dhcp_options_rows[1]
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+
+    def test_port_dhcp_opts_add_and_remove_extra_dhcp_opts(self):
+        """Orphaned DHCP_Options row.
+
+        In this test case a port is created with extra DHCP options.
+        Since it has extra DHCP options a new row in the DHCP_Options is
+        created for this port.
+        Next the port is updated to delete the extra DHCP options.
+        After the update, the Logical_Switch_Port.dhcpv4_options for this port
+        should refer to the subnet DHCP_Options and the DHCP_Options row
+        created for this port earlier should be deleted.
+        """
+        n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
+        subnet = self.deserialize(self.fmt, res)
+
+        n_utils.get_random_mac = self.orig_get_random_mac
+        expected_dhcp_options_rows = [{
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': subnet['subnet']['id']},
+            'options': {'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n1['network']['mtu']),
+                        'router': subnet['subnet']['gateway_ip']}}]
+
+        data = {
+            'port': {'network_id': n1['network']['id'],
+                     'tenant_id': self._tenant_id,
+                     'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                          'opt_value': '1100'},
+                                         {'ip_version': 4,
+                                          'opt_name': 'ntp-server',
+                                          'opt_value': '8.8.8.8'}]}}
+        port_req = self.new_create_request('ports', data, self.fmt)
+        port_res = port_req.get_response(self.api)
+        p1 = self.deserialize(self.fmt, port_res)
+
+        expected_dhcp_options_rows.append({
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': subnet['subnet']['id'],
+                             'port_id': p1['port']['id']},
+            'options': {'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': '1100',
+                        'router': subnet['subnet']['gateway_ip'],
+                        'ntp_server': '8.8.8.8'}})
+
+        self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+        # The Logical_Switch_Port.dhcpv4_options should refer to the
+        # the port DHCP options.
+        self._verify_dhcp_option_row_for_port(p1['port']['id'],
+                                              expected_dhcp_options_rows[1])
+
+        # Now update the port to delete the extra DHCP options
+        data = {'port': {'extra_dhcp_opts': [{'ip_version': 4,
+                                              'opt_name': 'mtu',
+                                              'opt_value': None},
+                                             {'ip_version': 4,
+                                              'opt_name': 'ntp-server',
+                                              'opt_value': None}]}}
+        port_req = self.new_update_request('ports', data, p1['port']['id'])
+        port_req.get_response(self.api)
+
+        # DHCP_Options row created for the port earlier should have been
+        # deleted.
+        del expected_dhcp_options_rows[1]
+        self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+        # The Logical_Switch_Port.dhcpv4_options for this port should refer to
+        # the subnet DHCP options.
+        self._verify_dhcp_option_row_for_port(p1['port']['id'],
+                                              expected_dhcp_options_rows[0])
+
+        # update the port again with extra DHCP options.
+        data = {'port': {'extra_dhcp_opts': [{'ip_version': 4,
+                                              'opt_name': 'mtu',
+                                              'opt_value': '1200'},
+                                             {'ip_version': 4,
+                                              'opt_name': 'tftp-server',
+                                              'opt_value': '8.8.8.8'}]}}
+
+        port_req = self.new_update_request('ports', data, p1['port']['id'])
+        port_req.get_response(self.api)
+
+        expected_dhcp_options_rows.append({
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': subnet['subnet']['id'],
+                             'port_id': p1['port']['id']},
+            'options': {'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': '1200',
+                        'router': subnet['subnet']['gateway_ip'],
+                        'tftp_server': '8.8.8.8'}})
+        self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+        self._verify_dhcp_option_row_for_port(p1['port']['id'],
+                                              expected_dhcp_options_rows[1])
+
+        # Disable dhcp for this port. The DHCP_Options row created for this
+        # port should be get deleted.
+        data = {'port': {'extra_dhcp_opts': [{'ip_version': 4,
+                                              'opt_name': 'dhcp_disabled',
+                                              'opt_value': 'true'}]}}
+        port_req = self.new_update_request('ports', data, p1['port']['id'])
+        port_req.get_response(self.api)
+
+        del expected_dhcp_options_rows[1]
+        self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+        # The Logical_Switch_Port.dhcpv4_options for this port should be
+        # empty.
+        self._verify_dhcp_option_row_for_port(p1['port']['id'], {})
