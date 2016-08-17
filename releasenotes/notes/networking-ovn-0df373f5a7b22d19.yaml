@@ -19,6 +19,7 @@ features:
     * Metadata (conventional metadata agent)
     * DPDK - Usable with OVS via either the Linux kernel datapath
       or the DPDK datapath.
+    * Trunk driver - Driver to back the neutron's 'trunk' service plugin
 
     The initial release also supports the following Networking service
     API extensions:
