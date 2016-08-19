@@ -19,7 +19,6 @@ import time
 from oslo_config import cfg
 from oslo_log import log
 
-from neutron._i18n import _LE
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
 from neutron import manager
@@ -27,6 +26,7 @@ from neutron.plugins.common import constants as service_constants
 from neutron.plugins.ml2 import config
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
+from networking_ovn._i18n import _LE
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional.resources import process
