@@ -24,6 +24,8 @@ from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
 from neutron import context
+from neutron import manager
+from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 
@@ -139,7 +141,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         fake_api.idl = self.monitor_nb_db_idl
         fake_api._tables = self.monitor_nb_db_idl.tables
 
-        with self.idl_transaction(fake_api, check_error=True) as txn:
+        with self.nb_idl_transaction(fake_api, check_error=True) as txn:
             for lswitch_name in self.create_lswitches:
                 external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
                                 lswitch_name}
@@ -481,3 +483,88 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def test_ovn_nb_sync_off(self):
         self._test_ovn_nb_sync_helper('off', should_match_after_sync=False)
+
+
+class TestOvnSbSync(base.TestOVNFunctionalBase):
+
+    def setUp(self):
+        super(TestOvnSbSync, self).setUp(ovn_worker=False)
+        self.segments_plugin = manager.NeutronManager.get_service_plugins(
+            ).get('segments')
+        self.sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
+            self.plugin, self.mech_driver._sb_ovn, self.mech_driver)
+        self.ctx = context.get_admin_context()
+
+    def get_additional_service_plugins(self):
+        return {'segments': 'neutron.services.segments.plugin.Plugin'}
+
+    def _sync_resources(self):
+        self.sb_synchronizer.sync_hostname_and_physical_networks(self.ctx)
+
+    def create_segment(self, network_id, physical_network, segmentation_id):
+        segment_data = {'network_id': network_id,
+                        'physical_network': physical_network,
+                        'segmentation_id': segmentation_id,
+                        'network_type': 'vlan'}
+        return self.segments_plugin.create_segment(
+            self.ctx, segment={'segment': segment_data})
+
+    def test_ovn_sb_sync_add_new_host(self):
+        with self.network() as network:
+            network_id = network['network']['id']
+        self.create_segment(network_id, 'physnet1', 50)
+        self.add_fake_chassis('host1', ['physnet1'])
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertFalse(segment_hosts)
+        self._sync_resources()
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertEqual({'host1'}, segment_hosts)
+
+    def test_ovn_sb_sync_update_existing_host(self):
+        with self.network() as network:
+            network_id = network['network']['id']
+        segment = self.create_segment(network_id, 'physnet1', 50)
+        segments_db.update_segment_host_mapping(
+            self.ctx, 'host1', {segment['id']})
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertEqual({'host1'}, segment_hosts)
+        self.add_fake_chassis('host1', ['physnet2'])
+        self._sync_resources()
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertFalse(segment_hosts)
+
+    def test_ovn_sb_sync_delete_stale_host(self):
+        with self.network() as network:
+            network_id = network['network']['id']
+        segment = self.create_segment(network_id, 'physnet1', 50)
+        segments_db.update_segment_host_mapping(
+            self.ctx, 'host1', {segment['id']})
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertEqual({'host1'}, segment_hosts)
+        # Since there is no chassis in the sb DB, host1 is the stale host
+        # recorded in neutron DB. It should be deleted after sync.
+        self._sync_resources()
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertFalse(segment_hosts)
+
+    def test_ovn_sb_sync(self):
+        with self.network() as network:
+            network_id = network['network']['id']
+        seg1 = self.create_segment(network_id, 'physnet1', 50)
+        self.create_segment(network_id, 'physnet2', 51)
+        segments_db.update_segment_host_mapping(
+            self.ctx, 'host1', {seg1['id']})
+        segments_db.update_segment_host_mapping(
+            self.ctx, 'host2', {seg1['id']})
+        segments_db.update_segment_host_mapping(
+            self.ctx, 'host3', {seg1['id']})
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        self.assertEqual({'host1', 'host2', 'host3'}, segment_hosts)
+        self.add_fake_chassis('host2', ['physnet2'])
+        self.add_fake_chassis('host3', ['physnet3'])
+        self.add_fake_chassis('host4', ['physnet1'])
+        self._sync_resources()
+        segment_hosts = segments_db.get_hosts_mapped_with_segments(self.ctx)
+        # host1 should be cleared since it is not in the chassis DB. host3
+        # should be cleared since there is no segment for mapping.
+        self.assertEqual({'host2', 'host4'}, segment_hosts)
