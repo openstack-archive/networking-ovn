@@ -10,6 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron_lib import exceptions as n_exc
+from oslo_log import log
+import retrying
 import six
 
 from neutron.agent.ovsdb import impl_idl
@@ -17,7 +20,7 @@ from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import utils as n_utils
 
-from networking_ovn._i18n import _
+from networking_ovn._i18n import _, _LI
 from networking_ovn.common import config as cfg
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -26,8 +29,29 @@ from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
 
 
+LOG = log.getLogger(__name__)
+
+
+class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
+    message = _("OVS database connection to %(db_schema)s failed with error: "
+                "'%(error)s'. Verify that the OVS and OVN services are "
+                "available and that the 'ovn_nb_connection' and "
+                "'ovn_sb_connection' configuration options are correct.")
+
+
+# Retry forever to get the OVN NB and SB IDLs. Wait 2^x * 1 seconds between
+# each retry, up to 180 seconds, then 180 seconds afterwards.
 def get_ovn_idls(driver, trigger):
-    return OvsdbNbOvnIdl(driver, trigger), OvsdbSbOvnIdl(driver, trigger)
+    @retrying.retry(wait_exponential_multiplier=1000,
+                    wait_exponential_max=(180 * 1000))
+    def get_ovn_idl_retry(cls, driver, trigger):
+        LOG.info(_LI('Getting %(cls)s for %(trigger)s with retry'),
+                 {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
+        return cls(driver, trigger)
+
+    nb_ovn_idl = get_ovn_idl_retry(OvsdbNbOvnIdl, driver, trigger)
+    sb_ovn_idl = get_ovn_idl_retry(OvsdbSbOvnIdl, driver, trigger)
+    return nb_ovn_idl, sb_ovn_idl
 
 
 def get_connection(db_class, trigger=None):
@@ -51,16 +75,22 @@ class OvsdbNbOvnIdl(ovn_api.API):
 
     def __init__(self, driver, trigger=None):
         super(OvsdbNbOvnIdl, self).__init__()
-        if OvsdbNbOvnIdl.ovsdb_connection is None:
-            OvsdbNbOvnIdl.ovsdb_connection = get_connection(OvsdbNbOvnIdl,
-                                                            trigger)
-        if isinstance(OvsdbNbOvnIdl.ovsdb_connection,
-                      ovsdb_monitor.OvnConnection):
-            OvsdbNbOvnIdl.ovsdb_connection.start(driver)
-        else:
-            OvsdbNbOvnIdl.ovsdb_connection.start()
-        self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
-        self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+        try:
+            if OvsdbNbOvnIdl.ovsdb_connection is None:
+                OvsdbNbOvnIdl.ovsdb_connection = get_connection(
+                    OvsdbNbOvnIdl, trigger)
+            if isinstance(OvsdbNbOvnIdl.ovsdb_connection,
+                          ovsdb_monitor.OvnConnection):
+                OvsdbNbOvnIdl.ovsdb_connection.start(driver)
+            else:
+                OvsdbNbOvnIdl.ovsdb_connection.start()
+            self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
+            self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+        except Exception as e:
+            connection_exception = OvsdbConnectionUnavailable(
+                db_schema='OVN_Northbound', error=e)
+            LOG.exception(connection_exception)
+            raise connection_exception
 
     @property
     def _tables(self):
@@ -387,18 +417,24 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
 
     def __init__(self, driver, trigger=None):
         super(OvsdbSbOvnIdl, self).__init__()
-        if OvsdbSbOvnIdl.ovsdb_connection is None:
-            OvsdbSbOvnIdl.ovsdb_connection = get_connection(OvsdbSbOvnIdl,
-                                                            trigger)
-        if isinstance(OvsdbSbOvnIdl.ovsdb_connection,
-                      ovsdb_monitor.OvnConnection):
-            # We only need to know the content of Chassis in OVN_Southbound
-            OvsdbSbOvnIdl.ovsdb_connection.start(driver,
-                                                 table_name_list=['Chassis'])
-        else:
-            OvsdbSbOvnIdl.ovsdb_connection.start()
-        self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
-        self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+        try:
+            if OvsdbSbOvnIdl.ovsdb_connection is None:
+                OvsdbSbOvnIdl.ovsdb_connection = get_connection(OvsdbSbOvnIdl,
+                                                                trigger)
+            if isinstance(OvsdbSbOvnIdl.ovsdb_connection,
+                          ovsdb_monitor.OvnConnection):
+                # We only need to know the content of Chassis in OVN_Southbound
+                OvsdbSbOvnIdl.ovsdb_connection.start(
+                    driver, table_name_list=['Chassis'])
+            else:
+                OvsdbSbOvnIdl.ovsdb_connection.start()
+            self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
+            self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+        except Exception as e:
+            connection_exception = OvsdbConnectionUnavailable(
+                db_schema='OVN_Southbound', error=e)
+            LOG.exception(connection_exception)
+            raise connection_exception
 
     def get_chassis_hostname_and_physnets(self):
         chassis_info_dict = {}
