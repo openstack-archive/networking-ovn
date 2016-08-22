@@ -16,7 +16,7 @@ from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log as logging
 
-from neutron.agent import securitygroups_rpc
+from neutron.conf.agent import securitygroups_rpc
 from neutron import context
 from neutron import manager
 from neutron import opts as neutron_options
