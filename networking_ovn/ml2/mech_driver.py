@@ -972,7 +972,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     def set_port_status_up(self, port_id):
         # Port provisioning is complete now that OVN has reported
         # that the port is up.
-        LOG.debug("OVN reports status up for port: %s", port_id)
+        LOG.info(_LI("OVN reports status up for port: %s"), port_id)
         provisioning_blocks.provisioning_complete(
             n_context.get_admin_context(),
             port_id,
@@ -980,7 +980,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             provisioning_blocks.L2_AGENT_ENTITY)
 
     def set_port_status_down(self, port_id):
-        LOG.debug("OVN reports status down for port: %s", port_id)
+        LOG.info(_LI("OVN reports status down for port: %s"), port_id)
         self._plugin.update_port_status(n_context.get_admin_context(),
                                         port_id,
                                         const.PORT_STATUS_DOWN)
