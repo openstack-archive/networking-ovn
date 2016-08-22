@@ -60,7 +60,6 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         super(TestOVNFunctionalBase, self).setUp()
         mm = manager.NeutronManager.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
-        self.mech_driver.initialize()
         mgr = manager.NeutronManager.get_instance()
         self.l3_plugin = mgr.get_service_plugins().get(
             service_constants.L3_ROUTER_NAT)
