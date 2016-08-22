@@ -202,16 +202,19 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                     port['id'], lrouter_port_name))
 
-    def update_lrouter_port_in_ovn(self, context, router_id, port):
+    def update_lrouter_port_in_ovn(self, context, router_id, port,
+                                   networks=None):
         """Update lrouter port in OVN
 
         @param router id : LRouter ID for the port that needs to be updated
         @param port : LRouter port that needs to be updated
+        @param networks : networks needs to be updated for LRouter port
         @return: Nothing
         """
         lrouter = utils.ovn_name(router_id)
-        networks = self.get_networks_for_lrouter_port(context,
-                                                      port['fixed_ips'])
+        if not networks:
+            networks = self.get_networks_for_lrouter_port(context,
+                                                          port['fixed_ips'])
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks}
