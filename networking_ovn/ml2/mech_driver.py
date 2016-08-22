@@ -378,8 +378,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             with self._nb_ovn.transaction(check_error=True) as txn:
                 subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
                     subnet['id'])
-                txn.add(self._nb_ovn.delete_dhcp_options(
-                    subnet_dhcp_options['uuid']))
+                if subnet_dhcp_options:
+                    txn.add(self._nb_ovn.delete_dhcp_options(
+                        subnet_dhcp_options['uuid']))
 
     def add_subnet_dhcp_options_in_ovn(self, subnet, network):
         ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)

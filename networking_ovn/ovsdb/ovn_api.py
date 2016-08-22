@@ -429,20 +429,24 @@ class API(object):
     def get_subnet_dhcp_options(self, subnet_id):
         """Returns the Subnet DHCP options as a dictionary
 
-        :param subnet_id:      The subnet id whose DHCP options to be returned
+        :param subnet_id:      The subnet id whose DHCP options are returned
         :type subnet_id:       string
         :returns:              Returns the columns of the DHCP_Options as a
-                               dictionary
+                               dictionary. None is returned if no DHCP options.
         """
 
     @abc.abstractmethod
     def get_port_dhcp_options(self, subnet_id, port_id):
         """Returns the Logical switch port DHCP_Options as a dictionary
 
+        :param subnet_id:      The subnet id whose DHCP options are returned
+        :type subnet_id:       string
+        :param port_id:        The port id whose DHCP options are returned
+        :type port_id:         string
         :returns:              Returns the columns of the DHCP_Options as a
                                dictionary belonging to the logical switch port
-                               and subnet specified in the @param port_id and
-                               @param subnet_id
+                               and subnet specified. None is returned if no
+                               DHCP options.
         """
 
     @abc.abstractmethod
