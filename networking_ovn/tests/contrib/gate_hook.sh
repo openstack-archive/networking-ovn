@@ -21,7 +21,7 @@ case $VENV in
     compile_ovs True /usr/local /var
 
     # Make the workspace owned by the stack user
-    sudo chown -R $STACK_USER:$STACK_USER $BASE
+    sudo chown -R stack:stack $BASE
     ;;
 
 *)
