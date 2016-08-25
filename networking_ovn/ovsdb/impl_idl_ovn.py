@@ -330,6 +330,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 return {'cidr': row.cidr, 'options': dict(row.options),
                         'external_ids': dict(external_ids),
                         'uuid': row.uuid}
+        return None
 
     def get_port_dhcp_options(self, subnet_id, port_id):
         for row in self._tables['DHCP_Options'].rows.values():
@@ -339,6 +340,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 return {'cidr': row.cidr, 'options': dict(row.options),
                         'external_ids': dict(external_ids),
                         'uuid': row.uuid}
+        return None
 
     def compose_dhcp_options_commands(self, subnet_id, **columns):
         # First add the subnet DHCP options.
