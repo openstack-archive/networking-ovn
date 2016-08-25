@@ -33,7 +33,7 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         # the vif plug. When the Logical_Switch_Port.up changes from
         # False to True, ovsdb_monitor should call
         # mech_driver.set_port_status_up.
-        with self.idl_transaction(self.fake_api, check_error=True) as txn:
+        with self.nb_idl_transaction(self.fake_api, check_error=True) as txn:
             txn.add(cmd.SetLSwitchPortCommand(self.fake_api, port['id'], True,
                                               up=True))
 
@@ -42,7 +42,7 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
         # Set the Logical_Switch_Port.up to False. ovsdb_monitor should
         # call mech_driver.set_port_status_down
-        with self.idl_transaction(self.fake_api, check_error=True) as txn:
+        with self.nb_idl_transaction(self.fake_api, check_error=True) as txn:
             txn.add(cmd.SetLSwitchPortCommand(self.fake_api, port['id'], True,
                                               up=False))
         ovn_mech_driver.set_port_status_down.assert_called_once_with(
@@ -76,7 +76,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
             # Logical_Switch_Port.up to False first. This is to mock the
             # ovn-controller setting it to False when the logical switch
             # port is created.
-            with self.idl_transaction(self.fake_api, check_error=True) as txn:
+            with self.nb_idl_transaction(self.fake_api,
+                                         check_error=True) as txn:
                 txn.add(cmd.SetLSwitchPortCommand(self.fake_api, p['id'], True,
                                                   up=False))
 
@@ -97,9 +98,9 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         connection created in this test case gets the lock and it should
         handle the port up/down events.
 
-        Please note that the "self.monitor_idl_con" created by the base class
-        is created using 'connection.Connection' and hence it will not contend
-        for any lock.
+        Please note that the "self.monitor_nb_idl_con" created by the base
+        class is created using 'connection.Connection' and hence it will not
+        contend for any lock.
         """
         tst_ovn_idl_conn = ovsdb_monitor.OvnConnection(
             self.ovsdb_server_mgr.get_ovsdb_connection_path(), 10,
@@ -112,7 +113,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
         with self.port(name='port') as p:
             p = p['port']
-            with self.idl_transaction(self.fake_api, check_error=True) as txn:
+            with self.nb_idl_transaction(self.fake_api,
+                                         check_error=True) as txn:
                 txn.add(cmd.SetLSwitchPortCommand(self.fake_api, p['id'], True,
                                                   up=False))
 

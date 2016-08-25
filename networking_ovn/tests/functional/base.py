@@ -15,11 +15,13 @@
 import fixtures
 import mock
 import time
+import uuid
 
 from oslo_config import cfg
 from oslo_log import log
 
 from neutron.agent.ovsdb import impl_idl
+from neutron.agent.ovsdb.native.commands import BaseCommand
 from neutron.agent.ovsdb.native import connection
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
@@ -34,6 +36,27 @@ from networking_ovn.tests.functional.resources import process
 PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 
 LOG = log.getLogger(__name__)
+
+
+class AddFakeChassisCommand(BaseCommand):
+    """Add a fake chassis in OVN SB DB for functional test."""
+
+    def __init__(self, api, name, ip, **columns):
+        super(AddFakeChassisCommand, self).__init__(api)
+        self.name = name
+        self.ip = ip
+        self.columns = columns
+
+    def run_idl(self, txn):
+        encap_row = txn.insert(self.api._tables['Encap'])
+        encap_row.type = 'geneve'
+        encap_row.ip = self.ip
+        self.columns.update({'encaps': [encap_row.uuid]})
+
+        row = txn.insert(self.api._tables['Chassis'])
+        row.name = self.name
+        for col, val in self.columns.items():
+            setattr(row, col, val)
 
 
 class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
@@ -110,14 +133,29 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #     ML2 OVN driver scope to test scenarios like ovn_nb_sync.
         while num_attempts < 3:
             try:
-                self.monitor_idl_con = connection.Connection(
+                self.monitor_nb_idl_con = connection.Connection(
                     self.ovsdb_server_mgr.get_ovsdb_connection_path(),
                     60, 'OVN_Northbound')
-                self.monitor_idl_con.start()
-                self.monitor_nb_db_idl = self.monitor_idl_con.idl
+                self.monitor_nb_idl_con.start()
+                self.monitor_nb_db_idl = self.monitor_nb_idl_con.idl
                 break
             except Exception:
                 LOG.exception(_LE("Error connecting to the OVN_Northbound DB"))
+                num_attempts += 1
+                time.sleep(1)
+
+        num_attempts = 0
+        while num_attempts < 3:
+            try:
+                self.monitor_sb_idl_con = connection.Connection(
+                    self.ovsdb_server_mgr.get_ovsdb_connection_path(
+                        db_type='sb'),
+                    60, 'OVN_Southbound')
+                self.monitor_sb_idl_con.start()
+                self.monitor_sb_db_idl = self.monitor_sb_idl_con.idl
+                break
+            except Exception:
+                LOG.exception(_LE("Error connecting to the OVN_Southbound DB"))
                 num_attempts += 1
                 time.sleep(1)
 
@@ -129,9 +167,14 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # mech_driver.post_fork_initialize creates the IDL connections
         self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY, trigger)
 
-    def idl_transaction(self, fake_api, check_error=False, log_errors=True,
-                        **kwargs):
-        return impl_idl.Transaction(fake_api, self.monitor_idl_con, 60,
+    def nb_idl_transaction(self, fake_api, check_error=False, log_errors=True,
+                           **kwargs):
+        return impl_idl.Transaction(fake_api, self.monitor_nb_idl_con, 60,
+                                    check_error, log_errors)
+
+    def sb_idl_transaction(self, fake_api, check_error=False, log_errors=True,
+                           **kwargs):
+        return impl_idl.Transaction(fake_api, self.monitor_sb_idl_con, 60,
                                     check_error, log_errors)
 
     def restart(self):
@@ -144,6 +187,23 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._sb_ovn = None
         self.l3_plugin._nb_ovn_idl = None
         self.l3_plugin._sb_ovn_idl = None
-        self.monitor_idl_con = None
+        self.monitor_nb_idl_con = None
+        self.monitor_sb_idl_con = None
 
         self._start_ovsdb_server_and_idls()
+
+    def add_fake_chassis(self, host, physical_nets=None):
+        physical_nets = physical_nets or []
+        fake_api = mock.MagicMock()
+        fake_api.idl = self.monitor_sb_db_idl
+        fake_api._tables = self.monitor_sb_db_idl.tables
+
+        bridge_mapping = ",".join(["%s:br-provider%s" % (phys_net, i)
+                                  for i, phys_net in enumerate(physical_nets)])
+        name = uuid.uuid4().hex
+        with self.sb_idl_transaction(fake_api, check_error=True) as txn:
+            external_ids = {'ovn-bridge-mappings': bridge_mapping}
+            txn.add(AddFakeChassisCommand(fake_api, name, "172.24.4.10",
+                                          external_ids=external_ids,
+                                          hostname=host))
+        return name
