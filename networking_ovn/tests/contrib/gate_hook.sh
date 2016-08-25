@@ -7,6 +7,7 @@ VENV=${1:-"dsvm-functional"}
 GATE_DEST=$BASE/new
 NEUTRON_PATH=$GATE_DEST/neutron
 DEVSTACK_PATH=$GATE_DEST/devstack
+GATE_STACK_USER=stack
 
 case $VENV in
 "dsvm-functional")
@@ -20,8 +21,8 @@ case $VENV in
     DEST=$GATE_DEST
     compile_ovs True /usr/local /var
 
-    # Make the workspace owned by the stack user
-    sudo chown -R stack:stack $BASE
+    # Make the workspace owned by GATE_STACK_USER
+    sudo chown -R $GATE_STACK_USER:$GATE_STACK_USER $BASE
     ;;
 
 *)
