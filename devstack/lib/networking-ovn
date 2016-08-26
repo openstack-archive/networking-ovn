@@ -477,6 +477,14 @@ function create_public_bridge {
         sudo ip addr add $PUBLIC_NETWORK_GATEWAY/$cidr_len dev $ext_gw_ifc
     fi
 
+    # Ensure IPv6 RAs are accepted on the interface with the default route.
+    # This is needed for neutron-based devstack clouds to work in
+    # IPv6-only clouds in the gate. Please do not remove this without
+    # talking to folks in Infra. This fix is based on a devstack fix for
+    # neutron L3 agent: https://review.openstack.org/#/c/359490/.
+    default_route_dev=$(ip route | grep ^default | awk '{print $5}')
+    sudo sysctl -w net.ipv6.conf.$default_route_dev.accept_ra=2
+
     sudo sysctl -w net.ipv6.conf.all.forwarding=1
     if [ -n "$IPV6_PUBLIC_RANGE" ]; then
         local ipv6_cidr_len=${IPV6_PUBLIC_RANGE#*/}
