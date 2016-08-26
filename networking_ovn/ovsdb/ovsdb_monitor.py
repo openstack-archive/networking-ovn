@@ -26,7 +26,6 @@ from networking_ovn._i18n import _LE
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
 from neutron.agent.ovsdb.native import connection
-from neutron.agent.ovsdb.native import helpers
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import config
 from neutron.common import utils as n_utils
@@ -315,7 +314,9 @@ class OvnConnection(connection.Connection):
 
     def start(self, driver, table_name_list=None):
         # The implementation of this function is same as the base class start()
-        # except that OvnIdl object is created instead of idl.Idl
+        # except that OvnIdl object is created instead of idl.Idl and the
+        # enable_connection_uri() helper isn't called (since ovs-vsctl won't
+        # exist on the controller node when using the reference architecture).
         with self.lock:
             if self.idl is not None:
                 return
@@ -324,9 +325,6 @@ class OvnConnection(connection.Connection):
                 helper = idlutils.get_schema_helper(self.connection,
                                                     self.schema_name)
             except Exception:
-                # We may have failed do to set-manager not being called
-                helpers.enable_connection_uri(self.connection)
-
                 # There is a small window for a race, so retry up to a second
                 @retrying.retry(wait_exponential_multiplier=10,
                                 stop_max_delay=1000)
