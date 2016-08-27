@@ -229,14 +229,63 @@ class TestUpdateAddrSetExtIdsCommand(TestBaseCommand):
 
 
 class TestAddDHCPOptionsCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddDHCPOptionsCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_dhcp_options_exists(self):
+        fake_ext_ids = {'subnet_id': 'fake-subnet-id',
+                        'port_id': 'fake-port-id'}
+        fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': fake_ext_ids})
+        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+            fake_dhcp_options
+        cmd = commands.AddDHCPOptionsCommand(
+            self.ovn_api, fake_ext_ids['subnet_id'], fake_ext_ids['port_id'],
+            may_exist=True, external_ids=fake_ext_ids)
+        cmd.run_idl(self.transaction)
+        self.transaction.insert.assert_not_called()
+        self.assertEqual(fake_ext_ids, fake_dhcp_options.external_ids)
+
+    def _test_dhcp_options_add(self, may_exist=True):
+        fake_ext_ids = {'subnet_id': 'fake-subnet-id-' + str(may_exist)}
+        fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': fake_ext_ids})
+        self.transaction.insert.return_value = fake_dhcp_options
+        cmd = commands.AddDHCPOptionsCommand(
+            self.ovn_api, fake_ext_ids['subnet_id'], may_exist=may_exist,
+            external_ids=fake_ext_ids)
+        cmd.run_idl(self.transaction)
+        self.transaction.insert.assert_called_once_with(
+            self.ovn_api.dhcp_options_table)
+        self.assertEqual(fake_ext_ids, fake_dhcp_options.external_ids)
+
+    def test_dhcp_options_add_may_exist(self):
+        self._test_dhcp_options_add(may_exist=True)
+
+    def test_dhcp_options_add_ignore_exists(self):
+        self._test_dhcp_options_add(may_exist=False)
 
 
 class TestDelDHCPOptionsCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelDHCPOptionsCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_dhcp_options_del_no_exist(self, if_exists=True):
+        cmd = commands.DelDHCPOptionsCommand(
+            self.ovn_api, 'fake-dhcp-options', if_exists=if_exists)
+        if if_exists:
+            cmd.run_idl(self.transaction)
+        else:
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_dhcp_options_no_exist_ignore(self):
+        self._test_dhcp_options_del_no_exist(if_exists=True)
+
+    def test_dhcp_options_no_exist_fail(self):
+        self._test_dhcp_options_del_no_exist(if_exists=False)
+
+    def test_dhcp_options_del(self):
+        fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'subnet_id': 'fake-subnet-id'}})
+        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+            fake_dhcp_options
+        cmd = commands.DelDHCPOptionsCommand(
+            self.ovn_api, fake_dhcp_options.uuid, if_exists=True)
+        cmd.run_idl(self.transaction)
+        fake_dhcp_options.delete.assert_called_once_with()
