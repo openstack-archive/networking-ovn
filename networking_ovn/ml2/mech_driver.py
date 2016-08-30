@@ -564,7 +564,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return list(allowed_addresses)
 
-    def get_ovn_port_options(self, port, qos_options=None, original_port=None):
+    def get_ovn_port_options(self, port, qos_options=None):
         binding_profile = self.validate_and_get_data_from_binding_profile(port)
         if qos_options is None:
             qos_options = self.qos_driver.get_qos_options(port)
@@ -589,8 +589,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 addresses += ' ' + ip['ip_address']
             port_security = self._get_allowed_addresses_from_port(port)
 
-        port_dhcpv4_options_info = self._get_port_dhcpv4_options(
-            port, original_port=original_port)
+        port_dhcpv4_options_info = self._get_port_dhcpv4_options(port)
         dhcpv4_options = []
         if port_dhcpv4_options_info and 'uuid' in port_dhcpv4_options_info:
             dhcpv4_options = [port_dhcpv4_options_info['uuid']]
@@ -680,8 +679,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self.update_port(port, original_port)
 
     def update_port(self, port, original_port, qos_options=None):
-        ovn_port_info = self.get_ovn_port_options(port, qos_options,
-                                                  original_port=original_port)
+        ovn_port_info = self.get_ovn_port_options(port, qos_options)
         self._update_port_in_ovn(original_port, port, ovn_port_info)
 
     def _update_port_in_ovn(self, original_port, port, ovn_port_info):
@@ -768,13 +766,25 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                         addrs_add=addr_add,
                                         addrs_remove=addr_remove))
 
-            if not ovn_port_info.dhcpv4_options:
-                # Check if the DHCP_Options row exist for this port.
-                # We need to delete it as it is no longer referenced by this
-                # port.
-                cmd = self._get_delete_lsp_dhcpv4_options_cmd(port)
-                if cmd:
-                    txn.add(cmd)
+            cmd = self._get_clean_stale_port_dhcpv4_options_cmd(
+                ovn_port_info.dhcpv4_options, port, original_port)
+            if cmd:
+                txn.add(cmd)
+
+    def _get_clean_stale_port_dhcpv4_options_cmd(self, ovn_port_dhcpv4_opts,
+                                                 port, original_port):
+        if (not original_port.get(edo_ext.EXTRADHCPOPTS)
+            or original_port['device_owner'].startswith(
+                const.DEVICE_OWNER_PREFIXES)):
+            return
+
+        if (port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES)
+                or not ovn_port_dhcpv4_opts
+                or not port.get(edo_ext.EXTRADHCPOPTS)):
+            # Extra DHCP options were define for this port. Delete the
+            # DHCP_Options row created for this port earlier if exists,
+            # since this port no longer refers it.
+            return self._get_delete_lsp_dhcpv4_options_cmd(original_port)
 
     def _get_delete_lsp_dhcpv4_options_cmd(self, port):
         lsp_dhcp_options = None
@@ -791,22 +801,26 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # has extra DHCP options defined.
             return self._nb_ovn.delete_dhcp_options(lsp_dhcp_options['uuid'])
 
-    def _get_port_dhcpv4_options(self, port, original_port=None):
+    def _get_port_dhcpv4_options(self, port):
+        """Returns the DHCPv4 options for the port."""
         lsp_dhcpv4_options = {}
         lsp_dhcp_disabled = False
-        for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
-            if edo['opt_name'] == 'dhcp_disabled' and (
-                    edo['opt_value'] in ['True', 'true']):
-                # OVN native DHCPv4 is disabled on this port
-                lsp_dhcp_disabled = True
-                break
+        if port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES):
+            lsp_dhcp_disabled = True
+        else:
+            for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
+                if edo['opt_name'] == 'dhcp_disabled' and (
+                        edo['opt_value'] in ['True', 'true']):
+                    # OVN native DHCPv4 is disabled on this port
+                    lsp_dhcp_disabled = True
+                    break
 
-            if edo['ip_version'] != 4 or (
-                edo['opt_name'] not in self._supported_dhcp_opts):
-                continue
+                if edo['ip_version'] != 4 or (
+                    edo['opt_name'] not in self._supported_dhcp_opts):
+                    continue
 
-            opt = edo['opt_name'].replace('-', '_')
-            lsp_dhcpv4_options[opt] = edo['opt_value']
+                opt = edo['opt_name'].replace('-', '_')
+                lsp_dhcpv4_options[opt] = edo['opt_value']
 
         if lsp_dhcp_disabled:
             return
@@ -829,13 +843,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             return
 
         if not lsp_dhcpv4_options:
-            if original_port and original_port.get(edo_ext.EXTRADHCPOPTS, []):
-                # Extra DHCP options were define for this port.
-                # Delete the DHCP_Options row created for this port earlier.
-                cmd = self._get_delete_lsp_dhcpv4_options_cmd(original_port)
-                if cmd:
-                    with self._nb_ovn.transaction(check_error=True) as txn:
-                        txn.add(cmd)
             return subnet_dhcp_options
 
         # This port has extra DHCP options defined.

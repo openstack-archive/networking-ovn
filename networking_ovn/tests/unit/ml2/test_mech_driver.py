@@ -794,6 +794,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_port_dhcpv4_options_port_dhcp_opts_set(self):
         port = {
             'id': 'foo-port',
+            'device_owner': 'compute:None',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
                            'ip_address': '10.0.0.11'}],
             'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
@@ -825,6 +826,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_port_dhcpv4_options_port_dhcp_opts_not_set(self):
         port = {
             'id': 'foo-port',
+            'device_owner': 'compute:None',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
                            'ip_address': '10.0.0.11'}]}
 
@@ -846,10 +848,23 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_port_dhcpv4_options_port_dhcp_disabled(self):
         port = {
             'id': 'foo-port',
+            'device_owner': 'compute:None',
             'fixed_ips': [{'subnet_id': 'foo-subnet',
                            'ip_address': '10.0.0.11'}],
             'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'dhcp_disabled',
                                  'opt_value': 'True'}]
+        }
+
+        self.assertIsNone(self.mech_driver._get_port_dhcpv4_options(port))
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
+
+    def test__get_port_dhcpv4_options_port_with_invalid_device_owner(self):
+        port = {
+            'id': 'foo-port',
+            'device_owner': 'neutron:router_interface',
+            'fixed_ips': ['fake']
         }
 
         self.assertIsNone(self.mech_driver._get_port_dhcpv4_options(port))
@@ -888,3 +903,85 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self.assertIsNone(
             self.mech_driver._get_delete_lsp_dhcpv4_options_cmd(port))
         self.mech_driver._nb_ovn.delete_dhcp_options.assert_not_called()
+
+    def test__get_clean_stale_dhcpv4_options_cmd_owner_changed(self):
+        port = {'device_owner': 'neutron:router_interface'}
+        original_port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1200'}]}
+
+        fake_cmd = 'foo'
+        with mock.patch.object(self.mech_driver,
+                               '_get_delete_lsp_dhcpv4_options_cmd',
+                               return_value=fake_cmd):
+            self.assertEqual(
+                fake_cmd,
+                self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                    mock.ANY, port, original_port))
+
+    def test__get_clean_stale_dhcpv4_options_dhcp_disabled(self):
+        port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'dhcp_disabled',
+                                 'opt_value': 'True'}]}
+        original_port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1200'}]}
+
+        fake_cmd = 'foo'
+        with mock.patch.object(self.mech_driver,
+                               '_get_delete_lsp_dhcpv4_options_cmd',
+                               return_value=fake_cmd):
+            self.assertEqual(
+                fake_cmd,
+                self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                    None, port, original_port))
+
+    def test__get_clean_stale_dhcpv4_options_extra_dhcp_opts_removed(self):
+        port = {'device_owner': 'compute:None'}
+        original_port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1200'}]}
+
+        fake_cmd = 'foo'
+        with mock.patch.object(self.mech_driver,
+                               '_get_delete_lsp_dhcpv4_options_cmd',
+                               return_value=fake_cmd):
+            self.assertEqual(
+                fake_cmd,
+                self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                    mock.ANY, port, original_port))
+
+    def test__get_clean_stale_dhcpv4_options_cmd_negative1(self):
+        # Test case no extra dhcp options assigned to port before.
+        original_port = {'device_owner': 'compute:None'}
+        self.assertIsNone(
+            self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                mock.ANY, mock.ANY, original_port))
+
+    def test__get_clean_stale_dhcpv4_options_cmd_negative2(self):
+        # Test case owner changed from neutron managed port type.
+        original_port = {
+            'device_owner': 'neutron:XX',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1200'}]}
+        self.assertIsNone(
+            self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                mock.ANY, mock.ANY, original_port))
+
+    def test__get_clean_stale_dhcpv4_options_cmd_negative3(self):
+        # Test case extra dhcp options updated.
+        original_port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1200'}]}
+        port = {
+            'device_owner': 'compute:None',
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'mtu',
+                                 'opt_value': '1250'}]}
+        self.assertIsNone(
+            self.mech_driver._get_clean_stale_port_dhcpv4_options_cmd(
+                mock.ANY, port, original_port))
