@@ -4,6 +4,7 @@ set -xe
 
 NETWORKING_OVN_DIR="$BASE/new/networking-ovn"
 SCRIPTS_DIR="/usr/os-testr-env/bin/"
+GATE_STACK_USER=stack
 
 venv=${1:-"dsvm-functional"}
 
@@ -22,12 +23,12 @@ function generate_testr_results {
 
 if [[ "$venv" == dsvm-functional* ]]
 then
-    owner=stack
+    owner=$GATE_STACK_USER
     sudo_env=
 
     # Set owner permissions according to job's requirements.
     cd $NETWORKING_OVN_DIR
-    sudo chown -R $owner:stack $NETWORKING_OVN_DIR
+    sudo chown -R $owner:$owner $NETWORKING_OVN_DIR
 
     # Run tests
     echo "Running networking-ovn $venv test suite"
