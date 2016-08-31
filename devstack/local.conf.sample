@@ -30,14 +30,6 @@ enable_service ovn-controller
 disable_service n-net
 enable_service q-svc
 
-# OVN currently uses the conventional DHCP and metadata agents. For
-# single-node deployments, enable them on the controller node. For
-# multi-node deployments, consider disabling them on the controller
-# node and enabling them on the compute node(s) to provide a more
-# realistic environment. For more information, see
-# computenode-local.conf.sample.
-enable_service q-meta
-
 # We have to disable the neutron L2 agent. OVN does not use the L2 agent.
 disable_service q-agt
 
@@ -52,36 +44,42 @@ disable_service q-agt
 # DevStack runs.
 #OVN_UUID=
 
-# Whether to enable using OVN's L3 functionality. If this value is disabled,
-# OpenStack will use the q-l3 functionality.  If you set OVN_L3_MODE to False,
-# you must also enable the q-l3 service.
-# By default OVN_L3_MODE is True
+# OVN native layer-3 service is enabled by default. To use the conventional
+# layer-3 agent, set OVN_L3_MODE to False and enable the q-l3 service. You
+# should also consider enabling the conventional metadata service (q-meta).
 #OVN_L3_MODE=False
 #enable_service q-l3
 disable_service q-l3
 
-# If OVN_L3_Mode is True, the type of OVN L3 Scheduler to use. The OVN L3
-# Scheduler determines the hypervisor/chassis where a routers gateway should
-# be hosted in OVN. The default OVN L3 scheduler is leastloaded
+# If using the OVN native layer-3 service, choose a router scheduler to
+# manage the distribution of router gateways on hypervisors/chassis.
+# Default value is leastloaded.
 #OVN_L3_SCHEDULER=leastloaded
 
-# Whether to enable using OVN's native dhcp support. If this value is disabled,
-# OpenStack will use the q-dhcp functionality.  If you set
-# OVN_NATIVE_DHCP to False you must also enable the q-dhcp service.
-# By default OVN_NATIVE_DHCP is True
+# OVN native DHCP functionality is enabled by default. To use the conventional
+# DHCP agent, set OVN_NATIVE_DHCP to False and enable the q-dhcp service.
+# However, if you choose the conventional DHCP agent instead of the native
+# DHCP service, see the deployment considerations. You should also consider
+# enabling the conventional metadata service (q-meta).
 #OVN_NATIVE_DHCP=False
 #enable_service q-dhcp
 disable_service q-dhcp
+
+# OVN currently relies on the conventional metadata agent to provide instances
+# with metadata. However, this mechanism only works in conjunction with the
+# conventional layer-3 and/or DHCP agents. For single-node deployments, enable
+# the metadata agent on the controller node. For multi-node deployments,
+# the controller node. For multi-node deployments, consider disabling the
+# agent on the controller node and enabling the agent on a subset of compute
+# nodes. For more information, see computenode-local.conf.sample.
+#enable_service q-meta
+disable_service q-meta
 
 # Whether or not to build custom openvswitch kernel modules from the ovs git
 # tree. This is enabled by default.  This is required unless your distro kernel
 # includes ovs+conntrack support.  This support was first released in Linux 4.3,
 # and will likely be backported by some distros.
 #OVN_BUILD_MODULES=False
-
-# If you enable the DHCP agent, configure it to provide a route for
-# metadata to instances.
-ENABLE_ISOLATED_METADATA=True
 
 # Enable QoS
 #enable_plugin neutron http://git.openstack.org/openstack/neutron

@@ -42,8 +42,10 @@ disable_service ovn-northd
 # on the controller node that depend on it.
 disable_service ovn-controller
 
-# Disable the DHCP and metadata services on the controller node because the
-# architecture only deploys them on separate compute nodes.
+# Disable the OVN native DHCP service and conventional DHCP and metadata
+# agents on the controller node because the architecture deploys them on
+# compute nodes.
+OVN_NATIVE_DHCP=False
 disable_service q-dhcp q-meta
 
 # Disable the nova compute service on the controller node because the
@@ -86,6 +88,13 @@ cat << 'DEVSTACKEOF' >> devstack/local.conf
 network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
 dhcp_load_type = networks
 dhcp_agents_per_network = 2
+
+# Configure the Compute service (nova) metadata API to use the X-Forwarded-For
+# header sent by the Networking service metadata proxies on the compute nodes.
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+use_forwarded_for = True
 DEVSTACKEOF
 
 devstack/stack.sh

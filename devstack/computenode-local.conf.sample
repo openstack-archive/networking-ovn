@@ -29,12 +29,14 @@ disable_all_services
 enable_service n-cpu
 enable_service ovn-controller
 
-# For multi-node deployments, we recommend testing multiple instances of the
-# DHCP and metadata agents. In a small lab environment with one controller
-# node, you can run them on two or more compute nodes to simulate a more
-# realistic environment. However, in a large lab that potentially simulates
-# a production environment, you should determine whether to run them on
-# controller nodes, network nodes, or some number of compute nodes.
+# For multi-node deployments using conventional DHCP and metadata agents,
+# we recommend testing multiple instances of those agents. In a small
+# lab environment with one controller node, you can run them on two or
+# more compute nodes to simulate a more realistic environment. However,
+# in a large lab that potentially simulates a production environment, you
+# should determine whether to run them on controller nodes, network nodes,
+# or a subset of compute nodes. Deploying too many agents can cause
+# scaling issues, particularly with the message bus.
 #enable_service q-dhcp
 #enable_service q-meta
 
@@ -63,10 +65,6 @@ NOVA_VNC_ENABLED=True
 NOVNCPROXY_URL=http://$SERVICE_HOST:6080/vnc_auto.html
 VNCSERVER_LISTEN=$HOST_IP
 VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
-
-# If you enable the DHCP agent, configure it to provide a route for
-# metadata to instances.
-ENABLE_ISOLATED_METADATA=True
 
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git
