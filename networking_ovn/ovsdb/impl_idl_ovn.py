@@ -16,7 +16,6 @@ import six
 import tenacity
 
 from neutron.agent.ovsdb import impl_idl
-from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import idlutils
 from neutron_lib.utils import helpers
 
@@ -60,7 +59,7 @@ def get_connection(db_class, trigger=None):
     if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
         cls = ovsdb_monitor.OvnConnection
     else:
-        cls = connection.Connection
+        cls = ovsdb_monitor.OvnBaseConnection
 
     if db_class == OvsdbNbOvnIdl:
         return cls(cfg.get_ovn_nb_connection(),

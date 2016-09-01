@@ -302,6 +302,42 @@ class TestOvnDbNotifyHandler(base.TestCase):
         self.handler.shutdown()
 
 
+class TestOvnBaseConnection(base.TestCase):
+
+    def setUp(self):
+        super(TestOvnBaseConnection, self).setUp()
+
+    @mock.patch.object(idlutils, 'get_schema_helper')
+    def test_get_schema_helper_success(self, mock_gsh):
+        mock_gsh_helper = mock.Mock()
+        mock_gsh.side_effect = [mock_gsh_helper]
+        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
+            mock.Mock(), mock.Mock(), None)
+        helper = ovn_base_connection.get_schema_helper()
+        mock_gsh.assert_called_once_with(ovn_base_connection.connection,
+                                         ovn_base_connection.schema_name)
+        self.assertEqual(mock_gsh_helper, helper)
+
+    @mock.patch.object(idlutils, 'get_schema_helper')
+    def test_get_schema_helper_initial_exception(self, mock_gsh):
+        mock_gsh_helper = mock.Mock()
+        mock_gsh.side_effect = [Exception, mock_gsh_helper]
+        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
+            mock.Mock(), mock.Mock(), None)
+        helper = ovn_base_connection.get_schema_helper()
+        gsh_call = mock.call(ovn_base_connection.connection,
+                             ovn_base_connection.schema_name)
+        mock_gsh.assert_has_calls([gsh_call, gsh_call])
+        self.assertEqual(mock_gsh_helper, helper)
+
+    @mock.patch.object(idlutils, 'get_schema_helper')
+    def test_get_schema_helper_all_exception(self, mock_gsh):
+        mock_gsh.side_effect = RuntimeError
+        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
+            mock.Mock(), mock.Mock(), None)
+        self.assertRaises(RuntimeError, ovn_base_connection.get_schema_helper)
+
+
 class TestOvnConnection(base.TestCase):
 
     def setUp(self):
