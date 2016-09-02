@@ -125,9 +125,8 @@ def main():
     try:
         synchronizer.sync_networks_ports_and_dhcp_opts(ctx)
     except Exception:
-        # TODO(lizk): Update this when the next series development opens
-        LOG.exception(_LE("Error syncing  Networks and Ports for unknown "
-                          "reason please try again"))
+        LOG.exception(_LE("Error syncing  Networks, Ports and DHCP options "
+                          "for unknown reason please try again"))
         return
     try:
         synchronizer.sync_acls(ctx)
