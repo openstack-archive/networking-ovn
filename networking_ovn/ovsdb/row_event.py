@@ -46,6 +46,9 @@ class RowEvent(object):
     def __eq__(self, other):
         return self._key() == other._key()
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def matches(self, event, row, old=None):
         if event not in self.events:
             return False
