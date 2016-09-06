@@ -29,7 +29,6 @@ from neutron.common import utils as n_utils
 from neutron import context as n_context
 from neutron.db import provisioning_blocks
 from neutron.extensions import extra_dhcp_opt as edo_ext
-from neutron.extensions import multiprovidernet as mpnet
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
@@ -234,6 +233,28 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                                sg_rule,
                                                is_add_acl=is_add_acl)
 
+    def _is_network_type_supported(self, network_type):
+        return (network_type in [plugin_const.TYPE_LOCAL,
+                                 plugin_const.TYPE_FLAT,
+                                 plugin_const.TYPE_GENEVE,
+                                 plugin_const.TYPE_VLAN])
+
+    def _validate_network_segments(self, network_segments):
+        for network_segment in network_segments:
+            network_type = network_segment['network_type']
+            segmentation_id = network_segment['segmentation_id']
+            physical_network = network_segment['physical_network']
+            LOG.debug('Validating network segment with '
+                      'type %(network_type)s, '
+                      'segmentation ID %(segmentation_id)s, '
+                      'physical network %(physical_network)s' %
+                      {'network_type': network_type,
+                       'segmentation_id': segmentation_id,
+                       'physical_network': physical_network})
+            if not self._is_network_type_supported(network_type):
+                msg = _('Network type %s is not supported') % network_type
+                raise n_exc.InvalidInput(error_message=msg)
+
     def create_network_precommit(self, context):
         """Allocate resources for a new network.
 
@@ -245,31 +266,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         cannot block.  Raising an exception will result in a rollback
         of the current transaction.
         """
-        network = context.current
-
-        # TODO(rtheis): Add support for multi-provider networks when
-        # routed networks are supported.
-        if self._get_attribute(network, mpnet.SEGMENTS):
-            msg = _('Multi-provider networks are not supported')
-            raise n_exc.InvalidInput(error_message=msg)
-
-        network_segments = context.network_segments
-        network_type = network_segments[0]['network_type']
-        segmentation_id = network_segments[0]['segmentation_id']
-        physical_network = network_segments[0]['physical_network']
-        LOG.debug('Creating network with type %(network_type)s, '
-                  'segmentation ID %(segmentation_id)s, '
-                  'physical network %(physical_network)s' %
-                  {'network_type': network_type,
-                   'segmentation_id': segmentation_id,
-                   'physical_network': physical_network})
-
-        if network_type not in [plugin_const.TYPE_LOCAL,
-                                plugin_const.TYPE_FLAT,
-                                plugin_const.TYPE_GENEVE,
-                                plugin_const.TYPE_VLAN]:
-            msg = _('Network type %s is not supported') % network_type
-            raise n_exc.InvalidInput(error_message=msg)
+        self._validate_network_segments(context.network_segments)
 
     def create_network_postcommit(self, context):
         """Create a network.
@@ -319,6 +316,24 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         ext_id = [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, name]
         self._nb_ovn.set_lswitch_ext_id(
             utils.ovn_name(network_id), ext_id).execute(check_error=True)
+
+    def update_network_precommit(self, context):
+        """Update resources of a network.
+
+        :param context: NetworkContext instance describing the new
+        state of the network, as well as the original state prior
+        to the update_network call.
+
+        Update values of a network, updating the associated resources
+        in the database. Called inside transaction context on session.
+        Raising an exception will result in rollback of the
+        transaction.
+
+        update_network_precommit is called for all changes to the
+        network state. It is up to the mechanism driver to ignore
+        state or state changes that it does not know or care about.
+        """
+        self._validate_network_segments(context.network_segments)
 
     def update_network_postcommit(self, context):
         """Update a network.
@@ -949,10 +964,33 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         port = context.current
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
         if vnic_type not in self.supported_vnic_types:
-            LOG.debug("Refusing to bind due to unsupported vnic_type: %s",
-                      vnic_type)
+            LOG.debug('Refusing to bind port %(port_id)s due to unsupported '
+                      'vnic_type: %(vnic_type)s' %
+                      {'port_id': port['id'], 'vnic_type': vnic_type})
             return
+
         for segment_to_bind in context.segments_to_bind:
+            network_type = segment_to_bind['network_type']
+            segmentation_id = segment_to_bind['segmentation_id']
+            physical_network = segment_to_bind['physical_network']
+            LOG.debug('Attempting to bind port %(port_id)s for network '
+                      'segment with type %(network_type)s, '
+                      'segmentation ID %(segmentation_id)s, '
+                      'physical network %(physical_network)s' %
+                      {'port_id': port['id'],
+                       'network_type': network_type,
+                       'segmentation_id': segmentation_id,
+                       'physical_network': physical_network})
+            # TODO(rtheis): This scenario is only valid on an upgrade from
+            # neutron ML2 OVS since invalid network types are prevented during
+            # network creation and update. The upgrade should convert invalid
+            # network types. Once bug/1621879 is fixed, refuse to bind
+            # ports with unsupported network types.
+            if not self._is_network_type_supported(network_type):
+                LOG.info(_LI('Upgrade allowing bind port %(port_id)s with '
+                             'unsupported network type: %(network_type)s'),
+                         {'port_id': port['id'],
+                          'network_type': network_type})
             if self.vif_type == portbindings.VIF_TYPE_VHOST_USER:
                 port[portbindings.VIF_DETAILS].update({
                     portbindings.VHOST_USER_SOCKET: utils.ovn_vhu_sockpath(

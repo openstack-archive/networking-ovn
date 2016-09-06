@@ -34,6 +34,7 @@ features:
     * ``DNS Integration`` \*
     * ``HA Router extension`` \*
     * ``L3 Agent Scheduler`` \*
+    * ``Multi Provider Network``
     * ``Network Availability Zone`` \*\*
     * ``Network IP Availability``
     * ``Neutron external network``
