@@ -28,6 +28,7 @@ from neutron import manager
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
+from neutron_lib import constants
 
 
 class TestOvnNbSync(base.TestOVNFunctionalBase):
@@ -505,7 +506,9 @@ class TestOvnSbSync(base.TestOVNFunctionalBase):
         segment_data = {'network_id': network_id,
                         'physical_network': physical_network,
                         'segmentation_id': segmentation_id,
-                        'network_type': 'vlan'}
+                        'network_type': 'vlan',
+                        'name': constants.ATTR_NOT_SPECIFIED,
+                        'description': constants.ATTR_NOT_SPECIFIED}
         return self.segments_plugin.create_segment(
             self.ctx, segment={'segment': segment_data})
 
