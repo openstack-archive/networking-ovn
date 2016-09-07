@@ -306,6 +306,9 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 lrouter.external_ids):
                 continue
             chassis_name = lrouter.options.get('chassis')
+            if not chassis_name:
+                # Not a gateway router
+                continue
             # TODO(azbiswas): Handle the case when a chassis is no
             # longer valid. This may involve moving conntrack states,
             # so it needs to discussed in the OVN community first.
