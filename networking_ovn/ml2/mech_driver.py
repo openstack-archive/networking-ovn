@@ -28,7 +28,6 @@ from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron import context as n_context
 from neutron.db import provisioning_blocks
-from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
@@ -780,26 +779,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                         addrs_add=addr_add,
                                         addrs_remove=addr_remove))
 
-            cmd = self._get_clean_stale_port_dhcpv4_options_cmd(
-                ovn_port_info.dhcpv4_options, port, original_port)
-            if cmd:
-                txn.add(cmd)
-
-    def _get_clean_stale_port_dhcpv4_options_cmd(self, ovn_port_dhcpv4_opts,
-                                                 port, original_port):
-        if (not original_port.get(edo_ext.EXTRADHCPOPTS)
-            or original_port['device_owner'].startswith(
-                const.DEVICE_OWNER_PREFIXES)):
-            return
-
-        if (port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES)
-                or not ovn_port_dhcpv4_opts
-                or not port.get(edo_ext.EXTRADHCPOPTS)):
-            # Extra DHCP options were define for this port. Delete the
-            # DHCP_Options row created for this port earlier if exists,
-            # since this port no longer refers it.
-            return self._get_delete_lsp_dhcpv4_options_cmd(original_port)
-
     def _get_delete_lsp_dhcpv4_options_cmd(self, port):
         lsp_dhcp_options = None
         for fixed_ip in port['fixed_ips']:
@@ -810,12 +789,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     break
 
         if lsp_dhcp_options:
-            # Delete the DHCP_Options row created for this port.
-            # A separate DHCP_Options row would have be created since the port
-            # has extra DHCP options defined.
+            # Extra DHCP options were defined for this port. Delete the
+            # DHCP_Options row created for this port earlier if exists,
+            # since this port no longer refers it.
             return self._nb_ovn.delete_dhcp_options(lsp_dhcp_options['uuid'])
 
-    def get_port_dhcpv4_options(self, port, original_port=None):
+    def get_port_dhcpv4_options(self, port):
         lsp_dhcp_disabled, lsp_dhcpv4_opts = utils.get_lsp_dhcpv4_opts(port)
 
         if lsp_dhcp_disabled:
@@ -844,10 +823,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # This port has extra DHCP options defined.
         # So we need to create a new row in DHCP_Options table for this
         # port.
+        #
         # TODO(numans) In cases where the below transaction is successful
         # but the Logical_Switch_Port create or update transaction fails
         # we need to delete the DHCP_Options row created else it will be
         # an orphan row.
+        #
+        # NOTE(lizk) In cases where the below transaction is successful, but
+        # the Logical_Switch_Port get deleted before setting port dhcp options
+        # to it, we will delete the DHCP_Options row created to make sure
+        # no orphan left behind.
         subnet_dhcp_options['options'].update(lsp_dhcpv4_opts)
         subnet_dhcp_options['external_ids'].update(
             {'port_id': port['id']})
@@ -891,17 +876,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                 addrs_add=None,
                                 addrs_remove=addresses[ip_version]))
 
-                # Delete the DHCP_Options row if created for this port.
-                # A separate DHCP_Options row would have be created if the port
-                # has extra DHCP options defined.
-                for fixed_ip in port['fixed_ips']:
-                    if netaddr.IPAddress(fixed_ip['ip_address']).version == 4:
-                        lsp_dhcp_options = self._nb_ovn.get_port_dhcp_options(
-                            fixed_ip['subnet_id'], port['id'])
-                        if lsp_dhcp_options:
-                            txn.add(self._nb_ovn.delete_dhcp_options(
-                                lsp_dhcp_options['uuid']))
-                            break
+            # NOTE(lizk): Always try to clean port dhcp options, to make sure
+            # no orphaned DHCP_Options row related to port left behind, which
+            # may be created in get_port_dhcpv4_options.
+            cmd = self._get_delete_lsp_dhcpv4_options_cmd(port)
+            if cmd:
+                txn.add(cmd)
 
     def bind_port(self, context):
         """Attempt to bind a port.

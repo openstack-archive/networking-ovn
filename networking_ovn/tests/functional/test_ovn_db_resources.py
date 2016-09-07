@@ -15,6 +15,7 @@
 
 import mock
 
+from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import utils as n_utils
@@ -411,3 +412,23 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # The Logical_Switch_Port.dhcpv4_options for this port should be
         # empty.
         self._verify_dhcp_option_row_for_port(p1['port']['id'], {})
+
+        # Add orphaned DHCP_Options row for this port.
+        with self.nb_idl_transaction(self.fake_api, check_error=True) as txn:
+            txn.add(cmd.AddDHCPOptionsCommand(
+                self.fake_api, subnet['subnet']['id'],
+                port_id=p1['port']['id'],
+                cidr='10.0.0.0/24',
+                options={'server_id': '10.0.0.1',
+                         'server_mac': '01:02:03:04:05:06',
+                         'lease_time': str(12 * 60 * 60),
+                         'mtu': '1200',
+                         'router': subnet['subnet']['gateway_ip'],
+                         'tftp_server': '8.8.8.8'},
+                external_ids={'subnet_id': subnet['subnet']['id'],
+                              'port_id': p1['port']['id']}))
+        # Port deletion will have a final checking to make sure no orphaned
+        # DHCP_Options related to port left behind.
+        port_req = self.new_delete_request('ports', p1['port']['id'])
+        port_req.get_response(self.api)
+        self._verify_dhcp_option_rows(expected_dhcp_options_rows)

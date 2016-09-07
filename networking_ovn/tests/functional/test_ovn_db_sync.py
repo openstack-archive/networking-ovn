@@ -393,7 +393,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             for dhcp_opts in self.dirty_dhcpv4_options:
                 txn.add(cmd.AddDHCPOptionsCommand(
                     fake_api, dhcp_opts['subnet_id'],
-                    port_id=dhcp_opts.get('port_id'), options={'foo': 'bar'}))
+                    port_id=dhcp_opts.get('port_id'),
+                    external_ids={'subnet_id': dhcp_opts['subnet_id'],
+                                  'port_id': dhcp_opts.get('port_id')},
+                    options={'foo': 'bar'}))
 
             for port_id in self.lport_dhcpv4_disabled:
                 txn.add(cmd.SetLSwitchPortCommand(
@@ -405,7 +408,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 if dhcp_opts['port_id'] in self.orphaned_lport_dhcpv4_options:
                     continue
                 uuid = self.mech_driver._nb_ovn.get_port_dhcp_options(
-                    dhcp_opts['subnet_id'], dhcp_opts['port_id'])
+                    dhcp_opts['subnet_id'], dhcp_opts['port_id'])['uuid']
                 txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
                                                   dhcpv4_options=[uuid]))
 
