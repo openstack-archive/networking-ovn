@@ -85,13 +85,13 @@ class OVNGatewayChanceScheduler(TestOVNGatewayScheduler):
         mapping = self.fake_chassis_router_mappings['None']
         router_name = random.choice(list(mapping['Routers'].keys()))
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, ovn_const.OVN_GATEWAY_INVALID_CHASSIS)
+        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
     def test_no_chassis_available_for_new_router(self):
         mapping = self.fake_chassis_router_mappings['None']
         router_name = self.new_router_name
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, ovn_const.OVN_GATEWAY_INVALID_CHASSIS)
+        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
     def test_random_chassis_available_for_new_router(self):
         mapping = self.fake_chassis_router_mappings['Multiple1']
@@ -103,7 +103,7 @@ class OVNGatewayChanceScheduler(TestOVNGatewayScheduler):
         mapping = self.fake_chassis_router_mappings['Multiple1']
         router_name = random.choice(list(mapping['Routers'].keys()))
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, mapping['Routers'][router_name])
+        self.assertEqual(mapping['Routers'][router_name], chassis)
 
 
 class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
@@ -116,20 +116,20 @@ class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
         mapping = self.fake_chassis_router_mappings['None']
         router_name = random.choice(list(mapping['Routers'].keys()))
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, ovn_const.OVN_GATEWAY_INVALID_CHASSIS)
+        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
     def test_no_chassis_available_for_new_router(self):
         mapping = self.fake_chassis_router_mappings['None']
         router_name = self.new_router_name
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, ovn_const.OVN_GATEWAY_INVALID_CHASSIS)
+        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
     def test_least_loaded_chassis_available_for_new_router1(self):
         mapping = self.fake_chassis_router_mappings['Multiple1']
         router_name = self.new_router_name
         chassis = self.select(mapping, router_name)
         self.assertIn(chassis, mapping.get('Chassis'))
-        self.assertEqual(chassis, 'hv2')
+        self.assertEqual('hv2', chassis)
 
     def test_least_loaded_chassis_available_for_new_router2(self):
         mapping = self.fake_chassis_router_mappings['Multiple2']
@@ -143,10 +143,10 @@ class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
         router_name = self.new_router_name
         chassis = self.select(mapping, router_name)
         self.assertIn(chassis, mapping.get('Chassis'))
-        self.assertEqual(chassis, 'hv1')
+        self.assertEqual('hv1', chassis)
 
     def test_existing_chassis_available_for_existing_router(self):
         mapping = self.fake_chassis_router_mappings['Multiple1']
         router_name = random.choice(list(mapping['Routers'].keys()))
         chassis = self.select(mapping, router_name)
-        self.assertEqual(chassis, mapping['Routers'][router_name])
+        self.assertEqual(mapping['Routers'][router_name], chassis)

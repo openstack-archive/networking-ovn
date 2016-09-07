@@ -281,52 +281,52 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
         get_security_group_calls = [mock.call(mock.ANY, sg['id'])
                                     for sg in self.security_groups]
-        self.assertEqual(core_plugin.get_security_group.call_count,
-                         len(self.security_groups))
+        self.assertEqual(len(self.security_groups),
+                         core_plugin.get_security_group.call_count)
         core_plugin.get_security_group.assert_has_calls(
             get_security_group_calls, any_order=True)
 
-        self.assertEqual(ovn_driver.create_network_in_ovn.call_count,
-                         len(create_network_list))
+        self.assertEqual(len(create_network_list),
+                         ovn_driver.create_network_in_ovn.call_count)
         create_network_calls = [mock.call(net['net'], net['ext_ids'],
                                           None, None)
                                 for net in create_network_list]
         ovn_driver.create_network_in_ovn.assert_has_calls(
             create_network_calls, any_order=True)
 
-        self.assertEqual(ovn_driver.create_port_in_ovn.call_count,
-                         len(create_port_list))
+        self.assertEqual(len(create_port_list),
+                         ovn_driver.create_port_in_ovn.call_count)
         create_port_calls = [mock.call(port, mock.ANY)
                              for port in create_port_list]
         ovn_driver.create_port_in_ovn.assert_has_calls(create_port_calls,
                                                        any_order=True)
 
-        self.assertEqual(ovn_api.delete_lswitch.call_count,
-                         len(del_network_list))
+        self.assertEqual(len(del_network_list),
+                         ovn_api.delete_lswitch.call_count)
         delete_lswitch_calls = [mock.call(lswitch_name=net_name)
                                 for net_name in del_network_list]
         ovn_api.delete_lswitch.assert_has_calls(
             delete_lswitch_calls, any_order=True)
 
-        self.assertEqual(ovn_api.delete_lswitch_port.call_count,
-                         len(del_port_list))
+        self.assertEqual(len(del_port_list),
+                         ovn_api.delete_lswitch_port.call_count)
         delete_lswitch_port_calls = [mock.call(lport_name=port['id'],
                                                lswitch_name=port['lswitch'])
                                      for port in del_port_list]
         ovn_api.delete_lswitch_port.assert_has_calls(
             delete_lswitch_port_calls, any_order=True)
 
-        self.assertEqual(ovn_api.add_static_route.call_count,
-                         len(add_static_route_list))
+        self.assertEqual(len(add_static_route_list),
+                         ovn_api.add_static_route.call_count)
 
-        self.assertEqual(ovn_api.delete_static_route.call_count,
-                         len(del_static_route_list))
+        self.assertEqual(len(del_static_route_list),
+                         ovn_api.delete_static_route.call_count)
 
         create_router_calls = [mock.call(r)
                                for r in create_router_list]
         self.assertEqual(
-            l3_plugin.create_lrouter_in_ovn.call_count,
-            len(create_router_list))
+            len(create_router_list),
+            l3_plugin.create_lrouter_in_ovn.call_count)
         l3_plugin.create_lrouter_in_ovn.assert_has_calls(
             create_router_calls, any_order=True)
 
@@ -335,22 +335,22 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                               mock.ANY)
                                     for p in create_router_port_list]
         self.assertEqual(
-            l3_plugin.create_lrouter_port_in_ovn.call_count,
-            len(create_router_port_list))
+            len(create_router_port_list),
+            l3_plugin.create_lrouter_port_in_ovn.call_count)
         l3_plugin.create_lrouter_port_in_ovn.assert_has_calls(
             create_router_port_calls,
             any_order=True)
 
-        self.assertEqual(ovn_api.delete_lrouter.call_count,
-                         len(del_router_list))
+        self.assertEqual(len(del_router_list),
+                         ovn_api.delete_lrouter.call_count)
         delete_lrouter_calls = [mock.call(r['router'])
                                 for r in del_router_list]
         ovn_api.delete_lrouter.assert_has_calls(
             delete_lrouter_calls, any_order=True)
 
         self.assertEqual(
-            ovn_api.delete_lrouter_port.call_count,
-            len(del_router_port_list))
+            len(del_router_port_list),
+            ovn_api.delete_lrouter_port.call_count)
         delete_lrouter_port_calls = [mock.call(port['id'],
                                                port['router'], if_exists=False)
                                      for port in del_router_port_list]
@@ -360,24 +360,24 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         create_address_set_calls = [mock.call(**a)
                                     for a in add_address_set_list]
         self.assertEqual(
-            ovn_api.create_address_set.call_count,
-            len(add_address_set_list))
+            len(add_address_set_list),
+            ovn_api.create_address_set.call_count)
         ovn_api.create_address_set.assert_has_calls(
             create_address_set_calls, any_order=True)
 
         del_address_set_calls = [mock.call(**d)
                                  for d in del_address_set_list]
         self.assertEqual(
-            ovn_api.delete_address_set.call_count,
-            len(del_address_set_list))
+            len(del_address_set_list),
+            ovn_api.delete_address_set.call_count)
         ovn_api.delete_address_set.assert_has_calls(
             del_address_set_calls, any_order=True)
 
         update_address_set_calls = [mock.call(**u)
                                     for u in update_address_set_list]
         self.assertEqual(
-            ovn_api.update_address_set.call_count,
-            len(update_address_set_list))
+            len(update_address_set_list),
+            ovn_api.update_address_set.call_count)
         ovn_api.update_address_set.assert_has_calls(
             update_address_set_calls, any_order=True)
 

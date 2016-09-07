@@ -103,14 +103,15 @@ class TestACLs(base.TestCase):
         port = {'id': 'port-id',
                 'network_id': 'network-id'}
         acl = ovn_acl.add_sg_rule_acl_for_port(port, sg_rule, match)
-        self.assertEqual(acl, {'lswitch': 'neutron-network-id',
-                               'lport': 'port-id',
-                               'priority': ovn_const.ACL_PRIORITY_ALLOW,
-                               'action': ovn_const.ACL_ACTION_ALLOW_RELATED,
-                               'log': False,
-                               'direction': direction,
-                               'match': match,
-                               'external_ids': {'neutron:lport': 'port-id'}})
+        self.assertEqual({'lswitch': 'neutron-network-id',
+                          'lport': 'port-id',
+                          'priority': ovn_const.ACL_PRIORITY_ALLOW,
+                          'action': ovn_const.ACL_ACTION_ALLOW_RELATED,
+                          'log': False,
+                          'direction': direction,
+                          'match': match,
+                          'external_ids': {'neutron:lport': 'port-id'}},
+                         acl)
 
     def test_add_sg_rule_acl_for_port_remote_ip_prefix(self):
         sg_rule = {'direction': 'ingress',
@@ -251,8 +252,8 @@ class TestACLs(base.TestCase):
                          {'priority': 1002, 'direction': 'to-lport',
                           'match': 'ip6 && (ip.src == %s)' %
                           (port1['fixed_ips'][1]['ip_address'])}]}
-        self.assertEqual(acl_dels, acl_del_exp)
-        self.assertEqual(acl_adds, acl_adds_exp)
+        self.assertEqual(acl_del_exp, acl_dels)
+        self.assertEqual(acl_adds_exp, acl_adds)
 
         # make sure argument add_acl=False will take no affect in
         # need_compare=True scenario

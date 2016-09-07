@@ -237,8 +237,8 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
             'fake-hostname', ['fake-phynet1'])
         if ovn_config.is_ovn_l3():
             self.assertEqual(
-                self.l3_plugin.schedule_unhosted_routers.call_count,
-                1)
+                1,
+                self.l3_plugin.schedule_unhosted_routers.call_count)
 
     def test_chassis_delete_event(self):
         self._test_chassis_helper('delete', self.row_json)
@@ -246,8 +246,8 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
             'fake-hostname', [])
         if ovn_config.is_ovn_l3():
             self.assertEqual(
-                self.l3_plugin.schedule_unhosted_routers.call_count,
-                1)
+                1,
+                self.l3_plugin.schedule_unhosted_routers.call_count)
 
     def test_chassis_update_event(self):
         old_row_json = copy.deepcopy(self.row_json)
@@ -258,5 +258,5 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
             'fake-hostname', ['fake-phynet1'])
         if ovn_config.is_ovn_l3():
             self.assertEqual(
-                self.l3_plugin.schedule_unhosted_routers.call_count,
-                1)
+                1,
+                self.l3_plugin.schedule_unhosted_routers.call_count)
