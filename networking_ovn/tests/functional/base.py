@@ -162,6 +162,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         if self.ovn_worker:
             trigger.im_class = ovsdb_monitor.OvnWorker
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
+        trigger.im_class.__name__ = 'trigger'
 
         # mech_driver.post_fork_initialize creates the IDL connections
         self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY, trigger)
