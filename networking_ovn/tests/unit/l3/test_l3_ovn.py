@@ -22,7 +22,6 @@ from neutron.plugins.common import constants as service_constants
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 
-from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.tests.unit import fakes
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
@@ -212,7 +211,6 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
         cfg.CONF.set_default('allow_overlapping_ips', True)
         cfg.CONF.set_default('max_routes', 3)
         ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
-        impl_idl_ovn.OvsdbNbOvnIdl = mock.Mock()
         super(test_l3.L3BaseForIntTests, self).setUp(
             plugin=plugin, ext_mgr=ext_mgr,
             service_plugins=service_plugins)
