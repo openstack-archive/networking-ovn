@@ -15,7 +15,7 @@
 import atexit
 from eventlet import greenthread
 import retrying
-from six.moves.queue import Queue
+from six.moves import queue
 import threading
 
 from oslo_log import log
@@ -148,7 +148,7 @@ class OvnDbNotifyHandler(object):
         self.driver = driver
         self.__watched_events = set()
         self.__lock = threading.Lock()
-        self.notifications = Queue()
+        self.notifications = queue.Queue()
         self.notify_thread = greenthread.spawn_n(self.notify_loop)
         atexit.register(self.shutdown)
 
