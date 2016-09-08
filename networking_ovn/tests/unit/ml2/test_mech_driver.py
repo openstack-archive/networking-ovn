@@ -15,6 +15,7 @@
 import mock
 from webob import exc
 
+from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from oslo_db import exception as os_db_exc
 
@@ -59,6 +60,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.nb_ovn = self.mech_driver._nb_ovn
+        self.sb_ovn = self.mech_driver._sb_ovn
 
         self.fake_subnet = fakes.FakeSubnet.create_one_subnet().info()
         self.fake_port_no_sg = fakes.FakePort.create_one_port().info()
@@ -606,6 +608,121 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     resources.PORT,
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
+
+    def test_bind_port_unsupported_vnic_type(self):
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={'binding:vnic_type': 'unknown'}).info()
+        fake_port_context = fakes.FakePortContext(fake_port, 'host', [])
+        self.mech_driver.bind_port(fake_port_context)
+        self.sb_ovn.get_chassis_data_for_ml2_bind_port.assert_not_called()
+        fake_port_context.set_binding.assert_not_called()
+
+    def _test_bind_port_failed(self, fake_segments):
+        fake_port = fakes.FakePort.create_one_port().info()
+        fake_host = 'host'
+        fake_port_context = fakes.FakePortContext(
+            fake_port, fake_host, fake_segments)
+        self.mech_driver.bind_port(fake_port_context)
+        self.sb_ovn.get_chassis_data_for_ml2_bind_port.assert_called_once_with(
+            fake_host)
+        fake_port_context.set_binding.assert_not_called()
+
+    def test_bind_port_host_not_found(self):
+        self.sb_ovn.get_chassis_data_for_ml2_bind_port.side_effect = \
+            RuntimeError
+        self._test_bind_port_failed([])
+
+    def test_bind_port_no_segments_to_bind(self):
+        self._test_bind_port_failed([])
+
+    def test_bind_port_physnet_not_found(self):
+        segment_attrs = {'network_type': 'vlan',
+                         'physical_network': 'unknown-physnet',
+                         'segmentation_id': 23}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port_failed(fake_segments)
+
+    def _test_bind_port(self, fake_segments):
+        fake_port = fakes.FakePort.create_one_port().info()
+        fake_host = 'host'
+        fake_port_context = fakes.FakePortContext(
+            fake_port, fake_host, fake_segments)
+        self.mech_driver.bind_port(fake_port_context)
+        self.sb_ovn.get_chassis_data_for_ml2_bind_port.assert_called_once_with(
+            fake_host)
+        fake_port_context.set_binding.assert_called_once_with(
+            fake_segments[0]['id'],
+            portbindings.VIF_TYPE_OVS,
+            self.mech_driver.vif_details[portbindings.VIF_TYPE_OVS])
+
+    def test_bind_port_geneve(self):
+        segment_attrs = {'network_type': 'geneve',
+                         'physical_network': None,
+                         'segmentation_id': 1023}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port(fake_segments)
+
+    def test_bind_port_vlan(self):
+        segment_attrs = {'network_type': 'vlan',
+                         'physical_network': 'fake-physnet',
+                         'segmentation_id': 23}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port(fake_segments)
+
+    def test_bind_port_flat(self):
+        segment_attrs = {'network_type': 'flat',
+                         'physical_network': 'fake-physnet',
+                         'segmentation_id': None}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port(fake_segments)
+
+    def test_bind_port_vxlan(self):
+        segment_attrs = {'network_type': 'vxlan',
+                         'physical_network': None,
+                         'segmentation_id': 1024}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port(fake_segments)
+
+    def test__is_port_provisioning_required(self):
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={'binding:vnic_type': 'normal',
+                   'status': const.PORT_STATUS_DOWN}).info()
+        fake_host = 'fake-physnet'
+
+        # Test host not changed
+        self.assertFalse(self.mech_driver._is_port_provisioning_required(
+            fake_port, fake_host, fake_host))
+
+        # Test invalid vnic type.
+        fake_port['binding:vnic_type'] = 'unknown'
+        self.assertFalse(self.mech_driver._is_port_provisioning_required(
+            fake_port, fake_host, None))
+        fake_port['binding:vnic_type'] = 'normal'
+
+        # Test invalid status.
+        fake_port['status'] = const.PORT_STATUS_ACTIVE
+        self.assertFalse(self.mech_driver._is_port_provisioning_required(
+            fake_port, fake_host, None))
+        fake_port['status'] = const.PORT_STATUS_DOWN
+
+        # Test no host.
+        self.assertFalse(self.mech_driver._is_port_provisioning_required(
+            fake_port, None, None))
+
+        # Test invalid host.
+        self.sb_ovn.chassis_exists.return_value = False
+        self.assertFalse(self.mech_driver._is_port_provisioning_required(
+            fake_port, fake_host, None))
+        self.sb_ovn.chassis_exists.return_value = True
+
+        # Test port provisioning required.
+        self.assertTrue(self.mech_driver._is_port_provisioning_required(
+            fake_port, fake_host, None))
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):

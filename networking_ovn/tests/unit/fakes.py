@@ -83,11 +83,14 @@ class FakeOvsdbNbOvnIdl(object):
 class FakeOvsdbSbOvnIdl(object):
 
     def __init__(self, **kwargs):
+        self.chassis_exists = mock.Mock()
+        self.chassis_exists.return_value = True
         self.get_chassis_hostname_and_physnets = mock.Mock()
         self.get_chassis_hostname_and_physnets.return_value = {}
         self.get_all_chassis = mock.Mock()
-        self.get_chassis_datapath_and_iface_types = mock.Mock()
-        self.get_chassis_datapath_and_iface_types.return_value = ('fake', '')
+        self.get_chassis_data_for_ml2_bind_port = mock.Mock()
+        self.get_chassis_data_for_ml2_bind_port.return_value = \
+            ('fake', '', ['fake-physnet'])
 
 
 class FakeOvsdbTransaction(object):
@@ -326,6 +329,26 @@ class FakePort(object):
                             loaded=True)
 
 
+class FakePortContext(object):
+    def __init__(self, port, host, segments_to_bind):
+        self.fake_port = port
+        self.fake_host = host
+        self.fake_segments_to_bind = segments_to_bind
+        self.set_binding = mock.Mock()
+
+    @property
+    def current(self):
+        return self.fake_port
+
+    @property
+    def host(self):
+        return self.fake_host
+
+    @property
+    def segments_to_bind(self):
+        return self.fake_segments_to_bind
+
+
 class FakeSecurityGroup(object):
     """Fake one or more security groups."""
 
@@ -408,7 +431,9 @@ class FakeSegment(object):
         attrs = attrs or {}
 
         # Set default attributes.
+        fake_uuid = uuid.uuid4().hex
         segment_attrs = {
+            'id': 'segment-id-' + fake_uuid,
             'network_type': 'geneve',
             'physical_network': None,
             'segmentation_id': 10,

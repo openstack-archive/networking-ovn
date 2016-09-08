@@ -453,6 +453,16 @@ class API(object):
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):
+
+    @abc.abstractmethod
+    def chassis_exists(self, hostname):
+        """Test if chassis for given hostname exists.
+
+        @param hostname:       The hostname of the chassis
+        @type hostname:        string
+        :returns:              True if the chassis exists, else False.
+        """
+
     @abc.abstractmethod
     def get_chassis_hostname_and_physnets(self):
         """Return a dict contains hostname and physnets mapping.
@@ -470,9 +480,14 @@ class SbAPI(object):
         """
 
     @abc.abstractmethod
-    def get_chassis_datapath_and_iface_types(self, hostname):
-        """Return the datapath type and iface types supported by the chassis
+    def get_chassis_data_for_ml2_bind_port(self, hostname):
+        """Return chassis data for ML2 port binding.
 
         @param hostname:       The hostname of the chassis
         @type hostname:        string
+        :returns:              Tuple containing the chassis datapath type,
+                               iface types and physical networks for the
+                               OVN bridge mappings.
+        :raises:               RuntimeError exception if an OVN chassis
+                               does not exist.
         """

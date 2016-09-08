@@ -464,7 +464,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """
         port = context.current
         self.validate_and_get_data_from_binding_profile(port)
-        self._insert_port_provisioning_block(context._plugin_context, port)
+        if self._is_port_provisioning_required(port, context.host):
+            self._insert_port_provisioning_block(context._plugin_context, port)
 
     def validate_and_get_data_from_binding_profile(self, port):
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
@@ -522,21 +523,46 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return param_dict
 
-    def _insert_port_provisioning_block(self, context, port):
+    def _is_port_provisioning_required(self, port, host, original_host=None):
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
         if vnic_type not in self.supported_vnic_types:
-            LOG.debug("No provisioning block due to unsupported vnic_type: %s",
-                      vnic_type)
-            return
+            LOG.debug('No provisioning block for port %(port_id)s due to '
+                      'unsupported vnic_type: %(vnic_type)s',
+                      {'port_id': port['id'], 'vnic_type': vnic_type})
+            return False
+
+        if port['status'] == const.PORT_STATUS_ACTIVE:
+            LOG.debug('No provisioning block for port %s since it is active',
+                      port['id'])
+            return False
+
+        if not host:
+            LOG.debug('No provisioning block for port %s since it does not '
+                      'have a host', port['id'])
+            return False
+
+        if host == original_host:
+            LOG.debug('No provisioning block for port %s since host unchanged',
+                      port['id'])
+            return False
+
+        if not self._sb_ovn.chassis_exists(host):
+            LOG.debug('No provisioning block for port %(port_id)s since no '
+                      'OVN chassis for host: %(host)s',
+                      {'port_id': port['id'], 'host': host})
+            return False
+
+        return True
+
+    def _insert_port_provisioning_block(self, context, port):
         # Insert a provisioning block to prevent the port from
         # transitioning to active until OVN reports back that
         # the port is up.
-        if port['status'] != const.PORT_STATUS_ACTIVE:
-            provisioning_blocks.add_provisioning_component(
-                context,
-                port['id'], resources.PORT,
-                provisioning_blocks.L2_AGENT_ENTITY
-            )
+        provisioning_blocks.add_provisioning_component(
+            context,
+            port['id'], resources.PORT,
+            provisioning_blocks.L2_AGENT_ENTITY
+        )
 
     def create_port_postcommit(self, context):
         """Create a port.
@@ -668,7 +694,11 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         state. It is up to the mechanism driver to ignore state or
         state changes that it does not know or care about.
         """
-        self.validate_and_get_data_from_binding_profile(context.current)
+        port = context.current
+        self.validate_and_get_data_from_binding_profile(port)
+        if self._is_port_provisioning_required(port, context.host,
+                                               context.original_host):
+            self._insert_port_provisioning_block(context._plugin_context, port)
 
     def update_port_postcommit(self, context):
         """Update a port.
@@ -931,13 +961,19 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                       {'port_id': port['id'], 'vnic_type': vnic_type})
             return
 
-        # Collect port bind data from the host.
-        # TODO(rtheis): Patch set [1] will provide support to refuse port
-        # binding if the host does not exist.
-        # [1] https://review.openstack.org/#/c/372713/
-        datapath_type, iface_types = \
-            self._sb_ovn.get_chassis_datapath_and_iface_types(context.host)
-        iface_types = iface_types.split(',') if iface_types else []
+        # OVN chassis information is needed to ensure a valid port bind.
+        # Collect port binding data and refuse binding if the OVN chassis
+        # cannot be found.
+        chassis_physnets = []
+        try:
+            datapath_type, iface_types, chassis_physnets = \
+                self._sb_ovn.get_chassis_data_for_ml2_bind_port(context.host)
+            iface_types = iface_types.split(',') if iface_types else []
+        except RuntimeError:
+            LOG.debug('Refusing to bind port %(port_id)s due to '
+                      'no OVN chassis for host: %(host)s' %
+                      {'port_id': port['id'], 'host': context.host})
+            return
 
         for segment_to_bind in context.segments_to_bind:
             network_type = segment_to_bind['network_type']
@@ -963,22 +999,35 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                          {'port_id': port['id'],
                           'network_type': network_type})
 
-            if datapath_type == ovn_const.CHASSIS_DATAPATH_NETDEV and (
-                ovn_const.CHASSIS_IFACE_DPDKVHOSTUSER in iface_types):
-                vhost_user_socket = utils.ovn_vhu_sockpath(
-                    config.get_ovn_vhost_sock_dir(), port['id'])
-                vif_type = portbindings.VIF_TYPE_VHOST_USER
-                port[portbindings.VIF_DETAILS].update({
-                    portbindings.VHOST_USER_SOCKET: vhost_user_socket
-                    })
-                vif_details = dict(self.vif_details[vif_type])
-                vif_details[portbindings.VHOST_USER_SOCKET] = vhost_user_socket
+            if (network_type in ['flat', 'vlan']) and \
+               (physical_network not in chassis_physnets):
+                LOG.info(_LI('Refusing to bind port %(port_id)s on '
+                             'host %(host)s due to the OVN chassis '
+                             'bridge mapping physical networks '
+                             '%(chassis_physnets)s not supporting '
+                             'physical network: %(physical_network)s'),
+                         {'port_id': port['id'],
+                          'host': context.host,
+                          'chassis_physnets': chassis_physnets,
+                          'physical_network': physical_network})
             else:
-                vif_type = portbindings.VIF_TYPE_OVS
-                vif_details = self.vif_details[vif_type]
+                if datapath_type == ovn_const.CHASSIS_DATAPATH_NETDEV and (
+                    ovn_const.CHASSIS_IFACE_DPDKVHOSTUSER in iface_types):
+                    vhost_user_socket = utils.ovn_vhu_sockpath(
+                        config.get_ovn_vhost_sock_dir(), port['id'])
+                    vif_type = portbindings.VIF_TYPE_VHOST_USER
+                    port[portbindings.VIF_DETAILS].update({
+                        portbindings.VHOST_USER_SOCKET: vhost_user_socket
+                        })
+                    vif_details = dict(self.vif_details[vif_type])
+                    vif_details[portbindings.VHOST_USER_SOCKET] = \
+                        vhost_user_socket
+                else:
+                    vif_type = portbindings.VIF_TYPE_OVS
+                    vif_details = self.vif_details[vif_type]
 
-            context.set_binding(segment_to_bind[driver_api.ID], vif_type,
-                                vif_details)
+                context.set_binding(segment_to_bind[driver_api.ID], vif_type,
+                                    vif_details)
 
     def get_workers(self):
         """Get any NeutronWorker instances that should have their own process
@@ -1010,7 +1059,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         admin_context = n_context.get_admin_context()
         try:
             port = self._plugin.get_port(admin_context, port_id)
-            port['status'] = const.PORT_STATUS_DOWN
             self._insert_port_provisioning_block(admin_context, port)
             self._plugin.update_port_status(admin_context,
                                             port['id'],

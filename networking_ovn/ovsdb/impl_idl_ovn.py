@@ -451,12 +451,22 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
             LOG.exception(connection_exception)
             raise connection_exception
 
+    def _get_chassis_physnets(self, chassis):
+        bridge_mappings = chassis.external_ids.get('ovn-bridge-mappings', '')
+        mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
+        return mapping_dict.keys()
+
+    def chassis_exists(self, hostname):
+        try:
+            idlutils.row_by_value(self.idl, 'Chassis', 'hostname', hostname)
+        except idlutils.RowNotFound:
+            return False
+        return True
+
     def get_chassis_hostname_and_physnets(self):
         chassis_info_dict = {}
         for ch in self.idl.tables['Chassis'].rows.values():
-            bridge_mappings = ch.external_ids.get('ovn-bridge-mappings', '')
-            mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
-            chassis_info_dict[ch.hostname] = mapping_dict.keys()
+            chassis_info_dict[ch.hostname] = self._get_chassis_physnets(ch)
         return chassis_info_dict
 
     def get_all_chassis(self, chassis_type=None):
@@ -467,11 +477,13 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
             chassis_list.append(ch.name)
         return chassis_list
 
-    def get_chassis_datapath_and_iface_types(self, hostname):
+    def get_chassis_data_for_ml2_bind_port(self, hostname):
         try:
             chassis = idlutils.row_by_value(self.idl, 'Chassis',
                                             'hostname', hostname)
         except idlutils.RowNotFound:
-            return (None, None)
+            msg = _('Chassis with hostname %s does not exist') % hostname
+            raise RuntimeError(msg)
         return (chassis.external_ids.get('datapath-type', ''),
-                chassis.external_ids.get('iface-types', ''))
+                chassis.external_ids.get('iface-types', ''),
+                self._get_chassis_physnets(chassis))
