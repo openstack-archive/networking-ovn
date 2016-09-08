@@ -313,14 +313,22 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                                          db_routers.keys())
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
+            db_router_ports[interface['id']]['networks'] = sorted(
+                self.l3_plugin.get_networks_for_lrouter_port(
+                    ctx, interface['fixed_ips']))
         lrouters = self.ovn_api.get_all_logical_routers_with_rports()
         del_lrouters_list = []
         del_lrouter_ports_list = []
         update_sroutes_list = []
+        update_lrport_list = []
         for lrouter in lrouters:
             if lrouter['name'] in db_routers:
-                for lrport in lrouter['ports']:
+                for lrport, lrport_nets in lrouter['ports'].items():
                     if lrport in db_router_ports:
+                        db_lrport_nets = db_router_ports[lrport]['networks']
+                        if db_lrport_nets != sorted(lrport_nets):
+                            update_lrport_list.append((
+                                lrouter['name'], db_router_ports[lrport]))
                         del db_router_ports[lrport]
                     else:
                         del_lrouter_ports_list.append(
@@ -368,6 +376,21 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning(_LW("Create router port in OVN "
                                     "NB failed for"
                                     " router port %s"), rrport['id'])
+
+        for router_id, rport in update_lrport_list:
+            LOG.warning(_LW("Router Port port_id=%s needs to be updated"
+                            " for networks changed"),
+                        rport['id'])
+            if self.mode == SYNC_MODE_REPAIR:
+                try:
+                    LOG.warning(_LW("Updating networks on router port %s in "
+                                    "OVN NB DB"), rport['id'])
+                    self.l3_plugin.update_lrouter_port_in_ovn(
+                        ctx, router_id, rport, rport['networks'])
+                except RuntimeError:
+                    LOG.warning(_LW("Update router port networks in OVN "
+                                    "NB failed for"
+                                    " router port %s"), rport['id'])
 
         with self.ovn_api.transaction(check_error=True) as txn:
             for lrouter in del_lrouters_list:

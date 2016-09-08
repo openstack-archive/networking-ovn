@@ -171,15 +171,19 @@ class OvsdbNbOvnIdl(ovn_api.API):
     def get_all_logical_routers_with_rports(self):
         """Get logical Router ports associated with all logical Routers
 
-        @return: (lrouter_name, static_routes, lrports)
+        @return: list of dict, each dict has key-value:
+                 - 'name': string router_id in neutron.
+                 - 'static_routes': list of static routes dict.
+                 - 'ports': dict of port_id in neutron (key) and networks on
+                            port (value).
         """
         result = []
         for lrouter in self._tables['Logical_Router'].rows.values():
             if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
                 lrouter.external_ids):
                 continue
-            lrports = [lrport.name.replace('lrp-', '')
-                       for lrport in getattr(lrouter, 'ports', [])]
+            lrports = {lrport.name.replace('lrp-', ''): lrport.networks
+                       for lrport in getattr(lrouter, 'ports', [])}
             sroutes = [{'destination': sroute.ip_prefix,
                         'nexthop': sroute.nexthop}
                        for sroute in getattr(lrouter, 'static_routes', [])]

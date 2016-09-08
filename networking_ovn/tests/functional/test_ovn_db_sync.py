@@ -42,6 +42,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_lrouters = []
         self.create_lrouter_ports = []
         self.create_lrouter_routes = []
+        self.update_lrouter_ports = []
         self.create_acls = []
         self.delete_lswitches = []
         self.delete_lswitch_ports = []
@@ -58,6 +59,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         res = self._create_subnet(self.fmt, n1['network']['id'],
                                   '10.0.0.0/24')
         n1_s1 = self.deserialize(self.fmt, res)
+        res = self._create_subnet(self.fmt, n1['network']['id'],
+                                  '2001:dba::/64', ip_version=6)
+        n1_s2 = self.deserialize(self.fmt, res)
+        res = self._create_subnet(self.fmt, n1['network']['id'],
+                                  '2001:dbb::/64', ip_version=6)
+        n1_s3 = self.deserialize(self.fmt, res)
         for p in ['p1', 'p2', 'p3']:
             port = self._make_port(self.fmt, n1['network']['id'],
                                    name='n1-' + p)
@@ -93,8 +100,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.l3_plugin.add_router_interface(
             self.context, r1['id'], {'subnet_id': n1_s1['subnet']['id']})
         r1_p2 = self.l3_plugin.add_router_interface(
+            self.context, r1['id'], {'subnet_id': n1_s2['subnet']['id']})
+        self.l3_plugin.add_router_interface(
+            self.context, r1['id'], {'subnet_id': n1_s3['subnet']['id']})
+        r1_p3 = self.l3_plugin.add_router_interface(
             self.context, r1['id'], {'subnet_id': n2_s1['subnet']['id']})
-        self.delete_lrouter_ports.append(('lrp-' + r1_p2['port_id'],
+        self.update_lrouter_ports.append(('lrp-' + r1_p2['port_id'],
+                                          'neutron-' + r1['id'],
+                                          n1_s2['subnet']['gateway_ip']))
+        self.delete_lrouter_ports.append(('lrp-' + r1_p3['port_id'],
                                           'neutron-' + r1['id']))
         self.l3_plugin.update_router(
             self.context, r1['id'],
@@ -187,6 +201,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             for lrport, lrouter_name in self.create_lrouter_ports:
                 txn.add(cmd.AddLRouterPortCommand(fake_api, lrport,
                                                   lrouter_name))
+
+            for lrport, lrouter_name, networks in self.update_lrouter_ports:
+                txn.add(cmd.UpdateLRouterPortCommand(
+                    fake_api, lrport, lrouter_name, True,
+                    **{'networks': [networks]}))
 
             for lrport, lrouter_name in self.delete_lrouter_ports:
                 txn.add(cmd.DelLRouterPortCommand(fake_api, lrport,
@@ -362,6 +381,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             r_ports = self._list('ports',
                                  query_params='device_id=%s' % (router_id))
             r_port_ids = [p['id'] for p in r_ports['ports']]
+            r_port_networks = {
+                p['id']: self.l3_plugin.get_networks_for_lrouter_port(
+                    self.context, p['fixed_ips']) for p in r_ports['ports']}
             r_routes = db_routes[router_id]
 
             try:
@@ -371,6 +393,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 lports = getattr(lrouter, 'ports', [])
                 plugin_lrouter_port_ids = [lport.name.replace('lrp-', '')
                                            for lport in lports]
+                plugin_lport_networks = {
+                    lport.name.replace('lrp-', ''): lport.networks
+                    for lport in lports}
                 sroutes = getattr(lrouter, 'static_routes', [])
                 plugin_routes = [sroute.ip_prefix + sroute.nexthop
                                  for sroute in sroutes]
@@ -385,6 +410,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 lports = getattr(lrouter, 'ports', [])
                 monitor_lrouter_port_ids = [lport.name.replace('lrp-', '')
                                             for lport in lports]
+                monitor_lport_networks = {
+                    lport.name.replace('lrp-', ''): lport.networks
+                    for lport in lports}
                 sroutes = getattr(lrouter, 'static_routes', [])
                 monitor_routes = [sroute.ip_prefix + sroute.nexthop
                                   for sroute in sroutes]
@@ -395,6 +423,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             if should_match:
                 self.assertItemsEqual(r_port_ids, plugin_lrouter_port_ids)
                 self.assertItemsEqual(r_port_ids, monitor_lrouter_port_ids)
+                for p in plugin_lport_networks:
+                    self.assertItemsEqual(r_port_networks[p],
+                                          plugin_lport_networks[p])
+                for p in monitor_lport_networks:
+                    self.assertItemsEqual(r_port_networks[p],
+                                          monitor_lport_networks[p])
                 self.assertItemsEqual(r_routes, plugin_routes)
                 self.assertItemsEqual(r_routes, monitor_routes)
             else:
@@ -405,6 +439,17 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_port_ids,
                     monitor_lrouter_port_ids)
+
+                for _p in self.update_lrouter_ports:
+                    p = _p[0].replace('lrp-', '')
+                    if p in plugin_lport_networks:
+                        self.assertRaises(
+                            AssertionError, self.assertItemsEqual,
+                            r_port_networks[p], plugin_lport_networks[p])
+                    if p in monitor_lport_networks:
+                        self.assertRaises(
+                            AssertionError, self.assertItemsEqual,
+                            r_port_networks[p], monitor_lport_networks[p])
 
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_routes,
