@@ -141,20 +141,14 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         @param context: neutron context
         @type  context: object of type neutron.context.Context
-        @var   filters: to be used for filtering out group bindings, null here
         @var   lswitch_names: List of lswitch names
         @var   acl_list: List of NB acls
         @var   acl_list_dict: Dictionary of acl-lists based on lport as key
-        @var   sg_ports: List of ports associated to SGs
         @return: acl_list-dict
         """
-        filters = {}
-        sg_ports = self.core_plugin._get_port_security_group_bindings(context,
-                                                                      filters)
         lswitch_names = set([])
-        for binding in sg_ports:
-            port = self.core_plugin.get_port(context, binding['port_id'])
-            lswitch_names.add(port['network_id'])
+        for network in self.core_plugin.get_networks(context):
+            lswitch_names.add(network['id'])
         acl_dict, ignore1, ignore2 = \
             self.ovn_api.get_acls_for_lswitches(lswitch_names)
         acl_list = list(itertools.chain(*six.itervalues(acl_dict)))
