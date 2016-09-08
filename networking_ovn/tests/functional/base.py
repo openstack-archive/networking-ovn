@@ -21,7 +21,7 @@ from oslo_config import cfg
 from oslo_log import log
 
 from neutron.agent.ovsdb import impl_idl
-from neutron.agent.ovsdb.native.commands import BaseCommand
+from neutron.agent.ovsdb.native import commands
 from neutron.agent.ovsdb.native import connection
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
@@ -38,7 +38,7 @@ PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 LOG = log.getLogger(__name__)
 
 
-class AddFakeChassisCommand(BaseCommand):
+class AddFakeChassisCommand(commands.BaseCommand):
     """Add a fake chassis in OVN SB DB for functional test."""
 
     def __init__(self, api, name, ip, **columns):
