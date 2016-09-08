@@ -119,27 +119,6 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def get_all_logical_switches_ids(self):
-        """Returns all logical switches names and external ids
-
-        :returns: dictionary with lswitch name and ext ids
-        """
-
-    @abc.abstractmethod
-    def get_logical_switch_ids(self, lswitch_name):
-        """Get external_ids for a Logical_Switch.
-
-        :returns: dict of external_ids.
-        """
-
-    @abc.abstractmethod
-    def get_all_logical_switch_ports_ids(self):
-        """Returns all logical switch ports names and external ids
-
-        :returns: dictionary with lsp name and ext ids
-        """
-
-    @abc.abstractmethod
     def create_lrouter(self, name, may_exist=True, **columns):
         """Create a command to add an OVN lrouter
 
