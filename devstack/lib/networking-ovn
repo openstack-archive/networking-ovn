@@ -191,6 +191,23 @@ function configure_ovn_plugin {
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
     fi
 
+    # NOTE(rtheis): Conventional and native DHCP are not supported at the
+    # same time since there aren't any confirmed benefits to supporting
+    # both. Also, there are a couple problems with such a setup:
+    #   1) Neutron still creates DHCP provisioning blocks when launching
+    #      instances. As a result, the conventional DHCP agent must be
+    #      up and remove the DHCP provisioning blocks or instances will
+    #      fail to launch.
+    #   2) Even though the conventional DHCP agent can setup a metadata
+    #      proxy for isolated networks, host routes are not added to an
+    #      instance. As a result, instances aren't able to access the proxy
+    #      via "curl http://169.254.169.254".
+    if is_service_enabled q-dhcp ; then
+        if [[ "$OVN_NATIVE_DHCP" == "True" ]]; then
+            die $LINENO "The q-dhcp service must be disabled with OVN_NATIVE_DHCP set to True."
+        fi
+    fi
+
     if is_service_enabled q-l3 ; then
         if [[ "$OVN_L3_MODE" == "True" ]]; then
             die $LINENO "The q-l3 service must be disabled with OVN_L3_MODE set to True."
