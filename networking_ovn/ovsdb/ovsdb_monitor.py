@@ -14,8 +14,8 @@
 
 import atexit
 from eventlet import greenthread
-import retrying
 from six.moves import queue
+import tenacity
 import threading
 
 from oslo_log import log
@@ -326,8 +326,10 @@ class OvnConnection(connection.Connection):
                                                     self.schema_name)
             except Exception:
                 # There is a small window for a race, so retry up to a second
-                @retrying.retry(wait_exponential_multiplier=10,
-                                stop_max_delay=1000)
+                @tenacity.retry(
+                    wait=tenacity.wait_exponential(multiplier=0.01),
+                    stop=tenacity.stop_after_delay(1),
+                    reraise=True)
                 def do_get_schema_helper():
                     return idlutils.get_schema_helper(self.connection,
                                                       self.schema_name)
