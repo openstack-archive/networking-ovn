@@ -375,19 +375,41 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
         return fakes.FakeNetworkContext(fake_network, fake_segments)
 
-    def test_create_network_precommit(self):
+    def _create_fake_mp_network_context(self):
+        network_type = 'flat'
+        network_attrs = {'segments': []}
+        fake_segments = []
+        for physical_network in ['physnet1', 'physnet2']:
+            network_attrs['segments'].append(
+                {'provider:network_type': network_type,
+                 'provider:physical_network': physical_network})
+            segment_attrs = {'network_type': network_type,
+                             'physical_network': physical_network}
+            fake_segments.append(
+                fakes.FakeSegment.create_one_segment(
+                    attrs=segment_attrs).info())
+        fake_network = \
+            fakes.FakeNetwork.create_one_network(attrs=network_attrs).info()
+        fake_network.pop('provider:network_type')
+        fake_network.pop('provider:physical_network')
+        fake_network.pop('provider:segmentation_id')
+        return fakes.FakeNetworkContext(fake_network, fake_segments)
+
+    def test_network_precommit(self):
         # Test supported network types.
         fake_network_context = self._create_fake_network_context('local')
         self.mech_driver.create_network_precommit(fake_network_context)
         fake_network_context = self._create_fake_network_context(
             'flat', physical_network='physnet')
-        self.mech_driver.create_network_precommit(fake_network_context)
+        self.mech_driver.update_network_precommit(fake_network_context)
         fake_network_context = self._create_fake_network_context(
             'geneve', segmentation_id=10)
         self.mech_driver.create_network_precommit(fake_network_context)
         fake_network_context = self._create_fake_network_context(
             'vlan', physical_network='physnet', segmentation_id=11)
-        self.mech_driver.create_network_precommit(fake_network_context)
+        self.mech_driver.update_network_precommit(fake_network_context)
+        fake_mp_network_context = self._create_fake_mp_network_context()
+        self.mech_driver.create_network_precommit(fake_mp_network_context)
 
         # Test unsupported network types.
         fake_network_context = self._create_fake_network_context(
@@ -398,16 +420,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         fake_network_context = self._create_fake_network_context(
             'gre', segmentation_id=13)
         self.assertRaises(n_exc.InvalidInput,
-                          self.mech_driver.create_network_precommit,
-                          fake_network_context)
-
-        # TODO(rtheis): Add support for multi-provider networks when
-        # routed networks are supported.
-        fake_network_context = self._create_fake_network_context('flat')
-        fake_network_context.current['segments'] = \
-            fake_network_context.network_segments
-        self.assertRaises(n_exc.InvalidInput,
-                          self.mech_driver.create_network_precommit,
+                          self.mech_driver.update_network_precommit,
                           fake_network_context)
 
     def test_create_port_without_security_groups(self):
@@ -574,11 +587,7 @@ class TestOVNMechansimDriverV2HTTPResponse(test_plugin.TestMl2V2HTTPResponse,
 
 class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
                                        OVNMechanismDriverTestCase):
-
-    # TODO(rtheis): Add support for multi-provider networks when
-    # routed networks are supported.
-    def test_list_mpnetworks_with_segmentation_id(self):
-        pass
+    pass
 
 
 class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
@@ -652,7 +661,7 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         self._test_create_segment(
             network_id=network['id'],
             segmentation_id=200,
-            network_type='vxlan')['segment']
+            network_type='geneve')['segment']
         self.mech_driver.update_segment_host_mapping(host, ['phys_net1'])
         segments_host_db = self._get_segments_for_host(host)
         self.assertEqual({segment1['id']}, set(segments_host_db))
