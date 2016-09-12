@@ -19,6 +19,61 @@ from networking_ovn._i18n import _
 from networking_ovn.common import utils
 
 
+# TODO(rtheis): These wrapper functions are't needed once OpenStack
+# global requirements guarantee an ovs python version with mutate
+# support.
+
+def _is_ovs_mutate_available(row):
+    # Checking for the addvalue method should be sufficient.
+    return callable(getattr(row, 'addvalue', None))
+
+
+def _addvalue_to_list(row, column, new_value):
+    # If available, use mutate support to add the value.
+    if _is_ovs_mutate_available(row):
+        row.addvalue(column, new_value)
+    else:
+        row.verify(column)
+        column_values = getattr(row, column, [])
+        if new_value not in column_values:
+            column_values.append(new_value)
+            setattr(row, column, column_values)
+
+
+def _delvalue_from_list(row, column, old_value):
+    # If available, use mutate support to delete the value.
+    if _is_ovs_mutate_available(row):
+        row.delvalue(column, old_value)
+    else:
+        row.verify(column)
+        column_values = getattr(row, column, [])
+        if old_value in column_values:
+            column_values.remove(old_value)
+            setattr(row, column, column_values)
+
+
+def _updatevalues_in_list(row, column, new_values=None, old_values=None):
+    new_values = new_values or []
+    old_values = old_values or []
+
+    # If available, use mutate support to add/delete the values.
+    if _is_ovs_mutate_available(row):
+        for new_value in new_values:
+            row.addvalue(column, new_value)
+        for old_value in old_values:
+            row.delvalue(column, old_value)
+    else:
+        row.verify(column)
+        column_values = getattr(row, column, [])
+        for new_value in new_values:
+            if new_value not in column_values:
+                column_values.append(new_value)
+        for old_value in old_values:
+            if old_value in column_values:
+                column_values.remove(old_value)
+        setattr(row, column, column_values)
+
+
 class AddLSwitchCommand(commands.BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddLSwitchCommand, self).__init__(api)
@@ -95,7 +150,6 @@ class AddLSwitchPortCommand(commands.BaseCommand):
         try:
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch)
-            ports = getattr(lswitch, 'ports', [])
         except idlutils.RowNotFound:
             msg = _("Logical Switch %s does not exist") % self.lswitch
             raise RuntimeError(msg)
@@ -106,15 +160,12 @@ class AddLSwitchPortCommand(commands.BaseCommand):
             if port:
                 return
 
-        lswitch.verify('ports')
-
         port = txn.insert(self.api._tables['Logical_Switch_Port'])
         port.name = self.lport
         for col, val in self.columns.items():
             setattr(port, col, val)
         # add the newly created port to existing lswitch
-        ports.append(port.uuid)
-        setattr(lswitch, 'ports', ports)
+        _addvalue_to_list(lswitch, 'ports', port.uuid)
 
 
 class SetLSwitchPortCommand(commands.BaseCommand):
@@ -151,17 +202,13 @@ class DelLSwitchPortCommand(commands.BaseCommand):
                                           'name', self.lport)
             lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
                                             'name', self.lswitch)
-            ports = getattr(lswitch, 'ports', [])
         except idlutils.RowNotFound:
             if self.if_exists:
                 return
             msg = _("Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
-        lswitch.verify('ports')
-
-        ports.remove(lport)
-        setattr(lswitch, 'ports', ports)
+        _delvalue_from_list(lswitch, 'ports', lport)
         self.api._tables['Logical_Switch_Port'].rows[lport.uuid].delete()
 
 
@@ -257,11 +304,7 @@ class AddLRouterPortCommand(commands.BaseCommand):
             lrouter_port.name = self.name
             for col, val in self.columns.items():
                 setattr(lrouter_port, col, val)
-            lrouter.verify('ports')
-            lrouter_ports = getattr(lrouter, 'ports', [])
-            if lrouter_port not in lrouter_ports:
-                lrouter_ports.append(lrouter_port)
-                setattr(lrouter, 'ports', lrouter_ports)
+            _addvalue_to_list(lrouter, 'ports', lrouter_port)
 
 
 class UpdateLRouterPortCommand(commands.BaseCommand):
@@ -312,11 +355,7 @@ class DelLRouterPortCommand(commands.BaseCommand):
             msg = _("Logical Router %s does not exist") % self.lrouter
             raise RuntimeError(msg)
 
-        lrouter.verify('ports')
-        lrouter_ports = getattr(lrouter, 'ports', [])
-        if (lrouter_port in lrouter_ports):
-            lrouter_ports.remove(lrouter_port)
-            setattr(lrouter, 'ports', lrouter_ports)
+        _delvalue_from_list(lrouter, 'ports', lrouter_port)
 
 
 class SetLRouterPortInLSwitchPortCommand(commands.BaseCommand):
@@ -358,10 +397,7 @@ class AddACLCommand(commands.BaseCommand):
         for col, val in self.columns.items():
             setattr(row, col, val)
         row.external_ids = {'neutron:lport': self.lport}
-        lswitch.verify('acls')
-        acls = getattr(lswitch, 'acls', [])
-        acls.append(row.uuid)
-        setattr(lswitch, 'acls', acls)
+        _addvalue_to_list(lswitch, 'acls', row.uuid)
 
 
 class DelACLCommand(commands.BaseCommand):
@@ -381,8 +417,6 @@ class DelACLCommand(commands.BaseCommand):
             msg = _("Logical Switch %s does not exist") % self.lswitch
             raise RuntimeError(msg)
 
-        lswitch.verify('acls')
-
         acls_to_del = []
         acls = getattr(lswitch, 'acls', [])
         for acl in acls:
@@ -390,9 +424,8 @@ class DelACLCommand(commands.BaseCommand):
             if ext_ids.get('neutron:lport') == self.lport:
                 acls_to_del.append(acl)
         for acl in acls_to_del:
-            acls.remove(acl)
             acl.delete()
-        setattr(lswitch, 'acls', acls)
+        _updatevalues_in_list(lswitch, 'acls', old_values=acls_to_del)
 
 
 class UpdateACLsCommand(commands.BaseCommand):
@@ -473,25 +506,6 @@ class UpdateACLsCommand(commands.BaseCommand):
                 acl_add_values.append(acl)
         return acl_del_objs_dict, acl_add_values_dict
 
-    def _delete_acls(self, lswitch_name, acls, acls_delete):
-        for acl_delete in acls_delete:
-            try:
-                acls.remove(acl_delete)
-            except ValueError:
-                msg = _("Logical Switch %s missing acl") % lswitch_name
-                raise RuntimeError(msg)
-            acl_delete.delete()
-
-    def _add_acls(self, txn, acls, acl_values):
-        rows = []
-        for acl_value in acl_values:
-            row = txn.insert(self.api._tables['ACL'])
-            for col, val in acl_value.items():
-                setattr(row, col, val)
-            rows.append(row)
-        for row in rows:
-            acls.append(row.uuid)
-
     def _get_update_data_without_compare(self):
         lswitch_ovsdb_dict = {}
         for switch_name in self.lswitch_names:
@@ -518,7 +532,6 @@ class UpdateACLsCommand(commands.BaseCommand):
             for switch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
                 if switch_name not in acl_del_objs_dict:
                     acl_del_objs_dict[switch_name] = []
-                lswitch.verify('acls')
                 acls = getattr(lswitch, 'acls', [])
                 for acl in acls:
                     if getattr(acl, 'match') in del_acl_matches:
@@ -549,18 +562,25 @@ class UpdateACLsCommand(commands.BaseCommand):
             if not acl_del_objs and not acl_add_values:
                 continue
 
-            lswitch.verify('acls')
-            acls = getattr(lswitch, 'acls', [])
-
-            # Delete ACLs
+            # Delete old ACLs.
             if acl_del_objs:
-                self._delete_acls(lswitch_name, acls, acl_del_objs)
+                for acl_del_obj in acl_del_objs:
+                    acl_del_obj.delete()
 
-            # Add new ACLs
+            # Add new ACLs.
+            acl_add_objs = None
             if acl_add_values:
-                self._add_acls(txn, acls, acl_add_values)
+                acl_add_objs = []
+                for acl_value in acl_add_values:
+                    row = txn.insert(self.api._tables['ACL'])
+                    for col, val in acl_value.items():
+                        setattr(row, col, val)
+                    acl_add_objs.append(row.uuid)
 
-            setattr(lswitch, 'acls', acls)
+            # Update logical switch ACLs.
+            _updatevalues_in_list(lswitch, 'acls',
+                                  new_values=acl_add_objs,
+                                  old_values=acl_del_objs)
 
 
 class AddStaticRouteCommand(commands.BaseCommand):
@@ -580,10 +600,7 @@ class AddStaticRouteCommand(commands.BaseCommand):
         row = txn.insert(self.api._tables['Logical_Router_Static_Route'])
         for col, val in self.columns.items():
             setattr(row, col, val)
-        lrouter.verify('static_routes')
-        static_routes = getattr(lrouter, 'static_routes', [])
-        static_routes.append(row.uuid)
-        setattr(lrouter, 'static_routes', static_routes)
+        _addvalue_to_list(lrouter, 'static_routes', row.uuid)
 
 
 class DelStaticRouteCommand(commands.BaseCommand):
@@ -604,17 +621,14 @@ class DelStaticRouteCommand(commands.BaseCommand):
             msg = _("Logical Router %s does not exist") % self.lrouter
             raise RuntimeError(msg)
 
-        lrouter.verify('static_routes')
-
         static_routes = getattr(lrouter, 'static_routes', [])
         for route in static_routes:
             ip_prefix = getattr(route, 'ip_prefix', '')
             nexthop = getattr(route, 'nexthop', '')
             if self.ip_prefix == ip_prefix and self.nexthop == nexthop:
-                static_routes.remove(route)
+                _delvalue_from_list(lrouter, 'static_routes', route)
                 route.delete()
                 break
-        setattr(lrouter, 'static_routes', static_routes)
 
 
 class AddAddrSetCommand(commands.BaseCommand):
@@ -675,18 +689,10 @@ class UpdateAddrSetCommand(commands.BaseCommand):
                     "Can't update addresses") % self.name
             raise RuntimeError(msg)
 
-        addrset.verify('addresses')
-        addresses_col = getattr(addrset, 'addresses', [])
-        if self.addrs_add:
-            # OVN will ignore duplicate addresses.
-            for addr_add in self.addrs_add:
-                addresses_col.append(addr_add)
-        if self.addrs_remove:
-            # OVN will ignore addresses that don't exist.
-            for addr_remove in self.addrs_remove:
-                if addr_remove in addresses_col:
-                    addresses_col.remove(addr_remove)
-        setattr(addrset, 'addresses', addresses_col)
+        _updatevalues_in_list(
+            addrset, 'addresses',
+            new_values=self.addrs_add,
+            old_values=self.addrs_remove)
 
 
 class UpdateAddrSetExtIdsCommand(commands.BaseCommand):
