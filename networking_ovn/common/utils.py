@@ -62,6 +62,9 @@ def get_lsp_dhcpv4_opts(port):
         lsp_dhcp_disabled = True
     else:
         for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
+            if edo['ip_version'] != 4:
+                continue
+
             if edo['opt_name'] == 'dhcp_disabled' and (
                     edo['opt_value'] in ['True', 'true']):
                 # OVN native DHCPv4 is disabled on this port
@@ -71,8 +74,7 @@ def get_lsp_dhcpv4_opts(port):
                 lsp_dhcpv4_opts.clear()
                 break
 
-            if edo['ip_version'] != 4 or (
-                edo['opt_name'] not in constants.SUPPORTED_DHCP_OPTS):
+            if edo['opt_name'] not in constants.SUPPORTED_DHCP_OPTS:
                 continue
 
             opt = edo['opt_name'].replace('-', '_')

@@ -854,7 +854,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
-    def test_get_port_dhcpv4_options_port_dhcp_disabled(self):
+    def test_get_port_dhcpv4_options_port_dhcp_disabled_1(self):
         port = {
             'id': 'foo-port',
             'device_owner': 'compute:None',
@@ -866,6 +866,29 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self.assertIsNone(self.mech_driver.get_port_dhcpv4_options(port))
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
+
+    def test_get_port_dhcpv4_options_port_dhcp_disabled_2(self):
+        port = {
+            'id': 'foo-port',
+            'device_owner': 'compute:None',
+            'fixed_ips': [{'subnet_id': 'foo-subnet',
+                           'ip_address': '10.0.0.11'}],
+            'extra_dhcp_opts': [{'ip_version': 4, 'opt_name': 'dhcp_disabled',
+                                 'opt_value': 'False'},
+                                {'ip_version': 6, 'opt_name': 'dhcp_disabled',
+                                 'opt_value': 'True'}]
+        }
+
+        expected_dhcpv4_opts = {
+            'cidr': '10.0.0.0/24', 'external_ids': {'subnet_id': 'foo-subnet'},
+            'options': {'router': '10.0.0.1', 'mtu': '1400'}}
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = (
+            expected_dhcpv4_opts)
+
+        self.assertEqual(expected_dhcpv4_opts,
+                         self.mech_driver.get_port_dhcpv4_options(port))
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
