@@ -32,6 +32,13 @@ services:
   OVN and networking-ovn may be used with OVS using either the Linux kernel
   datapath or the DPDK datapath.
 
+* Trunk driver
+
+  Uses OVN's functionality of parent port and port tagging to support trunk
+  service plugin. One has to enable the 'trunk' service plugin in neutron
+  configuration files to use this feature.
+
+
 The following Neutron API extensions are supported with OVN:
 
 +----------------------------------+---------------------------+

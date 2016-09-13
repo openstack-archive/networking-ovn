@@ -44,6 +44,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
+from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -98,6 +99,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
+        self.trunk_driver = trunk_driver.OVNTrunkDriver.create(self)
 
     @property
     def _plugin(self):
