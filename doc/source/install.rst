@@ -310,7 +310,7 @@ Each compute node runs the OVS and ``ovn-controller`` services. The
 
      .. code-block:: console
 
-        # ovs-vsctl set open . external-ids:ovn-remote=tcp:IP_ADDRESS:6640
+        # ovs-vsctl set open . external-ids:ovn-remote=tcp:IP_ADDRESS:6642
 
      Replace ``IP_ADDRESS`` with the IP address of the controller node
      that runs the ``ovsdb-server`` service.
