@@ -56,6 +56,8 @@ def ovn_addrset_name(sg_id, ip_version):
 
 
 def get_lsp_dhcpv4_opts(port):
+    # Get dhcpv4 options from Neutron port, for setting DHCP_Options row
+    # in OVN.
     lsp_dhcp_disabled = False
     lsp_dhcpv4_opts = {}
     if port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES):

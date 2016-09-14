@@ -74,6 +74,17 @@ def _updatevalues_in_list(row, column, new_values=None, old_values=None):
         setattr(row, column, column_values)
 
 
+def get_lsp_dhcpv4_options_uuids(lsp, lsp_name):
+    # Get dhcpv4_options uuids from Logical_Switch_Port, which are references
+    # of port dhcpv4 options in DHCP_Options table.
+    uuids = set()
+    for dhcp_opts in getattr(lsp, 'dhcpv4_options', []):
+        external_ids = getattr(dhcp_opts, 'external_ids', {})
+        if external_ids.get('port_id') == lsp_name:
+            uuids.add(dhcp_opts.uuid)
+    return uuids
+
+
 class AddLSwitchCommand(commands.BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddLSwitchCommand, self).__init__(api)
@@ -184,6 +195,17 @@ class SetLSwitchPortCommand(commands.BaseCommand):
                 return
             msg = _("Logical Switch Port %s does not exist") % self.lport
             raise RuntimeError(msg)
+
+        # Delete DHCP_Options records no longer refered by this port.
+        # The table rows should be consistent for the same transaction.
+        # After we get a DHCP_Options row uuid from port dhcpv4_options
+        # reference, the row shouldn't disappear for this transaction,
+        # before we delete it.
+        cur_port_dhcp_opts = get_lsp_dhcpv4_options_uuids(
+            port, self.lport)
+        new_port_dhcp_opts = set(self.columns.get('dhcpv4_options', []))
+        for uuid in cur_port_dhcp_opts - new_port_dhcp_opts:
+            self.api._tables['DHCP_Options'].rows[uuid].delete()
 
         for col, val in self.columns.items():
             setattr(port, col, val)
