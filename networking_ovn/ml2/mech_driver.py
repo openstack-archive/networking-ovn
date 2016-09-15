@@ -581,16 +581,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         binding_profile = self.validate_and_get_data_from_binding_profile(port)
         if qos_options is None:
             qos_options = self.qos_driver.get_qos_options(port)
-        vtep_physical_switch = binding_profile.get('vtep_physical_switch')
+        vtep_physical_switch = binding_profile.get('vtep-physical-switch')
         parent_name = None
         tag = None
         port_type = None
 
         if vtep_physical_switch:
-            vtep_logical_switch = binding_profile.get('vtep_logical_switch')
+            vtep_logical_switch = binding_profile.get('vtep-logical-switch')
             port_type = 'vtep'
-            options = {'vtep_physical_switch': vtep_physical_switch,
-                       'vtep_logical_switch': vtep_logical_switch}
+            options = {'vtep-physical-switch': vtep_physical_switch,
+                       'vtep-logical-switch': vtep_logical_switch}
             addresses = "unknown"
             port_security = []
         else:

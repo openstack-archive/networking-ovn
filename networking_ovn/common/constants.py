@@ -24,8 +24,8 @@ OVN_SEGID_EXT_ID_KEY = 'neutron:provnet-segmentation-id'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE
 OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},
-                                   {'vtep_physical_switch': six.string_types,
-                                    'vtep_logical_switch': six.string_types}]
+                                   {'vtep-physical-switch': six.string_types,
+                                    'vtep-logical-switch': six.string_types}]
 
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it
