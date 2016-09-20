@@ -32,7 +32,6 @@ from neutron.tests.unit.plugins.ml2 import test_plugin
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
-from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.tests.unit import fakes
 
 
@@ -42,8 +41,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
     _extension_drivers = ['port_security']
 
     def setUp(self):
-        impl_idl_ovn.OvsdbNbOvnIdl = fakes.FakeOvsdbNbOvnIdl()
-        impl_idl_ovn.OvsdbSbOvnIdl = fakes.FakeOvsdbSbOvnIdl()
         config.cfg.CONF.set_override('extension_drivers',
                                      self._extension_drivers,
                                      group='ml2')
@@ -559,7 +556,6 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['logger', 'ovn']
 
     def setUp(self):
-        impl_idl_ovn.OvsdbNbOvnIdl = fakes.FakeOvsdbNbOvnIdl()
         config.cfg.CONF.set_override('tenant_network_types',
                                      ['geneve'],
                                      group='ml2')
