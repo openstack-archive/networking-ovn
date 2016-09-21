@@ -16,11 +16,13 @@ import mock
 from webob import exc
 
 from neutron_lib import exceptions as n_exc
+from oslo_db import exception as os_db_exc
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import utils as n_utils
+from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import config
@@ -550,6 +552,59 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         1, self.nb_ovn.delete_acl.call_count)
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
+
+    def test_set_port_status_up(self):
+        with self.network(set_context=True, tenant_id='test') as net1, \
+            self.subnet(network=net1) as subnet1, \
+            self.port(subnet=subnet1, set_context=True,
+                      tenant_id='test') as port1, \
+            mock.patch('neutron.db.provisioning_blocks.'
+                       'provisioning_complete') as pc:
+                self.mech_driver.set_port_status_up(port1['port']['id'])
+                pc.assert_called_once_with(
+                    mock.ANY,
+                    port1['port']['id'],
+                    resources.PORT,
+                    provisioning_blocks.L2_AGENT_ENTITY
+                )
+
+    def test_set_port_status_down(self):
+        with self.network(set_context=True, tenant_id='test') as net1, \
+            self.subnet(network=net1) as subnet1, \
+            self.port(subnet=subnet1, set_context=True,
+                      tenant_id='test') as port1, \
+            mock.patch('neutron.db.provisioning_blocks.'
+                       'add_provisioning_component') as apc:
+                self.mech_driver.set_port_status_down(port1['port']['id'])
+                apc.assert_called_once_with(
+                    mock.ANY,
+                    port1['port']['id'],
+                    resources.PORT,
+                    provisioning_blocks.L2_AGENT_ENTITY
+                )
+
+    def test_set_port_status_down_not_found(self):
+        with mock.patch('neutron.db.provisioning_blocks.'
+                        'add_provisioning_component') as apc:
+            self.mech_driver.set_port_status_down('foo')
+            apc.assert_not_called()
+
+    def test_set_port_status_concurrent_delete(self):
+        exc = os_db_exc.DBReferenceError('', '', '', '')
+        with self.network(set_context=True, tenant_id='test') as net1, \
+            self.subnet(network=net1) as subnet1, \
+            self.port(subnet=subnet1, set_context=True,
+                      tenant_id='test') as port1, \
+            mock.patch('neutron.db.provisioning_blocks.'
+                       'add_provisioning_component',
+                       side_effect=exc) as apc:
+                self.mech_driver.set_port_status_down(port1['port']['id'])
+                apc.assert_called_once_with(
+                    mock.ANY,
+                    port1['port']['id'],
+                    resources.PORT,
+                    provisioning_blocks.L2_AGENT_ENTITY
+                )
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
