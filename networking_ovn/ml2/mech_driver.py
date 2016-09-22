@@ -19,6 +19,7 @@ from neutron_lib.api import validators
 from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
+from oslo_db import exception as os_db_exc
 from oslo_log import log
 import six
 
@@ -464,7 +465,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         cannot block.  Raising an exception will result in a rollback
         of the current transaction.
         """
-        self.validate_and_get_data_from_binding_profile(context.current)
+        port = context.current
+        self.validate_and_get_data_from_binding_profile(port)
+        self._insert_port_provisioning_block(context._plugin_context, port)
 
     def validate_and_get_data_from_binding_profile(self, port):
         if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
@@ -522,7 +525,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return param_dict
 
-    def _insert_port_provisioning_block(self, port):
+    def _insert_port_provisioning_block(self, context, port):
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
         if vnic_type not in self.supported_vnic_types:
             LOG.debug("No provisioning block due to unsupported vnic_type: %s",
@@ -533,7 +536,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # the port is up.
         if port['status'] != const.PORT_STATUS_ACTIVE:
             provisioning_blocks.add_provisioning_component(
-                n_context.get_admin_context(),
+                context,
                 port['id'], resources.PORT,
                 provisioning_blocks.L2_AGENT_ENTITY
             )
@@ -550,7 +553,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """
         port = context.current
         ovn_port_info = self.get_ovn_port_options(port)
-        self._insert_port_provisioning_block(port)
         self.create_port_in_ovn(port, ovn_port_info)
 
     def _get_allowed_addresses_from_port(self, port):
@@ -973,8 +975,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         return [ovsdb_monitor.OvnWorker()]
 
     def set_port_status_up(self, port_id):
-        # Port provisioning is complete now that OVN has reported
-        # that the port is up.
+        # Port provisioning is complete now that OVN has reported that the
+        # port is up. Any provisioning block (possibly added during port
+        # creation or when OVN reports that the port is down) must be removed.
         LOG.info(_LI("OVN reports status up for port: %s"), port_id)
         provisioning_blocks.provisioning_complete(
             n_context.get_admin_context(),
@@ -983,10 +986,23 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             provisioning_blocks.L2_AGENT_ENTITY)
 
     def set_port_status_down(self, port_id):
+        # Port provisioning is required now that OVN has reported that the
+        # port is down. Insert a provisioning block and mark the port down
+        # in neutron. The block is inserted before the port status update
+        # to prevent another entity from bypassing the block with its own
+        # port status update.
         LOG.info(_LI("OVN reports status down for port: %s"), port_id)
-        self._plugin.update_port_status(n_context.get_admin_context(),
-                                        port_id,
-                                        const.PORT_STATUS_DOWN)
+        admin_context = n_context.get_admin_context()
+        try:
+            port = self._plugin.get_port(admin_context, port_id)
+            port['status'] = const.PORT_STATUS_DOWN
+            self._insert_port_provisioning_block(admin_context, port)
+            self._plugin.update_port_status(admin_context,
+                                            port['id'],
+                                            const.PORT_STATUS_DOWN)
+        except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
+            LOG.debug("Port not found during OVN status down report: %s",
+                      port_id)
 
     def update_segment_host_mapping(self, host, phy_nets):
         """Update SegmentHostMapping in DB"""
