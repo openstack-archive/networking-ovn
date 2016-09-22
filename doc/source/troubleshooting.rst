@@ -23,8 +23,8 @@ Multi-Node setup not working
 1. Geneve kernel module not supported:
 
 By default OVN creates tunnels between compute nodes using the Geneve protocol.
-Older kernels (< 3.18) don't support the Geneve module and hence tunneling cant
-work.  You can check it with this command 'lsmod | grep openvswitch'
+Older kernels (< 3.18) don't support the Geneve module and hence tunneling
+can't work.  You can check it with this command 'lsmod | grep openvswitch'
 (geneve should show up in the result list)
 
 For more information about which upstream Kernel version is required for
