@@ -382,7 +382,7 @@ function start_ovs {
     if is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-remote="$OVN_SB_REMOTE"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-bridge="br-int"
-        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve"
+        ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-type="geneve,vxlan"
         ovs-vsctl --no-wait set open_vswitch . external-ids:ovn-encap-ip="$HOST_IP"
 
         ovn_base_setup_bridge br-int
