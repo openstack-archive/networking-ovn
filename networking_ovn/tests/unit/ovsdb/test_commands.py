@@ -298,10 +298,48 @@ class TestDelLSwitchPortCommand(TestBaseCommand):
 
 
 class TestAddLRouterCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddLRouterCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_lrouter_exists(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=mock.ANY):
+            cmd = commands.AddLRouterCommand(
+                self.ovn_api, 'fake-lrouter', may_exist=True,
+                a='1', b='2')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lrouter_add_exists(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.lrouter_table.rows[fake_lrouter.uuid] = fake_lrouter
+        self.transaction.insert.return_value = fake_lrouter
+        cmd = commands.AddLRouterCommand(
+            self.ovn_api, fake_lrouter.name, may_exist=False)
+        cmd.run_idl(self.transaction)
+        # NOTE(rtheis): Mocking the transaction allows this insert
+        # to succeed when it normally would fail due the duplicate name.
+        self.transaction.insert.assert_called_once_with(
+            self.ovn_api.lrouter_table)
+
+    def _test_lrouter_add(self, may_exist=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=None):
+            fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+            self.transaction.insert.return_value = fake_lrouter
+            cmd = commands.AddLRouterCommand(
+                self.ovn_api, 'fake-lrouter', may_exist=may_exist,
+                a='1', b='2')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lrouter_table)
+            self.assertEqual('fake-lrouter', fake_lrouter.name)
+            self.assertEqual('1', fake_lrouter.a)
+            self.assertEqual('2', fake_lrouter.b)
+
+    def test_lrouter_add_may_exist(self):
+        self._test_lrouter_add(may_exist=True)
+
+    def test_lrouter_add_ignore_exists(self):
+        self._test_lrouter_add(may_exist=False)
 
 
 class TestUpdateLRouterCommand(TestBaseCommand):
@@ -337,10 +375,32 @@ class TestUpdateLRouterCommand(TestBaseCommand):
 
 
 class TestDelLRouterCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelLRouterCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_lrouter_del_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelLRouterCommand(
+                self.ovn_api, 'fake-lrouter', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_lrouter_no_exist_ignore(self):
+        self._test_lrouter_del_no_exist(if_exists=True)
+
+    def test_lrouter_no_exist_fail(self):
+        self._test_lrouter_del_no_exist(if_exists=False)
+
+    def test_lrouter_del(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.lrouter_table.rows[fake_lrouter.uuid] = fake_lrouter
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.DelLRouterCommand(
+                self.ovn_api, fake_lrouter.name, if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lrouter.delete.assert_called_once_with()
 
 
 class TestAddLRouterPortCommand(TestBaseCommand):
@@ -514,17 +574,76 @@ class TestDelStaticRouteCommand(TestBaseCommand):
 
 
 class TestAddAddrSetCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestAddAddrSetCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def test_addrset_exists(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=mock.ANY):
+            cmd = commands.AddAddrSetCommand(
+                self.ovn_api, 'fake-addrset', may_exist=True)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_addrset_add_exists(self):
+        fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.addrset_table.rows[fake_addrset.uuid] = fake_addrset
+        self.transaction.insert.return_value = fake_addrset
+        cmd = commands.AddAddrSetCommand(
+            self.ovn_api, fake_addrset.name, may_exist=False)
+        cmd.run_idl(self.transaction)
+        # NOTE(rtheis): Mocking the transaction allows this insert
+        # to succeed when it normally would fail due the duplicate name.
+        self.transaction.insert.assert_called_once_with(
+            self.ovn_api.addrset_table)
+
+    def _test_addrset_add(self, may_exist=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=None):
+            fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+                attrs={'foo': ''})
+            self.transaction.insert.return_value = fake_addrset
+            cmd = commands.AddAddrSetCommand(
+                self.ovn_api, 'fake-addrset', may_exist=may_exist,
+                foo='bar')
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.addrset_table)
+            self.assertEqual('fake-addrset', fake_addrset.name)
+            self.assertEqual('bar', fake_addrset.foo)
+
+    def test_addrset_add_may_exist(self):
+        self._test_addrset_add(may_exist=True)
+
+    def test_addrset_add_ignore_exists(self):
+        self._test_addrset_add(may_exist=False)
 
 
 class TestDelAddrSetCommand(TestBaseCommand):
-    def setUp(self):
-        super(TestDelAddrSetCommand, self).setUp()
 
-    # TODO(rtheis): Add unit tests.
+    def _test_addrset_del_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DelAddrSetCommand(
+                self.ovn_api, 'fake-addrset', if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_addrset_no_exist_ignore(self):
+        self._test_addrset_del_no_exist(if_exists=True)
+
+    def test_addrset_no_exist_fail(self):
+        self._test_addrset_del_no_exist(if_exists=False)
+
+    def test_addrset_del(self):
+        fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.ovn_api.addrset_table.rows[fake_addrset.uuid] = fake_addrset
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_addrset):
+            cmd = commands.DelAddrSetCommand(
+                self.ovn_api, fake_addrset.name, if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_addrset.delete.assert_called_once_with()
 
 
 class TestUpdateAddrSetCommand(TestBaseCommand):
