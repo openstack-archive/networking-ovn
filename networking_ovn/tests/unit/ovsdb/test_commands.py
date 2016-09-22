@@ -323,6 +323,46 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
     def test_lswitch_port_add_ignore_exists(self):
         self._test_lswitch_port_add(may_exist=False)
 
+    def _test_lswitch_port_add_with_dhcp(self, dhcpv4_opts, dhcpv6_opts):
+        lsp_name = 'fake-lsp'
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        self.transaction.insert.return_value = fake_lsp
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lswitch, None]):
+            cmd = commands.AddLSwitchPortCommand(
+                self.ovn_api, lsp_name, fake_lswitch.name,
+                may_exist=True, dhcpv4_options=dhcpv4_opts,
+                dhcpv6_options=dhcpv6_opts)
+            if not isinstance(dhcpv4_opts, list):
+                dhcpv4_opts.result = 'fake-uuid-1'
+            if not isinstance(dhcpv6_opts, list):
+                dhcpv6_opts.result = 'fake-uuid-2'
+            self.transaction.insert.reset_mock()
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api.lsp_table)
+            fake_lswitch.verify.assert_called_once_with('ports')
+            self.assertEqual(lsp_name, fake_lsp.name)
+            self.assertEqual([fake_lsp.uuid], fake_lswitch.ports)
+            if isinstance(dhcpv4_opts, list):
+                self.assertEqual(dhcpv4_opts, fake_lsp.dhcpv4_options)
+            else:
+                self.assertEqual(['fake-uuid-1'], fake_lsp.dhcpv4_options)
+            if isinstance(dhcpv6_opts, list):
+                self.assertEqual(dhcpv6_opts, fake_lsp.dhcpv6_options)
+            else:
+                self.assertEqual(['fake-uuid-2'], fake_lsp.dhcpv6_options)
+
+    def test_lswitch_port_add_with_dhcp(self):
+        dhcpv4_opts_cmd = commands.AddDHCPOptionsCommand(
+            self.ovn_api, mock.ANY, port_id=mock.ANY)
+        dhcpv6_opts_cmd = commands.AddDHCPOptionsCommand(
+            self.ovn_api, mock.ANY, port_id=mock.ANY)
+        for dhcpv4_opts in ([], ['fake-uuid-1'], dhcpv4_opts_cmd):
+            for dhcpv6_opts in ([], ['fake-uuid-2'], dhcpv6_opts_cmd):
+                self._test_lswitch_port_add_with_dhcp(dhcpv4_opts, dhcpv6_opts)
+
 
 class TestSetLSwitchPortCommand(TestBaseCommand):
 
@@ -393,6 +433,43 @@ class TestSetLSwitchPortCommand(TestBaseCommand):
     def test_lswitch_port_update_del_all_port_dhcp_options(self):
         self._test_lswitch_port_update_del_dhcp(True, True)
 
+    def _test_lswitch_port_update_with_dhcp(self, dhcpv4_opts, dhcpv6_opts):
+        ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': 'fake-lsp',
+                   'external_ids': ext_ids,
+                   'dhcpv4_options': ['fake-v4-subnet-dhcp-opt'],
+                   'dhcpv6_options': ['fake-v6-subnet-dhcp-opt']})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lsp):
+            cmd = commands.SetLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, if_exists=True,
+                external_ids=ext_ids, dhcpv4_options=dhcpv4_opts,
+                dhcpv6_options=dhcpv6_opts)
+            if not isinstance(dhcpv4_opts, list):
+                dhcpv4_opts.result = 'fake-uuid-1'
+            if not isinstance(dhcpv6_opts, list):
+                dhcpv6_opts.result = 'fake-uuid-2'
+            cmd.run_idl(self.transaction)
+            if isinstance(dhcpv4_opts, list):
+                self.assertEqual(dhcpv4_opts, fake_lsp.dhcpv4_options)
+            else:
+                self.assertEqual(['fake-uuid-1'], fake_lsp.dhcpv4_options)
+            if isinstance(dhcpv6_opts, list):
+                self.assertEqual(dhcpv6_opts, fake_lsp.dhcpv6_options)
+            else:
+                self.assertEqual(['fake-uuid-2'], fake_lsp.dhcpv6_options)
+
+    def test_lswitch_port_update_with_dhcp(self):
+        v4_dhcp_cmd = commands.AddDHCPOptionsCommand(self.ovn_api, mock.ANY,
+                                                     port_id=mock.ANY)
+        v6_dhcp_cmd = commands.AddDHCPOptionsCommand(self.ovn_api, mock.ANY,
+                                                     port_id=mock.ANY)
+        for dhcpv4_opts in ([], ['fake-v4-subnet-dhcp-opt'], v4_dhcp_cmd):
+            for dhcpv6_opts in ([], ['fake-v6-subnet-dhcp-opt'], v6_dhcp_cmd):
+                self._test_lswitch_port_update_with_dhcp(
+                    dhcpv4_opts, dhcpv6_opts)
+
 
 class TestDelLSwitchPortCommand(TestBaseCommand):
 
@@ -442,6 +519,50 @@ class TestDelLSwitchPortCommand(TestBaseCommand):
             fake_lswitch.verify.assert_called_once_with('ports')
             fake_lsp.delete.assert_called_once_with()
             self.assertEqual([], fake_lswitch.ports)
+
+    def _test_lswitch_port_del_delete_dhcp_opt(self, dhcpv4_opt_ext_ids,
+                                               dhcpv6_opt_ext_ids):
+        ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}
+        fake_dhcpv4_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': dhcpv4_opt_ext_ids})
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcpv4_options.uuid] = \
+            fake_dhcpv4_options
+        fake_dhcpv6_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': dhcpv6_opt_ext_ids})
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcpv6_options.uuid] = \
+            fake_dhcpv6_options
+        fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': 'lsp',
+                   'external_ids': ext_ids,
+                   'dhcpv4_options': [fake_dhcpv4_options],
+                   'dhcpv6_options': [fake_dhcpv6_options]})
+        self.ovn_api._tables['Logical_Switch_Port'].rows[fake_lsp.uuid] = \
+            fake_lsp
+        fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ports': [fake_lsp]})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=[fake_lsp, fake_lswitch]):
+            cmd = commands.DelLSwitchPortCommand(
+                self.ovn_api, fake_lsp.name, fake_lswitch.name, if_exists=True)
+            cmd.run_idl(self.transaction)
+            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lsp.delete.assert_called_once_with()
+            if 'port_id' in dhcpv4_opt_ext_ids:
+                fake_dhcpv4_options.delete.assert_called_once_with()
+            else:
+                fake_dhcpv4_options.delete.assert_not_called()
+            if 'port_id' in dhcpv6_opt_ext_ids:
+                fake_dhcpv6_options.delete.assert_called_once_with()
+            else:
+                fake_dhcpv6_options.delete.assert_not_called()
+
+    def test_lswitch_port_del_delete_dhcp_opt(self):
+        for v4_ext_ids in ({'subnet_id': 'fake-ls0'},
+                           {'subnet_id': 'fake-ls0', 'port_id': 'lsp'}):
+            for v6_ext_ids in ({'subnet_id': 'fake-ls1'},
+                               {'subnet_id': 'fake-ls1', 'port_id': 'lsp'}):
+                self._test_lswitch_port_del_delete_dhcp_opt(
+                    v4_ext_ids, v6_ext_ids)
 
 
 class TestAddLRouterCommand(TestBaseCommand):
@@ -1140,6 +1261,37 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
 
     def test_dhcp_options_add_ignore_exists(self):
         self._test_dhcp_options_add(may_exists=False)
+
+    def _test_dhcp_options_update_result(self, new_insert=False):
+        fake_ext_ids = {'subnet_id': 'fake_subnet', 'port_id': 'fake_port'}
+        fake_dhcp_opts = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': fake_ext_ids})
+        if new_insert:
+            self.transaction.insert.return_value = fake_dhcp_opts
+            self.transaction.get_insert_uuid = mock.Mock(
+                return_value='fake-uuid')
+        else:
+            self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_opts.uuid] = \
+                fake_dhcp_opts
+            self.transaction.get_insert_uuid = mock.Mock(
+                return_value=None)
+
+        cmd = commands.AddDHCPOptionsCommand(
+            self.ovn_api, fake_ext_ids['subnet_id'],
+            port_id=fake_ext_ids['port_id'], may_exists=True,
+            external_ids=fake_ext_ids)
+        cmd.run_idl(self.transaction)
+        cmd.post_commit(self.transaction)
+        if new_insert:
+            self.assertEqual('fake-uuid', cmd.result)
+        else:
+            self.assertEqual(fake_dhcp_opts.uuid, cmd.result)
+
+    def test_dhcp_options_update_result_with_exist_row(self):
+        self._test_dhcp_options_update_result(new_insert=False)
+
+    def test_dhcp_options_update_result_with_new_row(self):
+        self._test_dhcp_options_update_result(new_insert=True)
 
 
 class TestDelDHCPOptionsCommand(TestBaseCommand):

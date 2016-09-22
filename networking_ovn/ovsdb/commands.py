@@ -179,6 +179,16 @@ class AddLSwitchPortCommand(commands.BaseCommand):
 
         port = txn.insert(self.api._tables['Logical_Switch_Port'])
         port.name = self.lport
+        dhcpv4_options = self.columns.pop('dhcpv4_options', [])
+        if isinstance(dhcpv4_options, list):
+            port.dhcpv4_options = dhcpv4_options
+        else:
+            port.dhcpv4_options = [dhcpv4_options.result]
+        dhcpv6_options = self.columns.pop('dhcpv6_options', [])
+        if isinstance(dhcpv6_options, list):
+            port.dhcpv6_options = dhcpv6_options
+        else:
+            port.dhcpv6_options = [dhcpv6_options.result]
         for col, val in self.columns.items():
             setattr(port, col, val)
         # add the newly created port to existing lswitch
@@ -209,9 +219,21 @@ class SetLSwitchPortCommand(commands.BaseCommand):
         # this transaction before we delete it.
         cur_port_dhcp_opts = get_lsp_dhcp_options_uuids(
             port, self.lport)
-        new_port_dhcp_opts = set(
-            self.columns.get('dhcpv4_options', [])).union(
-                self.columns.get('dhcpv6_options', []))
+        new_port_dhcp_opts = set()
+        dhcpv4_options = self.columns.pop('dhcpv4_options', [])
+        if isinstance(dhcpv4_options, list):
+            new_port_dhcp_opts.update(dhcpv4_options)
+            port.dhcpv4_options = dhcpv4_options
+        else:
+            new_port_dhcp_opts.add(dhcpv4_options.result)
+            port.dhcpv4_options = [dhcpv4_options.result]
+        dhcpv6_options = self.columns.pop('dhcpv6_options', [])
+        if isinstance(dhcpv6_options, list):
+            new_port_dhcp_opts.update(dhcpv6_options)
+            port.dhcpv6_options = dhcpv6_options
+        else:
+            new_port_dhcp_opts.add(dhcpv6_options.result)
+            port.dhcpv6_options = [dhcpv6_options.result]
         for uuid in cur_port_dhcp_opts - new_port_dhcp_opts:
             self.api._tables['DHCP_Options'].rows[uuid].delete()
 
@@ -237,6 +259,12 @@ class DelLSwitchPortCommand(commands.BaseCommand):
                 return
             msg = _("Port %s does not exist") % self.lport
             raise RuntimeError(msg)
+
+        # Delete DHCP_Options records no longer refered by this port.
+        cur_port_dhcp_opts = get_lsp_dhcp_options_uuids(
+            lport, self.lport)
+        for uuid in cur_port_dhcp_opts:
+            self.api._tables['DHCP_Options'].rows[uuid].delete()
 
         _delvalue_from_list(lswitch, 'ports', lport)
         self.api._tables['Logical_Switch_Port'].rows[lport.uuid].delete()
@@ -764,6 +792,7 @@ class AddDHCPOptionsCommand(commands.BaseCommand):
         self.may_exists = may_exists
         self.subnet_id = subnet_id
         self.port_id = port_id
+        self.new_insert = False
 
     def _get_dhcp_options_row(self):
         for row in self.api._tables['DHCP_Options'].rows.values():
@@ -780,8 +809,16 @@ class AddDHCPOptionsCommand(commands.BaseCommand):
 
         if not row:
             row = txn.insert(self.api._tables['DHCP_Options'])
+            self.new_insert = True
         for col, val in self.columns.items():
             setattr(row, col, val)
+        self.result = row.uuid
+
+    def post_commit(self, txn):
+        # Update the result with inserted uuid for new inserted row, or the
+        # uuid get in run_idl should be real uuid already.
+        if self.new_insert:
+            self.result = txn.get_insert_uuid(self.result)
 
 
 class DelDHCPOptionsCommand(commands.BaseCommand):

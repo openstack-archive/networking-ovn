@@ -1047,22 +1047,13 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self.mech_driver._get_subnet_dhcp_options_for_port = mock.Mock(
             return_value=({
-                'cidr': '10.0.0.0/24',
+                'cidr': '10.0.0.0/24' if ip_version == 4 else 'aef0::/64',
                 'external_ids': {'subnet_id': 'foo-subnet'},
-                'options': {'router': '10.0.0.1', 'mtu': '1400'},
-                'uuid': 'foo-uuid'} if ip_version == 4 else {
-                'cidr': 'aef0::/64',
-                'external_ids': {'subnet_id': 'foo-subnet'},
-                'options': {'server_id': '01:02:03:04:05:06'}}))
+                'options': (ip_version == 4) and {
+                    'router': '10.0.0.1', 'mtu': '1400'} or {
+                    'server_id': '01:02:03:04:05:06'},
+                'uuid': 'foo-uuid'}))
 
-        self.mech_driver._nb_ovn.get_port_dhcp_options.return_value = 'foo-val'
-        dhcp_options = self.mech_driver.get_port_dhcp_options(
-            port, ip_version)
-        self.assertEqual('foo-val', dhcp_options)
-
-        # Since the port has extra DHCP options defined, a new DHCP_Options
-        # row should be created and logical switch port DHCPv4/DHCPv6 options
-        # should point to this.
         if ip_version == 4:
             expected_dhcp_options = {
                 'cidr': '10.0.0.0/24',
@@ -1078,6 +1069,9 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                 'options': {'server_id': '01:02:03:04:05:06',
                             'domain_search': 'foo-domain'}}
 
+        self.mech_driver._nb_ovn.add_dhcp_options.return_value = 'foo-val'
+        dhcp_options = self.mech_driver.get_port_dhcp_options(port, ip_version)
+        self.assertEqual({'cmd': 'foo-val'}, dhcp_options)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_called_once_with(
             'foo-subnet', port_id='foo-port', **expected_dhcp_options)
 
@@ -1123,7 +1117,6 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         # DHCP_Options row should be created and logical switch port DHCPv4/v6
         # options should point to the subnet DHCPv4/v6 options.
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
     def test__get_port_dhcp_options_port_dhcp_opts_not_set_v4(self):
         self._test__get_port_dhcp_options_port_dhcp_opts_not_set(ip_version=4)
@@ -1159,7 +1152,6 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             1,
             self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
         # Set dhcp_disabled with ip_version specified by this test case to
         # true, no dhcp options will be get since it's dhcp_disabled now for
@@ -1173,7 +1165,6 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             0,
             self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
         # Set dhcp_disabled with ip_version specified by this test case to
         # false, and set dhcp_disabled with ip_version not in test to true.
@@ -1189,7 +1180,6 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
             1,
             self.mech_driver._get_subnet_dhcp_options_for_port.call_count)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
-        self.mech_driver._nb_ovn.get_port_dhcp_options.assert_not_called()
 
     def test__get_port_dhcp_options_port_dhcp_disabled_v4(self):
         self._test__get_port_dhcp_options_port_dhcp_disabled(ip_version=4)

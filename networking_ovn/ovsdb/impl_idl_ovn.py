@@ -389,33 +389,6 @@ class OvsdbNbOvnIdl(ovn_api.API):
 
         return dhcp_options
 
-    def get_port_dhcp_options(self, subnet_id, port_id):
-        for row in self._tables['DHCP_Options'].rows.values():
-            external_ids = getattr(row, 'external_ids', {})
-            if subnet_id == external_ids.get('subnet_id') and (
-                    port_id == external_ids.get('port_id')):
-                return {'cidr': row.cidr, 'options': dict(row.options),
-                        'external_ids': dict(external_ids),
-                        'uuid': row.uuid}
-        return None
-
-    def get_port_all_dhcp_options(self, subnet_ids, port_id):
-        ret_opts = []
-        # Currently, a port could have at most 2 port dhcp options
-        # one for IPv4 and one for IPv6.
-        n_opts = len(subnet_ids) if len(subnet_ids) in [1, 2] else 2
-        for row in self._tables['DHCP_Options'].rows.values():
-            external_ids = getattr(row, 'external_ids', {})
-            if external_ids.get('subnet_id') in subnet_ids and (
-                    port_id == external_ids.get('port_id')):
-                ret_opts.append({
-                    'cidr': row.cidr, 'options': dict(row.options),
-                    'external_ids': dict(external_ids),
-                    'uuid': row.uuid})
-                if len(ret_opts) == n_opts:
-                    break
-        return ret_opts
-
     def compose_dhcp_options_commands(self, subnet_id, **columns):
         # First add the subnet DHCP options.
         commands = [self.add_dhcp_options(subnet_id, **columns)]

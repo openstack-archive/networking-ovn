@@ -483,22 +483,30 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                                   dhcpv6_options=[]))
 
             for dhcp_opts in self.stale_lport_dhcpv4_options:
-                txn.add(cmd.AddDHCPOptionsCommand(
+                dhcpv4_opts = txn.add(cmd.AddDHCPOptionsCommand(
                     fake_api, dhcp_opts['subnet_id'],
                     port_id=dhcp_opts['port_id'],
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
                     external_ids=dhcp_opts['external_ids'],
                     may_exists=False))
+                if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
+                    continue
+                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
+                                                  dhcpv4_options=dhcpv4_opts))
 
             for dhcp_opts in self.stale_lport_dhcpv6_options:
-                txn.add(cmd.AddDHCPOptionsCommand(
+                dhcpv6_opts = txn.add(cmd.AddDHCPOptionsCommand(
                     fake_api, dhcp_opts['subnet_id'],
                     port_id=dhcp_opts['port_id'],
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
                     external_ids=dhcp_opts['external_ids'],
                     may_exists=False))
+                if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
+                    continue
+                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
+                                                  dhcpv6_options=dhcpv6_opts))
 
             for row_uuid in self.missed_dhcp_options:
                 txn.add(cmd.DelDHCPOptionsCommand(fake_api, row_uuid))
@@ -520,24 +528,6 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(cmd.SetLSwitchPortCommand(
                     fake_api, port_id, True,
                     dhcpv6_options=[self.lport_dhcpv6_disabled[port_id]]))
-
-        with self.nb_idl_transaction(fake_api, check_error=True) as txn:
-            for dhcp_opts in self.stale_lport_dhcpv4_options:
-                if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
-                    continue
-                uuid = self.mech_driver._nb_ovn.get_port_dhcp_options(
-                    dhcp_opts['subnet_id'], dhcp_opts['port_id'])['uuid']
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv4_options=[uuid]))
-
-        with self.nb_idl_transaction(fake_api, check_error=True) as txn:
-            for dhcp_opts in self.stale_lport_dhcpv6_options:
-                if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
-                    continue
-                uuid = self.mech_driver._nb_ovn.get_port_dhcp_options(
-                    dhcp_opts['subnet_id'], dhcp_opts['port_id'])['uuid']
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv6_options=[uuid]))
 
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')

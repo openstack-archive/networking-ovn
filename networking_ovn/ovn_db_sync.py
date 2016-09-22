@@ -542,27 +542,22 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 for ip_v in [constants.IP_VERSION_4, constants.IP_VERSION_6]:
                     dhcp_opts = self.ovn_driver.get_port_dhcp_options(
                         port, ip_v)
-                    if not dhcp_opts:
+                    if not dhcp_opts or 'uuid' in dhcp_opts:
                         # If the Logical_Switch_Port.dhcpv4_options or
                         # dhcpv6_options no longer refers a port dhcp options
                         # created in DHCP_Options earlier, that port dhcp
                         # options will be deleted in the following
                         # ovn_port_dhcp_options handling.
-                        set_lsp[lsp_dhcp_key[ip_v]] = []
-                    elif port['id'] in ovn_port_dhcp_opts[ip_v]:
-                        # When the Logical_Switch_Port.dhcpv4_options or
-                        # dhcpv6_options refers a port dhcp options in
-                        # DHCP_Options earlier, if the extra dhcp options has
-                        # changed, ovn_driver.get_port_dhcp_options should
-                        # udpate it, if removed, it will be deleted in the
-                        # following ovn_port_dhcp_options handling.
-                        if dhcp_opts['external_ids'].get('port_id'):
-                            ovn_port_dhcp_opts[ip_v].pop(port['id'])
-                            # Ensure Logical_Switch_Port still have references
-                            # to DHCP_Options rows.
-                            set_lsp[lsp_dhcp_key[ip_v]] = [dhcp_opts['uuid']]
-                    elif 'uuid' in dhcp_opts:
-                        set_lsp[lsp_dhcp_key[ip_v]] = [dhcp_opts['uuid']]
+                        set_lsp[lsp_dhcp_key[ip_v]] = (
+                            dhcp_opts and [dhcp_opts['uuid']] or [])
+                    else:
+                        # If port has extra port dhcp options, a command will
+                        # returned by ovn_driver.get_port_dhcp_options to add
+                        # or update port dhcp options.
+                        ovn_port_dhcp_opts[ip_v].pop(port['id'], None)
+                        dhcp_options = dhcp_opts['cmd']
+                        txn_commands.append(dhcp_options)
+                        set_lsp[lsp_dhcp_key[ip_v]] = dhcp_options
                 if set_lsp:
                     txn_commands.append(self.ovn_api.set_lswitch_port(
                         lport_name=port['id'], **set_lsp))
