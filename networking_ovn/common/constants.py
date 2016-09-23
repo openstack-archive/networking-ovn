@@ -52,3 +52,6 @@ SUPPORTED_DHCP_OPTS = [
     'router-solicitation', 'arp-timeout', 'ethernet-encap',
     'tcp-ttl', 'tcp-keepalive', 'nis-server', 'ntp-server',
     'tftp-server']
+
+CHASSIS_DATAPATH_NETDEV = 'netdev'
+CHASSIS_IFACE_DPDKVHOSTUSER = 'dpdkvhostuser'

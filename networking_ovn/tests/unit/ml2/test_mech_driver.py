@@ -623,7 +623,6 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.mech_driver._insert_port_provisioning_block = mock.Mock()
-        self.mech_driver.vif_type = portbindings.VIF_TYPE_OVS
 
 
 class TestOVNMechansimDriverBasicGet(test_plugin.TestMl2BasicGet,

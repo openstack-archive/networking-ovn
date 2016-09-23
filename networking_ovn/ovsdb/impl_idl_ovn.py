@@ -458,7 +458,8 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
                 OvsdbSbOvnIdl.ovsdb_connection.start(
                     driver, table_name_list=['Chassis'])
             else:
-                OvsdbSbOvnIdl.ovsdb_connection.start()
+                OvsdbSbOvnIdl.ovsdb_connection.start(
+                    table_name_list=['Chassis'])
             self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
             self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
         except Exception as e:
@@ -482,3 +483,12 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
         for ch in self.idl.tables['Chassis'].rows.values():
             chassis_list.append(ch.name)
         return chassis_list
+
+    def get_chassis_datapath_and_iface_types(self, hostname):
+        try:
+            chassis = idlutils.row_by_value(self.idl, 'Chassis',
+                                            'hostname', hostname)
+        except idlutils.RowNotFound:
+            return (None, None)
+        return (chassis.external_ids.get('datapath-type', ''),
+                chassis.external_ids.get('iface-types', ''))

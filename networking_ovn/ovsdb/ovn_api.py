@@ -489,3 +489,11 @@ class SbAPI(object):
         :param chassis_type:    The type of chassis
         :type chassis_type:     string
         """
+
+    @abc.abstractmethod
+    def get_chassis_datapath_and_iface_types(self, hostname):
+        """Return the datapath type and iface types supported by the chassis
+
+        @param hostname:       The hostname of the chassis
+        @type hostname:        string
+        """

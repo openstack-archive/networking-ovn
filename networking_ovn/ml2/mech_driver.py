@@ -115,20 +115,17 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
     def _setup_vif_port_bindings(self):
         self.supported_vnic_types = [portbindings.VNIC_NORMAL]
-        # NOTE(rtheis): Config for vif_type will ensure valid choices.
-        if config.get_ovn_vif_type() == portbindings.VIF_TYPE_VHOST_USER:
-            self.vif_type = portbindings.VIF_TYPE_VHOST_USER
-            self.vif_details = {
+        self.vif_details = {
+            portbindings.VIF_TYPE_OVS: {
+                portbindings.CAP_PORT_FILTER: self.sg_enabled
+            },
+            portbindings.VIF_TYPE_VHOST_USER: {
                 portbindings.CAP_PORT_FILTER: False,
                 portbindings.VHOST_USER_MODE:
                 portbindings.VHOST_USER_MODE_CLIENT,
-                portbindings.VHOST_USER_OVS_PLUG: True,
+                portbindings.VHOST_USER_OVS_PLUG: True
             }
-        else:
-            self.vif_type = portbindings.VIF_TYPE_OVS,
-            self.vif_details = {
-                portbindings.CAP_PORT_FILTER: self.sg_enabled,
-            }
+        }
 
     def subscribe(self):
         registry.subscribe(self.post_fork_initialize,
@@ -934,15 +931,24 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                       {'port_id': port['id'], 'vnic_type': vnic_type})
             return
 
+        # Collect port bind data from the host.
+        # TODO(rtheis): Patch set [1] will provide support to refuse port
+        # binding if the host does not exist.
+        # [1] https://review.openstack.org/#/c/372713/
+        datapath_type, iface_types = \
+            self._sb_ovn.get_chassis_datapath_and_iface_types(context.host)
+        iface_types = iface_types.split(',') if iface_types else []
+
         for segment_to_bind in context.segments_to_bind:
             network_type = segment_to_bind['network_type']
             segmentation_id = segment_to_bind['segmentation_id']
             physical_network = segment_to_bind['physical_network']
-            LOG.debug('Attempting to bind port %(port_id)s for network '
-                      'segment with type %(network_type)s, '
+            LOG.debug('Attempting to bind port %(port_id)s on host %(host)s '
+                      'for network segment with type %(network_type)s, '
                       'segmentation ID %(segmentation_id)s, '
                       'physical network %(physical_network)s' %
                       {'port_id': port['id'],
+                       'host': context.host,
                        'network_type': network_type,
                        'segmentation_id': segmentation_id,
                        'physical_network': physical_network})
@@ -956,14 +962,23 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                              'unsupported network type: %(network_type)s'),
                          {'port_id': port['id'],
                           'network_type': network_type})
-            if self.vif_type == portbindings.VIF_TYPE_VHOST_USER:
+
+            if datapath_type == ovn_const.CHASSIS_DATAPATH_NETDEV and (
+                ovn_const.CHASSIS_IFACE_DPDKVHOSTUSER in iface_types):
+                vhost_user_socket = utils.ovn_vhu_sockpath(
+                    config.get_ovn_vhost_sock_dir(), port['id'])
+                vif_type = portbindings.VIF_TYPE_VHOST_USER
                 port[portbindings.VIF_DETAILS].update({
-                    portbindings.VHOST_USER_SOCKET: utils.ovn_vhu_sockpath(
-                        cfg.CONF.ovn.vhost_sock_dir, port['id'])
+                    portbindings.VHOST_USER_SOCKET: vhost_user_socket
                     })
-            context.set_binding(segment_to_bind[driver_api.ID],
-                                self.vif_type,
-                                self.vif_details)
+                vif_details = dict(self.vif_details[vif_type])
+                vif_details[portbindings.VHOST_USER_SOCKET] = vhost_user_socket
+            else:
+                vif_type = portbindings.VIF_TYPE_OVS
+                vif_details = self.vif_details[vif_type]
+
+            context.set_binding(segment_to_bind[driver_api.ID], vif_type,
+                                vif_details)
 
     def get_workers(self):
         """Get any NeutronWorker instances that should have their own process
