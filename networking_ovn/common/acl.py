@@ -263,11 +263,10 @@ def update_acls_for_security_group(plugin,
     # so no need to compare new acl values with existing acl objects.
     for port in port_list:
         acl = _add_sg_rule_acl_for_port(port, security_group_rule)
-        if acl:
-            # Remove lport and lswitch since we don't need them
-            acl.pop('lport')
-            acl.pop('lswitch')
-            acl_new_values_dict[port['id']] = acl
+        # Remove lport and lswitch since we don't need them
+        acl.pop('lport')
+        acl.pop('lswitch')
+        acl_new_values_dict[port['id']] = acl
 
     ovn.update_acls(list(lswitch_names),
                     iter(port_list),
@@ -314,7 +313,7 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
                                 sg_id)
         for r in sg['security_group_rules']:
             acl = _add_sg_rule_acl_for_port(port, r)
-            if acl and acl not in acl_list:
+            if acl not in acl_list:
                 acl_list.append(acl)
 
     return acl_list
