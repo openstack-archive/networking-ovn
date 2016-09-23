@@ -18,10 +18,13 @@ import time
 import uuid
 
 from ovs.db import idl as ovs_idl
+from ovs import poller
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.tests import base
 from networking_ovn.tests.unit.ml2 import test_mech_driver
+from neutron.agent.ovsdb.native import idlutils
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
 
@@ -69,10 +72,10 @@ OVN_SB_SCHEMA = {
 }
 
 
-class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
+class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     def setUp(self):
-        super(TestOvnIdlNotifyHandler, self).setUp()
+        super(TestOvnNbIdlNotifyHandler, self).setUp()
         helper = ovs_idl.SchemaHelper(schema_json=OVN_NB_SCHEMA)
         helper.register_all()
         self.idl = ovsdb_monitor.OvnNbIdl(self.driver, "remote", helper)
@@ -128,6 +131,11 @@ class TestOvnIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self._test_lsp_helper('create', row_data)
         self.assertFalse(self.driver.set_port_status_up.called)
         self.assertFalse(self.driver.set_port_status_down.called)
+
+    def test_post_initialize(self):
+        self.idl.post_initialize(self.driver)
+        self.assertIsNone(self.idl._lsp_create_up_event)
+        self.assertIsNone(self.idl._lsp_create_down_event)
 
     def test_lsp_up_update_event(self):
         new_row_json = {"up": True, "name": "foo-name"}
@@ -260,3 +268,77 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
             self.assertEqual(
                 1,
                 self.l3_plugin.schedule_unhosted_routers.call_count)
+
+
+class TestOvnDbNotifyHandler(base.TestCase):
+
+    def setUp(self):
+        super(TestOvnDbNotifyHandler, self).setUp()
+        self.handler = ovsdb_monitor.OvnDbNotifyHandler(mock.ANY)
+        self.watched_events = self.handler._OvnDbNotifyHandler__watched_events
+
+    def test_watch_and_unwatch_events(self):
+        expected_events = set()
+        networking_event = mock.Mock()
+        ovn_event = mock.Mock()
+        unknown_event = mock.Mock()
+
+        self.assertItemsEqual(set(), self.watched_events)
+
+        expected_events.add(networking_event)
+        self.handler.watch_event(networking_event)
+        self.assertItemsEqual(expected_events, self.watched_events)
+
+        expected_events.add(ovn_event)
+        self.handler.watch_events([ovn_event])
+        self.assertItemsEqual(expected_events, self.watched_events)
+
+        self.handler.unwatch_events([networking_event, ovn_event])
+        self.handler.unwatch_event(unknown_event)
+        self.handler.unwatch_events([unknown_event])
+        self.assertItemsEqual(set(), self.watched_events)
+
+    def test_shutdown(self):
+        self.handler.shutdown()
+
+
+class TestOvnConnection(base.TestCase):
+
+    def setUp(self):
+        super(TestOvnConnection, self).setUp()
+
+    @mock.patch.object(ovsdb_monitor, 'OvnSbIdl')
+    @mock.patch.object(ovsdb_monitor, 'OvnNbIdl')
+    @mock.patch.object(idlutils, 'get_schema_helper')
+    @mock.patch.object(idlutils, 'wait_for_change')
+    def _test_connection_start(self, mock_wfc, mock_gsh,
+                               mock_nb_idl, mock_sb_idl,
+                               schema=None, table_name=None):
+        mock_helper = mock.Mock()
+        mock_gsh.side_effect = [Exception, mock_helper]
+        self.ovn_connection = ovsdb_monitor.OvnConnection(
+            mock.Mock(), mock.Mock(), schema)
+        with mock.patch.object(poller, 'Poller'), \
+            mock.patch('threading.Thread'):
+            if table_name:
+                table_name_list = [table_name]
+            else:
+                table_name_list = None
+            self.ovn_connection.start(
+                mock.Mock(), table_name_list=table_name_list)
+            # A second start attempt shouldn't re-register.
+            self.ovn_connection.start(
+                mock.Mock(), table_name_list=table_name_list)
+
+        if table_name:
+            mock_helper.register_table.assert_called_once_with(table_name)
+        else:
+            mock_helper.register_all.assert_called_once_with()
+
+    def test_connection_nb_start(self):
+        self._test_connection_start(
+            schema='OVN_Northbound', table_name=None)
+
+    def test_connection_sb_start(self):
+        self._test_connection_start(
+            schema='OVN_Southbound', table_name='Chassis')
