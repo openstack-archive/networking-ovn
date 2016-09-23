@@ -221,13 +221,10 @@ function configure_ovn_plugin {
     # configure it to provide instances with metadata.
     if is_service_enabled q-dhcp ; then
         # Conventional DHCP agent must provide all metadata when OVN native
-        # layer-3 is enabled. For consistency it would be nice to always force
-        # conventional DHCP agent to provide metadata for all networks regardless
-        # of the layer-3 support. However, this cannot be done until bug/1624079
-        # is fixed.
-        if [[ "$OVN_L3_MODE" == "True" ]]; then
-            iniset $Q_DHCP_CONF_FILE DEFAULT force_metadata True
-        fi
+        # layer-3 is enabled. So for consistency, regardless of the layer-3
+        # support, the conventional DHCP agent will be forced to provide
+        # metadata for all networks.
+        iniset $Q_DHCP_CONF_FILE DEFAULT force_metadata True
     elif [[ "$OVN_NATIVE_DHCP" == "True" && "$OVN_L3_MODE" == "True" ]]; then
         if is_service_enabled n-cpu ; then
             iniset $NOVA_CONF DEFAULT force_config_drive True
