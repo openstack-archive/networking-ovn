@@ -134,7 +134,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                 router['router']['name']}
                 update['external_ids'] = external_ids
 
-        """ Update static routes """
+        """Update static routes"""
         if 'routes' in router['router']:
             routes = router['router']['routes']
             added, removed = n_utils.diff_list_of_dict(
