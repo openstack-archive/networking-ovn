@@ -32,7 +32,7 @@ is used.
 If the port has extra DHCPv4 options defined, then a new entry is created
 in the DHCP_Options table for the port. The default DHCP options are obtained
 from the subnet DHCP_Options table and the extra DHCPv4 options of the port
-are overriden. In order to map the port DHCP_Options row with the port,
+are overridden. In order to map the port DHCP_Options row with the port,
 the OVN ML2 driver stores both the subnet id and port id in the 'external_ids'
 column.
 
