@@ -49,6 +49,14 @@ class TestBaseCommandHelpers(base.TestCase):
             self.column, self.new_value)
         fake_row_mutate.verify.assert_not_called()
 
+    def test__addvalue_to_list_force_no_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._addvalue_to_list(
+            fake_row_mutate, self.column, self.new_value,
+            mutate=False)
+        fake_row_mutate.addvalue.assert_not_called()
+        fake_row_mutate.verify.assert_called_once_with(self.column)
+
     def _test__addvalue_to_list_no_mutate(self, fake_row):
         commands._addvalue_to_list(fake_row, self.column, self.new_value)
         fake_row.verify.assert_called_once_with(self.column)
@@ -70,6 +78,14 @@ class TestBaseCommandHelpers(base.TestCase):
         fake_row_mutate.delvalue.assert_called_once_with(
             self.column, self.old_value)
         fake_row_mutate.verify.assert_not_called()
+
+    def test__delvalue_from_list_force_no_mutate(self):
+        fake_row_mutate = self._get_fake_row_mutate()
+        commands._delvalue_from_list(
+            fake_row_mutate, self.column, self.old_value,
+            mutate=False)
+        fake_row_mutate.delvalue.assert_not_called()
+        fake_row_mutate.verify.assert_called_once_with(self.column)
 
     def _test__delvalue_from_list_no_mutate(self, fake_row):
         commands._delvalue_from_list(fake_row, self.column, self.old_value)

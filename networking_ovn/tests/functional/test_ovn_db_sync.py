@@ -84,7 +84,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'router': n1_s1['subnet']['gateway_ip']}})
 
         update_port_ids = []
-        for p in ['p1', 'p2', 'p3', 'p4', 'p5']:
+        for p in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']:
             port = self._make_port(self.fmt, n1['network']['id'],
                                    name='n1-' + p,
                                    device_owner='compute:None')
@@ -141,6 +141,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     'external_ids': {'subnet_id': n1_s1['subnet']['id'],
                                      'port_id': port['port']['id']},
                     })
+            elif p == 'p6':
+                self.delete_lswitch_ports.append((lport_name, lswitch_name))
         self.dirty_dhcpv4_options.append({'subnet_id': n1_s1['subnet']['id']})
 
         n2 = self._make_network(self.fmt, 'n2', True)
@@ -190,6 +192,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_lswitches.append('neutron-' + uuid.uuid4().hex)
         self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
                                           'neutron-' + n1['network']['id']))
+        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+                                          'neutron-' + n1['network']['id']))
         self.delete_lswitches.append('neutron-' + n2['network']['id'])
 
         r1 = self.l3_plugin.create_router(
@@ -218,6 +222,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_lrouter_routes.append(('neutron-' + r1['id'],
                                            '10.12.0.0/24',
                                            '20.0.0.12'))
+        self.create_lrouter_routes.append(('neutron-' + r1['id'],
+                                           '10.13.0.0/24',
+                                           '20.0.0.13'))
         self.delete_lrouter_routes.append(('neutron-' + r1['id'],
                                            '10.10.0.0/24',
                                            '20.0.0.10'))
@@ -235,6 +242,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             {'router': {'routes': [{'destination': '10.20.0.0/24',
                                     'nexthop': '10.0.0.20'}]}})
         self.create_lrouters.append('neutron-' + uuid.uuid4().hex)
+        self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
+                                          'neutron-' + r1['id']))
         self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
                                           'neutron-' + r1['id']))
         self.delete_lrouters.append('neutron-' + r2['id'])

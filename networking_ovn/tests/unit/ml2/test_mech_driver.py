@@ -26,6 +26,7 @@ from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import config
+from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
 from neutron.tests.unit.extensions import test_segment
 from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity

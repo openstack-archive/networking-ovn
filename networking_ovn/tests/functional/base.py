@@ -26,6 +26,7 @@ from neutron.agent.ovsdb.native import connection
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
 from neutron.plugins.ml2 import config
+from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from networking_ovn._i18n import _LE

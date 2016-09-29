@@ -21,16 +21,18 @@ from networking_ovn.common import utils
 
 # TODO(rtheis): These wrapper functions are't needed once OpenStack
 # global requirements guarantee an ovs python version with mutate
-# support.
+# support that includes a fix for bug 1629099. Until then, care
+# must be taken to ensure column data isn't collected after mutation
+# within the same transaction.
 
 def _is_ovs_mutate_available(row):
     # Checking for the addvalue method should be sufficient.
     return callable(getattr(row, 'addvalue', None))
 
 
-def _addvalue_to_list(row, column, new_value):
+def _addvalue_to_list(row, column, new_value, mutate=True):
     # If available, use mutate support to add the value.
-    if _is_ovs_mutate_available(row):
+    if mutate and _is_ovs_mutate_available(row):
         row.addvalue(column, new_value)
     else:
         row.verify(column)
@@ -40,9 +42,9 @@ def _addvalue_to_list(row, column, new_value):
             setattr(row, column, column_values)
 
 
-def _delvalue_from_list(row, column, old_value):
+def _delvalue_from_list(row, column, old_value, mutate=True):
     # If available, use mutate support to delete the value.
-    if _is_ovs_mutate_available(row):
+    if mutate and _is_ovs_mutate_available(row):
         row.delvalue(column, old_value)
     else:
         row.verify(column)
@@ -622,7 +624,10 @@ class AddStaticRouteCommand(commands.BaseCommand):
         row = txn.insert(self.api._tables['Logical_Router_Static_Route'])
         for col, val in self.columns.items():
             setattr(row, col, val)
-        _addvalue_to_list(lrouter, 'static_routes', row.uuid)
+        # TODO(rtheis): Use mutate for adding and deleting static
+        # routes once bug 1629099 is fixed.
+        _addvalue_to_list(lrouter, 'static_routes', row.uuid,
+                          mutate=False)
 
 
 class DelStaticRouteCommand(commands.BaseCommand):
@@ -648,7 +653,10 @@ class DelStaticRouteCommand(commands.BaseCommand):
             ip_prefix = getattr(route, 'ip_prefix', '')
             nexthop = getattr(route, 'nexthop', '')
             if self.ip_prefix == ip_prefix and self.nexthop == nexthop:
-                _delvalue_from_list(lrouter, 'static_routes', route)
+                # TODO(rtheis): Use mutate for adding and deleting static
+                # routes once bug 1629099 is fixed.
+                _delvalue_from_list(lrouter, 'static_routes', route,
+                                    mutate=False)
                 route.delete()
                 break
 
