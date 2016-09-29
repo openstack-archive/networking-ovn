@@ -178,7 +178,7 @@ OVN operations
       name                : "as_ip6_90a78a43_b549_4bee_8822_21fcccab58dc"
 
    In the above entries, the address set name include the protocol (IPv4
-   or IPv6, written as ip4 or ip6) and the uuid of the Openstack security
+   or IPv6, written as ip4 or ip6) and the UUID of the Openstack security
    group, dashes translated to underscores.
 
 #. In turn, these new entries will be translated by the OVN northd daemon
