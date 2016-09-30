@@ -24,8 +24,28 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
+
+if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
+    # NOTE(rtheis): Multinode does not require creating an OVN L3 public network.
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=False"
+
+    # NOTE(rtheis): Configure the enabled services on the compute node.
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"ENABLED_SERVICES=n-cpu,dstat,c-vol,c-bak,ovn-controller"
+
+    # NOTE(rtheis): Configure OVN on the compute node.
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_SB_REMOTE=tcp:\$SERVICE_HOST:6642"
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_NB_REMOTE=tcp:\$SERVICE_HOST:6641"
+
+    # NOTE(rtheis): Since we are overriding the enabled services, we must
+    # also configure the database and rabbit services on the compute node.
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"DATABASE_HOST=\$SERVICE_HOST"
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"DATABASE_TYPE=mysql"
+    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"RABBIT_HOST=\$SERVICE_HOST"
+else
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
+fi
 
 # Begin list of exclusions.
 r="^(?!.*"

@@ -280,9 +280,11 @@ function install_ovn {
     done
 
     if ! is_neutron_enabled ; then
-        # networking-ovn depends on neutron, so ensure it at least gets
-        # installed.
+        # NOTE(rtheis): networking-ovn depends on neutron, so ensure it at
+        # least gets installed and its configuration directory exists (which
+        # is needed by the multinode job).
         install_neutron
+        sudo install -d -o $STACK_USER $NEUTRON_CONF_DIR
     fi
 
     setup_develop $DEST/networking-ovn
