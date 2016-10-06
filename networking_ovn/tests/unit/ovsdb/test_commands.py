@@ -164,7 +164,8 @@ class TestAddLSwitchCommand(TestBaseCommand):
 
     def test_lswitch_add_exists(self):
         fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.lswitch_table.rows[fake_lswitch.uuid] = fake_lswitch
+        self.ovn_api._tables['Logical_Switch'].rows[fake_lswitch.uuid] = \
+            fake_lswitch
         self.transaction.insert.return_value = fake_lswitch
         cmd = commands.AddLSwitchCommand(
             self.ovn_api, fake_lswitch.name, may_exist=False)
@@ -172,7 +173,7 @@ class TestAddLSwitchCommand(TestBaseCommand):
         # NOTE(rtheis): Mocking the transaction allows this insert
         # to succeed when it normally would fail due the duplicate name.
         self.transaction.insert.assert_called_once_with(
-            self.ovn_api.lswitch_table)
+            self.ovn_api._tables['Logical_Switch'])
 
     def _test_lswitch_add(self, may_exist=True):
         with mock.patch.object(idlutils, 'row_by_value',
@@ -183,7 +184,7 @@ class TestAddLSwitchCommand(TestBaseCommand):
                 self.ovn_api, 'fake-lswitch', may_exist=may_exist, foo='bar')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lswitch_table)
+                self.ovn_api._tables['Logical_Switch'])
             self.assertEqual('fake-lswitch', fake_lswitch.name)
             self.assertEqual('bar', fake_lswitch.foo)
 
@@ -214,7 +215,8 @@ class TestDelLSwitchCommand(TestBaseCommand):
 
     def test_lswitch_del(self):
         fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.lswitch_table.rows[fake_lswitch.uuid] = fake_lswitch
+        self.ovn_api._tables['Logical_Switch'].rows[fake_lswitch.uuid] = \
+            fake_lswitch
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lswitch):
             cmd = commands.DelLSwitchCommand(
@@ -284,7 +286,8 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lswitch):
             fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-            self.ovn_api.lsp_table.rows[fake_lsp.uuid] = fake_lsp
+            self.ovn_api._tables['Logical_Switch_Port'].rows[fake_lsp.uuid] = \
+                fake_lsp
             self.transaction.insert.return_value = fake_lsp
             cmd = commands.AddLSwitchPortCommand(
                 self.ovn_api, fake_lsp.name, fake_lswitch.name,
@@ -293,7 +296,7 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
             # NOTE(rtheis): Mocking the transaction allows this insert
             # to succeed when it normally would fail due the duplicate name.
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lsp_table)
+                self.ovn_api._tables['Logical_Switch_Port'])
 
     def _test_lswitch_port_add(self, may_exist=True):
         lsp_name = 'fake-lsp'
@@ -308,7 +311,7 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
                 may_exist=may_exist, foo='bar')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lsp_table)
+                self.ovn_api._tables['Logical_Switch_Port'])
             fake_lswitch.verify.assert_called_once_with('ports')
             self.assertEqual(lsp_name, fake_lsp.name)
             self.assertEqual([fake_lsp.uuid], fake_lswitch.ports)
@@ -357,7 +360,7 @@ class TestSetLSwitchPortCommand(TestBaseCommand):
         new_ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test-new'}
         fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'external_ids': {'port_id': 'fake-lsp'}})
-        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_options.uuid] = \
             fake_dhcp_options
         fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'name': 'fake-lsp',
@@ -411,7 +414,8 @@ class TestDelLSwitchPortCommand(TestBaseCommand):
         fake_lsp = mock.MagicMock()
         fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'ports': [fake_lsp]})
-        self.ovn_api.lsp_table.rows[fake_lsp.uuid] = fake_lsp
+        self.ovn_api._tables['Logical_Switch_Port'].rows[fake_lsp.uuid] = \
+            fake_lsp
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=[fake_lsp, fake_lswitch]):
             cmd = commands.DelLSwitchPortCommand(
@@ -435,7 +439,8 @@ class TestAddLRouterCommand(TestBaseCommand):
 
     def test_lrouter_add_exists(self):
         fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.lrouter_table.rows[fake_lrouter.uuid] = fake_lrouter
+        self.ovn_api._tables['Logical_Router'].rows[fake_lrouter.uuid] = \
+            fake_lrouter
         self.transaction.insert.return_value = fake_lrouter
         cmd = commands.AddLRouterCommand(
             self.ovn_api, fake_lrouter.name, may_exist=False)
@@ -443,7 +448,7 @@ class TestAddLRouterCommand(TestBaseCommand):
         # NOTE(rtheis): Mocking the transaction allows this insert
         # to succeed when it normally would fail due the duplicate name.
         self.transaction.insert.assert_called_once_with(
-            self.ovn_api.lrouter_table)
+            self.ovn_api._tables['Logical_Router'])
 
     def _test_lrouter_add(self, may_exist=True):
         with mock.patch.object(idlutils, 'row_by_value',
@@ -455,7 +460,7 @@ class TestAddLRouterCommand(TestBaseCommand):
                 a='1', b='2')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lrouter_table)
+                self.ovn_api._tables['Logical_Router'])
             self.assertEqual('fake-lrouter', fake_lrouter.name)
             self.assertEqual('1', fake_lrouter.a)
             self.assertEqual('2', fake_lrouter.b)
@@ -519,7 +524,8 @@ class TestDelLRouterCommand(TestBaseCommand):
 
     def test_lrouter_del(self):
         fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.lrouter_table.rows[fake_lrouter.uuid] = fake_lrouter
+        self.ovn_api._tables['Logical_Router'].rows[fake_lrouter.uuid] = \
+            fake_lrouter
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lrouter):
             cmd = commands.DelLRouterCommand(
@@ -558,7 +564,7 @@ class TestAddLRouterPortCommand(TestBaseCommand):
                 self.ovn_api, 'fake-lrp', fake_lrouter.name, foo='bar')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lrp_table)
+                self.ovn_api._tables['Logical_Router_Port'])
             self.assertEqual('fake-lrp', fake_lrp.name)
             fake_lrouter.verify.assert_called_once_with('ports')
             self.assertEqual([fake_lrp], fake_lrouter.ports)
@@ -626,7 +632,8 @@ class TestDelLRouterPortCommand(TestBaseCommand):
         fake_lrp = mock.MagicMock()
         fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'ports': [fake_lrp]})
-        self.ovn_api.lrp_table.rows[fake_lrp.uuid] = fake_lrp
+        self.ovn_api._tables['Logical_Router_Port'].rows[fake_lrp.uuid] = \
+            fake_lrp
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=[fake_lrp, fake_lrouter]):
             cmd = commands.DelLRouterPortCommand(
@@ -676,7 +683,7 @@ class TestAddACLCommand(TestBaseCommand):
                 self.ovn_api, fake_lswitch.name, 'fake-lsp', match='*')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.acl_table)
+                self.ovn_api._tables['ACL'])
             fake_lswitch.verify.assert_called_once_with('acls')
             self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
             self.assertEqual({'neutron:lport': 'fake-lsp'},
@@ -777,7 +784,7 @@ class TestUpdateACLsCommand(TestBaseCommand):
         self.transaction.insert.return_value = fake_add_acl
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_called_once_with(
-            self.ovn_api.acl_table)
+            self.ovn_api._tables['ACL'])
         fake_lswitch.verify.assert_called_with('acls')
         self.assertEqual([fake_add_acl.uuid], fake_lswitch.acls)
 
@@ -801,7 +808,7 @@ class TestUpdateACLsCommand(TestBaseCommand):
                 is_add_acl=True)
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.acl_table)
+                self.ovn_api._tables['ACL'])
             fake_lswitch.verify.assert_called_once_with('acls')
             self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
 
@@ -850,7 +857,7 @@ class TestAddStaticRouteCommand(TestBaseCommand):
                 ip_prefix='30.0.0.0/24')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.lrouter_static_route_table)
+                self.ovn_api._tables['Logical_Router_Static_Route'])
             self.assertEqual('40.0.0.100', fake_static_route.nexthop)
             self.assertEqual('30.0.0.0/24', fake_static_route.ip_prefix)
             fake_lrouter.verify.assert_called_once_with('static_routes')
@@ -923,7 +930,8 @@ class TestAddAddrSetCommand(TestBaseCommand):
 
     def test_addrset_add_exists(self):
         fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.addrset_table.rows[fake_addrset.uuid] = fake_addrset
+        self.ovn_api._tables['Address_Set'].rows[fake_addrset.uuid] = \
+            fake_addrset
         self.transaction.insert.return_value = fake_addrset
         cmd = commands.AddAddrSetCommand(
             self.ovn_api, fake_addrset.name, may_exist=False)
@@ -931,7 +939,7 @@ class TestAddAddrSetCommand(TestBaseCommand):
         # NOTE(rtheis): Mocking the transaction allows this insert
         # to succeed when it normally would fail due the duplicate name.
         self.transaction.insert.assert_called_once_with(
-            self.ovn_api.addrset_table)
+            self.ovn_api._tables['Address_Set'])
 
     def _test_addrset_add(self, may_exist=True):
         with mock.patch.object(idlutils, 'row_by_value',
@@ -944,7 +952,7 @@ class TestAddAddrSetCommand(TestBaseCommand):
                 foo='bar')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
-                self.ovn_api.addrset_table)
+                self.ovn_api._tables['Address_Set'])
             self.assertEqual('fake-addrset', fake_addrset.name)
             self.assertEqual('bar', fake_addrset.foo)
 
@@ -975,7 +983,8 @@ class TestDelAddrSetCommand(TestBaseCommand):
 
     def test_addrset_del(self):
         fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.ovn_api.addrset_table.rows[fake_addrset.uuid] = fake_addrset
+        self.ovn_api._tables['Address_Set'].rows[fake_addrset.uuid] = \
+            fake_addrset
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_addrset):
             cmd = commands.DelAddrSetCommand(
@@ -1075,33 +1084,44 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
                         'port_id': 'fake-port-id'}
         fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'external_ids': fake_ext_ids})
-        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_options.uuid] = \
             fake_dhcp_options
         cmd = commands.AddDHCPOptionsCommand(
             self.ovn_api, fake_ext_ids['subnet_id'], fake_ext_ids['port_id'],
-            may_exist=True, external_ids=fake_ext_ids)
+            may_exists=True, external_ids=fake_ext_ids)
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_not_called()
         self.assertEqual(fake_ext_ids, fake_dhcp_options.external_ids)
 
-    def _test_dhcp_options_add(self, may_exist=True):
-        fake_ext_ids = {'subnet_id': 'fake-subnet-id-' + str(may_exist)}
-        fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': fake_ext_ids})
-        self.transaction.insert.return_value = fake_dhcp_options
+    def _test_dhcp_options_add(self, may_exists=True):
+        fake_subnet_id = 'fake-subnet-id-' + str(may_exists)
+        fake_port_id = 'fake-port-id-' + str(may_exists)
+        fake_ext_ids1 = {'subnet_id': fake_subnet_id, 'port_id': fake_port_id}
+        fake_dhcp_options1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': fake_ext_ids1})
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_options1.uuid] = \
+            fake_dhcp_options1
+        fake_ext_ids2 = {'subnet_id': fake_subnet_id}
+        fake_dhcp_options2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': fake_ext_ids2})
+        fake_dhcp_options3 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'subnet_id': 'nomatch'}})
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_options3.uuid] = \
+            fake_dhcp_options3
+        self.transaction.insert.return_value = fake_dhcp_options2
         cmd = commands.AddDHCPOptionsCommand(
-            self.ovn_api, fake_ext_ids['subnet_id'], may_exist=may_exist,
-            external_ids=fake_ext_ids)
+            self.ovn_api, fake_ext_ids2['subnet_id'], may_exists=may_exists,
+            external_ids=fake_ext_ids2)
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_called_once_with(
-            self.ovn_api.dhcp_options_table)
-        self.assertEqual(fake_ext_ids, fake_dhcp_options.external_ids)
+            self.ovn_api._tables['DHCP_Options'])
+        self.assertEqual(fake_ext_ids2, fake_dhcp_options2.external_ids)
 
     def test_dhcp_options_add_may_exist(self):
-        self._test_dhcp_options_add(may_exist=True)
+        self._test_dhcp_options_add(may_exists=True)
 
     def test_dhcp_options_add_ignore_exists(self):
-        self._test_dhcp_options_add(may_exist=False)
+        self._test_dhcp_options_add(may_exists=False)
 
 
 class TestDelDHCPOptionsCommand(TestBaseCommand):
@@ -1123,7 +1143,7 @@ class TestDelDHCPOptionsCommand(TestBaseCommand):
     def test_dhcp_options_del(self):
         fake_dhcp_options = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'external_ids': {'subnet_id': 'fake-subnet-id'}})
-        self.ovn_api.dhcp_options_table.rows[fake_dhcp_options.uuid] = \
+        self.ovn_api._tables['DHCP_Options'].rows[fake_dhcp_options.uuid] = \
             fake_dhcp_options
         cmd = commands.DelDHCPOptionsCommand(
             self.ovn_api, fake_dhcp_options.uuid, if_exists=True)
