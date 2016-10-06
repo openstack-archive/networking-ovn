@@ -17,13 +17,7 @@ from neutron.extensions import portbindings
 
 
 ovn_opts = [
-    cfg.StrOpt('ovsdb_connection', deprecated_for_removal=True,
-               default='tcp:127.0.0.1:6640',
-               help=_('The connection string for the native OVSDB backend.'
-                      'This option is going to be deprecated and be replaced'
-                      'by option ovn_nb_connection.')),
     cfg.StrOpt('ovn_nb_connection',
-               deprecated_name='ovsdb_connection',
                default='tcp:127.0.0.1:6641',
                help=_('The connection string for the OVN_Northbound OVSDB')),
     cfg.StrOpt('ovn_sb_connection',
