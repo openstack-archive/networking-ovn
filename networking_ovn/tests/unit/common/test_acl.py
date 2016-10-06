@@ -421,6 +421,12 @@ class TestACLs(base.TestCase):
         self.assertEqual('ip6', ip_version)
         self.assertEqual('icmp6', icmp)
 
+        sg_rule['ethertype'] = 'IPv10'
+        match, ip_version, icmp = ovn_acl.acl_ethertype(sg_rule)
+        self.assertEqual('', match)
+        self.assertEqual(None, ip_version)
+        self.assertEqual(None, icmp)
+
     def test_acl_remote_ip_prefix(self):
         sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
             'direction': 'ingress',
@@ -463,7 +469,7 @@ class TestACLs(base.TestCase):
         match = ovn_acl.acl_remote_group_id(sg_rule, ip_version)
         self.assertEqual(' && ip4.dst == $' + addrset_name, match)
 
-    def test_update_acls_for_security_group(self):
+    def _test_update_acls_for_security_group(self, use_cache=True):
         sg = fakes.FakeSecurityGroup.create_one_security_group().info()
         remote_sg = fakes.FakeSecurityGroup.create_one_security_group().info()
         sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({
@@ -474,8 +480,13 @@ class TestACLs(base.TestCase):
             'security_groups': [sg['id']]
         }).info()
         self.plugin.get_ports.return_value = [port]
-        sg_ports_cache = {sg['id']: [{'port_id': port['id']}],
-                          remote_sg['id']: []}
+        if use_cache:
+            sg_ports_cache = {sg['id']: [{'port_id': port['id']}],
+                              remote_sg['id']: []}
+        else:
+            sg_ports_cache = None
+            self.plugin._get_port_security_group_bindings.return_value = \
+                [{'port_id': port['id']}]
 
         # Build ACL for validation.
         expected_acl = ovn_acl._add_sg_rule_acl_for_port(port, sg_rule)
@@ -496,6 +507,12 @@ class TestACLs(base.TestCase):
             need_compare=False,
             is_add_acl=True
         )
+
+    def test_update_acls_for_security_group_cache(self):
+        self._test_update_acls_for_security_group(use_cache=True)
+
+    def test_update_acls_for_security_group_no_cache(self):
+        self._test_update_acls_for_security_group(use_cache=False)
 
     def test_acl_port_ips(self):
         port4 = fakes.FakePort.create_one_port({
