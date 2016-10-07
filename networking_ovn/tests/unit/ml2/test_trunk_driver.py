@@ -18,7 +18,10 @@ from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn.tests.unit import fakes
 
+from neutron.callbacks import events
+from neutron.callbacks import registry
 from neutron.objects import trunk as trunk_objects
+from neutron.services.trunk import constants as trunk_consts
 from neutron.tests import base
 
 from oslo_config import cfg
@@ -137,6 +140,83 @@ class TestTrunkHandler(base.BaseTestCase):
         self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls(
             calls, any_order=True)
 
+    def _fake_trunk_event_payload(self):
+        payload = mock.Mock()
+        payload.current_trunk = mock.Mock()
+        payload.current_trunk.port_id = 'current_trunk_port_id'
+        payload.original_trunk = mock.Mock()
+        payload.original_trunk.port_id = 'original_trunk_port_id'
+        current_subport = mock.Mock()
+        current_subport.segmentation_id = 40
+        current_subport.trunk_id = 'current_trunk_port_id'
+        current_subport.port_id = 'current_subport_port_id'
+        original_subport = mock.Mock()
+        original_subport.segmentation_id = 41
+        original_subport.trunk_id = 'original_trunk_port_id'
+        original_subport.port_id = 'original_subport_port_id'
+        payload.current_trunk.sub_ports = [current_subport]
+        payload.original_trunk.sub_ports = [original_subport]
+        return payload
+
+    def test_trunk_event_create(self):
+        fake_payload = self._fake_trunk_event_payload()
+        self.handler.trunk_event(
+            mock.ANY, events.AFTER_CREATE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_called_once_with(
+            fake_payload.current_trunk.sub_ports[0].port_id,
+            parent_name=fake_payload.current_trunk.port_id,
+            tag=fake_payload.current_trunk.sub_ports[0].segmentation_id)
+
+    def test_trunk_event_delete(self):
+        fake_payload = self._fake_trunk_event_payload()
+        self.handler.trunk_event(
+            mock.ANY, events.AFTER_DELETE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_called_once_with(
+            fake_payload.original_trunk.sub_ports[0].port_id,
+            parent_name=[],
+            tag=[])
+
+    def test_trunk_event_invalid(self):
+        fake_payload = self._fake_trunk_event_payload()
+        self.handler.trunk_event(
+            mock.ANY, events.BEFORE_DELETE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_not_called()
+
+    def _fake_subport_event_payload(self):
+        payload = mock.Mock()
+        payload.original_trunk = mock.Mock()
+        payload.original_trunk.port_id = 'original_trunk_port_id'
+        original_subport = mock.Mock()
+        original_subport.segmentation_id = 41
+        original_subport.trunk_id = 'original_trunk_port_id'
+        original_subport.port_id = 'original_subport_port_id'
+        payload.subports = [original_subport]
+        return payload
+
+    def test_subport_event_create(self):
+        fake_payload = self._fake_subport_event_payload()
+        self.handler.subport_event(
+            mock.ANY, events.AFTER_CREATE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_called_once_with(
+            fake_payload.subports[0].port_id,
+            parent_name=fake_payload.original_trunk.port_id,
+            tag=fake_payload.subports[0].segmentation_id)
+
+    def test_subport_event_delete(self):
+        fake_payload = self._fake_subport_event_payload()
+        self.handler.subport_event(
+            mock.ANY, events.AFTER_DELETE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_called_once_with(
+            fake_payload.subports[0].port_id,
+            parent_name=[],
+            tag=[])
+
+    def test_subport_event_invalid(self):
+        fake_payload = self._fake_trunk_event_payload()
+        self.handler.subport_event(
+            mock.ANY, events.BEFORE_DELETE, mock.ANY, fake_payload)
+        self.plugin_driver._nb_ovn.set_lswitch_port.assert_not_called()
+
 
 class TestTrunkDriver(base.BaseTestCase):
     def setUp(self):
@@ -156,3 +236,21 @@ class TestTrunkDriver(base.BaseTestCase):
 
         cfg.CONF.set_override('core_plugin', 'some_plugin')
         self.assertFalse(driver.is_loaded)
+
+    def test_register(self):
+        driver = trunk_driver.OVNTrunkDriver.create(mock.Mock())
+        with mock.patch.object(registry, 'subscribe') as mock_subscribe:
+            driver.register(mock.ANY, mock.ANY, mock.Mock())
+            calls = [mock.call.mock_subscribe(mock.ANY,
+                                              trunk_consts.TRUNK,
+                                              events.AFTER_CREATE),
+                     mock.call.mock_subscribe(mock.ANY,
+                                              trunk_consts.SUBPORTS,
+                                              events.AFTER_CREATE),
+                     mock.call.mock_subscribe(mock.ANY,
+                                              trunk_consts.TRUNK,
+                                              events.AFTER_DELETE),
+                     mock.call.mock_subscribe(mock.ANY,
+                                              trunk_consts.SUBPORTS,
+                                              events.AFTER_DELETE)]
+            mock_subscribe.assert_has_calls(calls, any_order=True)
