@@ -24,6 +24,7 @@ from neutron.db import extraroute_db
 from neutron import manager
 from neutron.plugins.common import constants
 from neutron.services import service_base
+from neutron.extensions import l3
 
 from networking_ovn._i18n import _LE, _LI
 from networking_ovn.common import constants as ovn_const
@@ -113,6 +114,61 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                              external_ids=external_ids,
                                              enabled=enabled
                                              ))
+
+    def _update_router_gw_info(self, context, router_id, info):
+        """override parent method.
+
+        @param router: Router to be created in OVN
+        @return: Nothing
+        """
+        LOG.debug("OVNL3RouterPlugin::Update router gateway info")
+
+        router = self._get_router(context, router_id)
+        gw_port = router.gw_port
+        network_id = self._validate_gw_info(context, gw_port, info)
+
+        self._delete_current_gw_port(context, router_id, router, network_id)
+        self._create_gw_port(context, router_id, router, network_id)
+
+    def _delete_current_gw_port(self, context, router_id, router, new_network):
+        """Delete gw port if attached to an old network or IPs changed."""
+        LOG.debug("OVNL3RouterPlugin::_delete_current_gw_port")
+        #check if port requires delete or not.
+        port_requires_deletion = (
+            router.gw_port and
+            (router.gw_port['network_id'] != new_network)
+        )
+        if not port_requires_deletion:
+            return
+        #check if Router ExternalGateway InUse By FloatingIp.
+        admin_ctx = context.elevated()
+        if self.get_floatingips_count(
+                admin_ctx, {'router_id': [router_id]}):
+            raise l3.RouterExternalGatewayInUseByFloatingIp(
+                router_id=router_id, net_id=router.gw_port['network_id'])
+        #here we can delete it.
+        self._delete_router_gw_port(context, router, router.gw_port, external_gw=True)
+
+    def _create_gw_port(self, context, router_id, router, new_network):
+        LOG.debug("OVNL3RouterPlugin::_create_gw_port")
+
+        new_valid_gw_port_attachment = (
+            new_network and (not router.gw_port or
+                             router.gw_port['network_id'] != new_network))
+        if new_valid_gw_port_attachment:
+            subnets = self._core_plugin._get_subnets_by_network(context,
+                                                                new_network)
+            for subnet in subnets:
+                self._check_for_dup_router_subnet(context, router,
+                                                  new_network, subnet['id'],
+                                                  subnet['cidr'])
+            self._create_router_gw_port(context, router, new_network)
+
+    def _delete_router_gw_port(self, context, router, port, external_gw=None):
+        LOG.debug("OVNL3RouterPlugin::_delete_router_gw_port")
+
+    def _create_router_gw_port(self, context, router, network_id):
+        LOG.debug("OVNL3RouterPlugin::_create_router_gw_port")
 
     def update_router(self, context, id, router):
         original_router = self.get_router(context, id)
