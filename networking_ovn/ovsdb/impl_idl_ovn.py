@@ -18,7 +18,7 @@ import tenacity
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import idlutils
-from neutron.common import utils as n_utils
+from neutron_lib.utils import helpers
 
 from networking_ovn._i18n import _, _LI
 from networking_ovn.common import config as cfg
@@ -453,7 +453,7 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
 
     def _get_chassis_physnets(self, chassis):
         bridge_mappings = chassis.external_ids.get('ovn-bridge-mappings', '')
-        mapping_dict = n_utils.parse_mappings(bridge_mappings.split(','))
+        mapping_dict = helpers.parse_mappings(bridge_mappings.split(','))
         return mapping_dict.keys()
 
     def chassis_exists(self, hostname):
