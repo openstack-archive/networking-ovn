@@ -94,7 +94,7 @@ def main():
             LOG.error(_LE('No "ovn" mechanism driver found : "%s".'),
                       cfg.CONF.ml2.mechanism_drivers)
             return
-        cfg.CONF.ml2.mechanism_drivers = ['ovn-sync']
+        cfg.CONF.set_override('mechanism_drivers', ['ovn-sync'], 'ml2')
         conf.service_plugins = ['networking_ovn.l3.l3_ovn.OVNL3RouterPlugin']
     else:
         LOG.error(_LE('Invalid core plugin : ["%s"].'), cfg.CONF.core_plugin)
