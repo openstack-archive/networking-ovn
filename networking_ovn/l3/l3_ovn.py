@@ -21,9 +21,11 @@ from oslo_log import log
 
 from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
+from neutron.db import l3_db
 from neutron import manager
 from neutron.plugins.common import constants
 from neutron.services import service_base
+from neutron.api.v2 import attributes
 from neutron.extensions import l3
 
 from networking_ovn._i18n import _LE, _LI
@@ -85,6 +87,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return ("L3 Router Service Plugin for basic L3 forwarding"
                 " using OVN")
 
+    def get_gw_router_name(self, router_id):
+        return "gateway-" + router_id
+
     def create_router(self, context, router):
         router = super(OVNL3RouterPlugin, self).create_router(
             context, router)
@@ -115,20 +120,36 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                              enabled=enabled
                                              ))
 
+    def create_gw_router_in_ovn(self, router, chassis):
+        """Create lrouter in OVN
+
+        @param router: Router to be created in OVN
+        @return: Nothing
+        """
+        router_name = self.get_gw_router_name(router['id'])
+        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                        router.get('name', 'no_router_name')}
+        options = {'chassis': chassis}
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.create_lrouter(router_name,
+                                             #external_ids=external_ids,
+                                             options=options,
+                                             enabled=True
+                                             ))
+
     def _update_router_gw_info(self, context, router_id, info):
         """override parent method.
 
         @param router: Router to be created in OVN
         @return: Nothing
         """
-        LOG.debug("OVNL3RouterPlugin::Update router gateway info")
-
+        LOG.debug("Class OVNL3RouterPlugin:::")
         router = self._get_router(context, router_id)
         gw_port = router.gw_port
-        network_id = self._validate_gw_info(context, gw_port, info)
+        network_id = self._validate_gw_info(context, gw_port, info, None)
 
         self._delete_current_gw_port(context, router_id, router, network_id)
-        self._create_gw_port(context, router_id, router, network_id)
+        self._create_gw_port(context, router_id, router, network_id, None)
 
     def _delete_current_gw_port(self, context, router_id, router, new_network):
         """Delete gw port if attached to an old network or IPs changed."""
@@ -140,35 +161,54 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         )
         if not port_requires_deletion:
             return
-        #check if Router ExternalGateway InUse By FloatingIp.
-        admin_ctx = context.elevated()
-        if self.get_floatingips_count(
-                admin_ctx, {'router_id': [router_id]}):
-            raise l3.RouterExternalGatewayInUseByFloatingIp(
-                router_id=router_id, net_id=router.gw_port['network_id'])
-        #here we can delete it.
-        self._delete_router_gw_port(context, router, router.gw_port, external_gw=True)
+        #delete gw_port and db.
+        super(OVNL3RouterPlugin, self)._delete_current_gw_port(context, router_id, router, new_network)
+        #delete gw router and transit network resources..
+        self._delete_gw_router(context, router, None)
 
-    def _create_gw_port(self, context, router_id, router, new_network):
-        LOG.debug("OVNL3RouterPlugin::_create_gw_port")
+    def _delete_gw_router(self, context, router, network_id):
+        LOG.debug("Class OVNL3RouterPlugin:::")
+        router_name = self.get_gw_router_name(router['id'])
+        self._ovn.delete_lrouter(router_name).execute(check_error=True)
 
-        new_valid_gw_port_attachment = (
-            new_network and (not router.gw_port or
-                             router.gw_port['network_id'] != new_network))
-        if new_valid_gw_port_attachment:
-            subnets = self._core_plugin._get_subnets_by_network(context,
-                                                                new_network)
-            for subnet in subnets:
-                self._check_for_dup_router_subnet(context, router,
-                                                  new_network, subnet['id'],
-                                                  subnet['cidr'])
-            self._create_router_gw_port(context, router, new_network)
-
-    def _delete_router_gw_port(self, context, router, port, external_gw=None):
-        LOG.debug("OVNL3RouterPlugin::_delete_router_gw_port")
-
-    def _create_router_gw_port(self, context, router, network_id):
+    def _create_gw_router(self, context, router, network_id):
         LOG.debug("OVNL3RouterPlugin::_create_router_gw_port")
+        selected_chassis = self.scheduler.select(self._ovn, self._sb_ovn, None)
+        self.create_gw_router_in_ovn(router, selected_chassis)
+
+    def _create_router_gw_port(self, context, router, network_id, ext_ips ):
+        # Port has no 'tenant-id', as it is hidden from user
+        LOG.debug("Class OVNL3RouterPlugin:::")
+        gw_port = self._core_plugin.create_port(context.elevated(), {
+            'port': {'tenant_id': '',  # intentionally not set
+                     'network_id': network_id,
+                     'mac_address': attributes.ATTR_NOT_SPECIFIED,
+                     'fixed_ips': attributes.ATTR_NOT_SPECIFIED,
+                     'device_id': router['id'],
+                     'device_owner': '',  # l3_db.DEVICE_OWNER_ROUTER_GW,
+                     'admin_state_up': True,
+                     'name': 'Extnet_'+router['name'][0:18]
+                     }})
+
+        if not gw_port['fixed_ips']:
+            self._core_plugin.delete_port(context.elevated(), gw_port['id'],
+                                          l3_port_check=False)
+            msg = (_('No IPs available for external network %s') %
+                   network_id)
+            raise n_exc.BadRequest(resource='router', msg=msg)
+
+        self._create_gw_router(context, router, network_id)
+
+        with context.session.begin(subtransactions=True):
+            router.gw_port = self._core_plugin._get_port(context.elevated(),
+                                                         gw_port['id'])
+            router_port = l3_db.RouterPort(
+                router_id=router.id,
+                port_id=gw_port['id'],
+                port_type=l3_db.DEVICE_OWNER_ROUTER_GW
+            )
+            context.session.add(router)
+            context.session.add(router_port)
 
     def update_router(self, context, id, router):
         original_router = self.get_router(context, id)
