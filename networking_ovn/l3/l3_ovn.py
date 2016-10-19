@@ -120,22 +120,80 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                              enabled=enabled
                                              ))
 
-    def create_gw_router_in_ovn(self, router, chassis):
+    def create_gw_router_in_ovn(self, context, router, chassis, port):
         """Create lrouter in OVN
 
-        @param router: Router to be created in OVN
+        @param context:
+        @param router: neutron Router
+        @param chassis: chassis where gateway Router to be created
+        @param port: neutorn gw port
         @return: Nothing
         """
-        router_name = self.get_gw_router_name(router['id'])
-        external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                        router.get('name', 'no_router_name')}
-        options = {'chassis': chassis}
+        dvr_router_name = utils.ovn_name(router['id'])
+        gw_router_name = self.get_gw_router_name(router['id'])
+        transit_switch_name = 'transit-'+router['id']
+        router_options = {'chassis': chassis}
         with self._ovn.transaction(check_error=True) as txn:
-            txn.add(self._ovn.create_lrouter(router_name,
-                                             #external_ids=external_ids,
-                                             options=options,
+            # add dvr-router-port .
+            dvr_to_transit_port = {'mac_address': 'fa:16:3e:00:00:02', 'networks': '169.254.128.2/30'}
+            txn.add(self._ovn.add_lrouter_port(
+                                            name='dvr-lrp-to-transit-%s' % router['id'],
+                                            lrouter=dvr_router_name,
+                                            mac=dvr_to_transit_port['mac_address'],
+                                            networks=dvr_to_transit_port['networks']
+                                            ))
+            # create gw router and port
+            txn.add(self._ovn.create_lrouter(gw_router_name,
+                                             external_ids={'router_type': 'gateway'},
+                                             options=router_options,
                                              enabled=True
                                              ))
+
+            # create switch and port
+            txn.add(self._ovn.create_lswitch(lswitch_name=transit_switch_name,
+                                             external_ids={'switch_type': 'transit'}
+                                             ))
+
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.create_lswitch_port(
+                                            lport_name='lsp-to-dvr-%s' % router['id'],
+                                            lswitch_name=transit_switch_name,
+                                            addresses=['unknown'],
+                                            external_ids=None,
+                                            type='localnet'))
+            txn.add(self._ovn.create_lswitch_port(
+                                            lport_name='lsp-to-gw-%s' % router['id'],
+                                            lswitch_name=transit_switch_name,
+                                            addresses=['unknown'],
+                                            external_ids=None,
+                                            type='localnet'))
+
+            gw_to_transit_port = {'mac_address': 'fa:16:3e:00:00:01', 'networks': '169.254.128.1/30'}
+            txn.add(self._ovn.add_lrouter_port(
+                                            name='gw-lrp-to-transit-%s' % router['id'],
+                                            lrouter=gw_router_name,
+                                            mac=gw_to_transit_port['mac_address'],
+                                            networks=gw_to_transit_port['networks']
+                                            ))
+            txn.add(self._ovn.add_lrouter_port(
+                                            name='gw-lrp-to-provnet-%s' % router['id'],
+                                            lrouter=gw_router_name,
+                                            mac=port['mac_address'],
+                                            networks=self.get_networks_for_lrouter_port(context, port['fixed_ips'])
+                                            ))
+
+            # todo: connect transit-switch to DVR and Gateway.
+        with self._ovn.transaction(check_error=True) as txn:
+            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
+                                            lswitch_port='lsp-to-dvr-%s' % router['id'],
+                                            lrouter_port='dvr-lrp-to-transit-%s' % router['id']))
+            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
+                                            lswitch_port='lsp-to-gw-%s' % router['id'],
+                                            lrouter_port='gw-lrp-to-transit-%s' % router['id']))
+            # todo: connect  Gateway to provnet
+            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
+                                            lswitch_port=port['id'],
+                                            lrouter_port='gw-lrp-to-provnet-%s' % router['id']))
 
     def _update_router_gw_info(self, context, router_id, info):
         """override parent method.
@@ -169,12 +227,20 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def _delete_gw_router(self, context, router, network_id):
         LOG.debug("Class OVNL3RouterPlugin:::")
         router_name = self.get_gw_router_name(router['id'])
-        self._ovn.delete_lrouter(router_name).execute(check_error=True)
+        switch_name = 'transit-'+router['id']
 
-    def _create_gw_router(self, context, router, network_id):
+        self._ovn.delete_lrouter(router_name).execute(check_error=True)
+        self._ovn.delete_lswitch(switch_name).execute(check_error=True)
+        # todo: delete port in neutron-router.
+        self._ovn.delete_lrouter_port('dvr-lrp-to-transit-%s' % router['id'],
+                                      lrouter=utils.ovn_name(router['id']),
+                                      if_exists=False
+                                      ).execute(check_error=True)
+
+    def _create_gw_router(self, context, router, network_id, gw_port):
         LOG.debug("OVNL3RouterPlugin::_create_router_gw_port")
         selected_chassis = self.scheduler.select(self._ovn, self._sb_ovn, None)
-        self.create_gw_router_in_ovn(router, selected_chassis)
+        self.create_gw_router_in_ovn(context, router, selected_chassis, gw_port)
 
     def _create_router_gw_port(self, context, router, network_id, ext_ips ):
         # Port has no 'tenant-id', as it is hidden from user
@@ -197,7 +263,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                    network_id)
             raise n_exc.BadRequest(resource='router', msg=msg)
 
-        self._create_gw_router(context, router, network_id)
+        self._create_gw_router(context, router, network_id, gw_port)
 
         with context.session.begin(subtransactions=True):
             router.gw_port = self._core_plugin._get_port(context.elevated(),
