@@ -15,8 +15,8 @@
 import netaddr
 import six
 
-from neutron.common import utils as n_utils
 from neutron_lib import exceptions as n_exc
+from neutron_lib.utils import helpers
 from oslo_log import log
 
 from neutron.db import common_db_mixin
@@ -137,7 +137,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         """Update static routes"""
         if 'routes' in router['router']:
             routes = router['router']['routes']
-            added, removed = n_utils.diff_list_of_dict(
+            added, removed = helpers.diff_list_of_dict(
                 original_router['routes'], routes)
 
         if update or added or removed:
