@@ -16,9 +16,9 @@ from datetime import datetime
 from eventlet import greenthread
 import itertools
 from neutron_lib import constants
+from neutron_lib.utils import helpers
 from oslo_log import log
 
-from neutron.common import utils as n_utils
 from neutron import context
 from neutron.extensions import providernet as pnet
 from neutron import manager
@@ -354,7 +354,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 else:
                     db_routes = []
                 ovn_routes = lrouter['static_routes']
-                add_routes, del_routes = n_utils.diff_list_of_dict(
+                add_routes, del_routes = helpers.diff_list_of_dict(
                     ovn_routes, db_routes)
                 update_sroutes_list.append({'id': lrouter['name'],
                                             'add': add_routes,
