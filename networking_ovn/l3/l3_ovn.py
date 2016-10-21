@@ -158,15 +158,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.create_lswitch_port(
                                             lport_name='lsp-to-dvr-%s' % router['id'],
                                             lswitch_name=transit_switch_name,
-                                            addresses=['unknown'],
+                                            addresses=['fa:16:3e:00:00:02 169.254.128.2'],
                                             external_ids=None,
-                                            type='localnet'))
+                                            type='router'))
             txn.add(self._ovn.create_lswitch_port(
                                             lport_name='lsp-to-gw-%s' % router['id'],
                                             lswitch_name=transit_switch_name,
-                                            addresses=['unknown'],
+                                            addresses=['fa:16:3e:00:00:01 169.254.128.1'],
                                             external_ids=None,
-                                            type='localnet'))
+                                            type='router'))
 
             gw_to_transit_port = {'mac_address': 'fa:16:3e:00:00:01', 'networks': '169.254.128.1/30'}
             txn.add(self._ovn.add_lrouter_port(
