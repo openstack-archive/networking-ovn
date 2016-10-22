@@ -53,6 +53,8 @@ about OVN:
 
 These blog resources may also help with testing and understanding OVN:
 
+* http://blog.spinhirne.com/p/blog-series.html#introToOVN
+* https://blog.russellbryant.net/2016/09/29/ovs-2-6-and-the-first-release-of-ovn/
 * http://galsagie.github.io/2015/11/23/ovn-l3-deepdive/
 * http://blog.russellbryant.net/2015/10/22/openstack-security-groups-using-ovn-acls/
 * http://galsagie.github.io/sdn/openstack/ovs/2015/05/30/ovn-deep-dive/
