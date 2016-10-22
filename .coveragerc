@@ -1,7 +1,7 @@
 [run]
 branch = True
 source = networking_ovn
-omit = networking_ovn/tests/*,networking_ovn/openstack/*
+omit = networking_ovn/tests/*
 
 [report]
 ignore_errors = True
