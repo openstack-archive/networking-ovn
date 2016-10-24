@@ -32,6 +32,7 @@ from networking_ovn._i18n import _LE, _LI
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions
 from networking_ovn.common import utils
+from networking_ovn.common import config as cfg
 from networking_ovn.l3 import l3_ovn_scheduler
 from networking_ovn.ovsdb import impl_idl_ovn
 
@@ -120,13 +121,13 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                              enabled=enabled
                                              ))
 
-    def create_gw_router_in_ovn(self, context, router, chassis, port):
+    def create_gw_router_in_ovn(self, context, router, chassis, gw_port):
         """Create lrouter in OVN
 
         @param context:
         @param router: neutron Router
         @param chassis: chassis where gateway Router to be created
-        @param port: neutorn gw port
+        @param gw_port: neutorn gw port
         @return: Nothing
         """
         dvr_router_name = utils.ovn_name(router['id'])
@@ -178,11 +179,11 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.add_lrouter_port(
                                             name='gw-lrp-to-provnet-%s' % router['id'],
                                             lrouter=gw_router_name,
-                                            mac=port['mac_address'],
-                                            networks=self.get_networks_for_lrouter_port(context, port['fixed_ips'])
+                                            mac=gw_port['mac_address'],
+                                            networks=self.get_networks_for_lrouter_port(context, gw_port['fixed_ips'])
                                             ))
 
-            # todo: connect transit-switch to DVR and Gateway.
+            # connect transit-switch to DVR and Gateway.
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                                             lswitch_port='lsp-to-dvr-%s' % router['id'],
@@ -190,10 +191,24 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                                             lswitch_port='lsp-to-gw-%s' % router['id'],
                                             lrouter_port='gw-lrp-to-transit-%s' % router['id']))
-            # todo: connect  Gateway to provnet
+            # connect  Gateway to provnet
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
-                                            lswitch_port=port['id'],
+                                            lswitch_port=gw_port['id'],
                                             lrouter_port='gw-lrp-to-provnet-%s' % router['id']))
+        # add static route for gw_router and dvr-router.
+        dvr_default_route = {'destination': '0.0.0.0/0', 'nexthop': '169.254.128.1'}
+        gw_default_gateway = self.get_subnet_gateway_ips(context, gw_port['fixed_ips'])[0]  # '10.157.140.254'
+        gw_default_route = {'destination': '0.0.0.0/0', 'nexthop': gw_default_gateway}
+        with self._ovn.transaction(check_error=True) as txn:
+            # add default route for two ovn-router.
+            txn.add(self._ovn.add_static_route(dvr_router_name,
+                    ip_prefix=dvr_default_route['destination'],
+                    nexthop=dvr_default_route['nexthop']))
+            txn.add(self._ovn.add_static_route(gw_router_name,
+                    ip_prefix=gw_default_route['destination'],
+                    nexthop=gw_default_route['nexthop']))
+            # todo: add upstream routes which for subnets connected to neutron-router on gw_router .
+        # todo: add snat to gw_router .
 
     def _update_router_gw_info(self, context, router_id, info):
         """override parent method.
@@ -228,14 +243,21 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         LOG.debug("Class OVNL3RouterPlugin:::")
         router_name = self.get_gw_router_name(router['id'])
         switch_name = 'transit-'+router['id']
-
+        # delete gw_router and transit_switch.
         self._ovn.delete_lrouter(router_name).execute(check_error=True)
         self._ovn.delete_lswitch(switch_name).execute(check_error=True)
-        # todo: delete port in neutron-router.
+        # delete relative port on dvr-router.
         self._ovn.delete_lrouter_port('dvr-lrp-to-transit-%s' % router['id'],
                                       lrouter=utils.ovn_name(router['id']),
                                       if_exists=False
                                       ).execute(check_error=True)
+        # delete default route on dvr-router if exists.
+        dvr_default_route = {'destination': '0.0.0.0/0', 'nexthop': '169.254.128.1'}
+        with self._ovn.transaction(check_error=True) as txn:
+            # clear default route of dvr-router.
+            txn.add(self._ovn.delete_static_route(utils.ovn_name(router['id']),
+                    ip_prefix=dvr_default_route['destination'],
+                    nexthop=dvr_default_route['nexthop']))
 
     def _create_gw_router(self, context, router, network_id, gw_port):
         LOG.debug("OVNL3RouterPlugin::_create_router_gw_port")
@@ -343,6 +365,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                     str(cidr.prefixlen)))
         return list(networks)
 
+    def get_subnet_gateway_ips(self, context, port_fixed_ips):
+        gw_ips = set()
+        for fixed_ip in port_fixed_ips:
+            subnet_id = fixed_ip['subnet_id']
+            subnet = self._plugin.get_subnet(context, subnet_id)
+            if subnet['gateway_ip']:
+                gw_ips.add(subnet['gateway_ip'])
+        return list(gw_ips)
+
     def create_lrouter_port_in_ovn(self, context, router_id, port):
         """Create lrouter port in OVN
 
@@ -401,6 +432,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             self.update_lrouter_port_in_ovn(context, router_id, port)
         else:
             self.create_lrouter_port_in_ovn(context, router_id, port)
+
+        # todo: add static route and snat to gw-router if gw_port exists.
+
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -419,10 +453,13 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                           utils.ovn_name(router_id),
                                           if_exists=False
                                           ).execute(check_error=True)
+
+        # todo: delete static route and snat to gw_router if gw_port exists.
+
         return router_interface_info
 
     def schedule_unhosted_routers(self):
-        valid_chassis_list = self._sb_ovn.get_all_chassis()
+        valid_chassis_list = self._sb_ovn.get_all_chassis(cfg.get_ovn_l3_chassis_type())
         unhosted_routers = self._ovn.get_unhosted_routers(valid_chassis_list)
         if unhosted_routers:
             with self._ovn.transaction(check_error=True) as txn:
