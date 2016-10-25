@@ -395,11 +395,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                     port['id'], lrouter_port_name))
 
-    def add_returned_route_on_gw(self, context, router_id, port):
+    def add_returned_route_on_gw(self, context, router_id, port, gw_ip):
         """add static route for subnet that ports located in on gw-router.
 
         @param router id : LRouter ID for the port
         @param port : LRouter port
+        @param gw_ip : neutron-router's gateway-interface's ip
         @return: Nothing
         """
         LOG.debug('OVNL3RouterPlugin::')
@@ -412,6 +413,10 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 txn.add(self._ovn.add_static_route(ovn_router_name,
                         ip_prefix=route['destination'],
                         nexthop=route['nexthop']))
+                txn.add(self._ovn.add_nat(ovn_router_name,
+                        type='snat',
+                        external_ip=gw_ip,
+                        logical_ip=route['destination']))
 
     def del_returned_route_on_gw(self, context, router_id, subnet_id):
         """del static route for subnet that ports located in on gw-router.
@@ -428,6 +433,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.delete_static_route(ovn_router_name,
                     ip_prefix=route['destination'],
                     nexthop=route['nexthop']))
+            txn.add(self._ovn.delete_nat(ovn_router_name,
+                    logical_ip=route['destination']))
 
     def update_lrouter_port_in_ovn(self, context, router_id, port,
                                    networks=None):
@@ -466,11 +473,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             self.update_lrouter_port_in_ovn(context, router_id, port)
         else:
             self.create_lrouter_port_in_ovn(context, router_id, port)
-            # todo(zhoucx): add static route and snat to gw-router if gw_port exists.
+            # NOTE(zhoucx): add static route and snat to gw-router if gw_port exists.
             router = self._get_router(context, router_id)
             gw_port = router.gw_port
             if gw_port:
-                self.add_returned_route_on_gw(context, router_id, port)
+                gw_ip = gw_port['fixed_ips'][0]['ip_address']
+                self.add_returned_route_on_gw(context, router_id, port, gw_ip)
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -490,7 +498,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                           utils.ovn_name(router_id),
                                           if_exists=False
                                           ).execute(check_error=True)
-            # todo(zhoucx): delete static route and snat to gw_router if gw_port exists.
+            # NOTE(zhoucx): delete static route and snat to gw_router if gw_port exists.
             router = self._get_router(context, router_id)
             gw_port = router.gw_port
             if gw_port:

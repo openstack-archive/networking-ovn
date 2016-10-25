@@ -282,6 +282,32 @@ class API(object):
         """
 
     @abc.abstractmethod
+    def add_nat(self, lrouter, **columns):
+        """Add static route to logical router.
+
+        :param lrouter:      The unique name of the lrouter
+        :type lrouter:       string
+        :param columns:      Dictionary of static columns
+                             Supported columns: logical_ip, external_ip, type
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def delete_nat(self, lrouter, logical_ip, if_exists=True):
+        """Add static route to logical router.
+
+        :param lrouter:      The unique name of the lrouter
+        :type lrouter:       string
+        :param logical_ip:      Dictionary of static columns
+                             Supported columns: logical_ip, external_ip, type
+        :type logical_ip:       string(ip or cidr)
+        :param if_exists:    Do not fail if router does not exist
+        :type if_exists:     bool
+        :returns:            :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
     def add_static_route(self, lrouter, **columns):
         """Add static route to logical router.
 
