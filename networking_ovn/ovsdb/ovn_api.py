@@ -426,35 +426,6 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def get_port_dhcp_options(self, subnet_id, port_id):
-        """Returns the Logical switch port DHCP_Options as a dictionary
-
-        :param subnet_id:      The subnet id whose DHCP options are returned
-        :type subnet_id:       string
-        :param port_id:        The port id whose DHCP options are returned
-        :type port_id:         string
-        :returns:              Returns the columns of the DHCP_Options as a
-                               dictionary belonging to the logical switch port
-                               and subnet specified. None is returned if no
-                               DHCP options.
-        """
-
-    @abc.abstractmethod
-    def get_port_all_dhcp_options(self, subnet_ids, port_id):
-        """Returns the Logical switch port all DHCP_Options as list of dict
-
-        :param subnet_ids:     The subnet ids whose DHCP options are returned
-        :type subnet_ids:      string
-        :param port_id:        The port id whose DHCP options are returned
-        :type port_id:         string
-        :returns:              Returns the columns of the DHCP_Options as a
-                               list of dictionary belonging to the logical
-                               switch port_id and subnet_ids specified. Empty
-                               list is returned if no DHCP_Options matched
-                               found.
-        """
-
-    @abc.abstractmethod
     def compose_dhcp_options_commands(self, subnet_id, **columns):
         """Returns a list of 'Command' objects to add the DHCP options in NB DB
 

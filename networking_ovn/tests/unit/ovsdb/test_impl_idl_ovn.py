@@ -578,48 +578,6 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self.assertEqual(len(dhcp_options['subnets']), 3)
         self.assertEqual(len(dhcp_options['ports_v4']), 2)
 
-    def test_get_port_dhcp_options(self):
-        self._load_nb_db()
-        port_options = self.nb_ovn_idl.get_port_dhcp_options(
-            'subnet-id-10-0-3-0', 'lsp-vpn-id-3')
-        expected_row = self._find_ovsdb_fake_row(self.dhcp_table,
-                                                 'cidr', '10.0.3.0/24')
-        self.assertEqual({'cidr': expected_row.cidr,
-                          'external_ids': expected_row.external_ids,
-                          'options': expected_row.options,
-                          'uuid': expected_row.uuid},
-                         port_options)
-        port_options = self.nb_ovn_idl.get_port_dhcp_options(
-            'subnet-id-30-0-1-0', 'port-id-30-0-1-0')
-        self.assertIsNone(port_options)
-
-    def test_get_port_all_dhcp_options(self):
-        self._load_nb_db()
-        get_row_dict = lambda row: {
-            'cidr': row.cidr,
-            'external_ids': row.external_ids,
-            'options': row.options,
-            'uuid': row.uuid}
-
-        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
-            ['subnet-id-20-0-2-0', 'subnet-id-2001-dba'],
-            'lsp-vpn-id-5')
-        expected_rows = [
-            get_row_dict(
-                self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', cidr))
-            for cidr in ('20.0.2.0/24', '2001:dba::/64')]
-        self.assertItemsEqual(expected_rows, port_options)
-
-        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
-            ['subnet-id-10-0-3-0', 'fake_not_exist'], 'lsp-vpn-id-3')
-        expected_row = get_row_dict(
-            self._find_ovsdb_fake_row(self.dhcp_table, 'cidr', '10.0.3.0/24'))
-        self.assertItemsEqual([expected_row], port_options)
-
-        port_options = self.nb_ovn_idl.get_port_all_dhcp_options(
-            ['subnet-id-30-0-1-0'], 'port-id-30-0-1-0')
-        self.assertEqual([], port_options)
-
     def test_compose_dhcp_options_commands(self):
         # TODO(azbiswas): Implement in seperate patch
         pass
