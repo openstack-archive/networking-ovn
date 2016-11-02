@@ -298,7 +298,30 @@ class OvnSbIdl(OvnIdl):
         self.notify_handler.watch_events([self._chassis_event])
 
 
-class OvnConnection(connection.Connection):
+class OvnBaseConnection(connection.Connection):
+
+    def get_schema_helper(self):
+        """Retrieve the schema helper object from OVSDB"""
+        # The implementation of this function is same as the base class method
+        # without the enable_connection_uri() called (since ovs-vsctl won't
+        # exist on the controller node when using the reference architecture).
+        try:
+            helper = idlutils.get_schema_helper(self.connection,
+                                                self.schema_name)
+        except Exception:
+            # There is a small window for a race, so retry up to a second
+            @tenacity.retry(wait=tenacity.wait_exponential(multiplier=0.01),
+                            stop=tenacity.stop_after_delay(1),
+                            reraise=True)
+            def do_get_schema_helper():
+                return idlutils.get_schema_helper(self.connection,
+                                                  self.schema_name)
+            helper = do_get_schema_helper()
+
+        return helper
+
+
+class OvnConnection(OvnBaseConnection):
 
     def get_ovn_idl_cls(self):
         """Get the ovn idl class
@@ -314,26 +337,12 @@ class OvnConnection(connection.Connection):
 
     def start(self, driver, table_name_list=None):
         # The implementation of this function is same as the base class start()
-        # except that OvnIdl object is created instead of idl.Idl and the
-        # enable_connection_uri() helper isn't called (since ovs-vsctl won't
-        # exist on the controller node when using the reference architecture).
+        # except that OvnIdl object is created instead of idl.Idl.
         with self.lock:
             if self.idl is not None:
                 return
 
-            try:
-                helper = idlutils.get_schema_helper(self.connection,
-                                                    self.schema_name)
-            except Exception:
-                # There is a small window for a race, so retry up to a second
-                @tenacity.retry(
-                    wait=tenacity.wait_exponential(multiplier=0.01),
-                    stop=tenacity.stop_after_delay(1),
-                    reraise=True)
-                def do_get_schema_helper():
-                    return idlutils.get_schema_helper(self.connection,
-                                                      self.schema_name)
-                helper = do_get_schema_helper()
+            helper = self.get_schema_helper()
 
             if table_name_list is None:
                 helper.register_all()

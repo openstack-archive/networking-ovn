@@ -22,7 +22,6 @@ from oslo_log import log
 
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import commands
-from neutron.agent.ovsdb.native import connection
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
 from neutron.plugins.ml2 import config
@@ -133,7 +132,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #     ML2 OVN driver scope to test scenarios like ovn_nb_sync.
         while num_attempts < 3:
             try:
-                self.monitor_nb_idl_con = connection.Connection(
+                self.monitor_nb_idl_con = ovsdb_monitor.OvnBaseConnection(
                     self.ovsdb_server_mgr.get_ovsdb_connection_path(),
                     60, 'OVN_Northbound')
                 self.monitor_nb_idl_con.start()
@@ -152,7 +151,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #  - Update chassis columns etc.
         while num_attempts < 3:
             try:
-                self.monitor_sb_idl_con = connection.Connection(
+                self.monitor_sb_idl_con = ovsdb_monitor.OvnBaseConnection(
                     self.ovsdb_server_mgr.get_ovsdb_connection_path(
                         db_type='sb'),
                     60, 'OVN_Southbound')
