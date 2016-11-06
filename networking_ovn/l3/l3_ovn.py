@@ -26,7 +26,6 @@ from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.extensions import l3
 from neutron import manager
-from neutron.plugins.common import constants
 from neutron.services import service_base
 
 
@@ -95,7 +94,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return self._admin_net_mgr
 
     def get_plugin_type(self):
-        return constants.L3_ROUTER_NAT
+        return n_const.L3
 
     def get_plugin_description(self):
         """returns string description of the plugin."""

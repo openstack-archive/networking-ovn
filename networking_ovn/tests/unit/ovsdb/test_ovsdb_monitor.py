@@ -17,6 +17,7 @@ import mock
 import time
 import uuid
 
+from neutron_lib import constants
 from ovs.db import idl as ovs_idl
 from ovs import poller
 
@@ -26,7 +27,6 @@ from networking_ovn.tests import base
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 from neutron.agent.ovsdb.native import idlutils
 from neutron import manager
-from neutron.plugins.common import constants as service_constants
 
 
 OVN_NB_SCHEMA = {
@@ -214,7 +214,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.driver.update_segment_host_mapping = mock.Mock()
         mgr = manager.NeutronManager.get_instance()
         self.l3_plugin = mgr.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
+            constants.L3)
         if ovn_config.is_ovn_l3():
             self.l3_plugin.schedule_unhosted_routers = mock.Mock()
 
