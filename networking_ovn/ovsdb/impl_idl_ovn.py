@@ -140,7 +140,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
         result = []
         for lswitch in self._tables['Logical_Switch'].rows.values():
             if ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY not in (
-                lswitch.external_ids):
+                    lswitch.external_ids):
                 continue
             ports = []
             for lport in getattr(lswitch, 'ports', []):
@@ -162,7 +162,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
         result = []
         for lrouter in self._tables['Logical_Router'].rows.values():
             if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
-                lrouter.external_ids):
+                    lrouter.external_ids):
                 continue
             lrports = {lrport.name.replace('lrp-', ''): lrport.networks
                        for lrport in getattr(lrouter, 'ports', [])}
@@ -290,7 +290,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
             chassis_bindings.setdefault(chassis_name, [])
         for lrouter in self._tables['Logical_Router'].rows.values():
             if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
-                lrouter.external_ids):
+                    lrouter.external_ids):
                 continue
             chassis_name = lrouter.options.get('chassis')
             if not chassis_name:
@@ -319,7 +319,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
         unhosted_routers = {}
         for lrouter in self._tables['Logical_Router'].rows.values():
             if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
-                lrouter.external_ids):
+                    lrouter.external_ids):
                 continue
             chassis_name = lrouter.options.get('chassis')
             if not chassis_name:
@@ -427,6 +427,33 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 data[row_key] = getattr(row, row_key)
             address_sets[name] = data
         return address_sets
+
+    def get_router_port_options(self, lsp_name):
+        try:
+            lsp = idlutils.row_by_value(self.idl, 'Logical_Switch_Port',
+                                        'name', lsp_name)
+            options = getattr(lsp, 'options')
+            for key in options.keys():
+                if key not in ovn_const.OVN_ROUTER_PORT_OPTION_KEYS:
+                    del(options[key])
+            return options
+        except idlutils.RowNotFound:
+            return {}
+
+    def add_nat_rule_in_lrouter(self, lrouter, **columns):
+        return cmd.AddNATRuleInLRouterCommand(self, lrouter, **columns)
+
+    def delete_nat_rule_in_lrouter(self, lrouter, type, logical_ip,
+                                   external_ip, if_exists=True):
+        return cmd.DeleteNATRuleInLRouterCommand(self, lrouter, type,
+                                                 logical_ip, external_ip,
+                                                 if_exists)
+
+    def add_nat_ip_to_lrport_peer_options(self, lport, nat_ip):
+        return cmd.AddNatIpToLRPortPeerOptionsCommand(self, lport, nat_ip)
+
+    def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
+        return cmd.DeleteNatIpFromLRPortPeerOptionsCommand(self, lport, nat_ip)
 
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):

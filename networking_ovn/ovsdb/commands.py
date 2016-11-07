@@ -835,3 +835,130 @@ class DelDHCPOptionsCommand(commands.BaseCommand):
             raise RuntimeError(msg)
 
         self.api._tables['DHCP_Options'].rows[self.row_uuid].delete()
+
+
+class AddNATRuleInLRouterCommand(commands.BaseCommand):
+    # TODO(chandrav): Add unit tests, bug #1638715.
+    def __init__(self, api, lrouter, **columns):
+        super(AddNATRuleInLRouterCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        row = txn.insert(self.api._tables['NAT'])
+        for col, val in self.columns.items():
+            setattr(row, col, val)
+        # TODO(chandrav): convert this to ovs transaction mutate
+        lrouter.verify('nat')
+        nat = getattr(lrouter, 'nat', [])
+        nat.append(row.uuid)
+        setattr(lrouter, 'nat', nat)
+
+
+class DeleteNATRuleInLRouterCommand(commands.BaseCommand):
+    # TODO(chandrav): Add unit tests, bug #1638715.
+    def __init__(self, api, lrouter, type, logical_ip, external_ip,
+                 if_exists):
+        super(DeleteNATRuleInLRouterCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.type = type
+        self.logical_ip = logical_ip
+        self.external_ip = external_ip
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        lrouter.verify('nat')
+        # TODO(chandrav): convert this to ovs transaction mutate
+        nats = getattr(lrouter, 'nat', [])
+        for nat in nats:
+            type = getattr(nat, 'type', '')
+            external_ip = getattr(nat, 'external_ip', '')
+            logical_ip = getattr(nat, 'logical_ip', '')
+            if self.type == type and \
+               self.external_ip == external_ip and \
+               self.logical_ip == logical_ip:
+                nats.remove(nat)
+                nat.delete()
+                break
+        setattr(lrouter, 'nat', nats)
+
+
+class AddNatIpToLRPortPeerOptionsCommand(commands.BaseCommand):
+    # TODO(chandrav): Add unit tests, bug #1638715.
+    def __init__(self, api, lport, nat_ip):
+        super(AddNatIpToLRPortPeerOptionsCommand, self).__init__(api)
+        self.lport = lport
+        self.nat_ip = nat_ip
+
+    def run_idl(self, txn):
+        try:
+            lport = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
+                                          'name', self.lport)
+        except idlutils.RowNotFound:
+            msg = _("Logical Switch Port %s does not exist") % self.lport
+            raise RuntimeError(msg)
+
+        lport.verify('addresses')
+        addresses = getattr(lport, 'addresses', [])
+        lport.verify('options')
+        options = getattr(lport, 'options', {})
+
+        nat_ip_list = options.get('nat-addresses', '').split()
+        if not nat_ip_list:
+            nat_ips = addresses[0].split()[0] + ' ' + self.nat_ip
+        elif self.nat_ip not in nat_ip_list:
+            nat_ip_list.append(self.nat_ip)
+            nat_ips = ' '.join(nat_ip_list)
+        else:
+            return
+        options['nat-addresses'] = nat_ips
+        lport.options = options
+
+
+class DeleteNatIpFromLRPortPeerOptionsCommand(commands.BaseCommand):
+    # TODO(chandrav): Add unit tests, bug #1638715.
+    def __init__(self, api, lport, nat_ip):
+        super(DeleteNatIpFromLRPortPeerOptionsCommand, self).__init__(api)
+        self.lport = lport
+        self.nat_ip = nat_ip
+
+    def run_idl(self, txn):
+        try:
+            lport = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
+                                          'name', self.lport)
+
+        except idlutils.RowNotFound:
+            msg = _("Logical Switch Port %s does not exist") % self.port
+            raise RuntimeError(msg)
+
+        lport.verify('options')
+        options = getattr(lport, 'options', {})
+        nat_ip_list = options.get('nat-addresses', '').split()
+        if self.nat_ip not in nat_ip_list:
+            return
+        nat_ip_list.remove(self.nat_ip)
+        if len(nat_ip_list) is 1:
+            nat_ips = ''
+        else:
+            nat_ips = ' '.join(nat_ip_list)
+        if not nat_ips:
+            del options['nat-addresses']
+        else:
+            options['nat-addresses'] = nat_ips
+        lport.options = options

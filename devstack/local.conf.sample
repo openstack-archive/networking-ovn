@@ -56,6 +56,11 @@ disable_service q-l3
 # Default value is leastloaded.
 #OVN_L3_SCHEDULER=leastloaded
 
+# If using OVN_L3_MODE, this sets the L3 ADMIN NETWORK CIDR. This is used to
+# connect distributed logical routers to ovn gateway router. The default CIDR
+# is 169.254.128.0/30
+#OVN_L3_ADMIN_NET_CIDR=169.255.128.0/30
+
 # OVN native DHCP functionality is enabled by default. To use the conventional
 # DHCP agent, set OVN_NATIVE_DHCP to False and enable the q-dhcp service.
 # However, if you choose the conventional DHCP agent instead of the native

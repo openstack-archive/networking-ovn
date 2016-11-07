@@ -78,6 +78,12 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_subnets_dhcp_options.return_value = []
         self.get_all_dhcp_options = mock.Mock()
         self.compose_dhcp_options_commands = mock.MagicMock()
+        self.get_router_port_options = mock.MagicMock()
+        self.get_router_port_options.return_value = {}
+        self.add_nat_rule_in_lrouter = mock.Mock()
+        self.delete_nat_rule_in_lrouter = mock.Mock()
+        self.add_nat_ip_to_lrport_peer_options = mock.Mock()
+        self.delete_nat_ip_from_lrport_peer_options = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):

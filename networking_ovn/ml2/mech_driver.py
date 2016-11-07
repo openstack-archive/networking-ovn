@@ -765,6 +765,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet_cache = {}
 
         with self._nb_ovn.transaction(check_error=True) as txn:
+            if port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
+                                            const.DEVICE_OWNER_ROUTER_GW]:
+                ovn_port_info.options.update(
+                    self._nb_ovn.get_router_port_options(port['id']))
             if not ovn_port_info.dhcpv4_options:
                 dhcpv4_options = []
             elif 'cmd' in ovn_port_info.dhcpv4_options:

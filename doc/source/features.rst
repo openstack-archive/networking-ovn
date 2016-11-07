@@ -15,7 +15,7 @@ services:
 
   Native implementation or conventional layer-3 agent. The native
   implementation supports distributed routing. However, it currently lacks
-  support for floating IP addresses, NAT, and the metadata proxy.
+  support for the metadata proxy.
 
 * DHCP
 
@@ -78,7 +78,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Neutron Extra Route              | extraroute                |
 +----------------------------------+---------------------------+
-| Neutron L3 external gateway *    | ext-gw-mode               |
+| Neutron L3 external gateway      | ext-gw-mode               |
 +----------------------------------+---------------------------+
 | Neutron L3 Router                | router                    |
 +----------------------------------+---------------------------+
