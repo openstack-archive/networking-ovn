@@ -15,7 +15,8 @@
 import copy
 import mock
 import six
-import uuid
+
+from oslo_utils import uuidutils
 
 
 class FakeOvsdbNbOvnIdl(object):
@@ -179,7 +180,7 @@ class FakeNetwork(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         network_attrs = {
             'id': 'network-id-' + fake_uuid,
             'name': 'network-name-' + fake_uuid,
@@ -240,7 +241,7 @@ class FakeOvsdbRow(FakeResource):
         methods = methods or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         ovsdb_row_attrs = {
             'uuid': fake_uuid,
             'name': 'name-' + fake_uuid
@@ -302,7 +303,7 @@ class FakePort(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         port_attrs = {
             'admin_state_up': True,
             'allowed_address_pairs': [{}],
@@ -370,7 +371,7 @@ class FakeSecurityGroup(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         security_group_attrs = {
             'id': 'security-group-id-' + fake_uuid,
             'name': 'security-group-name-' + fake_uuid,
@@ -401,7 +402,7 @@ class FakeSecurityGroupRule(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         security_group_rule_attrs = {
             'direction': 'ingress',
             'ethertype': 'IPv4',
@@ -437,7 +438,7 @@ class FakeSegment(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         segment_attrs = {
             'id': 'segment-id-' + fake_uuid,
             'network_type': 'geneve',
@@ -467,7 +468,7 @@ class FakeSubnet(object):
         attrs = attrs or {}
 
         # Set default attributes.
-        fake_uuid = uuid.uuid4().hex
+        fake_uuid = uuidutils.generate_uuid()
         subnet_attrs = {
             'id': 'subnet-id-' + fake_uuid,
             'name': 'subnet-name-' + fake_uuid,

@@ -13,11 +13,11 @@
 #    under the License.
 
 import mock
-import uuid
 
 from networking_ovn.common import utils
 from networking_ovn.tests.functional import base
 from oslo_config import cfg
+from oslo_utils import uuidutils
 
 
 class TestPortBinding(base.TestOVNFunctionalBase):
@@ -52,7 +52,7 @@ class TestPortBinding(base.TestOVNFunctionalBase):
                          'tenant_id': self._tenant_id}}
 
             if hostname:
-                port_data['port']['device_id'] = str(uuid.uuid4())
+                port_data['port']['device_id'] = uuidutils.generate_uuid()
                 port_data['port']['device_owner'] = 'compute:None'
                 port_data['port']['binding:host_id'] = hostname
 
@@ -62,7 +62,7 @@ class TestPortBinding(base.TestOVNFunctionalBase):
             port_id = p['port']['id']
         else:
             port_data = {
-                'port': {'device_id': str(uuid.uuid4()),
+                'port': {'device_id': uuidutils.generate_uuid(),
                          'device_owner': 'compute:None',
                          'binding:host_id': hostname}}
             port_req = self.new_update_request('ports', port_data, port_id,

@@ -15,7 +15,8 @@
 import copy
 import mock
 import time
-import uuid
+
+from oslo_utils import uuidutils
 
 from neutron_lib import constants
 from ovs.db import idl as ovs_idl
@@ -87,7 +88,7 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     def _test_lsp_helper(self, event, new_row_json, old_row_json=None,
                          table=None):
-        row_uuid = str(uuid.uuid4())
+        row_uuid = uuidutils.generate_uuid()
         if not table:
             table = self.lp_table
         lp_row = ovs_idl.Row.from_json(self.idl, table,
@@ -226,7 +227,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         }
 
     def _test_chassis_helper(self, event, new_row_json, old_row_json=None):
-        row_uuid = str(uuid.uuid4())
+        row_uuid = uuidutils.generate_uuid()
         table = self.chassis_table
         row = ovs_idl.Row.from_json(self.sb_idl, table, row_uuid, new_row_json)
         if old_row_json:

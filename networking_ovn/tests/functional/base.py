@@ -15,11 +15,11 @@
 import fixtures
 import mock
 import time
-import uuid
 
 from neutron_lib import constants
 from oslo_config import cfg
 from oslo_log import log
+from oslo_utils import uuidutils
 
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import commands
@@ -206,7 +206,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
         bridge_mapping = ",".join(["%s:br-provider%s" % (phys_net, i)
                                   for i, phys_net in enumerate(physical_nets)])
-        name = uuid.uuid4().hex
+        name = uuidutils.generate_uuid()
         with self.sb_idl_transaction(fake_api, check_error=True) as txn:
             external_ids['ovn-bridge-mappings'] = bridge_mapping
             txn.add(AddFakeChassisCommand(fake_api, name, "172.24.4.10",

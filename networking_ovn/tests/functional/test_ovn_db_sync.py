@@ -14,7 +14,8 @@
 
 import mock
 import six
-import uuid
+
+from oslo_utils import uuidutils
 
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
@@ -255,10 +256,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             port_req = self.new_update_request('ports', data, port_id)
             port_req.get_response(self.api)
 
-        self.create_lswitches.append('neutron-' + uuid.uuid4().hex)
-        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+        self.create_lswitches.append('neutron-' + uuidutils.generate_uuid())
+        self.create_lswitch_ports.append(('neutron-' +
+                                          uuidutils.generate_uuid(),
                                           'neutron-' + n1['network']['id']))
-        self.create_lswitch_ports.append(('neutron-' + uuid.uuid4().hex,
+        self.create_lswitch_ports.append(('neutron-' +
+                                          uuidutils.generate_uuid(),
                                           'neutron-' + n1['network']['id']))
         self.delete_lswitches.append('neutron-' + n2['network']['id'])
 
@@ -307,10 +310,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.context, r2['id'],
             {'router': {'routes': [{'destination': '10.20.0.0/24',
                                     'nexthop': '10.0.0.20'}]}})
-        self.create_lrouters.append('neutron-' + uuid.uuid4().hex)
-        self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
+        self.create_lrouters.append('neutron-' + uuidutils.generate_uuid())
+        self.create_lrouter_ports.append(('lrp-' + uuidutils.generate_uuid(),
                                           'neutron-' + r1['id']))
-        self.create_lrouter_ports.append(('lrp-' + uuid.uuid4().hex,
+        self.create_lrouter_ports.append(('lrp-' + uuidutils.generate_uuid(),
                                           'neutron-' + r1['id']))
         self.delete_lrouters.append('neutron-' + r2['id'])
 
@@ -345,8 +348,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             'cidr': '2001:dbc::/64',
             'external_ids': {'subnet_id': n3_s2['subnet']['id']},
             'options': {'server_id': '01:02:03:04:05:06'}})
-        fake_port_id1 = uuid.uuid4().hex
-        fake_port_id2 = uuid.uuid4().hex
+        fake_port_id1 = uuidutils.generate_uuid()
+        fake_port_id2 = uuidutils.generate_uuid()
         self.create_lswitch_ports.append(('neutron-' + fake_port_id1,
                                           'neutron-' + n3['network']['id']))
         self.create_lswitch_ports.append(('neutron-' + fake_port_id2,
