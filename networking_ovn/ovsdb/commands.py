@@ -19,11 +19,8 @@ from networking_ovn._i18n import _
 from networking_ovn.common import utils
 
 
-# TODO(rtheis): These wrapper functions are't needed once OpenStack
-# global requirements guarantee an ovs python version with mutate
-# support that includes a fix for bug 1629099. Until then, care
-# must be taken to ensure column data isn't collected after mutation
-# within the same transaction.
+# TODO(rtheis): These wrapper functions can be removed since OpenStack
+# global requirements guarantee an ovs python version with mutate support.
 
 def _is_ovs_mutate_available(row):
     # Checking for the addvalue method should be sufficient.
@@ -658,10 +655,7 @@ class AddStaticRouteCommand(commands.BaseCommand):
         row = txn.insert(self.api._tables['Logical_Router_Static_Route'])
         for col, val in self.columns.items():
             setattr(row, col, val)
-        # TODO(rtheis): Use mutate for adding and deleting static
-        # routes once bug 1629099 is fixed.
-        _addvalue_to_list(lrouter, 'static_routes', row.uuid,
-                          mutate=False)
+        _addvalue_to_list(lrouter, 'static_routes', row.uuid)
 
 
 class DelStaticRouteCommand(commands.BaseCommand):
@@ -687,10 +681,7 @@ class DelStaticRouteCommand(commands.BaseCommand):
             ip_prefix = getattr(route, 'ip_prefix', '')
             nexthop = getattr(route, 'nexthop', '')
             if self.ip_prefix == ip_prefix and self.nexthop == nexthop:
-                # TODO(rtheis): Use mutate for adding and deleting static
-                # routes once bug 1629099 is fixed.
-                _delvalue_from_list(lrouter, 'static_routes', route,
-                                    mutate=False)
+                _delvalue_from_list(lrouter, 'static_routes', route)
                 route.delete()
                 break
 

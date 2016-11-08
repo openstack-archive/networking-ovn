@@ -276,24 +276,21 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                     'OVN DB for port %s'), acla['lport'])
                     txn.add(self.ovn_api.add_acl(**acla))
 
-            # TODO(rtheis): Each delete must be done in a separate
-            # transaction until bug 1629099 is fixed. Otherwise, ACLs may
-            # not be deleted because of previous row mutations on a logical
-            # switch.
-            for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
-                # Both lswitch and lport aren't needed within the ACL.
-                lswitchr = aclr.pop('lswitch').replace('neutron-', '')
-                lportr = aclr.pop('lport')
-                aclr_dict = {lportr: aclr}
-                LOG.warning(_LW('ACLs found in OVN DB but not in '
-                                'Neutron for port %s'), lportr)
-                self.ovn_api.update_acls(
-                    [lswitchr],
-                    [lportr],
-                    aclr_dict,
-                    need_compare=False,
-                    is_add_acl=False
-                ).execute(check_error=True)
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
+                    # Both lswitch and lport aren't needed within the ACL.
+                    lswitchr = aclr.pop('lswitch').replace('neutron-', '')
+                    lportr = aclr.pop('lport')
+                    aclr_dict = {lportr: aclr}
+                    LOG.warning(_LW('ACLs found in OVN DB but not in '
+                                    'Neutron for port %s'), lportr)
+                    txn.add(self.ovn_api.update_acls(
+                        [lswitchr],
+                        [lportr],
+                        aclr_dict,
+                        need_compare=False,
+                        is_add_acl=False
+                    ))
 
         LOG.debug('ACL-SYNC: finished @ %s' %
                   str(datetime.now()))
