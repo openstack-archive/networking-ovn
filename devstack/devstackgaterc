@@ -20,12 +20,14 @@
 
 # Disabled q-dhcp as a workaround for https://bugs.launchpad.net/networking-ovn/+bug/1639806
 # TODO(numans): Need to renable q-dhcp once the above bug is addressed properly.
-export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc,q-meta,q-l3
+export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
 if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
 fi
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_MODE=False"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
 
 # Begin list of exclusions.
@@ -34,7 +36,11 @@ r="^(?!.*"
 # exclude the slow tag (part of the default for 'full')
 r="$r(?:.*\[.*\bslow\b.*\])"
 
-# exclude things that just aren't enabled:
+# TODO(chandrav): Opened bug #1629073 to track this
+r="$r|(?:tempest\.scenario\.test_network_v6.*)"
+
+# exclude things that just aren't enabled with OVN
+r="$r|(?:tempest\.api\.network\.admin\.test_l3_agent_scheduler.*)"
 r="$r|(?:tempest\.api\.network\.admin\.test_quotas\.QuotasTest\.test_lbaas_quotas.*)"
 r="$r|(?:tempest\.api\.network\.test_load_balancer.*)"
 r="$r|(?:tempest\.scenario\.test_load_balancer.*)"
@@ -43,6 +49,15 @@ r="$r|(?:tempest\.api\.network\.admin\.test_lbaas.*)"
 r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
 r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
 r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
+
+# exclude dhcp agent tests
+r="$r|(?:tempest\.api\.network\.admin\.test_dhcp_agent_scheduler.*)"
+
+# exclude this test case because this expects dhcp interface to be present
+r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
+
+# exclude this test because there are no agents used by OVN
+r="$r|(?:tempest\.api\.network\.admin\.test_agent_management.*)"
 
 # exclude some unrelated stuff to make networking-ovn targeted runs go faster
 r="$r|(?:tempest\.api\.identity*)"
@@ -55,12 +70,6 @@ r="$r|(?:tempest\.api\.compute\.flavors*)"
 r="$r|(?:tempest\.api\.compute\.test_quotas*)"
 r="$r|(?:tempest\.api\.compute\.test_versions*)"
 r="$r|(?:tempest\.api\.compute\.volumes*)"
-
-# exclude dhcp agent tests
-r="$r|(?:tempest\.api\.network\.admin\.test_dhcp_agent_scheduler.*)"
-
-# exclude this test case because this expects dhcp interface to be present
-r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
 
 # End list of exclusions.
 r="$r)"
