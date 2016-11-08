@@ -22,7 +22,6 @@ from oslo_log import log
 from neutron import context
 from neutron.extensions import providernet as pnet
 from neutron import manager
-from neutron.plugins.common import constants as service_constants
 from neutron.services.segments import db as segments_db
 
 from networking_ovn._i18n import _LW
@@ -63,7 +62,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             core_plugin, ovn_api, ovn_driver)
         self.mode = mode
         self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
+            constants.L3)
 
     def _sync(self):
         if self.mode == SYNC_MODE_OFF:
@@ -695,7 +694,7 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
         super(OvnSbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
         self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
+            constants.L3)
 
     def _sync(self):
         """Method to sync the OVN_Southbound DB with neutron DB.

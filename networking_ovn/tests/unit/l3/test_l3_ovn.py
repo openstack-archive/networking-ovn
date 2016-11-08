@@ -14,12 +14,12 @@
 
 import mock
 
+from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 from oslo_log import log
 
 from neutron import manager
-from neutron.plugins.common import constants as service_constants
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 
@@ -102,7 +102,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                      'status': 'Active'}
         mgr = manager.NeutronManager.get_instance()
         self.l3_plugin = mgr.get_service_plugins().get(
-            service_constants.L3_ROUTER_NAT)
+            constants.L3)
         mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
