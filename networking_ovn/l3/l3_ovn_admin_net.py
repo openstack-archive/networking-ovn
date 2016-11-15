@@ -121,7 +121,7 @@ class OVNL3AdminNetwork(object):
         for port in ports:
             fixed_ips = port.get('fixed_ips', [])
             if not fixed_ips or (fixed_ips and len(fixed_ips) > 1):
-                msg = _('Unexpected fixed ips %(f) for port %(n)s.') % {
+                msg = _('Unexpected fixed ips %(f)s for port %(n)s.') % {
                     'f': fixed_ips, 'n': port.get('name')}
                 raise exc.L3AdminNetPortsError(error_message=msg)
 
