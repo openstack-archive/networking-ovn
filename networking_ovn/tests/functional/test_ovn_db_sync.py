@@ -25,11 +25,11 @@ from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
 from neutron import context
-from neutron import manager
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron_lib import constants
+from neutron_lib.plugins import directory
 
 
 class TestOvnNbSync(base.TestOVNFunctionalBase):
@@ -921,8 +921,7 @@ class TestOvnSbSync(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestOvnSbSync, self).setUp(ovn_worker=False)
-        self.segments_plugin = manager.NeutronManager.get_service_plugins(
-            ).get('segments')
+        self.segments_plugin = directory.get_plugin('segments')
         self.sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
             self.plugin, self.mech_driver._sb_ovn, self.mech_driver)
         self.ctx = context.get_admin_context()

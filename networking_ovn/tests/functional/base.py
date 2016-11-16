@@ -17,13 +17,13 @@ import mock
 import time
 
 from neutron_lib import constants
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import uuidutils
 
 from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import commands
-from neutron import manager
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
@@ -81,11 +81,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                      group='ml2_type_geneve')
 
         super(TestOVNFunctionalBase, self).setUp()
-        mm = manager.NeutronManager.get_plugin().mechanism_manager
+        mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
-        mgr = manager.NeutronManager.get_instance()
-        self.l3_plugin = mgr.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
         self.ovsdb_server_mgr = None
         self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()

@@ -19,6 +19,7 @@ import time
 from oslo_utils import uuidutils
 
 from neutron_lib import constants
+from neutron_lib.plugins import directory
 from ovs.db import idl as ovs_idl
 from ovs import poller
 
@@ -27,7 +28,6 @@ from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 from neutron.agent.ovsdb.native import idlutils
-from neutron import manager
 
 
 OVN_NB_SCHEMA = {
@@ -213,9 +213,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.sb_idl.post_initialize(self.driver)
         self.chassis_table = self.sb_idl.tables.get('Chassis')
         self.driver.update_segment_host_mapping = mock.Mock()
-        mgr = manager.NeutronManager.get_instance()
-        self.l3_plugin = mgr.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
         if ovn_config.is_ovn_l3():
             self.l3_plugin.schedule_unhosted_routers = mock.Mock()
 

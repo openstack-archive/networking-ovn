@@ -17,6 +17,7 @@ import six
 
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
 from oslo_utils import excutils
@@ -25,7 +26,6 @@ from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.extensions import l3
-from neutron import manager
 from neutron.services import service_base
 
 
@@ -83,7 +83,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     @property
     def _plugin(self):
         if self._plugin_property is None:
-            self._plugin_property = manager.NeutronManager.get_plugin()
+            self._plugin_property = directory.get_plugin()
         return self._plugin_property
 
     @property

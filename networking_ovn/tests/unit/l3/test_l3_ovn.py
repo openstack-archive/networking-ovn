@@ -16,10 +16,10 @@ import mock
 
 from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log
 
-from neutron import manager
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 
@@ -100,9 +100,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                      'floating_port_id': 'fip-port-id',
                                      'fixed_ip_address': '10.10.10.10',
                                      'status': 'Active'}
-        mgr = manager.NeutronManager.get_instance()
-        self.l3_plugin = mgr.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
         mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,

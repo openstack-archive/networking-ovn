@@ -17,6 +17,7 @@ from webob import exc
 
 from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import directory
 from oslo_db import exception as os_db_exc
 
 from neutron.callbacks import events
@@ -25,7 +26,7 @@ from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
-from neutron import manager
+from neutron.extensions import providernet as pnet
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
@@ -55,7 +56,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                      ['1:65536'],
                                      group='ml2_type_geneve')
         super(TestOVNMechanismDriver, self).setUp()
-        mm = manager.NeutronManager.get_plugin().mechanism_manager
+        mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
@@ -764,7 +765,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
                                      ['1:65536'],
                                      group='ml2_type_geneve')
         super(OVNMechanismDriverTestCase, self).setUp()
-        mm = manager.NeutronManager.get_plugin().mechanism_manager
+        mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
@@ -811,6 +812,24 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
             super(TestOVNMechansimDriverSubnetsV2, self).\
                 test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets()
 
+    # NOTE(numans) Overriding the base test case here because the base test
+    # case creates a network with vxlan type and OVN mech driver doesn't
+    # support it.
+    def test_create_subnet_check_mtu_in_mech_context(self):
+        plugin = directory.get_plugin()
+        plugin.mechanism_manager.create_subnet_precommit = mock.Mock()
+        net_arg = {pnet.NETWORK_TYPE: 'geneve',
+                   pnet.SEGMENTATION_ID: '1'}
+        network = self._make_network(self.fmt, 'net1', True,
+                                     arg_list=(pnet.NETWORK_TYPE,
+                                               pnet.SEGMENTATION_ID,),
+                                     **net_arg)
+        with self.subnet(network=network):
+            mock_subnet_pre = plugin.mechanism_manager.create_subnet_precommit
+            observerd_mech_context = mock_subnet_pre.call_args_list[0][0][0]
+            self.assertEqual(network['network']['mtu'],
+                             observerd_mech_context.network.current['mtu'])
+
 
 class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
                                     OVNMechanismDriverTestCase):
@@ -842,7 +861,7 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
 
     def setUp(self):
         super(TestOVNMechansimDriverSegment, self).setUp()
-        mm = manager.NeutronManager.get_plugin().mechanism_manager
+        mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()

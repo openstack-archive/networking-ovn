@@ -16,12 +16,12 @@ from datetime import datetime
 from eventlet import greenthread
 import itertools
 from neutron_lib import constants
+from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
 
 from neutron import context
 from neutron.extensions import providernet as pnet
-from neutron import manager
 from neutron.services.segments import db as segments_db
 
 from networking_ovn._i18n import _LW
@@ -61,8 +61,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         super(OvnNbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
         self.mode = mode
-        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
 
     def _sync(self):
         if self.mode == SYNC_MODE_OFF:
@@ -693,8 +692,7 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
     def __init__(self, core_plugin, ovn_api, ovn_driver):
         super(OvnSbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
-        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
 
     def _sync(self):
         """Method to sync the OVN_Southbound DB with neutron DB.

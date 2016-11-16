@@ -18,6 +18,7 @@ import netaddr
 from neutron_lib.api import validators
 from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
@@ -32,7 +33,6 @@ from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
-from neutron import manager
 from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
@@ -105,7 +105,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
     @property
     def _plugin(self):
         if self._plugin_property is None:
-            self._plugin_property = manager.NeutronManager.get_plugin()
+            self._plugin_property = directory.get_plugin()
         return self._plugin_property
 
     def _get_attribute(self, obj, attribute):

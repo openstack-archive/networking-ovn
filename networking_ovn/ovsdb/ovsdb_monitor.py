@@ -28,9 +28,9 @@ from networking_ovn.ovsdb import row_event
 from neutron.agent.ovsdb.native import connection
 from neutron.agent.ovsdb.native import idlutils
 from neutron.common import config
-from neutron import manager
 from neutron import worker
 from neutron_lib import constants
+from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 
 LOG = log.getLogger(__name__)
@@ -41,8 +41,7 @@ class ChassisEvent(row_event.RowEvent):
 
     def __init__(self, driver):
         self.driver = driver
-        self.l3_plugin = manager.NeutronManager.get_service_plugins().get(
-            constants.L3)
+        self.l3_plugin = directory.get_plugin(constants.L3)
         table = 'Chassis'
         events = (self.ROW_CREATE, self.ROW_UPDATE, self.ROW_DELETE)
         super(ChassisEvent, self).__init__(events, table, None)

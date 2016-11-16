@@ -12,13 +12,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log as logging
 
 from neutron.conf.agent import securitygroups_rpc
 from neutron import context
-from neutron import manager
 from neutron import opts as neutron_options
 from neutron.plugins.ml2 import plugin as ml2_plugin
 
@@ -106,7 +106,7 @@ def main():
         LOG.error(_LE('Invalid --ovn-ovn_nb_connection parameter provided.'))
         return
 
-    core_plugin = manager.NeutronManager.get_plugin()
+    core_plugin = directory.get_plugin()
     ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
     ovn_driver._nb_ovn = ovn_api
 
