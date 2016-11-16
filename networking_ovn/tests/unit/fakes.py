@@ -249,7 +249,9 @@ class FakeOvsdbRow(FakeResource):
 
         # Set default methods.
         ovsdb_row_methods = {
+            'addvalue': None,
             'delete': None,
+            'delvalue': None,
             'verify': None,
         }
 
