@@ -19,58 +19,22 @@ from networking_ovn._i18n import _
 from networking_ovn.common import utils
 
 
-# TODO(rtheis): These wrapper functions can be removed since OpenStack
-# global requirements guarantee an ovs python version with mutate support.
-
-def _is_ovs_mutate_available(row):
-    # Checking for the addvalue method should be sufficient.
-    return callable(getattr(row, 'addvalue', None))
+def _addvalue_to_list(row, column, new_value):
+    row.addvalue(column, new_value)
 
 
-def _addvalue_to_list(row, column, new_value, mutate=True):
-    # If available, use mutate support to add the value.
-    if mutate and _is_ovs_mutate_available(row):
-        row.addvalue(column, new_value)
-    else:
-        row.verify(column)
-        column_values = getattr(row, column, [])
-        if new_value not in column_values:
-            column_values.append(new_value)
-            setattr(row, column, column_values)
-
-
-def _delvalue_from_list(row, column, old_value, mutate=True):
-    # If available, use mutate support to delete the value.
-    if mutate and _is_ovs_mutate_available(row):
-        row.delvalue(column, old_value)
-    else:
-        row.verify(column)
-        column_values = getattr(row, column, [])
-        if old_value in column_values:
-            column_values.remove(old_value)
-            setattr(row, column, column_values)
+def _delvalue_from_list(row, column, old_value):
+    row.delvalue(column, old_value)
 
 
 def _updatevalues_in_list(row, column, new_values=None, old_values=None):
     new_values = new_values or []
     old_values = old_values or []
 
-    # If available, use mutate support to add/delete the values.
-    if _is_ovs_mutate_available(row):
-        for new_value in new_values:
-            row.addvalue(column, new_value)
-        for old_value in old_values:
-            row.delvalue(column, old_value)
-    else:
-        row.verify(column)
-        column_values = getattr(row, column, [])
-        for new_value in new_values:
-            if new_value not in column_values:
-                column_values.append(new_value)
-        for old_value in old_values:
-            if old_value in column_values:
-                column_values.remove(old_value)
-        setattr(row, column, column_values)
+    for new_value in new_values:
+        row.addvalue(column, new_value)
+    for old_value in old_values:
+        row.delvalue(column, old_value)
 
 
 def get_lsp_dhcp_options_uuids(lsp, lsp_name):

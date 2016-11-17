@@ -33,15 +33,9 @@ class TestBaseCommandHelpers(base.TestCase):
 
     def _get_fake_row_mutate(self):
         return fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={self.column: []},
-            methods={'addvalue': None, 'delvalue': None})
+            attrs={self.column: []})
 
-    def _get_fake_row_no_mutate(self, column_value=None):
-        column_value = column_value or []
-        return fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={self.column: column_value})
-
-    def test__addvalue_to_list_mutate(self):
+    def test__addvalue_to_list(self):
         fake_row_mutate = self._get_fake_row_mutate()
         commands._addvalue_to_list(
             fake_row_mutate, self.column, self.new_value)
@@ -49,29 +43,7 @@ class TestBaseCommandHelpers(base.TestCase):
             self.column, self.new_value)
         fake_row_mutate.verify.assert_not_called()
 
-    def test__addvalue_to_list_force_no_mutate(self):
-        fake_row_mutate = self._get_fake_row_mutate()
-        commands._addvalue_to_list(
-            fake_row_mutate, self.column, self.new_value,
-            mutate=False)
-        fake_row_mutate.addvalue.assert_not_called()
-        fake_row_mutate.verify.assert_called_once_with(self.column)
-
-    def _test__addvalue_to_list_no_mutate(self, fake_row):
-        commands._addvalue_to_list(fake_row, self.column, self.new_value)
-        fake_row.verify.assert_called_once_with(self.column)
-        self.assertEqual([self.new_value], fake_row.ovn)
-
-    def test__addvalue_to_list_new_no_mutate(self):
-        fake_row_new = self._get_fake_row_no_mutate()
-        self._test__addvalue_to_list_no_mutate(fake_row_new)
-
-    def test__addvalue_to_list_exists_no_mutate(self):
-        fake_row_exists = self._get_fake_row_no_mutate(
-            column_value=[self.new_value])
-        self._test__addvalue_to_list_no_mutate(fake_row_exists)
-
-    def test__delvalue_from_list_mutate(self):
+    def test__delvalue_from_list(self):
         fake_row_mutate = self._get_fake_row_mutate()
         commands._delvalue_from_list(
             fake_row_mutate, self.column, self.old_value)
@@ -79,36 +51,21 @@ class TestBaseCommandHelpers(base.TestCase):
             self.column, self.old_value)
         fake_row_mutate.verify.assert_not_called()
 
-    def test__delvalue_from_list_force_no_mutate(self):
+    def test__updatevalues_in_list_none(self):
         fake_row_mutate = self._get_fake_row_mutate()
-        commands._delvalue_from_list(
-            fake_row_mutate, self.column, self.old_value,
-            mutate=False)
+        commands._updatevalues_in_list(fake_row_mutate, self.column)
+        fake_row_mutate.addvalue.assert_not_called()
         fake_row_mutate.delvalue.assert_not_called()
-        fake_row_mutate.verify.assert_called_once_with(self.column)
+        fake_row_mutate.verify.assert_not_called()
 
-    def _test__delvalue_from_list_no_mutate(self, fake_row):
-        commands._delvalue_from_list(fake_row, self.column, self.old_value)
-        fake_row.verify.assert_called_once_with(self.column)
-        self.assertEqual([], fake_row.ovn)
-
-    def test__delvalue_from_list_new_no_mutate(self):
-        fake_row_new = self._get_fake_row_no_mutate()
-        self._test__delvalue_from_list_no_mutate(fake_row_new)
-
-    def test__delvalue_from_list_exists_no_mutate(self):
-        fake_row_exists = self._get_fake_row_no_mutate(
-            column_value=[self.old_value])
-        self._test__delvalue_from_list_no_mutate(fake_row_exists)
-
-    def test__updatevalues_in_list_empty_mutate(self):
+    def test__updatevalues_in_list_empty(self):
         fake_row_mutate = self._get_fake_row_mutate()
         commands._updatevalues_in_list(fake_row_mutate, self.column, [], [])
         fake_row_mutate.addvalue.assert_not_called()
         fake_row_mutate.delvalue.assert_not_called()
         fake_row_mutate.verify.assert_not_called()
 
-    def test__updatevalues_in_list_mutate(self):
+    def test__updatevalues_in_list(self):
         fake_row_mutate = self._get_fake_row_mutate()
         commands._updatevalues_in_list(
             fake_row_mutate, self.column,
@@ -119,29 +76,6 @@ class TestBaseCommandHelpers(base.TestCase):
         fake_row_mutate.delvalue.assert_called_once_with(
             self.column, self.old_value)
         fake_row_mutate.verify.assert_not_called()
-
-    def test__updatevalues_in_list_empty_no_mutate(self):
-        fake_row_no_mutate = self._get_fake_row_no_mutate()
-        commands._updatevalues_in_list(fake_row_no_mutate, self.column, [], [])
-        fake_row_no_mutate.verify.assert_called_once_with(self.column)
-        self.assertEqual([], fake_row_no_mutate.ovn)
-
-    def _test__updatevalues_in_list_no_mutate(self, fake_row):
-        commands._updatevalues_in_list(
-            fake_row, self.column,
-            new_values=[self.new_value],
-            old_values=[self.old_value])
-        fake_row.verify.assert_called_once_with(self.column)
-        self.assertEqual([self.new_value], fake_row.ovn)
-
-    def test__updatevalues_in_list_new_no_mutate(self):
-        fake_row_new = self._get_fake_row_no_mutate()
-        self._test__updatevalues_in_list_no_mutate(fake_row_new)
-
-    def test__updatevalues_in_list_exists_no_mutate(self):
-        fake_row_exists = self._get_fake_row_no_mutate(
-            column_value=[self.old_value, self.new_value])
-        self._test__updatevalues_in_list_no_mutate(fake_row_exists)
 
 
 class TestBaseCommand(base.TestCase):
@@ -312,9 +246,9 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api._tables['Logical_Switch_Port'])
-            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lswitch.addvalue.assert_called_once_with(
+                'ports', fake_lsp.uuid)
             self.assertEqual(lsp_name, fake_lsp.name)
-            self.assertEqual([fake_lsp.uuid], fake_lswitch.ports)
             self.assertEqual('bar', fake_lsp.foo)
 
     def test_lswitch_port_add_may_exist(self):
@@ -342,9 +276,9 @@ class TestAddLSwitchPortCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api.lsp_table)
-            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lswitch.addvalue.assert_called_once_with(
+                'ports', fake_lsp.uuid)
             self.assertEqual(lsp_name, fake_lsp.name)
-            self.assertEqual([fake_lsp.uuid], fake_lswitch.ports)
             if isinstance(dhcpv4_opts, list):
                 self.assertEqual(dhcpv4_opts, fake_lsp.dhcpv4_options)
             else:
@@ -516,9 +450,8 @@ class TestDelLSwitchPortCommand(TestBaseCommand):
             cmd = commands.DelLSwitchPortCommand(
                 self.ovn_api, fake_lsp.name, fake_lswitch.name, if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lswitch.delvalue.assert_called_once_with('ports', fake_lsp)
             fake_lsp.delete.assert_called_once_with()
-            self.assertEqual([], fake_lswitch.ports)
 
     def _test_lswitch_port_del_delete_dhcp_opt(self, dhcpv4_opt_ext_ids,
                                                dhcpv6_opt_ext_ids):
@@ -545,7 +478,7 @@ class TestDelLSwitchPortCommand(TestBaseCommand):
             cmd = commands.DelLSwitchPortCommand(
                 self.ovn_api, fake_lsp.name, fake_lswitch.name, if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lswitch.verify.assert_called_once_with('ports')
+            fake_lswitch.delvalue.assert_called_once_with('ports', fake_lsp)
             fake_lsp.delete.assert_called_once_with()
             if 'port_id' in dhcpv4_opt_ext_ids:
                 fake_dhcpv4_options.delete.assert_called_once_with()
@@ -705,8 +638,7 @@ class TestAddLRouterPortCommand(TestBaseCommand):
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api._tables['Logical_Router_Port'])
             self.assertEqual('fake-lrp', fake_lrp.name)
-            fake_lrouter.verify.assert_called_once_with('ports')
-            self.assertEqual([fake_lrp], fake_lrouter.ports)
+            fake_lrouter.addvalue.assert_called_once_with('ports', fake_lrp)
             self.assertEqual('bar', fake_lrp.foo)
 
 
@@ -778,8 +710,7 @@ class TestDelLRouterPortCommand(TestBaseCommand):
             cmd = commands.DelLRouterPortCommand(
                 self.ovn_api, fake_lrp.name, fake_lrouter.name, if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lrouter.verify.assert_called_once_with('ports')
-            self.assertEqual([], fake_lrouter.ports)
+            fake_lrouter.delvalue.assert_called_once_with('ports', fake_lrp)
 
 
 class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
@@ -823,8 +754,8 @@ class TestAddACLCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api._tables['ACL'])
-            fake_lswitch.verify.assert_called_once_with('acls')
-            self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
+            fake_lswitch.addvalue.assert_called_once_with(
+                'acls', fake_acl.uuid)
             self.assertEqual({'neutron:lport': 'fake-lsp'},
                              fake_acl.external_ids)
             self.assertEqual('*', fake_acl.match)
@@ -862,8 +793,7 @@ class TestDelACLCommand(TestBaseCommand):
                 self.ovn_api, fake_lswitch.name, fake_lsp_name,
                 if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lswitch.verify.assert_called_once_with('acls')
-            self.assertEqual([fake_acl_save], fake_lswitch.acls)
+            fake_lswitch.delvalue.assert_called_once_with('acls', mock.ANY)
 
 
 class TestUpdateACLsCommand(TestBaseCommand):
@@ -877,7 +807,8 @@ class TestUpdateACLsCommand(TestBaseCommand):
             need_compare=True)
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_not_called()
-        fake_lswitch.verify.assert_not_called()
+        fake_lswitch.addvalue.assert_not_called()
+        fake_lswitch.delvalue.assert_not_called()
 
     def _test_acl_update_no_acls(self, need_compare):
         fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row()
@@ -891,7 +822,8 @@ class TestUpdateACLsCommand(TestBaseCommand):
                 need_compare=need_compare)
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_not_called()
-            fake_lswitch.verify.assert_not_called()
+            fake_lswitch.addvalue.assert_not_called()
+            fake_lswitch.delvalue.assert_not_called()
 
     def test_acl_update_compare_no_acls(self):
         self._test_acl_update_no_acls(need_compare=True)
@@ -924,8 +856,7 @@ class TestUpdateACLsCommand(TestBaseCommand):
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_called_once_with(
             self.ovn_api._tables['ACL'])
-        fake_lswitch.verify.assert_called_with('acls')
-        self.assertEqual([fake_add_acl.uuid], fake_lswitch.acls)
+        fake_lswitch.addvalue.assert_called_with('acls', fake_add_acl.uuid)
 
     def test_acl_update_no_compare_add_acls(self):
         fake_sg_rule = \
@@ -948,8 +879,8 @@ class TestUpdateACLsCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api._tables['ACL'])
-            fake_lswitch.verify.assert_called_once_with('acls')
-            self.assertEqual([fake_acl.uuid], fake_lswitch.acls)
+            fake_lswitch.addvalue.assert_called_once_with(
+                'acls', fake_acl.uuid)
 
     def test_acl_update_no_compare_del_acls(self):
         fake_sg_rule = \
@@ -971,8 +902,7 @@ class TestUpdateACLsCommand(TestBaseCommand):
                 is_add_acl=False)
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_not_called()
-            fake_lswitch.verify.assert_called_with('acls')
-            self.assertEqual([], fake_lswitch.acls)
+            fake_lswitch.delvalue.assert_called_with('acls', mock.ANY)
 
 
 class TestAddStaticRouteCommand(TestBaseCommand):
@@ -999,9 +929,8 @@ class TestAddStaticRouteCommand(TestBaseCommand):
                 self.ovn_api._tables['Logical_Router_Static_Route'])
             self.assertEqual('40.0.0.100', fake_static_route.nexthop)
             self.assertEqual('30.0.0.0/24', fake_static_route.ip_prefix)
-            fake_lrouter.verify.assert_called_once_with('static_routes')
-            self.assertEqual([fake_static_route.uuid],
-                             fake_lrouter.static_routes)
+            fake_lrouter.addvalue.assert_called_once_with(
+                'static_routes', fake_static_route.uuid)
 
 
 class TestDelStaticRouteCommand(TestBaseCommand):
@@ -1036,8 +965,8 @@ class TestDelStaticRouteCommand(TestBaseCommand):
                 fake_static_route.ip_prefix, fake_static_route.nexthop,
                 if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lrouter.verify.assert_called_once_with('static_routes')
-            self.assertEqual([], fake_lrouter.static_routes)
+            fake_lrouter.delvalue.assert_called_once_with(
+                'static_routes', mock.ANY)
 
     def test_static_route_del_not_found(self):
         fake_static_route1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
@@ -1053,7 +982,7 @@ class TestDelStaticRouteCommand(TestBaseCommand):
                 fake_static_route1.ip_prefix, fake_static_route1.nexthop,
                 if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_lrouter.verify.assert_not_called()
+            fake_lrouter.delvalue.assert_not_called()
             self.assertEqual([mock.ANY], fake_lrouter.static_routes)
 
 
@@ -1156,12 +1085,18 @@ class TestUpdateAddrSetCommand(TestBaseCommand):
         save_address = '10.0.0.1'
         initial_addresses = [save_address]
         final_addresses = [save_address]
+        expected_addvalue_calls = []
+        expected_delvalue_calls = []
         if addrs_add:
             for addr_add in addrs_add:
                 final_addresses.append(addr_add)
+                expected_addvalue_calls.append(
+                    mock.call('addresses', addr_add))
         if addrs_del:
             for addr_del in addrs_del:
                 initial_addresses.append(addr_del)
+                expected_delvalue_calls.append(
+                    mock.call('addresses', addr_del))
         fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'addresses': initial_addresses})
         with mock.patch.object(idlutils, 'row_by_value',
@@ -1171,8 +1106,8 @@ class TestUpdateAddrSetCommand(TestBaseCommand):
                 addrs_add=addrs_add, addrs_remove=addrs_del,
                 if_exists=True)
             cmd.run_idl(self.transaction)
-            fake_addrset.verify.assert_called_once_with('addresses')
-            self.assertEqual(final_addresses, fake_addrset.addresses)
+            fake_addrset.addvalue.assert_has_calls(expected_addvalue_calls)
+            fake_addrset.delvalue.assert_has_calls(expected_delvalue_calls)
 
     def test_addrset_update_add(self):
         self._test_addrset_update(addrs_add=['10.0.0.4'])
