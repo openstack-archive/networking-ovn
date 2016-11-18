@@ -895,6 +895,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
         try:
             with self._ovn.transaction(check_error=True) as txn:
+                nat_rule_args = (gw_lrouter_name,)
                 if associate:
                     # TODO(chandrav): Since the floating ip port is not
                     # bound to any chassis, packets destined to floating ip
@@ -905,7 +906,22 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     txn.add(self._ovn.delete_lswitch_port(
                         update['fip_port_id'],
                         utils.ovn_name(update['fip_net_id'])))
-                txn.add(fip_apis['nat'](gw_lrouter_name, type='dnat_and_snat',
+
+                    # Get the list of nat rules and check if the external_ip
+                    # with type 'dnat_and_snat' already exists or not.
+                    # If exists, set the new value.
+                    # This happens when the port associated to a floating ip
+                    # is deleted before the disassociation.
+                    lrouter_nat_rules = self._ovn.get_lrouter_nat_rules(
+                        gw_lrouter_name)
+                    for nat_rule in lrouter_nat_rules:
+                        if nat_rule['external_ip'] == update['external_ip'] \
+                            and nat_rule['type'] == 'dnat_and_snat':
+                            fip_apis['nat'] = self._ovn.set_nat_rule_in_lrouter
+                            nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
+                            break
+
+                txn.add(fip_apis['nat'](*nat_rule_args, type='dnat_and_snat',
                                         logical_ip=update['logical_ip'],
                                         external_ip=update['external_ip']))
                 txn.add(fip_apis['garp'](update['gw_port_id'],

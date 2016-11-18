@@ -691,6 +691,46 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'fip-port-id', 'neutron-fip-net-id')
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    def test_create_floatingip_external_ip_present_in_nat_rule(self, gf, gr):
+        gf.return_value = {'floating_port_id': 'fip-port-id'}
+        gr.return_value = {'gw_port_id': 'gw-port-id'}
+        self.l3_plugin._ovn.get_lrouter_nat_rules.return_value = [
+            {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.6',
+             'type': 'dnat_and_snat', 'uuid': 'uuid1'}]
+        self.l3_plugin.create_floatingip(self.context, 'floatingip')
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
+        self.l3_plugin._ovn.set_nat_rule_in_lrouter.assert_called_once_with(
+            'ogr-router-id', 'uuid1',
+            type='dnat_and_snat',
+            logical_ip='10.0.0.10',
+            external_ip='192.168.0.10')
+        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
+            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
+        self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
+            'fip-port-id', 'neutron-fip-net-id')
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    def test_create_floatingip_external_ip_present_type_snat(self, gf, gr):
+        gf.return_value = {'floating_port_id': 'fip-port-id'}
+        gr.return_value = {'gw_port_id': 'gw-port-id'}
+        self.l3_plugin._ovn.get_lrouter_nat_rules.return_value = [
+            {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.0/24',
+             'type': 'snat', 'uuid': 'uuid1'}]
+        self.l3_plugin.create_floatingip(self.context, 'floatingip')
+        self.l3_plugin._ovn.set_nat_rule_in_lrouter.assert_not_called()
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'ogr-router-id',
+            type='dnat_and_snat',
+            logical_ip='10.0.0.10',
+            external_ip='192.168.0.10')
+        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
+            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
+        self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
+            'fip-port-id', 'neutron-fip-net-id')
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.delete_floatingip')
     def test_delete_floatingip(self, df, gr):
         gr.return_value = {'gw_port_id': 'gw-port-id'}

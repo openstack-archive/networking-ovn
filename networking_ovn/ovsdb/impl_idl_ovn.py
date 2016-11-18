@@ -449,6 +449,26 @@ class OvsdbNbOvnIdl(ovn_api.API):
                                                  logical_ip, external_ip,
                                                  if_exists)
 
+    def get_lrouter_nat_rules(self, lrouter_name):
+        try:
+            lrouter = idlutils.row_by_value(self.idl, 'Logical_Router',
+                                            'name', lrouter_name)
+        except idlutils.RowNotFound:
+            msg = _("Logical Router %s does not exist") % lrouter_name
+            raise RuntimeError(msg)
+
+        nat_rules = []
+        for nat_rule in getattr(lrouter, 'nat', []):
+            nat_rules.append({'external_ip': nat_rule.external_ip,
+                              'logical_ip': nat_rule.logical_ip,
+                              'type': nat_rule.type,
+                              'uuid': nat_rule.uuid})
+        return nat_rules
+
+    def set_nat_rule_in_lrouter(self, lrouter, nat_rule_uuid, **columns):
+        return cmd.SetNATRuleInLRouterCommand(self, lrouter, nat_rule_uuid,
+                                              **columns)
+
     def add_nat_ip_to_lrport_peer_options(self, lport, nat_ip):
         return cmd.AddNatIpToLRPortPeerOptionsCommand(self, lport, nat_ip)
 
