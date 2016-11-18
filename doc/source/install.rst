@@ -75,7 +75,7 @@ primary node. See the :ref:`faq` for more information.
 
    .. code-block:: console
 
-      # /usr/share/openvswitch/scripts/ovs-ctl start
+      # /usr/share/openvswitch/scripts/ovs-ctl start  --system-id="random"
 
 #. Configure the ``ovsdb-server`` component. By default, the ``ovsdb-server``
    service only permits local access to databases via Unix socket. However,
@@ -307,7 +307,7 @@ Each compute node runs the OVS and ``ovn-controller`` services. The
 
    .. code-block:: console
 
-      # /usr/share/openvswitch/scripts/ovs-ctl start
+      # /usr/share/openvswitch/scripts/ovs-ctl start --system-id="random"
 
 #. Configure the OVS service.
 
