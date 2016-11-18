@@ -3,7 +3,7 @@ features:
   - |
     Initial release of the OpenStack Networking service (neutron)
     integration with Open Virtual Network (OVN), a component of the
-    the `Open vSwitch <http://openvswitch.org/>`_ project. OVN provides
+    `Open vSwitch <http://openvswitch.org/>`_ project. OVN provides
     the following features either via native implementation or
     conventional agents:
 

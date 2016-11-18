@@ -521,7 +521,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
 
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
         # The Logical_Switch_Port.dhcp(v4/v6)_options should refer to the
-        # the port DHCP options.
+        # port DHCP options.
         self._verify_dhcp_option_row_for_port(
             p1['id'], expected_dhcp_options_rows['v4-' + p1['id']],
             expected_dhcp_options_rows['v6-' + p1['id']])
