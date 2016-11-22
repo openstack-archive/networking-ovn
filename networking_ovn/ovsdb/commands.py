@@ -854,6 +854,30 @@ class DeleteNATRuleInLRouterCommand(commands.BaseCommand):
         setattr(lrouter, 'nat', nats)
 
 
+class SetNATRuleInLRouterCommand(commands.BaseCommand):
+    def __init__(self, api, lrouter, nat_rule_uuid, **columns):
+        super(SetNATRuleInLRouterCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.nat_rule_uuid = nat_rule_uuid
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        lrouter.verify('nat')
+        nat_rules = getattr(lrouter, 'nat', [])
+        for nat_rule in nat_rules:
+            if nat_rule.uuid == self.nat_rule_uuid:
+                for col, val in self.columns.items():
+                    setattr(nat_rule, col, val)
+                break
+
+
 class AddNatIpToLRPortPeerOptionsCommand(commands.BaseCommand):
     # TODO(chandrav): Add unit tests, bug #1638715.
     def __init__(self, api, lport, nat_ip):

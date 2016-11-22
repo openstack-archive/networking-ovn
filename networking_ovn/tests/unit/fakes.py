@@ -33,6 +33,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.addrset_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.acl_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.dhcp_options_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.nat_table = FakeOvsdbTable.create_one_ovsdb_table()
         self._tables = {}
         self._tables['Logical_Switch'] = self.lswitch_table
         self._tables['Logical_Switch_Port'] = self.lsp_table
@@ -43,6 +44,7 @@ class FakeOvsdbNbOvnIdl(object):
         self._tables['ACL'] = self.acl_table
         self._tables['Address_Set'] = self.addrset_table
         self._tables['DHCP_Options'] = self.dhcp_options_table
+        self._tables['NAT'] = self.nat_table
         self.transaction = _fake
         self.create_lswitch = mock.Mock()
         self.set_lswitch_ext_id = mock.Mock()
@@ -85,6 +87,9 @@ class FakeOvsdbNbOvnIdl(object):
         self.delete_nat_rule_in_lrouter = mock.Mock()
         self.add_nat_ip_to_lrport_peer_options = mock.Mock()
         self.delete_nat_ip_from_lrport_peer_options = mock.Mock()
+        self.get_lrouter_nat_rules = mock.Mock()
+        self.get_lrouter_nat_rules.return_value = []
+        self.set_nat_rule_in_lrouter = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):

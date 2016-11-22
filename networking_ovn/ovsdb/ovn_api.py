@@ -507,6 +507,30 @@ class API(object):
         :returns:       :class:`Command` with no result
         """
 
+    @abc.abstractmethod
+    def get_lrouter_nat_rules(self, lrouter):
+        """Returns the nat rules of a router
+
+        :param lrouter: The unique name of the router
+        :type lrouter:  string
+        :returns:       A list of nat rules of the router, with each item
+                        as a dict with the keys - 'external_ip', 'logical_ip'
+                        'type' and 'uuid' of the row.
+        """
+
+    @abc.abstractmethod
+    def set_nat_rule_in_lrouter(self, lrouter, nat_rule_uuid, **columns):
+        """Sets the NAT rule fields
+
+        :param lrouter: The unique name of the router to which this the
+                        NAT rule belongs to.
+        :type lrouter:  string
+        :param nat_rule_uuid:  The uuid of the NAT rule row to be updated.
+        :type nat_rule_uuid:   string
+        :type columns:       dictionary
+        :returns:            :class:`Command` with no result
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(object):

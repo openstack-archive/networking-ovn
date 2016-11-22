@@ -1254,3 +1254,28 @@ class TestDelDHCPOptionsCommand(TestBaseCommand):
             self.ovn_api, fake_dhcp_options.uuid, if_exists=True)
         cmd.run_idl(self.transaction)
         fake_dhcp_options.delete.assert_called_once_with()
+
+
+class TestSetNATRuleInLRouterCommand(TestBaseCommand):
+
+    def test_set_nat_rule(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            fake_nat_rule_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+                attrs={'external_ip': '192.168.1.10',
+                       'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat'})
+            fake_nat_rule_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+                attrs={'external_ip': '192.168.1.8',
+                       'logical_ip': '10.0.0.5', 'type': 'dnat_and_snat'})
+            fake_lrouter.nat = [fake_nat_rule_1, fake_nat_rule_2]
+            self.ovn_api._tables['NAT'].rows[fake_nat_rule_1.uuid] = \
+                fake_nat_rule_1
+            self.ovn_api._tables['NAT'].rows[fake_nat_rule_2.uuid] = \
+                fake_nat_rule_2
+            cmd = commands.SetNATRuleInLRouterCommand(
+                self.ovn_api, fake_lrouter.name, fake_nat_rule_1.uuid,
+                logical_ip='10.0.0.10')
+            cmd.run_idl(self.transaction)
+            self.assertEqual('10.0.0.10', fake_nat_rule_1.logical_ip)
+            self.assertEqual('10.0.0.5', fake_nat_rule_2.logical_ip)
