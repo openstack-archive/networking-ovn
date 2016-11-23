@@ -13,7 +13,6 @@
 #
 
 import netaddr
-import six
 
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
@@ -935,7 +934,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         unhosted_routers = self._ovn.get_unhosted_routers(valid_chassis_list)
         if unhosted_routers:
             with self._ovn.transaction(check_error=True) as txn:
-                for r_name, r_options in six.iteritems(unhosted_routers):
+                for r_name, r_options in unhosted_routers.items():
                     chassis = self.scheduler.select(self._ovn, self._sb_ovn,
                                                     r_name)
                     r_options['chassis'] = chassis

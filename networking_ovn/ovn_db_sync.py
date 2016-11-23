@@ -211,7 +211,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 for sgname in sgnames_to_add:
                     sg = neutron_sgs[sgname]
                     txn.add(self.ovn_api.create_address_set(**sg))
-                for sgname, sg in six.iteritems(sgs_to_update):
+                for sgname, sg in sgs_to_update.items():
                     txn.add(self.ovn_api.update_address_set(**sg))
                 for sgname in sgnames_to_delete:
                     txn.add(self.ovn_api.delete_address_set(name=sgname))
@@ -241,7 +241,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         sg_cache = {}
         subnet_cache = {}
         neutron_acls = {}
-        for port_id, port in six.iteritems(db_ports):
+        for port_id, port in db_ports.items():
             if port['security_groups']:
                 acl_list = acl_utils.add_acls(self.core_plugin,
                                               ctx,

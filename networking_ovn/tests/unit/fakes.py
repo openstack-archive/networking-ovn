@@ -14,7 +14,6 @@
 
 import copy
 import mock
-import six
 
 from oslo_utils import uuidutils
 
@@ -142,7 +141,7 @@ class FakeResource(object):
         self._loaded = loaded
 
     def _add_details(self, info):
-        for (k, v) in six.iteritems(info):
+        for (k, v) in info.items():
             setattr(self, k, v)
 
     def _add_methods(self, methods):
@@ -153,7 +152,7 @@ class FakeResource(object):
         @value. When users access the attribute with (), @value will be
         returned, which looks like a function call.
         """
-        for (name, ret) in six.iteritems(methods):
+        for (name, ret) in methods.items():
             method = mock.MagicMock(return_value=ret)
             setattr(self, name, method)
 
