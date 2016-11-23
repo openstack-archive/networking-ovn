@@ -13,19 +13,18 @@ services:
 
 * Layer-3 (routing)
 
-  Native implementation or conventional layer-3 agent. The native
-  implementation supports distributed routing. However, it currently lacks
-  support for the metadata proxy.
+  Native implementation that supports distributed routing.
 
 * DHCP
 
   Native implementation or conventional DHCP agent. The native implementation
-  supports distributed DHCP. However, it currently lacks IPv6 support and
+  supports distributed DHCP. However, it currently lacks
   support for the Neutron internal DNS and metadata proxy features.
 
 * Metadata
 
-  Currently uses conventional metadata agent.
+  The metadata API is currently only supported in conjunction with the Neutron
+  DHCP agent.
 
 * DPDK
 
