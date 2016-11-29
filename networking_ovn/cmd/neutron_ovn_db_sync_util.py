@@ -90,6 +90,10 @@ def main():
     if cfg.CONF.core_plugin.endswith('.Ml2Plugin'):
         cfg.CONF.core_plugin = (
             'networking_ovn.cmd.neutron_ovn_db_sync_util.Ml2Plugin')
+        if not cfg.CONF.ml2.mechanism_drivers:
+            LOG.error(_LE('please use --config-file to specify '
+                          'neutron and ml2 configuration file.'))
+            return
         if 'ovn' not in cfg.CONF.ml2.mechanism_drivers:
             LOG.error(_LE('No "ovn" mechanism driver found : "%s".'),
                       cfg.CONF.ml2.mechanism_drivers)
