@@ -331,89 +331,6 @@ the Neutron port ID.
 
 These three ports correspond to the DHCP agent plus the two VMs we created.
 
-Self-service (private) network connectivity
--------------------------------------------
-
-OVN includes a native layer-3 mechanism and optionally supports the
-conventional layer-3 agent. Although under active development, the native
-layer-3 mechanism currently lacks support for typical self-service (private)
-network features such as NAT and floating IP addresses. You can enable these
-features using the conventional layer-3 agent at the expense of potential
-performance and redundancy problems. For more information, see `OVN L3`_.
-
-Until the native layer-3 mechanism supports NAT and floating IP addresses,
-you can access self-service networks for development and testing purposes
-using an alternative method that effectively places your host on the same
-layer-2 network.
-
-.. warning::
-
-   Only use this method as a temporary measure for development and testing of
-   east-west routing using the native layer-3 mechanism. In other words, please
-   do not use it in production deployments.
-
-The following procedure uses the self-service network ``private`` with IP
-address range 10.0.0.0/24 and Open vSwitch port ``lport1`` as examples.
-Additionally, an instance resides on 10.0.0.3. Perform these steps on the
-controller node.
-
-#. Create a port on the self-service network.
-
-   .. code-block:: console
-
-      $ neutron port-create private
-      Created a new port:
-      +-------------------+-------------------------------------------------------------------------------------------------------------+
-      | Field             | Value                                                                                                       |
-      +-------------------+-------------------------------------------------------------------------------------------------------------+
-      | admin_state_up    | True                                                                                                        |
-      | binding:vnic_type | normal                                                                                                      |
-      | device_id         |                                                                                                             |
-      | device_owner      |                                                                                                             |
-      | fixed_ips         | {"subnet_id": "fba829ee-4c4c-4eb3-9044-81da0ea48c7c", "ip_address": "10.0.0.5"}                             |
-      |                   | {"subnet_id": "93ea1be4-f4f9-4fd3-8917-c4dd62836080", "ip_address": "fd73:4054:de17:0:f816:3eff:fe23:6aab"} |
-      | id                | 92b4f192-7247-4ba0-88ad-40ce1d950e52                                                                        |
-      | mac_address       | fa:16:3e:23:6a:ab                                                                                           |
-      | name              |                                                                                                             |
-      | network_id        | 62fcb80c-dbdd-462c-b2e8-4aab7afb809c                                                                        |
-      | security_groups   |                                                                                                             |
-      | status            | DOWN                                                                                                        |
-      | tenant_id         | 4ac813f85d004a5b9f29f132fb434b13                                                                            |
-      +-------------------+-------------------------------------------------------------------------------------------------------------+
-
-#. Create a port on the Open vSwitch (OVS) bridge ``br-int`` that corresponds
-   to the neutron port in step 1.
-
-   .. code-block:: console
-
-      # ovs-vsctl add-port br-int lport1 -- \
-        set Interface lport1 external_ids:iface-id=IFACE_ID \
-        type=internal
-
-   Replace ``IFACE_ID`` with the UUID of the neutron port. Based on the example
-   output above, that would be ``92b4f192-7247-4ba0-88ad-40ce1d950e52``.
-
-#. Configure the MAC and IP address of the OVS port to use the same values as
-   the neutron port in step 1 and bring it up.
-
-   .. code-block:: console
-
-      # ip link set dev lport1 address MAC_ADDRESS
-      # ip addr add 10.0.0.5/24 dev lport1
-      # ip link set dev lport1 up
-
-   Replace ``MAC_ADDRESS`` with the mac address of the neutron port. Based on
-   the example output above, that would be ``fa:16:3e:23:6a:ab``.
-
-#. Verify connectivity from the host to an instance on the self-service
-   network.
-
-   .. code-block:: console
-
-      $ ping -c 1 10.0.0.3
-      PING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
-      64 bytes from 10.0.0.3: icmp_seq=1 ttl=64 time=0.707 ms
-
 Adding Another Compute Node
 ---------------------------
 
@@ -576,28 +493,6 @@ or if you followed the VLAN example, it would be:
 ::
 
     $ neutron port-create provider-101
-
-OVN L3
-------
-
-This document focuses on testing OVN with its native distributed L3 support
-enabled.  OVN implements distributed virtual routing using OVS flows and does
-not require any namespaces.
-
-If you'd like to switch to using the Neutron L3 agent, you must set
-the following in local.conf::
-
-   OVN_L3_MODE=False
-
-If you turn off OVN L3 support, you must enable the Neutron L3 agent::
-
-   change 'disable_service q-l3' ==> to 'enable_service q-l3'
-
-Keep in mind that OVN doesn't yet support SNAT/DNAT, in order
-to have public network (north/south traffic) you must still use
-Neutron's L3 agent. With Neutron's L3 agent, all L3 traffic traverses
-the virtual router namespace on the network node running Neutron's
-L3 agent.
 
 Skydive
 -------
