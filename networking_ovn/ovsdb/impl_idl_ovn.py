@@ -475,6 +475,24 @@ class OvsdbNbOvnIdl(ovn_api.API):
     def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
         return cmd.DeleteNatIpFromLRPortPeerOptionsCommand(self, lport, nat_ip)
 
+    # Check for a column match in the table. If not found do a retry with
+    # a stop delay of 10 secs. This function would be useful if the caller
+    # wants to verify for the presence of a particular row in the table
+    # with the column match before doing any transaction.
+    # Eg. We can check if Logical_Switch row is present before adding a
+    # logical switch port to it.
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(RuntimeError),
+                    wait=tenacity.wait_exponential(),
+                    stop=tenacity.stop_after_delay(10),
+                    reraise=True)
+    def check_for_row_by_value_and_retry(self, table, column, match):
+        try:
+            idlutils.row_by_value(self.idl, table, column, match)
+        except idlutils.RowNotFound:
+            msg = (_("%(match)s does not exist in %(column)s of %(table)s")
+                   % {'match': match, 'column': column, 'table': table})
+            raise RuntimeError(msg)
+
 
 class OvsdbSbOvnIdl(ovn_api.SbAPI):
 
