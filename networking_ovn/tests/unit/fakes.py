@@ -90,6 +90,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_lrouter_nat_rules = mock.Mock()
         self.get_lrouter_nat_rules.return_value = []
         self.set_nat_rule_in_lrouter = mock.Mock()
+        self.check_for_row_by_value_and_retry = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):

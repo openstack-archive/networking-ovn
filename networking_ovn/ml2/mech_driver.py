@@ -662,6 +662,15 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         sg_cache = {}
         subnet_cache = {}
 
+        # It's possible to have a network created on one controller and then a
+        # port created on a different controller quickly enough that the second
+        # controller does not yet see that network in its local cache of the
+        # OVN northbound database.  Check if the logical switch is present
+        # or not in the idl's local copy of the database before creating
+        # the lswitch port.
+        self._nb_ovn.check_for_row_by_value_and_retry(
+            'Logical_Switch', 'name', lswitch_name)
+
         with self._nb_ovn.transaction(check_error=True) as txn:
             if not ovn_port_info.dhcpv4_options:
                 dhcpv4_options = []
