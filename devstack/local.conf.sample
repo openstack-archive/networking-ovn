@@ -99,7 +99,7 @@ disable_service q-meta
 # network after your DevStack environment installation, you *must* set
 # the Q_USE_PROVIDER_NETWORKING to True, and also give FIXED_RANGE,
 # NETWORK_GATEWAY and ALLOCATION_POOL option to the correct value that can
-# be used in your enviroment. Specifying Q_AGENT is needed to allow devstack
+# be used in your environment. Specifying Q_AGENT is needed to allow devstack
 # to run various "ip link set" and "ovs-vsctl" commands for the provider
 # network setup.
 #Q_AGENT=openvswitch
