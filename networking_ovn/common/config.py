@@ -24,7 +24,7 @@ ovn_opts = [
                default='tcp:127.0.0.1:6642',
                help=_('The connection string for the OVN_Southbound OVSDB')),
     cfg.IntOpt('ovsdb_connection_timeout',
-               default=60,
+               default=180,
                help=_('Timeout in seconds for the OVSDB '
                       'connection transaction')),
     cfg.StrOpt('neutron_sync_mode',
