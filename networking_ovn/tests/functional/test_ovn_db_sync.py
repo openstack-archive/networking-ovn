@@ -847,7 +847,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         nb_address_sets = _plugin_nb_ovn.get_address_sets()
         nb_sgs = {}
-        for nb_sgid, nb_values in six.iteritems(nb_address_sets):
+        for nb_sgid, nb_values in nb_address_sets.items():
             nb_sgs[nb_sgid] = nb_values['addresses']
         mn_sgs = {}
         for row in self.monitor_nb_db_idl.tables['Address_Set'].rows.values():

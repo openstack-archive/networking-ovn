@@ -22,7 +22,6 @@ from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
-import six
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
@@ -1150,6 +1149,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             return
 
         host_phynets_map = self._sb_ovn.get_chassis_hostname_and_physnets()
-        hosts = {host for host, phynets in six.iteritems(host_phynets_map)
+        hosts = {host for host, phynets in host_phynets_map.items()
                  if phynet in phynets}
         segment_service_db.map_segment_to_hosts(context, segment.id, hosts)

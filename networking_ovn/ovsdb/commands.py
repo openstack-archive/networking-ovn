@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-
 from neutron.agent.ovsdb.native import commands
 from neutron.agent.ovsdb.native import idlutils
 
@@ -548,7 +546,7 @@ class UpdateACLsCommand(commands.BaseCommand):
             del_acl_matches = []
             for acl_dict in self.acl_new_values_dict.values():
                 del_acl_matches.append(acl_dict['match'])
-            for switch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
+            for switch_name, lswitch in lswitch_ovsdb_dict.items():
                 if switch_name not in acl_del_objs_dict:
                     acl_del_objs_dict[switch_name] = []
                 acls = getattr(lswitch, 'acls', [])
@@ -573,7 +571,7 @@ class UpdateACLsCommand(commands.BaseCommand):
             lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict = \
                 self._get_update_data_without_compare()
 
-        for lswitch_name, lswitch in six.iteritems(lswitch_ovsdb_dict):
+        for lswitch_name, lswitch in lswitch_ovsdb_dict.items():
             acl_del_objs = acl_del_objs_dict.get(lswitch_name, [])
             acl_add_values = acl_add_values_dict.get(lswitch_name, [])
 
@@ -734,7 +732,7 @@ class UpdateAddrSetExtIdsCommand(commands.BaseCommand):
 
         addrset.verify('external_ids')
         addrset_external_ids = getattr(addrset, 'external_ids', {})
-        for ext_id_key, ext_id_value in six.iteritems(self.external_ids):
+        for ext_id_key, ext_id_value in self.external_ids.items():
             addrset_external_ids[ext_id_key] = ext_id_value
         addrset.external_ids = addrset_external_ids
 

@@ -64,7 +64,7 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
             details.setdefault('Chassis_Bindings', {})
             for chassis in details['Chassis']:
                 details['Chassis_Bindings'].setdefault(chassis, [])
-            for router, chassis in six.iteritems(details['Routers']):
+            for router, chassis in details['Routers'].items():
                 if chassis in six.iterkeys(details['Chassis_Bindings']):
                     details['Chassis_Bindings'][chassis].append(router)
 

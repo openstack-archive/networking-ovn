@@ -48,7 +48,7 @@ class TestDBImplIdlOvn(base.TestCase):
                                     parent_table, child_table,
                                     parent_key, child_key,
                                     reference_column_name):
-        for p_name, c_names in six.iteritems(fake_associations):
+        for p_name, c_names in fake_associations.items():
             p_row = self._find_ovsdb_fake_row(parent_table, parent_key, p_name)
             c_uuids = []
             for c_name in c_names:
