@@ -26,6 +26,7 @@ from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.ovsdb import vlog
 
 
 LOG = log.getLogger(__name__)
@@ -49,6 +50,7 @@ def get_ovn_idls(driver, trigger):
                  {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
         return cls(driver, trigger)
 
+    vlog.use_oslo_logger()
     nb_ovn_idl = get_ovn_idl_retry(OvsdbNbOvnIdl, driver, trigger)
     sb_ovn_idl = get_ovn_idl_retry(OvsdbSbOvnIdl, driver, trigger)
     return nb_ovn_idl, sb_ovn_idl
