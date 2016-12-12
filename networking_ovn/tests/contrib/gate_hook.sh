@@ -14,6 +14,11 @@ case $VENV in
     source $DEVSTACK_PATH/functions
     source $NEUTRON_PATH/devstack/lib/ovs
 
+    # NOTE(numans) Functional tests after upgrade to xenial in
+    # the CI are breaking because of missing six package.
+    # Installing the package for now as a workaround
+    # https://bugs.launchpad.net/networking-ovn/+bug/1648670
+    sudo pip install six
     # In order to run functional tests, we want to compile OVS
     # from sources and installed. We don't need to start ovs services.
     remove_ovs_packages

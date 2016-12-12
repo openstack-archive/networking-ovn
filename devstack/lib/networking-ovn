@@ -530,7 +530,10 @@ function create_public_bridge {
     if [ -n "$IPV6_PUBLIC_RANGE" ]; then
         local ipv6_cidr_len=${IPV6_PUBLIC_RANGE#*/}
         sudo ip -6 addr add $IPV6_PUBLIC_NETWORK_GATEWAY/$ipv6_cidr_len dev $ext_gw_ifc
-        sudo ip -6 route replace $FIXED_RANGE_V6 via $IPV6_PUBLIC_NETWORK_GATEWAY dev $ext_gw_ifc
+        # NOTE(numans): Commenting the below code for now as this is breaking
+        # the CI after xenial upgrade.
+        # https://bugs.launchpad.net/networking-ovn/+bug/1648670
+        # sudo ip -6 route replace $FIXED_RANGE_V6 via $IPV6_PUBLIC_NETWORK_GATEWAY dev $ext_gw_ifc
     fi
 
     sudo ip link set $ext_gw_ifc up
