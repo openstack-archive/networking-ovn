@@ -219,7 +219,7 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
              'options': {'mtu': '1442', 'router': '10.0.1.254'}},
             {'cidr': '10.0.2.0/24',
              'external_ids': {'subnet_id': 'subnet-id-10-0-2-0'},
-             'options': {'mtu': '1442', 'router': '10.0.3.254'}},
+             'options': {'mtu': '1442', 'router': '10.0.2.254'}},
             {'cidr': '10.0.3.0/24',
              'external_ids': {'subnet_id': 'subnet-id-10-0-3-0',
                               'port_id': 'lsp-vpn-id-3'},
