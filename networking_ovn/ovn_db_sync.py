@@ -185,7 +185,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                      sg['name']}}
 
         for port in db_ports:
-            sg_ids = port.get('security_groups', [])
+            sg_ids = utils.get_lsp_security_groups(port)
             if port.get('fixed_ips') and sg_ids:
                 addresses = acl_utils.acl_port_ips(port)
                 for sg_id in sg_ids:
@@ -241,7 +241,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         subnet_cache = {}
         neutron_acls = {}
         for port_id, port in db_ports.items():
-            if port['security_groups']:
+            if utils.get_lsp_security_groups(port):
                 acl_list = acl_utils.add_acls(self.core_plugin,
                                               ctx,
                                               port,

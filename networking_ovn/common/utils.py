@@ -13,6 +13,7 @@
 import os
 
 from networking_ovn.common import constants
+from neutron.common import utils as n_utils
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron_lib import constants as const
 
@@ -104,3 +105,14 @@ def get_lsp_dhcp_opts(port, ip_version):
             lsp_dhcp_opts[opt] = edo['opt_value']
 
     return (lsp_dhcp_disabled, lsp_dhcp_opts)
+
+
+def is_lsp_trusted(port):
+    return n_utils.is_port_trusted(port) if port.get('device_owner') else False
+
+
+def get_lsp_security_groups(port, skip_trusted_port=True):
+    # In other agent link OVS, skipping trusted port is processed in security
+    # groups RPC.  We haven't that step, so we do it here.
+    return [] if (skip_trusted_port and is_lsp_trusted(port)
+                  ) else port.get('security_groups', [])

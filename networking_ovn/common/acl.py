@@ -256,20 +256,28 @@ def update_acls_for_security_group(plugin,
     sg_port_ids = list(set(sg_port_ids))
     port_list = plugin.get_ports(admin_context,
                                  filters={'id': sg_port_ids})
-    lswitch_names = set([p['network_id'] for p in port_list])
     acl_new_values_dict = {}
+    update_port_list = []
 
     # NOTE(lizk): We can directly locate the affected acl records,
     # so no need to compare new acl values with existing acl objects.
     for port in port_list:
+        # Skip trusted port
+        if utils.is_lsp_trusted(port):
+            continue
+        update_port_list.append(port)
         acl = _add_sg_rule_acl_for_port(port, security_group_rule)
         # Remove lport and lswitch since we don't need them
         acl.pop('lport')
         acl.pop('lswitch')
         acl_new_values_dict[port['id']] = acl
 
+    if not update_port_list:
+        return
+    lswitch_names = set([p['network_id'] for p in update_port_list])
+
     ovn.update_acls(list(lswitch_names),
-                    iter(port_list),
+                    iter(update_port_list),
                     acl_new_values_dict,
                     need_compare=False,
                     is_add_acl=is_add_acl).execute(check_error=True)
@@ -282,7 +290,7 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
     if not is_sg_enabled():
         return acl_list
 
-    sec_groups = port.get('security_groups', [])
+    sec_groups = utils.get_lsp_security_groups(port)
     if not sec_groups:
         return acl_list
 
