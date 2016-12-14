@@ -628,9 +628,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if qos_options is None:
             qos_options = self.qos_driver.get_qos_options(port)
         vtep_physical_switch = binding_profile.get('vtep-physical-switch')
-        parent_name = None
-        tag = None
-        port_type = None
 
         if vtep_physical_switch:
             vtep_logical_switch = binding_profile.get('vtep-logical-switch')
@@ -638,15 +635,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             options = {'vtep-physical-switch': vtep_physical_switch,
                        'vtep-logical-switch': vtep_logical_switch}
             addresses = "unknown"
+            parent_name = []
+            tag = []
             port_security = []
         else:
             options = qos_options
-            parent_name = binding_profile.get('parent_name')
-            tag = binding_profile.get('tag')
+            parent_name = binding_profile.get('parent_name', [])
+            tag = binding_profile.get('tag', [])
             addresses = port['mac_address']
             for ip in port.get('fixed_ips', []):
                 addresses += ' ' + ip['ip_address']
             port_security = self._get_allowed_addresses_from_port(port)
+            port_type = ''
 
         dhcpv4_options = self.get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self.get_port_dhcp_options(port, const.IP_VERSION_6)
