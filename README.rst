@@ -31,9 +31,10 @@ The OVN architecture is described here:
 
 * http://openvswitch.org/support/dist-docs/ovn-architecture.7.html
 
-OVN includes a tutorial to help with understanding how it works:
+Here are two tutorials that help with learning different aspects of OVN:
 
-* https://github.com/openvswitch/ovs/blob/master/tutorial/OVN-Tutorial.md
+* http://blog.spinhirne.com/p/blog-series.html#introToOVN
+* http://docs.openvswitch.org/en/latest/tutorials/ovn-basics/
 
 OVN DB schemas and other man pages:
 
@@ -49,6 +50,8 @@ The openvswitch web page includes a list of presentations, some of which are
 about OVN:
 
 * http://openvswitch.org/support/
+* OVN talk at OpenStack Summit in Barcelona, Fall 2016
+   * https://www.youtube.com/watch?v=q3cJ6ezPnCU
 * OVN talk at OpenStack Summit in Austin, Spring 2016
   * https://www.youtube.com/watch?v=okralc7LrZo
 * OVN Project Update at the OpenStack Summit in Tokyo, Fall 2015
@@ -62,7 +65,7 @@ about OVN:
 
 These blog resources may also help with testing and understanding OVN:
 
-* http://blog.spinhirne.com/p/blog-series.html#introToOVN
+* https://blog.russellbryant.net/2016/11/11/ovn-logical-flows-and-ovn-trace/
 * https://blog.russellbryant.net/2016/09/29/ovs-2-6-and-the-first-release-of-ovn/
 * http://galsagie.github.io/2015/11/23/ovn-l3-deepdive/
 * http://blog.russellbryant.net/2015/10/22/openstack-security-groups-using-ovn-acls/
