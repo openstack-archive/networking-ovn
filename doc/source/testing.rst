@@ -497,12 +497,12 @@ or if you followed the VLAN example, it would be:
 Skydive
 -------
 
-`Skydive <https://github.com/redhat-cip/skydive>`_ is an open source real-time
-network topology and protocols analyzer. It aims to provide a comprehensive
-way of understanding what is happening in the network infrastructure. Skydive
-works by utilizing agents to collect host-local information, and sending this
-information to a central agent for further analysis. It utilizes elasticsearch
-to store the data.
+`Skydive <https://github.com/skydive-project/skydive>`_ is an open source
+real-time network topology and protocols analyzer. It aims to provide a
+comprehensive way of understanding what is happening in the network
+infrastructure. Skydive works by utilizing agents to collect host-local
+information, and sending this information to a central agent for
+further analysis. It utilizes elasticsearch to store the data.
 
 To enable Skydive support with OVN and devstack, enable it on the control
 and compute nodes.
@@ -511,14 +511,14 @@ On the control node, enable it as follows:
 
 ::
 
-    enable_plugin skydive https://github.com/redhat-cip/skydive.git
+    enable_plugin skydive https://github.com/skydive-project/skydive.git
     enable_service skydive-analyzer
 
 On the compute nodes, enable it as follows:
 
 ::
 
-    enable_plugin skydive https://github.com/redhat-cip/skydive.git
+    enable_plugin skydive https://github.com/skydive-project/skydive.git
     enable_service skydive-agent
 
 Troubleshooting
