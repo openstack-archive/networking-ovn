@@ -603,6 +603,9 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if not port.get(psec.PORTSECURITY):
             return []
 
+        if utils.is_lsp_trusted(port):
+            return []
+
         allowed_addresses = set()
         addresses = port['mac_address']
         for ip in port.get('fixed_ips', []):
@@ -705,7 +708,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             for acl in acls_new:
                 txn.add(self._nb_ovn.add_acl(**acl))
 
-            sg_ids = port.get('security_groups', [])
+            sg_ids = utils.get_lsp_security_groups(port)
             if port.get('fixed_ips') and sg_ids:
                 addresses = ovn_acl.acl_port_ips(port)
                 # NOTE(rtheis): Fail port creation if the address set doesn't
@@ -809,8 +812,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     if_exists=False))
 
             # Determine if security groups or fixed IPs are updated.
-            old_sg_ids = set(original_port.get('security_groups', []))
-            new_sg_ids = set(port.get('security_groups', []))
+            old_sg_ids = set(utils.get_lsp_security_groups(original_port))
+            new_sg_ids = set(utils.get_lsp_security_groups(port))
             detached_sg_ids = old_sg_ids - new_sg_ids
             attached_sg_ids = new_sg_ids - old_sg_ids
             is_fixed_ips_updated = \
@@ -963,7 +966,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
             if port.get('fixed_ips'):
                 addresses = ovn_acl.acl_port_ips(port)
-                for sg_id in port.get('security_groups', []):
+                # Set skip_trusted_port False for deleting port
+                for sg_id in utils.get_lsp_security_groups(port, False):
                     for ip_version in addresses:
                         if addresses[ip_version]:
                             txn.add(self._nb_ovn.update_address_set(
