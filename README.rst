@@ -65,6 +65,7 @@ about OVN:
 
 These blog resources may also help with testing and understanding OVN:
 
+* https://blog.russellbryant.net/2016/12/19/comparing-openstack-neutron-ml2ovs-and-ovn-control-plane/
 * https://blog.russellbryant.net/2016/11/11/ovn-logical-flows-and-ovn-trace/
 * https://blog.russellbryant.net/2016/09/29/ovs-2-6-and-the-first-release-of-ovn/
 * http://galsagie.github.io/2015/11/23/ovn-l3-deepdive/
