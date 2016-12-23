@@ -167,12 +167,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 return subnet.get('gateway_ip')
 
     def _is_snat_enabled(self, router):
-        enable_snat = router.get(l3.EXTERNAL_GW_INFO, {}).get(
-            'enable_snat', 'True')
-        if enable_snat == 'False':
-            return False
-        else:
-            return True
+        return router.get(l3.EXTERNAL_GW_INFO, {}).get('enable_snat', True)
 
     def _get_v4_network_for_router_port(self, context, port):
         cidr = None
@@ -481,8 +476,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     self._add_router_ext_gw(context, result)
 
                 # Check if snat has been enabled/disabled and update
-                old_snat_state = gateway_old.get('enable_snat', 'True')
-                new_snat_state = gateway_new.get('enable_snat', 'True')
+                old_snat_state = gateway_old.get('enable_snat', True)
+                new_snat_state = gateway_new.get('enable_snat', True)
                 if old_snat_state != new_snat_state:
                     networks = self._get_v4_network_of_all_router_ports(
                         context, id)
