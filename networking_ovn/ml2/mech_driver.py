@@ -288,14 +288,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 lswitch_name=lswitch_name,
                 external_ids=ext_ids))
             if physnet:
-                vlan_id = None
+                vlan_id = []
                 if segid is not None:
                     vlan_id = int(segid)
                 txn.add(self._nb_ovn.create_lswitch_port(
                     lport_name='provnet-%s' % network['id'],
                     lswitch_name=lswitch_name,
                     addresses=['unknown'],
-                    external_ids=None,
+                    external_ids={},
                     type='localnet',
                     tag=vlan_id,
                     options={'network_name': physnet}))

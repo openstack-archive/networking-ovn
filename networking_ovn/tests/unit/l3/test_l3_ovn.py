@@ -338,10 +338,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             [mock.call(lswitch_name='otls-router-id')])
         expected_calls = \
             [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled='True', lport_name='dtsp-router-id',
+                       enabled=True, lport_name='dtsp-router-id',
                        lswitch_name='otls-router-id'),
              mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled='True', lport_name='gtsp-router-id',
+                       enabled=True, lport_name='gtsp-router-id',
                        lswitch_name='otls-router-id')]
         self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
             expected_calls)
@@ -515,10 +515,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             lswitch_name='otls-router-id')
         expected_calls = \
             [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled='True', lport_name='dtsp-router-id',
+                       enabled=True, lport_name='dtsp-router-id',
                        lswitch_name='otls-router-id'),
              mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled='True', lport_name='gtsp-router-id',
+                       enabled=True, lport_name='gtsp-router-id',
                        lswitch_name='otls-router-id')]
         self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
             expected_calls)
@@ -589,10 +589,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             lswitch_name='otls-router-id')
         expected_calls = \
             [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled='True', lport_name='dtsp-router-id',
+                       enabled=True, lport_name='dtsp-router-id',
                        lswitch_name='otls-router-id'),
              mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled='True', lport_name='gtsp-router-id',
+                       enabled=True, lport_name='gtsp-router-id',
                        lswitch_name='otls-router-id')]
         self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
             expected_calls)
