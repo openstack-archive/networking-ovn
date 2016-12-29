@@ -776,10 +776,13 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         subnet_cache = {}
 
         with self._nb_ovn.transaction(check_error=True) as txn:
+            columns_dict = {}
             if port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
                                             const.DEVICE_OWNER_ROUTER_GW]:
                 ovn_port_info.options.update(
                     self._nb_ovn.get_router_port_options(port['id']))
+            else:
+                columns_dict['type'] = ovn_port_info.type
             if not ovn_port_info.dhcpv4_options:
                 dhcpv4_options = []
             elif 'cmd' in ovn_port_info.dhcpv4_options:
@@ -803,13 +806,13 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     external_ids=external_ids,
                     parent_name=ovn_port_info.parent_name,
                     tag=ovn_port_info.tag,
-                    type=ovn_port_info.type,
                     options=ovn_port_info.options,
                     enabled=port['admin_state_up'],
                     port_security=ovn_port_info.port_security,
                     dhcpv4_options=dhcpv4_options,
                     dhcpv6_options=dhcpv6_options,
-                    if_exists=False))
+                    if_exists=False,
+                    **columns_dict))
 
             # Determine if security groups or fixed IPs are updated.
             old_sg_ids = set(utils.get_lsp_security_groups(original_port))
