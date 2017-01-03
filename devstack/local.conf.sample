@@ -74,9 +74,9 @@ disable_service q-dhcp
 # with metadata. However, this mechanism only works in conjunction with the
 # conventional layer-3 and/or DHCP agents. For single-node deployments, enable
 # the metadata agent on the controller node. For multi-node deployments,
-# the controller node. For multi-node deployments, consider disabling the
-# agent on the controller node and enabling the agent on a subset of compute
-# nodes. For more information, see computenode-local.conf.sample.
+# consider disabling the agent on the controller node and enabling the agent on
+# a subset of compute nodes. For more information, see
+# computenode-local.conf.sample.
 #enable_service q-meta
 disable_service q-meta
 
