@@ -64,7 +64,7 @@ class API(object):
         :type name:       string
         :param ext_id:    The external id of the lswitch
         :type ext_id:     pair of <ext_id_key ,ext_id_value>
-        :param if_exists: Do not fail if the lswitch does not exists
+        :param if_exists: Do not fail if the lswitch does not exist
         :type if_exists:  bool
         :returns:         :class:`Command` with no result
         """
@@ -113,7 +113,7 @@ class API(object):
         :type lswitch_name:   string
         :param ext_id:        The external id of the lport
         :type ext_id:         pair of <ext_id_key ,ext_id_value>
-        :param if_exists:     Do not fail if the lport does not exists
+        :param if_exists:     Do not fail if the lport does not exist
         :type if_exists:      bool
         :returns:             :class:`Command` with no result
         """
@@ -138,7 +138,7 @@ class API(object):
 
         :param name:         The id of the lrouter
         :type name:          string
-        :param if_exists:    Do not fail if the lrouter  does not exists
+        :param if_exists:    Do not fail if the lrouter does not exist
         :type if_exists:     bool
         :param columns:      Dictionary of lrouter columns
                              Supported columns: external_ids, default_gw, ip
@@ -152,7 +152,7 @@ class API(object):
 
         :param name:         The id of the lrouter
         :type name:          string
-        :param if_exists:    Do not fail if the lrouter  does not exists
+        :param if_exists:    Do not fail if the lrouter does not exist
         :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
@@ -184,7 +184,7 @@ class API(object):
         :type name:          string
         :param lrouter:      The unique name of the lrouter
         :type lrouter:       string
-        :param if_exists:    Do not fail if the lrouter port does not exists
+        :param if_exists:    Do not fail if the lrouter port does not exist
         :type if_exists:     bool
         :param columns:      Dictionary of lrouter columns
                              Supported columns: networks
@@ -200,7 +200,7 @@ class API(object):
         :type name:          string
         :param lrouter:      The unique name of the lrouter
         :type lrouter:       string
-        :param if_exists:    Do not fail if the lrouter port does not exists
+        :param if_exists:    Do not fail if the lrouter port does not exist
         :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
@@ -479,8 +479,10 @@ class API(object):
         :type type:          string
         :param logical_ip:   IP or network that needs to be natted
         :type logical_ip:    string
-        :param logical_ip:   External IP to be used for nat
+        :param external_ip:  External IP to be used for nat
         :type external_ip:   string
+        :param if_exists:    Do not fail if the Logical_Router row does not
+                             exist
         :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
