@@ -64,11 +64,13 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
         self.cmd_log.error.assert_called_once_with(
             'Invalid --ovn-ovn_nb_connection parameter provided.')
 
+    @mock.patch('neutron.manager.init')
     @mock.patch('neutron_lib.plugins.directory.get_plugin')
     @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl')
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    def _test_main(self, mock_conf, mock_log_setup, mock_nb_idl, mock_plugin):
+    def _test_main(self, mock_conf, mock_log_setup, mock_nb_idl,
+                   mock_plugin, mock_manager_init):
         cmd.main()
 
     def test_main_invalid_sync_mode(self):
