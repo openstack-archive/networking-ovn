@@ -361,12 +361,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             txn.add(self._ovn.create_lswitch_port(lport_name=dtsp_name,
                                                   lswitch_name=lswitch_name,
                                                   addresses=dtsp_addresses,
-                                                  enabled='True'))
+                                                  enabled=True))
             # 3. Add gtsp port
             txn.add(self._ovn.create_lswitch_port(lport_name=gtsp_name,
                                                   lswitch_name=lswitch_name,
                                                   addresses=gtsp_addresses,
-                                                  enabled='True'))
+                                                  enabled=True))
             # 4. Add dtrp port in logical router
             txn.add(self._ovn.add_lrouter_port(name=dtrp_name,
                                                lrouter=lrouter_name,
