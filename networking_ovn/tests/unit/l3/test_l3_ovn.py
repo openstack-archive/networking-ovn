@@ -41,7 +41,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                                 'subnet_id': 'subnet-id'}],
                                  'id': 'router-port-id'}
         self.fake_subnet = {'id': 'subnet-id',
-                            'cidr': '10.0.0.1/24'}
+                            'ip_version': 4,
+                            'cidr': '10.0.0.0/24'}
         self.fake_router = {'id': 'router-id',
                             'name': 'router',
                             'admin_state_up': False,
@@ -69,8 +70,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                      'addresses': '00:00:00:01:02:04 169.254.128.2'}
         }
         self.fake_external_fixed_ips = {
+            'network_id': 'ext-network-id',
             'external_fixed_ips': [{'ip_address': '192.168.1.1',
-                                    'subnet_id': 'subnet-id'}]}
+                                    'subnet_id': 'ext-subnet-id'}]}
         self.fake_router_with_ext_gw = {
             'id': 'router-id',
             'name': 'router',
@@ -78,7 +80,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'external_gateway_info': self.fake_external_fixed_ips,
             'gw_port_id': 'gw-port-id'
         }
-        self.fake_ext_subnet = {'subnet_id': 'ext-subnet-id',
+        self.fake_ext_subnet = {'id': 'ext-subnet-id',
                                 'ip_version': 4,
                                 'cidr': '192.168.1.0/24',
                                 'gateway_ip': '192.168.1.254'}
@@ -487,7 +489,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_update_router_with_ext_gw(self, gr, ur, gs, grps, gp):
         router = {'router': {'name': 'router'}}
         ur.return_value = self.fake_router_with_ext_gw
-        gs.return_value = self.fake_ext_subnet
+        gs.side_effect = lambda ctx, sid: {
+            'ext-subnet-id': self.fake_ext_subnet}.get(sid, self.fake_subnet)
         gr.return_value = {'id': 'router-id',
                            'name': 'router',
                            'admin_state_up': True}
@@ -544,9 +547,14 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                     ip_prefix='0.0.0.0/0',
                                     nexthop='169.254.128.2'),
                           mock.call('ogr-router-id',
-                                    ip_prefix='192.168.1.0/24',
+                                    ip_prefix='10.0.0.0/24',
                                     nexthop='169.254.128.1')]
         self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'ogr-router-id',
+            type='snat',
+            logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.1')
         self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
         self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
             assert_called_once_with('gw-port-id', nat_ip='192.168.1.1')
