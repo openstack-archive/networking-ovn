@@ -568,7 +568,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_disable_snat(self, gr, ur, gs, grps, gp):
         router = {'router': {'name': 'router'}}
         ur.return_value = self.fake_router_with_ext_gw
-        ur.return_value['external_gateway_info']['enable_snat'] = 'False'
+        ur.return_value['external_gateway_info']['enable_snat'] = False
         gs.return_value = self.fake_ext_subnet
         gr.return_value = {'id': 'router-id',
                            'name': 'router',
@@ -652,7 +652,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                            'subnet_id': 'subnet-id'}],
                             'id': 'router-id'}
         gr.return_value = self.fake_router_with_ext_gw
-        gr.return_value['external_gateway_info']['enable_snat'] = 'False'
+        gr.return_value['external_gateway_info']['enable_snat'] = False
         gs.return_value = {'subnet_id': 'subnet-id',
                            'ip_version': 4,
                            'cidr': '10.0.0.0/24'}
