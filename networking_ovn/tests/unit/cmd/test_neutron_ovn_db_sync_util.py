@@ -89,6 +89,16 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
         self.cmd_log.error.assert_called_once_with(
             'Invalid core plugin : ["%s"].', 'foo')
 
+    def test_main_no_mechanism_driver(self):
+        with mock.patch('oslo_config.cfg.CONF') as mock_cfg:
+            mock_cfg.ovn.neutron_sync_mode = 'repair'
+            mock_cfg.core_plugin = 'ml2'
+            mock_cfg.ml2.mechanism_drivers = []
+            self._test_main()
+        self.cmd_log.error.assert_called_once_with(
+            'please use --config-file to specify '
+            'neutron and ml2 configuration file.')
+
     def test_main_invalid_mechanism_driver(self):
         with mock.patch('oslo_config.cfg.CONF') as mock_cfg:
             self._setup_default_mock_cfg(mock_cfg)

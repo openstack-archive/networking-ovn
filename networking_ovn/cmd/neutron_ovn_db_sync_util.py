@@ -88,7 +88,8 @@ def main():
         return
 
     # Validate and modify core plugin and ML2 mechanism drivers for syncing.
-    if cfg.CONF.core_plugin.endswith('.Ml2Plugin'):
+    if (cfg.CONF.core_plugin.endswith('.Ml2Plugin') or
+            cfg.CONF.core_plugin == 'ml2'):
         cfg.CONF.core_plugin = (
             'networking_ovn.cmd.neutron_ovn_db_sync_util.Ml2Plugin')
         if not cfg.CONF.ml2.mechanism_drivers:
