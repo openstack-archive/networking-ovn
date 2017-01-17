@@ -448,7 +448,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'ogr-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
         self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.1.1')
+            assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
@@ -478,7 +478,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'ogr-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
         self.l3_plugin._ovn.delete_nat_ip_from_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.1.1')
+            assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
@@ -550,14 +550,14 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                     ip_prefix='10.0.0.0/24',
                                     nexthop='169.254.128.1')]
         self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
+        self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'ogr-router-id',
             type='snat',
             logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1')
-        self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
         self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.1.1')
+            assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')

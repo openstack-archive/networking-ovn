@@ -545,12 +545,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         apis = {}
         apis['nat'] = self._ovn.add_nat_rule_in_lrouter \
             if enable_snat else self._ovn.delete_nat_rule_in_lrouter
-        apis['garp'] = self._ovn.add_nat_ip_to_lrport_peer_options if \
-            enable_snat else self._ovn.delete_nat_ip_from_lrport_peer_options
         apis['route'] = self._ovn.add_static_route \
             if enable_snat else self._ovn.delete_static_route
 
-        gw_port_id = router['gw_port_id']
         gw_lrouter_name = utils.ovn_gateway_router_name(router['id'])
         router_ip = self._get_router_ip(context, router)
 
@@ -562,8 +559,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 if update_static_routes:
                     txn.add(apis['route'](gw_lrouter_name, ip_prefix=network,
                                           nexthop=nexthop))
-            if networks:
-                txn.add(apis['garp'](gw_port_id, nat_ip=router_ip))
 
     def _update_lrouter_routes(self, context, router_id, add, remove,
                                lrouter_name=None):
