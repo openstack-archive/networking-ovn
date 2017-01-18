@@ -18,11 +18,11 @@ import itertools
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants
+from neutron_lib import context
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
 
-from neutron import context
 from neutron.services.segments import db as segments_db
 
 from networking_ovn._i18n import _LW
@@ -138,8 +138,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def get_acls(self, context):
         """create the list of ACLS in OVN.
 
-        @param context: neutron context
-        @type  context: object of type neutron.context.Context
+        @param context: neutron_lib.context
+        @type  context: object of type neutron_lib.context.Context
         @var   lswitch_names: List of lswitch names
         @var   acl_list: List of NB acls
         @var   acl_list_dict: Dictionary of acl-lists based on lport as key
@@ -166,8 +166,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def sync_address_sets(self, ctx):
         """Sync Address Sets between neutron and NB.
 
-        @param ctx: neutron context
-        @type  ctx: object of type neutron.context.Context
+        @param ctx: neutron_lib.context
+        @type  ctx: object of type neutron_lib.context.Context
         @var   db_ports: List of ports from neutron DB
         """
         LOG.debug('Address-Set-SYNC: started @ %s' % str(datetime.now()))
@@ -221,8 +221,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def sync_acls(self, ctx):
         """Sync ACLs between neutron and NB.
 
-        @param ctx: neutron context
-        @type  ctx: object of type neutron.context.Context
+        @param ctx: neutron_lib.context
+        @type  ctx: object of type neutron_lib.context.Context
         @var   db_ports: List of ports from neutron DB
         @var   neutron_acls: neutron dictionary of port
                vs list-of-acls
@@ -294,8 +294,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def sync_routers_and_rports(self, ctx):
         """Sync Routers between neutron and NB.
 
-        @param ctx: neutron context
-        @type  ctx: object of type neutron.context.Context
+        @param ctx: neutron_lib.context
+        @type  ctx: object of type neutron_lib.context.Context
         @var   db_routers: List of Routers from neutron DB
         @var   db_router_ports: List of Router ports from neutron DB
         @var   lrouters: NB dictionary of logical routers and

@@ -146,11 +146,11 @@ class TestOVNQosDriver(base.BaseTestCase):
         port['device_owner'] = 'network:dhcp'
         self._get_qos_options(port, False, False)
 
-    @mock.patch('neutron.context.get_admin_context', return_value=context)
+    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_get_qos_options_port_policy(self, *mocks):
         self._get_qos_options(self.port, True, False)
 
-    @mock.patch('neutron.context.get_admin_context', return_value=context)
+    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_get_qos_options_network_policy(self, *mocks):
         port = self._create_fake_port()
         port['qos_policy_id'] = None
@@ -198,7 +198,7 @@ class TestOVNQosDriver(base.BaseTestCase):
                     generate_port_options.assert_not_called()
                     update_network_ports.assert_not_called()
 
-    @mock.patch('neutron.context.get_admin_context', return_value=context)
+    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_update_network_no_qos(self, *mocks):
         network = self._create_fake_network()
         network.pop('qos_policy_id')
@@ -206,13 +206,13 @@ class TestOVNQosDriver(base.BaseTestCase):
         original_network.pop('qos_policy_id')
         self._update_network(network, original_network, False)
 
-    @mock.patch('neutron.context.get_admin_context', return_value=context)
+    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_update_network_no_change(self, *mocks):
         network = self._create_fake_network()
         original_network = self._create_fake_network()
         self._update_network(network, original_network, False)
 
-    @mock.patch('neutron.context.get_admin_context', return_value=context)
+    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_update_network_policy_change(self, *mocks):
         network = self._create_fake_network()
         original_network = self._create_fake_network()
