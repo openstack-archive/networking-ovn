@@ -15,13 +15,13 @@ import abc
 from datetime import datetime
 from eventlet import greenthread
 import itertools
+from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
 
 from neutron import context
-from neutron.extensions import providernet as pnet
 from neutron.services.segments import db as segments_db
 
 from networking_ovn._i18n import _LW

@@ -15,6 +15,7 @@
 import mock
 from webob import exc
 
+from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
@@ -26,7 +27,6 @@ from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.extensions import portbindings
-from neutron.extensions import providernet as pnet
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
