@@ -471,7 +471,11 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             elif gateway_new and gateway_old:
                 # Check if external gateway has changed, if yes, delete the old
                 # gateway and add the new gateway
-                if gateway_old['network_id'] != gateway_new['network_id']:
+                if (gateway_old['network_id'] != gateway_new['network_id'] or
+                        set([str(fixed_ip) for fixed_ip in
+                             gateway_old['external_fixed_ips']]) !=
+                        set([str(fixed_ip) for fixed_ip in
+                             gateway_new['external_fixed_ips']])):
                     self._delete_router_ext_gw(context, id, original_router)
                     self._add_router_ext_gw(context, result)
 
