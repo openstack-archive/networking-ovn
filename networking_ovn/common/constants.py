@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.extensions import portbindings
+from neutron_lib.api.definitions import portbindings
 import six
 
 OVN_ML2_MECH_DRIVER_NAME = 'ovn'
