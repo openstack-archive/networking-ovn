@@ -837,3 +837,16 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
 
     def test_router_add_interface_ipv6_subnet(self):
         pass
+
+    # Note(dongj): According to bug #1657693, status of an unassociated
+    # floating IP is set to DOWN. Revise expected_status to DOWN for related
+    # test cases.
+    def test_floatingip_update(
+            self, expected_status=constants.FLOATINGIP_STATUS_DOWN):
+        super(OVNL3ExtrarouteTests, self).test_floatingip_update(
+            expected_status)
+
+    def test_floatingip_update_to_same_port_id_twice(
+            self, expected_status=constants.FLOATINGIP_STATUS_DOWN):
+        super(OVNL3ExtrarouteTests, self).\
+            test_floatingip_update_to_same_port_id_twice(expected_status)
