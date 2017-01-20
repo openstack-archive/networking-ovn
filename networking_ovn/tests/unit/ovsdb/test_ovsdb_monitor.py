@@ -311,7 +311,7 @@ class TestOvnBaseConnection(base.TestCase):
         mock_gsh_helper = mock.Mock()
         mock_gsh.side_effect = [mock_gsh_helper]
         ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), None)
+            mock.Mock(), mock.Mock(), mock.Mock())
         helper = ovn_base_connection.get_schema_helper()
         mock_gsh.assert_called_once_with(ovn_base_connection.connection,
                                          ovn_base_connection.schema_name)
@@ -322,7 +322,7 @@ class TestOvnBaseConnection(base.TestCase):
         mock_gsh_helper = mock.Mock()
         mock_gsh.side_effect = [Exception, mock_gsh_helper]
         ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), None)
+            mock.Mock(), mock.Mock(), mock.Mock())
         helper = ovn_base_connection.get_schema_helper()
         gsh_call = mock.call(ovn_base_connection.connection,
                              ovn_base_connection.schema_name)
@@ -333,7 +333,7 @@ class TestOvnBaseConnection(base.TestCase):
     def test_get_schema_helper_all_exception(self, mock_gsh):
         mock_gsh.side_effect = RuntimeError
         ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), None)
+            mock.Mock(), mock.Mock(), mock.Mock())
         self.assertRaises(RuntimeError, ovn_base_connection.get_schema_helper)
 
 
