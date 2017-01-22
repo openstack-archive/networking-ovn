@@ -12,7 +12,6 @@
 
 from neutron_lib import exceptions as n_exc
 from oslo_log import log
-import six
 import tenacity
 
 from neutron.agent.ovsdb import impl_idl
@@ -216,7 +215,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 acl_list = acl_values_dict.setdefault(port_id, [])
                 acl_string = {'lport': port_id,
                               'lswitch': utils.ovn_name(lswitch_name)}
-                for acl_key in six.iterkeys(getattr(acl, "_data", {})):
+                for acl_key in getattr(acl, "_data", {}):
                     try:
                         acl_string[acl_key] = getattr(acl, acl_key)
                     except AttributeError:
@@ -425,7 +424,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 continue
             name = getattr(row, 'name')
             data = {}
-            for row_key in six.iterkeys(getattr(row, "_data", {})):
+            for row_key in getattr(row, "_data", {}):
                 data[row_key] = getattr(row, row_key)
             address_sets[name] = data
         return address_sets

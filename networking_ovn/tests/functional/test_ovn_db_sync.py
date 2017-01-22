@@ -13,7 +13,6 @@
 #    under the License.
 
 import mock
-import six
 
 from oslo_utils import uuidutils
 
@@ -671,7 +670,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _build_acl_to_compare(self, acl):
         acl_to_compare = {}
-        for acl_key in six.iterkeys(getattr(acl, "_data", {})):
+        for acl_key in getattr(acl, "_data", {}):
             try:
                 acl_to_compare[acl_key] = getattr(acl, acl_key)
             except AttributeError:

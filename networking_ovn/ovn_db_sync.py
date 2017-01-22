@@ -149,7 +149,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             lswitch_names.add(network['id'])
         acl_dict, ignore1, ignore2 = \
             self.ovn_api.get_acls_for_lswitches(lswitch_names)
-        acl_list = list(itertools.chain(*six.itervalues(acl_dict)))
+        acl_list = list(itertools.chain(*acl_dict.values()))
         acl_list_dict = {}
         for acl in acl_list:
             key = acl['lport']
@@ -256,10 +256,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         self.remove_common_acls(neutron_acls, nb_acls)
 
-        num_acls_to_add = \
-            len(list(itertools.chain(*six.itervalues(neutron_acls))))
-        num_acls_to_remove = \
-            len(list(itertools.chain(*six.itervalues(nb_acls))))
+        num_acls_to_add = len(list(itertools.chain(*neutron_acls.values())))
+        num_acls_to_remove = len(list(itertools.chain(*nb_acls.values())))
         if 0 != num_acls_to_add or 0 != num_acls_to_remove:
             LOG.warning(_LW('ACLs-to-be-added %(add)d '
                             'ACLs-to-be-removed %(remove)d'),
@@ -268,14 +266,13 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         if self.mode == SYNC_MODE_REPAIR:
             with self.ovn_api.transaction(check_error=True) as txn:
-                for acla in list(itertools.chain(
-                                 *six.itervalues(neutron_acls))):
+                for acla in list(itertools.chain(*neutron_acls.values())):
                     LOG.warning(_LW('ACL found in Neutron but not in '
                                     'OVN DB for port %s'), acla['lport'])
                     txn.add(self.ovn_api.add_acl(**acla))
 
             with self.ovn_api.transaction(check_error=True) as txn:
-                for aclr in list(itertools.chain(*six.itervalues(nb_acls))):
+                for aclr in list(itertools.chain(*nb_acls.values())):
                     # Both lswitch and lport aren't needed within the ACL.
                     lswitchr = aclr.pop('lswitch').replace('neutron-', '')
                     lportr = aclr.pop('lport')

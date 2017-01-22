@@ -14,7 +14,6 @@
 
 import mock
 import random
-import six
 
 from neutron.tests import base
 
@@ -58,14 +57,13 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
             }
 
         # Determine the chassis to router list bindings
-        for details in six.itervalues(self.fake_chassis_router_mappings):
-            self.assertNotIn(self.new_router_name,
-                             six.iterkeys(details['Routers']))
+        for details in self.fake_chassis_router_mappings.values():
+            self.assertNotIn(self.new_router_name, details['Routers'])
             details.setdefault('Chassis_Bindings', {})
             for chassis in details['Chassis']:
                 details['Chassis_Bindings'].setdefault(chassis, [])
             for router, chassis in details['Routers'].items():
-                if chassis in six.iterkeys(details['Chassis_Bindings']):
+                if chassis in details['Chassis_Bindings']:
                     details['Chassis_Bindings'][chassis].append(router)
 
     def select(self, chassis_router_mapping, router_name):
