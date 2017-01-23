@@ -42,6 +42,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                  'fixed_ips': [{'ip_address': '10.0.0.100',
                                                 'subnet_id': 'subnet-id'}],
                                  'id': 'router-port-id'}
+        self.fake_router_port_assert = {'lrouter': 'neutron-router-id',
+                                        'mac': 'aa:aa:aa:aa:aa:aa',
+                                        'name': 'lrp-router-port-id',
+                                        'networks': ['10.0.0.100/24']}
         self.fake_router_ports = [self.fake_router_port]
         self.fake_subnet = {'id': 'subnet-id',
                             'ip_version': 4,
@@ -60,18 +64,6 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'fixed_ips': [{'ip_address': '10.0.0.100',
                            'subnet_id': 'subnet-id'}],
             'id': 'router-port-id'}
-        self.fake_l3_admin_network_ports = {
-            'dtsp': {'name': 'DTSP',
-                     'id': 'dtsp-id',
-                     'mac_address': '00:00:00:01:02:03',
-                     'ip': '169.254.128.1',
-                     'addresses': '00:00:00:01:02:03 169.254.128.1'},
-            'gtsp': {'name': 'GTSP',
-                     'id': 'gtsp-id',
-                     'mac_address': '00:00:00:01:02:04',
-                     'ip': '169.254.128.2',
-                     'addresses': '00:00:00:01:02:04 169.254.128.2'}
-        }
         self.fake_external_fixed_ips = {
             'network_id': 'ext-network-id',
             'external_fixed_ips': [{'ip_address': '192.168.1.1',
@@ -98,6 +90,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                                 'subnet_id': 'ext-subnet-id'}],
                                  'mac_address': '00:00:00:02:04:06',
                                  'id': 'gw-port-id'}
+        self.fake_ext_gw_port_assert = {'lrouter': 'neutron-router-id',
+                                        'mac': '00:00:00:02:04:06',
+                                        'name': 'lrp-gw-port-id',
+                                        'networks': ['192.168.1.1/24'],
+                                        'options': {'redirect-chassis': 'hv1'}}
         self.fake_floating_ip = {'id': 'fip-id',
                                  'tenant_id': '',
                                  'floating_ip_address': '192.168.0.10',
@@ -148,16 +145,6 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             return_value=self.fake_router_interface_info
         ).start()
         mock.patch(
-            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
-            '_get_transit_network_ports',
-            return_value=self.fake_l3_admin_network_ports
-        ).start()
-        mock.patch(
-            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
-            '_check_and_delete_l3_admin_net',
-            return_value=None
-        ).start()
-        mock.patch(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.create_router',
             return_value=self.fake_router_with_ext_gw
         ).start()
@@ -183,21 +170,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_add_router_interface(self, func):
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
-        func.return_value = {'port_id': 'router-port-id',
-                             'device_id': '',
-                             'mac_address': 'aa:aa:aa:aa:aa:aa',
-                             'subnet_id': 'subnet-id',
-                             'subnet_ids': ['subnet-id'],
-                             'fixed_ips': [{'ip_address': '10.0.0.100',
-                                            'subnet_id': 'subnet-id'}],
-                             'id': 'router-id'}
+        func.return_value = self.fake_router_interface_info
         self.l3_plugin.add_router_interface(self.context, router_id,
                                             interface_info)
         self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
-            lrouter='neutron-router-id',
-            mac='aa:aa:aa:aa:aa:aa',
-            name='lrp-router-port-id',
-            networks=['10.0.0.100/24'])
+            **self.fake_router_port_assert)
         self.l3_plugin._ovn.set_lrouter_port_in_lswitch_port.\
             assert_called_once_with('router-port-id', 'lrp-router-port-id')
 
@@ -254,8 +231,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             self.context, router_id, interface_info)
 
         self.l3_plugin._ovn.update_lrouter_port.assert_called_once_with(
-            if_exists=False, lrouter='neutron-router-id',
-            name='lrp-router-port-id', networks=['10.0.0.100/24'])
+            if_exists=False, name='lrp-router-port-id',
+            networks=['10.0.0.100/24'])
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
     def test_update_router_admin_state_no_change(self, func):
@@ -332,137 +309,78 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_create_router_with_ext_gw(self, get_rps, get_subnet, get_port):
         router = {'router': {'name': 'router'}}
         get_subnet.return_value = self.fake_ext_subnet
-        get_port.return_value = {
-            'fixed_ips': [{'ip_address': '192.168.1.1',
-                           'subnet_id': 'ext-subnet-id'}],
-            'mac_address': '00:00:00:02:04:06',
-            'id': 'gw-port-id'}
+        get_port.return_value = self.fake_ext_gw_port
         get_rps.return_value = []
 
-        external_ids = {'neutron:router_name': 'router'}
-        expected_calls = [mock.call('neutron-router-id',
-                                    external_ids=external_ids,
-                                    enabled=True,
-                                    options={}),
-                          mock.call('ogr-router-id',
-                                    external_ids=external_ids,
-                                    enabled=True,
-                                    options={'chassis': 'hv1'})]
         self.l3_plugin.create_router(self.context, router)
-        self.l3_plugin._ovn.create_lrouter.assert_has_calls(expected_calls)
-        self.l3_plugin._ovn.create_lswitch.assert_has_calls(
-            [mock.call(lswitch_name='otls-router-id')])
-        expected_calls = \
-            [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled=True, lport_name='dtsp-router-id',
-                       lswitch_name='otls-router-id'),
-             mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled=True, lport_name='gtsp-router-id',
-                       lswitch_name='otls-router-id')]
-        self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
-            expected_calls)
-        expected_calls = [mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:02:04:06',
-                                    name='lrp-gw-port-id',
-                                    networks=['192.168.1.1/24']),
-                          mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-dtsp-router-id',
-                                    networks='169.254.128.1/30'),
-                          mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:01:02:04',
-                                    name='lrp-gtsp-router-id',
-                                    networks='169.254.128.2/30')]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='192.168.1.254'),
-                          mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
-    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
-    def test_delete_router_with_ext_gw(self, gs, gr):
-        gr.return_value = self.fake_router_with_ext_gw
-        gs.return_value = self.fake_ext_subnet
-        self.l3_plugin.delete_router(self.context, 'router-id')
-        expected_calls = [mock.call('ogr-router-id'),
-                          mock.call('neutron-router-id')]
-        self.l3_plugin._ovn.delete_lrouter.assert_has_calls(expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.delete_lrouter.call_count)
-        self.l3_plugin._ovn.delete_lswitch.assert_has_calls(
-            [mock.call('otls-router-id')])
-        expected_calls = [mock.call('gtsp-router-id',
-                                    'otls-router-id'),
-                          mock.call('dtsp-router-id',
-                                    'otls-router-id')]
-        self.l3_plugin._ovn.delete_lswitch_port.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.delete_lswitch_port.call_count)
-        expected_calls = [mock.call('lrp-gw-port-id',
-                                    'ogr-router-id'),
-                          mock.call('lrp-gtsp-router-id',
-                                    'ogr-router-id'),
-                          mock.call('lrp-dtsp-router-id',
-                                    'neutron-router-id')]
-        self.l3_plugin._ovn.delete_lrouter_port.assert_has_calls(
-            expected_calls, any_order=True)
-        self.assertEqual(3, self.l3_plugin._ovn.delete_lrouter_port.call_count)
+        external_ids = {'neutron:router_name': 'router'}
+        self.l3_plugin._ovn.create_lrouter.assert_called_once_with(
+            'neutron-router-id', external_ids=external_ids,
+            enabled=True, options={})
+        self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_ext_gw_port_assert)
         expected_calls = [mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2'),
-                          mock.call('ogr-router-id',
                                     ip_prefix='0.0.0.0/0',
                                     nexthop='192.168.1.254')]
-        self.l3_plugin._ovn.delete_static_route.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.delete_static_route.call_count)
+        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
+
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    def test_delete_router_with_ext_gw(self, gs, gr, gprs):
+        gr.return_value = self.fake_router_with_ext_gw
+        gs.return_value = self.fake_ext_subnet
+
+        self.l3_plugin.delete_router(self.context, 'router-id')
+
+        self.l3_plugin._ovn.delete_lrouter.assert_called_once_with(
+            'neutron-router-id')
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
-    def test_add_router_interface_with_gateway_set(self, ari, gr, grps, gs,
-                                                   gp):
+    def test_add_router_interface_with_gateway_set(self, ari, gr, grps,
+                                                   gs, gp):
         router_id = 'router-id'
         interface_info = {'port_id': 'router-port-id'}
-        ari.return_value = {'port_id': 'router-port-id',
-                            'device_id': '',
-                            'mac_address': '00:00:00:01:02:03',
-                            'subnet_id': 'subnet-id',
-                            'subnet_ids': ['subnet-id'],
-                            'fixed_ips': [{'ip_address': '10.0.0.1',
-                                           'subnet_id': 'subnet-id'}],
-                            'id': 'router-id'}
+        ari.return_value = self.fake_router_interface_info
         gr.return_value = self.fake_router_with_ext_gw
-        gs.return_value = {'subnet_id': 'subnet-id',
-                           'ip_version': 4,
-                           'cidr': '10.0.0.0/24'}
+        gs.return_value = self.fake_subnet
+        gp.return_value = self.fake_router_port
 
-        gp.return_value = {
-            'fixed_ips': [{'ip_address': '10.0.0.1',
-                           'subnet_id': 'subnet-id'}],
-            'mac_address': '00:00:00:01:02:03',
-            'id': 'router-port-id'}
         self.l3_plugin.add_router_interface(self.context, router_id,
                                             interface_info)
-        expected_calls = [mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-router-port-id',
-                                    networks=['10.0.0.1/24'])]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='10.0.0.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
+
+        self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_router_port_assert)
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.called_once_with(
-            'ogr-router-id', logical_ip='10.0.0.0/24',
+            'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_not_called()
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
+    def test_add_router_interface_with_gateway_set_and_snat_disabled(
+            self, ari, gr, grps, gs, gp):
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        ari.return_value = self.fake_router_interface_info
+        gr.return_value = self.fake_router_with_ext_gw
+        gr.return_value['external_gateway_info']['enable_snat'] = False
+        gs.return_value = self.fake_subnet
+        gp.return_value = self.fake_router_port
+
+        self.l3_plugin.add_router_interface(self.context, router_id,
+                                            interface_info)
+
+        self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_router_port_assert)
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
@@ -472,27 +390,16 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         interface_info = {'port_id': 'router-port-id',
                           'subnet_id': 'subnet-id'}
         gr.return_value = self.fake_router_with_ext_gw
-        gs.return_value = {'subnet_id': 'subnet-id',
-                           'ip_version': 4,
-                           'cidr': '10.0.0.0/24'}
+        gs.return_value = self.fake_subnet
         gp.side_effect = n_exc.PortNotFound(port_id='router-port-id')
         self.l3_plugin.remove_router_interface(
             self.context, router_id, interface_info)
 
-        expected_calls = [mock.call('lrp-router-port-id', 'neutron-router-id',
-                                    if_exists=False)]
-        self.l3_plugin._ovn.delete_lrouter_port.assert_has_calls(
-            expected_calls)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='10.0.0.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.delete_static_route.assert_has_calls(
-            expected_calls)
+        self.l3_plugin._ovn.delete_lrouter_port.assert_called_once_with(
+            'lrp-router-port-id', 'neutron-router-id', if_exists=False)
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.called_once_with(
-            'ogr-router-id', logical_ip='10.0.0.0/24',
+            'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
-        self.l3_plugin._ovn.delete_nat_ip_from_lrport_peer_options.\
-            assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
@@ -510,58 +417,15 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         grps.return_value = self.fake_router_ports
 
         self.l3_plugin.update_router(self.context, 'router-id', router)
-        external_ids = {'neutron:router_name': 'router'}
-        expected_calls = [mock.call('ogr-router-id',
-                                    external_ids=external_ids,
-                                    enabled=True,
-                                    options={'chassis': 'hv1'})]
-        self.l3_plugin._ovn.create_lrouter.assert_has_calls(expected_calls)
-        self.assertEqual(1, self.l3_plugin._ovn.create_lrouter.call_count)
 
-        self.l3_plugin._ovn.create_lswitch.assert_called_once_with(
-            lswitch_name='otls-router-id')
-        expected_calls = \
-            [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled=True, lport_name='dtsp-router-id',
-                       lswitch_name='otls-router-id'),
-             mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled=True, lport_name='gtsp-router-id',
-                       lswitch_name='otls-router-id')]
-        self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.create_lswitch_port.call_count)
-        expected_calls = [mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:02:04:06',
-                                    name='lrp-gw-port-id',
-                                    networks=['192.168.1.1/24']),
-                          mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-dtsp-router-id',
-                                    networks='169.254.128.1/30'),
-                          mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:01:02:04',
-                                    name='lrp-gtsp-router-id',
-                                    networks='169.254.128.2/30')]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_lrouter_port.call_count)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='192.168.1.254'),
-                          mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2'),
-                          mock.call('ogr-router-id',
-                                    ip_prefix='10.0.0.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
+        self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_ext_gw_port_assert)
+        self.l3_plugin._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.1.254')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
-            type='snat',
-            logical_ip='10.0.0.0/24',
-            external_ip='192.168.1.1')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_not_called()
+            'neutron-router-id', type='snat',
+            logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
@@ -594,84 +458,24 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin.update_router(self.context, 'router-id', router)
 
         # Check deleting old router gateway
-        self.l3_plugin._ovn.delete_lrouter.assert_called_once_with(
-            'ogr-router-id')
-        self.l3_plugin._ovn.delete_lswitch.assert_called_once_with(
-            'otls-router-id')
-        expected_calls = [mock.call('lrp-old-gw-port-id',
-                                    'ogr-router-id'),
-                          mock.call('lrp-gtsp-router-id',
-                                    'ogr-router-id'),
-                          mock.call('lrp-dtsp-router-id',
-                                    'neutron-router-id')]
-        self.l3_plugin._ovn.delete_lrouter_port.assert_has_calls(
-            expected_calls, any_order=True)
-        self.assertEqual(3, self.l3_plugin._ovn.delete_lrouter_port.call_count)
-        expected_calls = [mock.call('gtsp-router-id',
-                                    'otls-router-id'),
-                          mock.call('dtsp-router-id',
-                                    'otls-router-id')]
-        self.l3_plugin._ovn.delete_lswitch_port.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.delete_lswitch_port.call_count)
-        expected_calls = [mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2'),
-                          mock.call('ogr-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='192.168.2.254')]
-        self.l3_plugin._ovn.delete_static_route.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.delete_static_route.call_count)
+        self.l3_plugin._ovn.delete_lrouter_port.assert_called_once_with(
+            'lrp-old-gw-port-id', 'neutron-router-id')
+        self.l3_plugin._ovn.delete_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.2.254')
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.called_once_with(
+            'neutron-router-id', logical_ip='10.0.0.0/24',
+            external_ip='192.168.2.1', type='snat')
 
         # Check adding new router gateway
-        self.l3_plugin._ovn.create_lrouter.assert_called_once_with(
-            'ogr-router-id', external_ids={'neutron:router_name': 'router'},
-            enabled=True, options={'chassis': 'hv1'}
-
-        )
-        self.l3_plugin._ovn.create_lswitch.assert_called_once_with(
-            lswitch_name='otls-router-id')
-        expected_calls = [mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:02:04:06',
-                                    name='lrp-gw-port-id',
-                                    networks=['192.168.1.1/24']),
-                          mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-dtsp-router-id',
-                                    networks='169.254.128.1/30'),
-                          mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:01:02:04',
-                                    name='lrp-gtsp-router-id',
-                                    networks='169.254.128.2/30')]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_lrouter_port.call_count)
-        expected_calls = \
-            [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled=True, lport_name='dtsp-router-id',
-                       lswitch_name='otls-router-id'),
-             mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled=True, lport_name='gtsp-router-id',
-                       lswitch_name='otls-router-id')]
-        self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.create_lswitch_port.call_count)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='192.168.1.254'),
-                          mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2'),
-                          mock.call('ogr-router-id',
-                                    ip_prefix='10.0.0.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
+        self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_ext_gw_port_assert)
+        self.l3_plugin._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.1.254')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
-            type='snat',
-            logical_ip='10.0.0.0/24',
-            external_ip='192.168.1.1')
+            'neutron-router-id', type='snat',
+            logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
 
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
@@ -684,7 +488,6 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin.update_router(self.context, 'router-id', router)
 
         self.l3_plugin._ovn.delete_lrouter_port.assert_not_called()
-        self.l3_plugin._ovn.delete_lswitch_port.assert_not_called()
         self.l3_plugin._ovn.delete_static_route.assert_not_called()
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_not_called()
         self.l3_plugin._ovn.add_static_route.assert_not_called()
@@ -695,121 +498,75 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_router')
-    def test_disable_snat(self, gr, ur, gs, grps, gp):
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    def test_update_router_with_ext_gw_and_disabled_snat(self, gr, ur,
+                                                         gs, grps, gp):
         router = {'router': {'name': 'router'}}
+        gr.return_value = self.fake_router_without_ext_gw
         ur.return_value = self.fake_router_with_ext_gw
         ur.return_value['external_gateway_info']['enable_snat'] = False
-        gs.return_value = self.fake_ext_subnet
-        gr.return_value = {'id': 'router-id',
-                           'name': 'router',
-                           'admin_state_up': True}
-        gp.return_value = {
-            'fixed_ips': [{'ip_address': '192.168.1.1',
-                           'subnet_id': 'ext-subnet-id'}],
-            'mac_address': '00:00:00:02:04:06',
-            'id': 'gw-port-id'}
-        grps.return_value = [{'device_id': '',
-                              'device_owner': 'network:router_interface',
-                              'mac_address': 'aa:aa:aa:aa:aa:aa',
-                              'fixed_ips': [{'ip_address': '10.0.0.100',
-                                             'subnet_id': 'subnet-id'}],
-                              'id': 'router-port-id'}]
-        self.l3_plugin.update_router(self.context, 'router-id', router)
-        external_ids = {'neutron:router_name': 'router'}
-        expected_calls = [mock.call('ogr-router-id',
-                                    external_ids=external_ids,
-                                    enabled=True,
-                                    options={'chassis': 'hv1'})]
-        self.l3_plugin._ovn.create_lrouter.assert_has_calls(expected_calls)
-        self.assertEqual(1, self.l3_plugin._ovn.create_lrouter.call_count)
+        gs.side_effect = lambda ctx, sid: {
+            'ext-subnet-id': self.fake_ext_subnet}.get(sid, self.fake_subnet)
+        gp.return_value = self.fake_ext_gw_port
+        grps.return_value = self.fake_router_ports
 
-        self.l3_plugin._ovn.create_lswitch.assert_called_once_with(
-            lswitch_name='otls-router-id')
-        expected_calls = \
-            [mock.call(addresses='00:00:00:01:02:03 169.254.128.1',
-                       enabled=True, lport_name='dtsp-router-id',
-                       lswitch_name='otls-router-id'),
-             mock.call(addresses='00:00:00:01:02:04 169.254.128.2',
-                       enabled=True, lport_name='gtsp-router-id',
-                       lswitch_name='otls-router-id')]
-        self.l3_plugin._ovn.create_lswitch_port.assert_has_calls(
-            expected_calls)
-        self.assertEqual(2, self.l3_plugin._ovn.create_lswitch_port.call_count)
-        expected_calls = [mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:02:04:06',
-                                    name='lrp-gw-port-id',
-                                    networks=['192.168.1.1/24']),
-                          mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-dtsp-router-id',
-                                    networks='169.254.128.1/30'),
-                          mock.call(lrouter='ogr-router-id',
-                                    mac='00:00:00:01:02:04',
-                                    name='lrp-gtsp-router-id',
-                                    networks='169.254.128.2/30')]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_lrouter_port.call_count)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='192.168.1.254'),
-                          mock.call('neutron-router-id',
-                                    ip_prefix='0.0.0.0/0',
-                                    nexthop='169.254.128.2'),
-                          mock.call('ogr-router-id',
-                                    ip_prefix='192.168.1.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
-        self.assertEqual(3, self.l3_plugin._ovn.add_static_route.call_count)
-        self.assertEqual(
-            0,
-            self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.call_count)
+        self.l3_plugin.update_router(self.context, 'router-id', router)
+
+        # Need not check lsp and lrp here, it has been tested in other cases
+        self.l3_plugin._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.1.254')
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
-    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
-    def test_add_router_interface_with_gateway_set_and_snat_disabled(
-            self, ari, gr, grp, gs, gp):
-        router_id = 'router-id'
-        interface_info = {'port_id': 'router-port-id'}
-        ari.return_value = {'port_id': 'router-port-id',
-                            'device_id': '',
-                            'mac_address': '00:00:00:01:02:03',
-                            'subnet_id': 'subnet-id',
-                            'subnet_ids': ['subnet-id'],
-                            'fixed_ips': [{'ip_address': '10.0.0.1',
-                                           'subnet_id': 'subnet-id'}],
-                            'id': 'router-id'}
-        gr.return_value = self.fake_router_with_ext_gw
+    def test_enable_snat(self, gr, ur, gs, grps, gp):
+        router = {'router': {'name': 'router'}}
+        gr.return_value = copy.deepcopy(self.fake_router_with_ext_gw)
         gr.return_value['external_gateway_info']['enable_snat'] = False
-        gs.return_value = {'subnet_id': 'subnet-id',
-                           'ip_version': 4,
-                           'cidr': '10.0.0.0/24'}
-        gp.return_value = {
-            'fixed_ips': [{'ip_address': '10.0.0.1',
-                           'subnet_id': 'subnet-id'}],
-            'mac_address': '00:00:00:01:02:03',
-            'id': 'router-port-id'}
-        self.l3_plugin.add_router_interface(self.context, router_id,
-                                            interface_info)
-        expected_calls = [mock.call(lrouter='neutron-router-id',
-                                    mac='00:00:00:01:02:03',
-                                    name='lrp-router-port-id',
-                                    networks=['10.0.0.1/24'])]
-        self.l3_plugin._ovn.add_lrouter_port.assert_has_calls(expected_calls)
-        self.assertEqual(1, self.l3_plugin._ovn.add_lrouter_port.call_count)
-        expected_calls = [mock.call('ogr-router-id',
-                                    ip_prefix='10.0.0.0/24',
-                                    nexthop='169.254.128.1')]
-        self.l3_plugin._ovn.add_static_route.assert_has_calls(expected_calls)
-        self.assertEqual(1, self.l3_plugin._ovn.add_static_route.call_count)
-        self.assertEqual(
-            0, self.l3_plugin._ovn.add_nat_rule_in_lrouter.call_count)
-        self.assertEqual(
-            0,
-            self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.call_count)
+        ur.return_value = self.fake_router_with_ext_gw
+        gs.side_effect = lambda ctx, sid: {
+            'ext-subnet-id': self.fake_ext_subnet}.get(sid, self.fake_subnet)
+        gp.return_value = self.fake_ext_gw_port
+        grps.return_value = self.fake_router_ports
+
+        self.l3_plugin.update_router(self.context, 'router-id', router)
+
+        self.l3_plugin._ovn.delete_static_route.assert_not_called()
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_not_called()
+        self.l3_plugin._ovn.add_static_route.assert_not_called()
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', type='snat', logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.1')
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    def test_disable_snat(self, gr, ur, gs, grps, gp):
+        router = {'router': {'name': 'router'}}
+        gr.return_value = self.fake_router_with_ext_gw
+        ur.return_value = copy.deepcopy(self.fake_router_with_ext_gw)
+        ur.return_value['external_gateway_info']['enable_snat'] = False
+        gs.side_effect = lambda ctx, sid: {
+            'ext-subnet-id': self.fake_ext_subnet}.get(sid, self.fake_subnet)
+        gp.return_value = self.fake_ext_gw_port
+        grps.return_value = self.fake_router_ports
+
+        self.l3_plugin.update_router(self.context, 'router-id', router)
+
+        self.l3_plugin._ovn.delete_static_route.assert_not_called()
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', type='snat', logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.1')
+        self.l3_plugin._ovn.add_static_route.assert_not_called()
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
@@ -818,12 +575,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin.create_floatingip(self.context, 'floatingip')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
+            'neutron-router-id',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
@@ -838,12 +593,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin.create_floatingip(self.context, 'floatingip')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
         self.l3_plugin._ovn.set_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id', 'uuid1',
+            'neutron-router-id', 'uuid1',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
@@ -858,12 +611,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin.create_floatingip(self.context, 'floatingip')
         self.l3_plugin._ovn.set_nat_rule_in_lrouter.assert_not_called()
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
+            'neutron-router-id',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options.\
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
@@ -873,12 +624,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin.delete_floatingip(self.context, 'floatingip-id')
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
+            'neutron-router-id',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.delete_nat_ip_from_lrport_peer_options. \
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
@@ -890,19 +639,15 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-router-id',
+            'neutron-router-id',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.delete_nat_ip_from_lrport_peer_options. \
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
-            'ogr-new-router-id',
+            'neutron-new-router-id',
             type='dnat_and_snat',
             logical_ip='10.10.10.10',
             external_ip='192.168.0.10')
-        self.l3_plugin._ovn.add_nat_ip_to_lrport_peer_options. \
-            assert_called_once_with('gw-port-id', nat_ip='192.168.0.10')
 
 
 class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
@@ -933,26 +678,6 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayScheduler._schedule_gateway',
             return_value='hv1'
-        ).start()
-        mock.patch(
-            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
-            '_get_transit_network_ports',
-            return_value={
-                'dtsp': {'name': 'DTSP',
-                         'id': 'dtsp-id',
-                         'mac_address': '00:00:00:01:02:03',
-                         'ip': '169.254.128.1',
-                         'addresses': '00:00:00:01:02:03 169.254.128.1'},
-                'gtsp': {'name': 'GTSP',
-                         'id': 'gtsp-id',
-                         'mac_address': '00:00:00:01:02:04',
-                         'ip': '169.254.128.2',
-                         'addresses': '00:00:00:01:02:04 169.254.128.2'}}
-        ).start()
-        mock.patch(
-            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
-            '_check_and_delete_l3_admin_net',
-            return_value=None
         ).start()
         self.setup_notification_driver()
 

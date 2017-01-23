@@ -35,7 +35,7 @@ class OVNGatewayScheduler(object):
         pass
 
     @abc.abstractmethod
-    def select(self, nb_idl, sb_idl, router_name, candidates=None):
+    def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
         """Schedule the gateway port of a router to an OVN chassis.
 
         Schedule the gateway router port only if it is not already
@@ -43,8 +43,8 @@ class OVNGatewayScheduler(object):
         """
         pass
 
-    def _schedule_gateway(self, nb_idl, sb_idl, router_name, candidates):
-        existing_chassis = nb_idl.get_router_chassis_binding(router_name)
+    def _schedule_gateway(self, nb_idl, sb_idl, gateway_name, candidates):
+        existing_chassis = nb_idl.get_gateway_chassis_binding(gateway_name)
         candidates = candidates or self._get_chassis_candidates(sb_idl)
         if existing_chassis and (existing_chassis in candidates or
                                  not candidates):
@@ -54,8 +54,8 @@ class OVNGatewayScheduler(object):
         # The actual binding of the gateway to a chassis via the options
         # column in the OVN_Northbound is done by the caller
         chassis = self._select_gateway_chassis(nb_idl, candidates)
-        LOG.debug("Router %s gateway scheduled on chassis %s",
-                  router_name, chassis)
+        LOG.debug("Gateway %s scheduled on chassis %s",
+                  gateway_name, chassis)
         return chassis
 
     @abc.abstractmethod
@@ -74,8 +74,8 @@ class OVNGatewayScheduler(object):
 class OVNGatewayChanceScheduler(OVNGatewayScheduler):
     """Randomly select an chassis for a gateway port of a router"""
 
-    def select(self, nb_idl, sb_idl, router_name, candidates=None):
-        return self._schedule_gateway(nb_idl, sb_idl, router_name, candidates)
+    def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
+        return self._schedule_gateway(nb_idl, sb_idl, gateway_name, candidates)
 
     def _select_gateway_chassis(self, nb_idl, candidates):
         return random.choice(candidates)
@@ -84,11 +84,11 @@ class OVNGatewayChanceScheduler(OVNGatewayScheduler):
 class OVNGatewayLeastLoadedScheduler(OVNGatewayScheduler):
     """Select the least loaded chassis for a gateway port of a router"""
 
-    def select(self, nb_idl, sb_idl, router_name, candidates=None):
-        return self._schedule_gateway(nb_idl, sb_idl, router_name, candidates)
+    def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
+        return self._schedule_gateway(nb_idl, sb_idl, gateway_name, candidates)
 
     def _select_gateway_chassis(self, nb_idl, candidates):
-        chassis_bindings = nb_idl.get_all_chassis_router_bindings(candidates)
+        chassis_bindings = nb_idl.get_all_chassis_gateway_bindings(candidates)
         # Sort on the length of the values in the returned dictionary
         return sorted(chassis_bindings.items(), key=lambda x: len(x[1]))[0][0]
 

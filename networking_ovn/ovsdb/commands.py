@@ -333,7 +333,7 @@ class AddLRouterPortCommand(commands.BaseCommand):
 
 
 class UpdateLRouterPortCommand(commands.BaseCommand):
-    def __init__(self, api, name, lrouter, if_exists, **columns):
+    def __init__(self, api, name, if_exists, **columns):
         super(UpdateLRouterPortCommand, self).__init__(api)
         self.name = name
         self.columns = columns
@@ -401,6 +401,7 @@ class SetLRouterPortInLSwitchPortCommand(commands.BaseCommand):
         options = {'router-port': self.lrouter_port}
         setattr(port, 'options', options)
         setattr(port, 'type', 'router')
+        setattr(port, 'addresses', 'router')
 
 
 class AddACLCommand(commands.BaseCommand):

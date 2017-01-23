@@ -138,35 +138,38 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         'lrouters': [
             {'name': utils.ovn_name('lr-id-a'),
              'external_ids': {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                              'lr-name-a'},
-             'options': {'chassis': 'host-1'}},
+                              'lr-name-a'}},
             {'name': utils.ovn_name('lr-id-b'),
              'external_ids': {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                              'lr-name-b'},
-             'options': {'chassis': 'host-1'}},
+                              'lr-name-b'}},
             {'name': utils.ovn_name('lr-id-c'),
              'external_ids': {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                              'lr-name-c'},
-             'options': {'chassis': 'host-2'}},
+                              'lr-name-c'}},
             {'name': utils.ovn_name('lr-id-d'),
              'external_ids': {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                              'lr-name-d'},
-             'options': {'chassis': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}},
+                              'lr-name-d'}},
             {'name': utils.ovn_name('lr-id-e'),
              'external_ids': {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
-                              'lr-name-e'},
-             'options': {}}],
+                              'lr-name-e'}}],
         'lrouter_ports': [
             {'name': utils.ovn_lrouter_port_name('orp-id-a1'),
-             'external_ids': {}, 'networks': ['10.0.1.0/24']},
+             'external_ids': {}, 'networks': ['10.0.1.0/24'],
+             'options': {ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-1'}},
             {'name': utils.ovn_lrouter_port_name('orp-id-a2'),
-             'external_ids': {}, 'networks': ['10.0.2.0/24']},
+             'external_ids': {}, 'networks': ['10.0.2.0/24'],
+             'options': {ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-1'}},
             {'name': utils.ovn_lrouter_port_name('orp-id-a3'),
-             'external_ids': {}, 'networks': ['10.0.3.0/24']},
+             'external_ids': {}, 'networks': ['10.0.3.0/24'],
+             'options': {ovn_const.OVN_GATEWAY_CHASSIS_KEY:
+                         ovn_const.OVN_GATEWAY_INVALID_CHASSIS}},
             {'name': 'xrp-id-b1',
              'external_ids': {}, 'networks': ['20.0.1.0/24']},
             {'name': utils.ovn_lrouter_port_name('orp-id-b2'),
-             'external_ids': {}, 'networks': ['20.0.2.0/24']}],
+             'external_ids': {}, 'networks': ['20.0.2.0/24'],
+             'options': {ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'}},
+            {'name': utils.ovn_lrouter_port_name('orp-id-b3'),
+             'external_ids': {}, 'networks': ['20.0.3.0/24'],
+             'options': {}}],
         'static_routes': [{'ip_prefix': '20.0.0.0/16',
                            'nexthop': '10.0.3.253'},
                           {'ip_prefix': '10.0.0.0/16',
@@ -391,15 +394,20 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                                'orp-id-a2': ['10.0.2.0/24'],
                                'orp-id-a3': ['10.0.3.0/24']},
                      'static_routes': [{'destination': '20.0.0.0/16',
-                                        'nexthop': '10.0.3.253'}]},
+                                        'nexthop': '10.0.3.253'}],
+                     'snats': [], 'dnat_and_snats': []},
                     {'name': 'lr-id-b',
                      'ports': {'xrp-id-b1': ['20.0.1.0/24'],
                                'orp-id-b2': ['20.0.2.0/24']},
                      'static_routes': [{'destination': '10.0.0.0/16',
-                                        'nexthop': '20.0.2.253'}]},
-                    {'name': 'lr-id-c', 'ports': {}, 'static_routes': []},
-                    {'name': 'lr-id-d', 'ports': {}, 'static_routes': []},
-                    {'name': 'lr-id-e', 'ports': {}, 'static_routes': []}]
+                                        'nexthop': '20.0.2.253'}],
+                     'snats': [], 'dnat_and_snats': []},
+                    {'name': 'lr-id-c', 'ports': {}, 'static_routes': [],
+                     'snats': [], 'dnat_and_snats': []},
+                    {'name': 'lr-id-d', 'ports': {}, 'static_routes': [],
+                     'snats': [], 'dnat_and_snats': []},
+                    {'name': 'lr-id-e', 'ports': {}, 'static_routes': [],
+                     'snats': [], 'dnat_and_snats': []}]
         self.assertItemsEqual(mapping, expected)
 
     def test_get_acls_for_lswitches(self):
@@ -469,63 +477,68 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self.assertEqual(len(acl_objs), 0)
         self.assertEqual(len(lswitch_ovsdb_dict), 0)
 
-    def test_get_all_chassis_router_bindings(self):
+    def test_get_all_chassis_gateway_bindings(self):
         self._load_nb_db()
-        bindings = self.nb_ovn_idl.get_all_chassis_router_bindings()
-        expected = {'host-1': [utils.ovn_name('lr-id-a'),
-                               utils.ovn_name('lr-id-b')],
-                    'host-2': [utils.ovn_name('lr-id-c')],
+        bindings = self.nb_ovn_idl.get_all_chassis_gateway_bindings()
+        expected = {'host-1': [utils.ovn_lrouter_port_name('orp-id-a1'),
+                               utils.ovn_lrouter_port_name('orp-id-a2')],
+                    'host-2': [utils.ovn_lrouter_port_name('orp-id-b2')],
                     ovn_const.OVN_GATEWAY_INVALID_CHASSIS: [
-                        utils.ovn_name('lr-id-d')]}
+                        utils.ovn_name('orp-id-a3')]}
         self.assertItemsEqual(bindings, expected)
 
-        bindings = self.nb_ovn_idl.get_all_chassis_router_bindings([])
+        bindings = self.nb_ovn_idl.get_all_chassis_gateway_bindings([])
         self.assertItemsEqual(bindings, expected)
 
-        bindings = self.nb_ovn_idl.get_all_chassis_router_bindings(['host-1'])
-        expected = {'host-1': [utils.ovn_name('lr-id-a'),
-                               utils.ovn_name('lr-id-b')]}
+        bindings = self.nb_ovn_idl.get_all_chassis_gateway_bindings(['host-1'])
+        expected = {'host-1': [utils.ovn_lrouter_port_name('orp-id-a1'),
+                               utils.ovn_lrouter_port_name('orp-id-a2')]}
         self.assertItemsEqual(bindings, expected)
 
-    def test_get_router_chassis_binding(self):
+    def test_get_gateway_chassis_binding(self):
         self._load_nb_db()
-        chassis = self.nb_ovn_idl.get_router_chassis_binding(
-            utils.ovn_name('lr-id-a'))
+        chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
+            utils.ovn_lrouter_port_name('orp-id-a1'))
         self.assertEqual(chassis, 'host-1')
-        chassis = self.nb_ovn_idl.get_router_chassis_binding(
-            utils.ovn_name('lr-id-c'))
+        chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
+            utils.ovn_lrouter_port_name('orp-id-b2'))
         self.assertEqual(chassis, 'host-2')
-        chassis = self.nb_ovn_idl.get_router_chassis_binding(
-            utils.ovn_name('lr-id-d'))
+        chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
+            utils.ovn_lrouter_port_name('orp-id-a3'))
         self.assertIsNone(chassis)
-        chassis = self.nb_ovn_idl.get_router_chassis_binding(
-            utils.ovn_name('lr-id-e'))
+        chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
+            utils.ovn_lrouter_port_name('orp-id-b3'))
         self.assertIsNone(chassis)
-        chassis = self.nb_ovn_idl.get_router_chassis_binding('bad')
+        chassis = self.nb_ovn_idl.get_gateway_chassis_binding('bad')
         self.assertIsNone(chassis)
 
-    def test_get_unhosted_routers(self):
+    def test_get_unhosted_gateways(self):
         self._load_nb_db()
         # Test only host-1 in the valid list
-        unhosted_routers = self.nb_ovn_idl.get_unhosted_routers(['host-1'])
-        expected = {utils.ovn_name('lr-id-c'): 'host-2',
-                    utils.ovn_name('lr-id-d'):
-                    {'chassis': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
-        self.assertItemsEqual(unhosted_routers, expected)
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1'])
+        expected = {
+            utils.ovn_lrouter_port_name('orp-id-b2'): {
+                ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'},
+            utils.ovn_lrouter_port_name('orp-id-a3'): {
+                ovn_const.OVN_GATEWAY_CHASSIS_KEY:
+                    ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
+        self.assertItemsEqual(unhosted_gateways, expected)
         # Test both host-1, host-2 in valid list
-        unhosted_routers = self.nb_ovn_idl.get_unhosted_routers(['host-1',
-                                                                 'host-2'])
-        expected = {utils.ovn_name('lr-id-d'):
-                    {'chassis': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
-        self.assertItemsEqual(unhosted_routers, expected)
-        # Schedule unhosted_routers on host-2
-        for unhosted_router in unhosted_routers:
-            router_row = self._find_ovsdb_fake_row(self.lrouter_table,
-                                                   'name', unhosted_router)
-            setattr(router_row, 'options', {'chassis': 'host-2'})
-        unhosted_routers = self.nb_ovn_idl.get_unhosted_routers(['host-1',
-                                                                 'host-2'])
-        self.assertItemsEqual(unhosted_routers, {})
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1',
+                                                                   'host-2'])
+        expected = {utils.ovn_lrouter_port_name('orp-id-a3'): {
+            ovn_const.OVN_GATEWAY_CHASSIS_KEY:
+                ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
+        self.assertItemsEqual(unhosted_gateways, expected)
+        # Schedule unhosted_gateways on host-2
+        for unhosted_gateway in unhosted_gateways:
+            router_row = self._find_ovsdb_fake_row(self.lrp_table,
+                                                   'name', unhosted_gateway)
+            setattr(router_row, 'options', {
+                ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'})
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1',
+                                                                  'host-2'])
+        self.assertItemsEqual(unhosted_gateways, {})
 
     def test_get_subnet_dhcp_options(self):
         self._load_nb_db()

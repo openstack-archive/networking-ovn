@@ -215,7 +215,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.driver.update_segment_host_mapping = mock.Mock()
         self.l3_plugin = directory.get_plugin(constants.L3)
         if ovn_config.is_ovn_l3():
-            self.l3_plugin.schedule_unhosted_routers = mock.Mock()
+            self.l3_plugin.schedule_unhosted_gateways = mock.Mock()
 
         self.row_json = {
             "name": "fake-name",
@@ -245,7 +245,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         if ovn_config.is_ovn_l3():
             self.assertEqual(
                 1,
-                self.l3_plugin.schedule_unhosted_routers.call_count)
+                self.l3_plugin.schedule_unhosted_gateways.call_count)
 
     def test_chassis_delete_event(self):
         self._test_chassis_helper('delete', self.row_json)
@@ -254,7 +254,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         if ovn_config.is_ovn_l3():
             self.assertEqual(
                 1,
-                self.l3_plugin.schedule_unhosted_routers.call_count)
+                self.l3_plugin.schedule_unhosted_gateways.call_count)
 
     def test_chassis_update_event(self):
         old_row_json = copy.deepcopy(self.row_json)
@@ -266,7 +266,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         if ovn_config.is_ovn_l3():
             self.assertEqual(
                 1,
-                self.l3_plugin.schedule_unhosted_routers.call_count)
+                self.l3_plugin.schedule_unhosted_gateways.call_count)
 
 
 class TestOvnDbNotifyHandler(base.TestCase):

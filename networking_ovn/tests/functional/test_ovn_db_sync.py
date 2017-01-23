@@ -437,7 +437,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
             for lrport, lrouter_name, networks in self.update_lrouter_ports:
                 txn.add(cmd.UpdateLRouterPortCommand(
-                    fake_api, lrport, lrouter_name, True,
+                    fake_api, lrport, True,
                     **{'networks': [networks]}))
 
             for lrport, lrouter_name in self.delete_lrouter_ports:

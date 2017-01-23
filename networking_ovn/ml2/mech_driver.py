@@ -783,6 +783,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     self._nb_ovn.get_router_port_options(port['id']))
             else:
                 columns_dict['type'] = ovn_port_info.type
+                columns_dict['addresses'] = ovn_port_info.addresses
             if not ovn_port_info.dhcpv4_options:
                 dhcpv4_options = []
             elif 'cmd' in ovn_port_info.dhcpv4_options:
@@ -802,7 +803,6 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # includes the new attributes setting to port.
             txn.add(self._nb_ovn.set_lswitch_port(
                     lport_name=port['id'],
-                    addresses=ovn_port_info.addresses,
                     external_ids=external_ids,
                     parent_name=ovn_port_info.parent_name,
                     tag=ovn_port_info.tag,

@@ -77,12 +77,7 @@ ovn_opts = [
     cfg.IntOpt('dhcp_default_lease_time',
                default=(12 * 60 * 60),
                help=_('Default least time (in seconds ) to use when '
-                      'ovn_native_dhcp is enabled.')),
-    cfg.StrOpt("ovn_l3_admin_net_cidr",
-               default='169.254.128.0/30',
-               help=_('Admin network used for connecting distributed '
-                      'routers to gateway routers. Do not change the value '
-                      'for existing deployments that contain routers.'))
+                      'ovn_native_dhcp is enabled.'))
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -128,7 +123,3 @@ def is_ovn_dhcp():
 
 def get_ovn_dhcp_default_lease_time():
     return cfg.CONF.ovn.dhcp_default_lease_time
-
-
-def get_ovn_l3_admin_net_cidr():
-    return cfg.CONF.ovn.ovn_l3_admin_net_cidr

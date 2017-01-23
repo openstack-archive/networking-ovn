@@ -648,7 +648,7 @@ class TestUpdateLRouterPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=idlutils.RowNotFound):
             cmd = commands.UpdateLRouterPortCommand(
-                self.ovn_api, 'fake-lrp', 'fake-lrouter', if_exists=if_exists)
+                self.ovn_api, 'fake-lrp', if_exists=if_exists)
             if if_exists:
                 cmd.run_idl(self.transaction)
             else:
@@ -668,7 +668,7 @@ class TestUpdateLRouterPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lrp):
             cmd = commands.UpdateLRouterPortCommand(
-                self.ovn_api, fake_lrp.name, 'fake-lrouter', if_exists=True,
+                self.ovn_api, fake_lrp.name, if_exists=True,
                 networks=new_networks)
             cmd.run_idl(self.transaction)
             self.assertEqual(new_networks, fake_lrp.networks)
@@ -732,6 +732,7 @@ class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.assertEqual({'router-port': lrp_name}, fake_lsp.options)
             self.assertEqual('router', fake_lsp.type)
+            self.assertEqual('router', fake_lsp.addresses)
 
 
 class TestAddACLCommand(TestBaseCommand):

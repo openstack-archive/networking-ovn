@@ -91,10 +91,6 @@ OVN_NEUTRON_SYNC_MODE=${OVN_NEUTRON_SYNC_MODE:-log}
 # be hosted in OVN. The default OVN L3 scheduler is leastloaded
 OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 
-# If using OVN_L3_MODE, this sets the L3 ADMIN NETWORK CIDR. This is used to
-# connect distributed logical routers to ovn gateway router
-OVN_L3_ADMIN_NET_CIDR=${OVN_L3_ADMIN_NET_CIDR:-169.254.128.0/30}
-
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
@@ -189,7 +185,6 @@ function configure_ovn_plugin {
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn neutron_sync_mode="$OVN_NEUTRON_SYNC_MODE"
         if [[ "$OVN_L3_MODE" == "True" ]]; then
             populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
-            populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_admin_net_cidr="$OVN_L3_ADMIN_NET_CIDR"
         fi
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_native_dhcp="$OVN_NATIVE_DHCP"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"

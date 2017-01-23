@@ -28,12 +28,9 @@ from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 
 from networking_ovn._i18n import _LE, _LI
-from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
-from networking_ovn.common import exceptions as exc
 from networking_ovn.common import extensions
 from networking_ovn.common import utils
-from networking_ovn.l3 import l3_ovn_admin_net
 from networking_ovn.l3 import l3_ovn_scheduler
 from networking_ovn.ovsdb import impl_idl_ovn
 
@@ -61,8 +58,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         self._sb_ovn_idl = None
         self._plugin_property = None
         self.scheduler = l3_ovn_scheduler.get_scheduler()
-        self._admin_net_mgr = None
-        self._l3_admin_net_cidr = config.get_ovn_l3_admin_net_cidr()
 
     @property
     def _ovn(self):
@@ -84,13 +79,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             self._plugin_property = directory.get_plugin()
         return self._plugin_property
 
-    @property
-    def _admin_net(self):
-        if self._admin_net_mgr is None:
-            self._admin_net_mgr = l3_ovn_admin_net.OVNL3AdminNetwork(
-                self._ovn, self._plugin, self._l3_admin_net_cidr)
-        return self._admin_net_mgr
-
     def get_plugin_type(self):
         return n_const.L3
 
@@ -98,35 +86,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         """returns string description of the plugin."""
         return ("L3 Router Service Plugin for basic L3 forwarding"
                 " using OVN")
-
-    def _get_transit_network_ports(self, create=False):
-        transit_net_ports = {}
-        ports = self._admin_net.get_l3_admin_net_ports(
-            ovn_const.OVN_L3_ADMIN_NET_PORT_NAMES,
-            ovn_const.OVN_L3_ADMIN_NET_PORT_DEVICE_ID,
-            ovn_const.OVN_L3_ADMIN_NET_PORT_DEVICE_OWNER, create)
-        for port in ports:
-            key = port['name'].lower()
-            ip = port.get('fixed_ips')[0].get('ip_address')
-            mac = port.get('mac_address')
-            transit_net_ports[key] = {'ip': ip, 'mac_address': mac,
-                                      'addresses': mac + ' ' + ip}
-
-        return transit_net_ports
-
-    def _check_and_delete_l3_admin_net(self, context):
-        # Check if gateway ports are present, if not delete the l3 admin net
-        filters = {'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW]}
-        gateway_ports = self._plugin.get_ports(context.elevated(),
-                                               filters=filters)
-        if gateway_ports:
-            return
-
-        # No gateway ports, delete the l3 admin net
-        self._admin_net.delete_l3_admin_net_ports(
-            context, ovn_const.OVN_L3_ADMIN_NET_PORT_NAMES,
-            ovn_const.OVN_L3_ADMIN_NET_PORT_DEVICE_ID,
-            ovn_const.OVN_L3_ADMIN_NET_PORT_DEVICE_OWNER)
 
     def _get_router_ports(self, context, router_id, get_gw_port=False):
         router_db = self._get_router(context.elevated(), router_id)
@@ -147,26 +106,25 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
 
         return networks
 
-    def _get_router_ip(self, context, router):
-        ext_gw_info = router.get('external_gateway_info', {})
+    def get_external_router_and_gateway_ip(self, context, router):
+        ext_gw_info = router.get(l3.EXTERNAL_GW_INFO, {})
         ext_fixed_ips = ext_gw_info.get('external_fixed_ips', [])
         for ext_fixed_ip in ext_fixed_ips:
             subnet_id = ext_fixed_ip['subnet_id']
             subnet = self._plugin.get_subnet(context.elevated(), subnet_id)
             if subnet['ip_version'] == 4:
-                return ext_fixed_ip['ip_address']
+                return ext_fixed_ip['ip_address'], subnet.get('gateway_ip')
+        return '', ''
+
+    def _get_router_ip(self, context, router):
+        router_ip, gateway_ip = self.get_external_router_and_gateway_ip(
+            context, router)
+        return router_ip
 
     def _get_external_gateway_ip(self, context, router):
-        ext_gw_info = router.get('external_gateway_info', {})
-        ext_fixed_ips = ext_gw_info.get('external_fixed_ips', [])
-        for ext_fixed_ip in ext_fixed_ips:
-            subnet_id = ext_fixed_ip['subnet_id']
-            subnet = self._plugin.get_subnet(context.elevated(), subnet_id)
-            if subnet['ip_version'] == 4:
-                return subnet.get('gateway_ip')
-
-    def _is_snat_enabled(self, router):
-        return router.get(l3.EXTERNAL_GW_INFO, {}).get('enable_snat', True)
+        router_ip, gateway_ip = self.get_external_router_and_gateway_ip(
+            context, router)
+        return gateway_ip
 
     def _get_v4_network_for_router_port(self, context, port):
         cidr = None
@@ -178,237 +136,70 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             cidr = subnet['cidr']
         return cidr
 
-    def _get_lrouter_connected_to_nexthop(self, context, router_id,
-                                          router_ports, nexthop):
-        """Find lrouter connected to nexthop
-
-        @param router_id: router id
-        @param router_ports: router ports in router
-        @param nexthop: nexthop
-        @return: distributed logical router name or gateway router name or None
-        """
-
-        lrouter_name = None
-        for port in router_ports:
-            found_nexthop = False
-            for fixed_ip in port.get('fixed_ips', []):
-                subnet_id = fixed_ip['subnet_id']
-                subnet = self._plugin.get_subnet(context.elevated(), subnet_id)
-                network = netaddr.IPNetwork(subnet['cidr'])
-                if netaddr.IPAddress(nexthop) in network:
-                    if port['device_owner'] == n_const.DEVICE_OWNER_ROUTER_GW:
-                        # Nexthop is in external network
-                        lrouter_name = utils.ovn_gateway_router_name(router_id)
-                    else:
-                        # Next hop is in tenant network
-                        lrouter_name = utils.ovn_name(router_id)
-                    found_nexthop = True
-                    break
-            if found_nexthop:
-                break
-        if not lrouter_name:
-            raise exc.L3RouterPluginStaticRouteError(nexthop=nexthop,
-                                                     router=router_id)
-
-        return lrouter_name
-
     def _add_router_ext_gw(self, context, router):
-        # TODO(chandrav): Add sync support, bug #1629076 to track this.
-        transit_net_ports = self._get_transit_network_ports(create=True)
         router_id = router['id']
-        gw_lrouter_name = utils.ovn_gateway_router_name(router['id'])
-        cleanup = []
+        lrouter_name = utils.ovn_name(router['id'])
 
-        # 1. Create gateway router
-        try:
-            self.create_lrouter_in_ovn(router, is_gateway_router=True)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                LOG.error(_LE('Unable to create gateway router %s'),
-                          gw_lrouter_name)
-        cleanup.append('gw_router')
-
-        # 2. Add the external gateway router port to gateway router.
+        # 1. Add the external gateway router port.
         ext_gw_ip = self._get_external_gateway_ip(context, router)
         gw_port_id = router['gw_port_id']
         port = self._plugin.get_port(context.elevated(), gw_port_id)
         try:
             self.create_lrouter_port_in_ovn(context.elevated(),
-                                            router_id, port,
-                                            is_lrouter_gateway_router=True)
+                                            router_id, port)
         except Exception:
             with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router_id, router,
-                                           transit_net_ports, cleanup)
+                self._delete_router_ext_gw(context, router_id, router)
                 LOG.error(_LE('Unable to add external router port %(id)s to'
-                              'gateway_router %(name)s'),
-                          {'id': port['id'], 'name': gw_lrouter_name})
-        cleanup.append('ext_gw_port')
+                              'lrouter %(name)s'),
+                          {'id': port['id'], 'name': lrouter_name})
 
-        # 3. Add default route in gateway router with nexthop as ext_gw_ip
+        # 2. Add default route with nexthop as ext_gw_ip
         route = [{'destination': '0.0.0.0/0', 'nexthop': ext_gw_ip}]
         try:
-            self._update_lrouter_routes(context, router_id, route, [],
-                                        gw_lrouter_name)
+            self._update_lrouter_routes(context, router_id, route, [])
         except Exception:
             with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router_id, router,
-                                           transit_net_ports, cleanup)
+                self._delete_router_ext_gw(context, router_id, router)
                 LOG.error(_LE('Error updating routes %(route)s in lrouter '
                               '%(name)s'), {'route': route,
-                                            'name': gw_lrouter_name})
-        cleanup.append('ext_gw_ip_nexthop')
+                                            'name': lrouter_name})
 
-        # 4. Join the logical router and gateway router
-        try:
-            self._join_lrouter_and_gw_lrouter(router, transit_net_ports)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router_id, router,
-                                           transit_net_ports, cleanup)
-                LOG.error(_LE('Error in connecting lrouter and gateway router '
-                              'for router %s'), router_id)
-        cleanup.append('join')
-
-        # 5. Check if tenant router ports are already configured.
-        # If snat is enabled, add snat rules and static routes for tenant
-        # networks in gateway router
-        # If snat is disabled, add only static routes for tenant networks in
-        # gateway router (For traffic destined to floating ips)
-        # Static routes are added with a nexthop of gtsp port ip in logical
-        # router.
-        try:
-            networks = self._get_v4_network_of_all_router_ports(context,
-                                                                router_id)
-            if not networks:
-                return
-            nexthop = transit_net_ports['dtsp']['ip']
-            if self._is_snat_enabled(router):
-                self._update_snat_and_static_routes_for_networks(
-                    context, router, networks, nexthop, enable_snat=True,
-                    update_static_routes=True)
-            else:
-                routes = []
-                for network in networks:
-                    routes.append({'destination': network, 'nexthop': nexthop})
-                self._update_lrouter_routes(
-                    context, router_id, routes, remove=[],
-                    lrouter_name=gw_lrouter_name)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router_id, router,
-                                           transit_net_ports, cleanup)
-                LOG.error(_LE('Error in updating SNAT for router %s'),
-                          router_id)
+        # 3. Add snat rules for tenant networks in lrouter if snat is enabled
+        if utils.is_snat_enabled(router):
+            try:
+                networks = self._get_v4_network_of_all_router_ports(context,
+                                                                    router_id)
+                if networks:
+                    self._update_snat_for_networks(context, router, networks,
+                                                   enable_snat=True)
+            except Exception:
+                with excutils.save_and_reraise_exception():
+                    self._delete_router_ext_gw(context, router_id, router)
+                    LOG.error(_LE('Error in updating SNAT for lrouter %s'),
+                              lrouter_name)
 
     def _delete_router_ext_gw(self, context, router_id, router,
-                              transit_net_ports=None, cleanup=None):
-        transit_net_ports = transit_net_ports or \
-            self._get_transit_network_ports()
-        cleanup = cleanup or []
+                              networks=None):
         gw_port_id = router['gw_port_id']
-        gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
+        gw_lrouter_name = utils.ovn_name(router_id)
         ext_gw_ip = self._get_external_gateway_ip(context, router)
-        if 'join' in cleanup or not cleanup:
-            self._disjoin_lrouter_and_gw_lrouter(router, transit_net_ports)
-        with self._ovn.transaction(check_error=True) as txn:
-            if 'ext_gw_ip_nexthop' in cleanup or not cleanup:
-                txn.add(self._ovn.delete_static_route(gw_lrouter_name,
-                                                      ip_prefix='0.0.0.0/0',
-                                                      nexthop=ext_gw_ip))
-            if 'ext_gw_port' in cleanup or not cleanup:
-                txn.add(self._ovn.delete_lrouter_port(
-                    utils.ovn_lrouter_port_name(gw_port_id),
-                    gw_lrouter_name))
-        if 'gw_router' in cleanup or not cleanup:
-            self._delete_lrouter_in_ovn(router_id, is_gateway_router=True)
-        self._check_and_delete_l3_admin_net(context)
-
-    def _join_lrouter_and_gw_lrouter(self, router, transit_net_ports):
-        router_id = router['id']
-        lswitch_name = utils.ovn_transit_ls_name(router_id)
-
-        dtsp_name = utils.ovn_dtsp_name(router_id)
-        dtsp_addresses = transit_net_ports['dtsp']['addresses']
-
-        gtsp_name = utils.ovn_gtsp_name(router_id)
-        gtsp_addresses = transit_net_ports['gtsp']['addresses']
-
-        gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
-        lrouter_name = utils.ovn_name(router_id)
-
-        gtrp_name = utils.ovn_lrouter_port_name(utils.ovn_gtsp_name(router_id))
-        gtrp_mac = transit_net_ports['gtsp']['mac_address']
-        gtrp_ip = transit_net_ports['gtsp']['ip']
-        cidr = netaddr.IPNetwork(self._l3_admin_net_cidr)
-        gtrp_network = "%s/%s" % (gtrp_ip, str(cidr.prefixlen))
-
-        dtrp_name = utils.ovn_lrouter_port_name(utils.ovn_dtsp_name(router_id))
-        dtrp_mac = transit_net_ports['dtsp']['mac_address']
-        dtrp_ip = transit_net_ports['dtsp']['ip']
-        dtrp_network = "%s/%s" % (dtrp_ip, str(cidr.prefixlen))
+        router_ip = self._get_router_ip(context, router)
+        # Only get networks when networks is None
+        networks = self._get_v4_network_of_all_router_ports(
+            context, router_id) if networks is None else networks
 
         with self._ovn.transaction(check_error=True) as txn:
-            # 1. Create a transit logical switch
-            txn.add(self._ovn.create_lswitch(lswitch_name=lswitch_name))
-            # 2. Add dtsp port
-            txn.add(self._ovn.create_lswitch_port(lport_name=dtsp_name,
-                                                  lswitch_name=lswitch_name,
-                                                  addresses=dtsp_addresses,
-                                                  enabled=True))
-            # 3. Add gtsp port
-            txn.add(self._ovn.create_lswitch_port(lport_name=gtsp_name,
-                                                  lswitch_name=lswitch_name,
-                                                  addresses=gtsp_addresses,
-                                                  enabled=True))
-            # 4. Add dtrp port in logical router
-            txn.add(self._ovn.add_lrouter_port(name=dtrp_name,
-                                               lrouter=lrouter_name,
-                                               mac=dtrp_mac,
-                                               networks=dtrp_network))
-            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
-                utils.ovn_dtsp_name(router_id), dtrp_name))
-
-            # 5. Add gtrp port in gateway router
-            txn.add(self._ovn.add_lrouter_port(name=gtrp_name,
-                                               lrouter=gw_lrouter_name,
-                                               mac=gtrp_mac,
-                                               networks=gtrp_network))
-            txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
-                utils.ovn_gtsp_name(router_id), gtrp_name))
-            # 6. Add default static route in gateway router with nexthop as
-            # gtrp ip
-            txn.add(self._ovn.add_static_route(lrouter_name,
-                                               ip_prefix='0.0.0.0/0',
-                                               nexthop=gtrp_ip))
-
-    def _disjoin_lrouter_and_gw_lrouter(self, router, transit_net_ports):
-        router_id = router['id']
-        lrouter_name = utils.ovn_name(router_id)
-        gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
-
-        gtrp_ip = transit_net_ports['gtsp']['ip']
-        gtrp_name = utils.ovn_lrouter_port_name(utils.ovn_gtsp_name(router_id))
-        dtrp_name = utils.ovn_lrouter_port_name(utils.ovn_dtsp_name(router_id))
-
-        lswitch_name = utils.ovn_transit_ls_name(router_id)
-        dtsp_name = utils.ovn_dtsp_name(router_id)
-        gtsp_name = utils.ovn_gtsp_name(router_id)
-
-        with self._ovn.transaction(check_error=True) as txn:
-            # 1. Delete default static route in gateway router
-            txn.add(self._ovn.delete_static_route(
-                lrouter_name, ip_prefix="0.0.0.0/0", nexthop=gtrp_ip))
-            # 2. Delete gtrp port
-            txn.add(self._ovn.delete_lrouter_port(gtrp_name, gw_lrouter_name))
-            # 3. Delete dtrp port
-            txn.add(self._ovn.delete_lrouter_port(dtrp_name, lrouter_name))
-            # 4. Delete gtsp port
-            txn.add(self._ovn.delete_lswitch_port(gtsp_name, lswitch_name))
-            # 5. Delete dtsp port
-            txn.add(self._ovn.delete_lswitch_port(dtsp_name, lswitch_name))
-            # 6. Delete transit logical switch
-            txn.add(self._ovn.delete_lswitch(lswitch_name))
+            txn.add(self._ovn.delete_static_route(gw_lrouter_name,
+                                                  ip_prefix='0.0.0.0/0',
+                                                  nexthop=ext_gw_ip))
+            txn.add(self._ovn.delete_lrouter_port(
+                utils.ovn_lrouter_port_name(gw_port_id),
+                gw_lrouter_name))
+            for network in networks:
+                txn.add(self._ovn.delete_nat_rule_in_lrouter(
+                    gw_lrouter_name, type='snat', logical_ip=network,
+                    external_ip=router_ip))
 
     def create_router(self, context, router):
         router = super(OVNL3RouterPlugin, self).create_router(context, router)
@@ -425,33 +216,22 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                              router['id'])
         return router
 
-    def create_lrouter_in_ovn(self, router, is_gateway_router=None):
+    def create_lrouter_in_ovn(self, router):
         """Create lrouter in OVN
 
         @param router: Router to be created in OVN
-        @param is_gateway_router: Is router ovn gateway router
-        @param nexthop: Nexthop for router
         @return: Nothing
         """
 
         external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
                         router.get('name', 'no_router_name')}
         enabled = router.get('admin_state_up')
-        options = {}
-
-        if is_gateway_router:
-            lrouter_name = utils.ovn_gateway_router_name(router['id'])
-            chassis = self.scheduler.select(self._ovn, self._sb_ovn,
-                                            lrouter_name)
-            options = {'chassis': chassis}
-        else:
-            lrouter_name = utils.ovn_name(router['id'])
-
+        lrouter_name = utils.ovn_name(router['id'])
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.create_lrouter(lrouter_name,
                                              external_ids=external_ids,
                                              enabled=enabled,
-                                             options=options))
+                                             options={}))
 
     def update_router(self, context, id, router):
         original_router = self.get_router(context, id)
@@ -459,7 +239,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                               router)
         gateway_new = result.get(l3.EXTERNAL_GW_INFO)
         gateway_old = original_router.get(l3.EXTERNAL_GW_INFO)
-
+        revert_router = {'router': original_router}
         try:
             if gateway_new and not gateway_old:
                 # Route gateway is set
@@ -477,21 +257,19 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                              gateway_new['external_fixed_ips']])):
                     self._delete_router_ext_gw(context, id, original_router)
                     self._add_router_ext_gw(context, result)
-
-                # Check if snat has been enabled/disabled and update
-                old_snat_state = gateway_old.get('enable_snat', True)
-                new_snat_state = gateway_new.get('enable_snat', True)
-                if old_snat_state != new_snat_state:
-                    networks = self._get_v4_network_of_all_router_ports(
-                        context, id)
-                    self._update_snat_and_static_routes_for_networks(
-                        context, result, networks, nexthop=None,
-                        enable_snat=new_snat_state, update_static_routes=False)
+                else:
+                    # Check if snat has been enabled/disabled and update
+                    old_snat_state = gateway_old.get('enable_snat', True)
+                    new_snat_state = gateway_new.get('enable_snat', True)
+                    if old_snat_state != new_snat_state:
+                        networks = self._get_v4_network_of_all_router_ports(
+                            context, id)
+                        self._update_snat_for_networks(
+                            context, result, networks,
+                            enable_snat=new_snat_state)
         except Exception:
             with excutils.save_and_reraise_exception():
-                revert_router = {}
                 LOG.error(_LE('Unable to update lrouter for %s'), id)
-                revert_router['router'] = original_router
                 super(OVNL3RouterPlugin, self).update_router(context, id,
                                                              revert_router)
 
@@ -517,9 +295,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             except Exception:
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Unable to update lrouter for %s'), id)
-                    router['router'] = original_router
                     super(OVNL3RouterPlugin, self).update_router(context, id,
-                                                                 router)
+                                                                 revert_router)
 
         # Check for route updates
         added = []
@@ -536,53 +313,31 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Unable to update static routes in lrouter '
                                   '%s'), id)
-                    router['router'] = original_router
                     super(OVNL3RouterPlugin, self).update_router(context, id,
-                                                                 router)
+                                                                 revert_router)
 
         return result
 
-    def _update_snat_and_static_routes_for_networks(
-            self, context, router, networks, nexthop, enable_snat=True,
-            update_static_routes=True):
-        apis = {}
-        apis['nat'] = self._ovn.add_nat_rule_in_lrouter \
-            if enable_snat else self._ovn.delete_nat_rule_in_lrouter
-        apis['route'] = self._ovn.add_static_route \
-            if enable_snat else self._ovn.delete_static_route
-
-        gw_lrouter_name = utils.ovn_gateway_router_name(router['id'])
+    def _update_snat_for_networks(self, context, router, networks,
+                                  enable_snat=True):
+        apis = {'nat': self._ovn.add_nat_rule_in_lrouter
+                if enable_snat else self._ovn.delete_nat_rule_in_lrouter}
+        gw_lrouter_name = utils.ovn_name(router['id'])
         router_ip = self._get_router_ip(context, router)
-
         with self._ovn.transaction(check_error=True) as txn:
             for network in networks:
                 txn.add(apis['nat'](gw_lrouter_name, type='snat',
                                     logical_ip=network,
                                     external_ip=router_ip))
-                if update_static_routes:
-                    txn.add(apis['route'](gw_lrouter_name, ip_prefix=network,
-                                          nexthop=nexthop))
 
-    def _update_lrouter_routes(self, context, router_id, add, remove,
-                               lrouter_name=None):
-        router_ports = lrouter_name or self._get_router_ports(context,
-                                                              router_id,
-                                                              get_gw_port=True)
+    def _update_lrouter_routes(self, context, router_id, add, remove):
+        lrouter_name = utils.ovn_name(router_id)
         with self._ovn.transaction(check_error=True) as txn:
             for route in add:
-                lrouter_name = lrouter_name or (
-                    self._get_lrouter_connected_to_nexthop(context, router_id,
-                                                           router_ports,
-                                                           route['nexthop']))
                 txn.add(self._ovn.add_static_route(
                     lrouter_name, ip_prefix=route['destination'],
                     nexthop=route['nexthop']))
-
             for route in remove:
-                lrouter_name = lrouter_name or (
-                    self._get_lrouter_connected_to_nexthop(context, router_id,
-                                                           router_ports,
-                                                           route['nexthop']))
                 txn.add(self._ovn.delete_static_route(
                     lrouter_name, ip_prefix=route['destination'],
                     nexthop=route['nexthop']))
@@ -590,22 +345,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def delete_router(self, context, id):
         original_router = self.get_router(context, id)
         super(OVNL3RouterPlugin, self).delete_router(context, id)
-        ext_gw_info = original_router.get(l3.EXTERNAL_GW_INFO)
         try:
-            if ext_gw_info:
-                self._delete_router_ext_gw(context, id, original_router)
             self._delete_lrouter_in_ovn(id)
         except Exception:
             with excutils.save_and_reraise_exception():
-                router = {}
-                router['router'] = original_router
-                super(OVNL3RouterPlugin, self).create_router(context, router)
+                super(OVNL3RouterPlugin, self).create_router(
+                    context, {'router': original_router})
 
-    def _delete_lrouter_in_ovn(self, id, is_gateway_router=False):
-        if is_gateway_router:
-            lrouter_name = utils.ovn_gateway_router_name(id)
-        else:
-            lrouter_name = utils.ovn_name(id)
+    def _delete_lrouter_in_ovn(self, id):
+        lrouter_name = utils.ovn_name(id)
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.delete_lrouter(lrouter_name))
 
@@ -619,27 +367,32 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                     str(cidr.prefixlen)))
         return list(networks)
 
-    def create_lrouter_port_in_ovn(self, context, router_id, port,
-                                   is_lrouter_gateway_router=False):
+    def create_lrouter_port_in_ovn(self, context, router_id, port):
         """Create lrouter port in OVN
 
          @param router_id : LRouter ID for the port that needs to be created
          @param port : LRouter port that needs to be created
-         @param is_lrouter_gateway_router : Is gateway router
          @return: Nothing
          """
-        lrouter = utils.ovn_name(router_id) if not is_lrouter_gateway_router \
-            else utils.ovn_gateway_router_name(router_id)
+        lrouter = utils.ovn_name(router_id)
         networks = self.get_networks_for_lrouter_port(context,
                                                       port['fixed_ips'])
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
+        is_gw_port = n_const.DEVICE_OWNER_ROUTER_GW == port.get(
+            'device_owner')
+        columns = {}
+        if is_gw_port:
+            selected_chassis = self.scheduler.select(self._ovn, self._sb_ovn,
+                                                     lrouter_port_name)
+            columns['options'] = {
+                ovn_const.OVN_GATEWAY_CHASSIS_KEY: selected_chassis}
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.add_lrouter_port(name=lrouter_port_name,
                                                lrouter=lrouter,
                                                mac=port['mac_address'],
-                                               networks=networks))
-
+                                               networks=networks,
+                                               **columns))
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
                 port['id'], lrouter_port_name))
 
@@ -652,15 +405,13 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         @param networks : networks needs to be updated for LRouter port
         @return: Nothing
         """
-        lrouter = utils.ovn_name(router_id)
-        networks = self.get_networks_for_lrouter_port(context,
-                                                      port['fixed_ips'])
+        networks = networks or self.get_networks_for_lrouter_port(
+            context, port['fixed_ips'])
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks}
         with self._ovn.transaction(check_error=True) as txn:
             txn.add(self._ovn.update_lrouter_port(name=lrouter_port_name,
-                                                  lrouter=lrouter,
                                                   if_exists=False,
                                                   **update))
             txn.add(self._ovn.set_lrouter_port_in_lswitch_port(
@@ -700,18 +451,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             return router_interface_info
 
         try:
-            transit_net_ports = self._get_transit_network_ports()
-            nexthop = transit_net_ports['dtsp']['ip']
-            gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
-            if self._is_snat_enabled(router):
-                self._update_snat_and_static_routes_for_networks(
-                    context, router, networks=[cidr], nexthop=nexthop,
-                    enable_snat=True, update_static_routes=True)
-            else:
-                route = {'destination': cidr, 'nexthop': nexthop}
-                self._update_lrouter_routes(
-                    context, router_id, add=[route], remove=[],
-                    lrouter_name=gw_lrouter_name)
+            if utils.is_snat_enabled(router):
+                self._update_snat_for_networks(
+                    context, router, networks=[cidr], enable_snat=True)
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._ovn.delete_lrouter_port(
@@ -767,19 +509,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             if not cidr:
                 return router_interface_info
 
-            router_name = utils.ovn_gateway_router_name(router_id)
-            transit_net_ports = self._get_transit_network_ports()
-            nexthop = transit_net_ports['dtsp']['ip']
-
-            if self._is_snat_enabled(router):
-                self._update_snat_and_static_routes_for_networks(
-                    context, router, networks=[cidr], nexthop=nexthop,
-                    enable_snat=False, update_static_routes=True)
-            else:
-                route = {'destination': cidr, 'nexthop': nexthop}
-                self._update_lrouter_routes(
-                    context, router_id, add=[route], remove=[],
-                    lrouter_name=router_name)
+            if utils.is_snat_enabled(router):
+                self._update_snat_for_networks(
+                    context, router, networks=[cidr], enable_snat=False)
         except Exception:
             with excutils.save_and_reraise_exception():
                 super(OVNL3RouterPlugin, self).add_router_interface(
@@ -883,9 +615,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         fip_apis = {}
         fip_apis['nat'] = self._ovn.add_nat_rule_in_lrouter if \
             associate else self._ovn.delete_nat_rule_in_lrouter
-        fip_apis['garp'] = self._ovn.add_nat_ip_to_lrport_peer_options if \
-            associate else self._ovn.delete_nat_ip_from_lrport_peer_options
-        gw_lrouter_name = utils.ovn_gateway_router_name(router_id)
+        gw_lrouter_name = utils.ovn_name(router_id)
         try:
             with self._ovn.transaction(check_error=True) as txn:
                 nat_rule_args = (gw_lrouter_name,)
@@ -909,7 +639,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         gw_lrouter_name)
                     for nat_rule in lrouter_nat_rules:
                         if nat_rule['external_ip'] == update['external_ip'] \
-                            and nat_rule['type'] == 'dnat_and_snat':
+                                and nat_rule['type'] == 'dnat_and_snat':
                             fip_apis['nat'] = self._ovn.set_nat_rule_in_lrouter
                             nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
                             break
@@ -917,20 +647,19 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 txn.add(fip_apis['nat'](*nat_rule_args, type='dnat_and_snat',
                                         logical_ip=update['logical_ip'],
                                         external_ip=update['external_ip']))
-                txn.add(fip_apis['garp'](update['gw_port_id'],
-                                         nat_ip=update['external_ip']))
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.error(_LE('Unable to update NAT rule in gateway router'))
 
-    def schedule_unhosted_routers(self):
+    def schedule_unhosted_gateways(self):
         valid_chassis_list = self._sb_ovn.get_all_chassis()
-        unhosted_routers = self._ovn.get_unhosted_routers(valid_chassis_list)
-        if unhosted_routers:
+        unhosted_gateways = self._ovn.get_unhosted_gateways(
+            valid_chassis_list)
+        if unhosted_gateways:
             with self._ovn.transaction(check_error=True) as txn:
-                for r_name, r_options in unhosted_routers.items():
+                for g_name, r_options in unhosted_gateways.items():
                     chassis = self.scheduler.select(self._ovn, self._sb_ovn,
-                                                    r_name)
-                    r_options['chassis'] = chassis
-                    txn.add(self._ovn.update_lrouter(r_name,
-                                                     options=r_options))
+                                                    g_name)
+                    r_options['redirect-chassis'] = chassis
+                    txn.add(self._ovn.update_lrouter_port(g_name,
+                                                          options=r_options))

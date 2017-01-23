@@ -57,7 +57,7 @@ class ChassisEvent(row_event.RowEvent):
 
         self.driver.update_segment_host_mapping(host, phy_nets)
         if ovn_config.is_ovn_l3():
-            self.l3_plugin.schedule_unhosted_routers()
+            self.l3_plugin.schedule_unhosted_gateways()
 
 
 class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):

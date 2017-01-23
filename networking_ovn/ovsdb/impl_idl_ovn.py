@@ -159,6 +159,8 @@ class OvsdbNbOvnIdl(ovn_api.API):
                  - 'static_routes': list of static routes dict.
                  - 'ports': dict of port_id in neutron (key) and networks on
                             port (value).
+                 - 'snats': list of snats dict
+                 - 'dnat_and_snats': list of dnat_and_snats dict
         """
         result = []
         for lrouter in self._tables['Logical_Router'].rows.values():
@@ -170,9 +172,26 @@ class OvsdbNbOvnIdl(ovn_api.API):
             sroutes = [{'destination': sroute.ip_prefix,
                         'nexthop': sroute.nexthop}
                        for sroute in getattr(lrouter, 'static_routes', [])]
+
+            dnat_and_snats = []
+            snat = []
+            for nat in getattr(lrouter, 'nat', []):
+                if nat.type == 'dnat_and_snat':
+                    dnat_and_snats.append({
+                        'logical_ip': nat.logical_ip,
+                        'external_ip': nat.external_ip,
+                        'type': nat.type})
+                elif nat.type == 'snat':
+                    snat.append({
+                        'logical_ip': nat.logical_ip,
+                        'external_ip': nat.external_ip,
+                        'type': nat.type})
+
             result.append({'name': lrouter.name.replace('neutron-', ''),
                            'static_routes': sroutes,
-                           'ports': lrports})
+                           'ports': lrports,
+                           'snats': snat,
+                           'dnat_and_snats': dnat_and_snats})
         return result
 
     def get_acls_for_lswitches(self, lswitch_names):
@@ -238,9 +257,8 @@ class OvsdbNbOvnIdl(ovn_api.API):
     def add_lrouter_port(self, name, lrouter, **columns):
         return cmd.AddLRouterPortCommand(self, name, lrouter, **columns)
 
-    def update_lrouter_port(self, name, lrouter, if_exists=True, **columns):
-        return cmd.UpdateLRouterPortCommand(self, name, lrouter,
-                                            if_exists, **columns)
+    def update_lrouter_port(self, name, if_exists=True, **columns):
+        return cmd.UpdateLRouterPortCommand(self, name, if_exists, **columns)
 
     def delete_lrouter_port(self, name, lrouter, if_exists=True):
         return cmd.DelLRouterPortCommand(self, name, lrouter,
@@ -285,30 +303,31 @@ class OvsdbNbOvnIdl(ovn_api.API):
         return cmd.UpdateAddrSetExtIdsCommand(self, name, external_ids,
                                               if_exists)
 
-    def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
+    def get_all_chassis_gateway_bindings(self,
+                                         chassis_candidate_list=None):
         chassis_bindings = {}
         for chassis_name in chassis_candidate_list or []:
             chassis_bindings.setdefault(chassis_name, [])
-        for lrouter in self._tables['Logical_Router'].rows.values():
-            if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
-                    lrouter.external_ids):
+        for lrp in self._tables['Logical_Router_Port'].rows.values():
+            if not lrp.name.startswith('lrp-'):
                 continue
-            chassis_name = lrouter.options.get('chassis')
+            chassis_name = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
             if not chassis_name:
                 continue
             if (not chassis_candidate_list or
                     chassis_name in chassis_candidate_list):
                 routers_hosted = chassis_bindings.setdefault(chassis_name, [])
-                routers_hosted.append(lrouter.name)
+                routers_hosted.append(lrp.name)
         return chassis_bindings
 
-    def get_router_chassis_binding(self, router_name):
+    def get_gateway_chassis_binding(self, gateway_name):
         try:
             router = idlutils.row_by_value(self.idl,
-                                           'Logical_Router',
+                                           'Logical_Router_Port',
                                            'name',
-                                           router_name)
-            chassis_name = router.options.get('chassis')
+                                           gateway_name)
+            chassis_name = router.options.get(
+                ovn_const.OVN_GATEWAY_CHASSIS_KEY)
             if chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS:
                 return None
             else:
@@ -316,13 +335,12 @@ class OvsdbNbOvnIdl(ovn_api.API):
         except idlutils.RowNotFound:
             return None
 
-    def get_unhosted_routers(self, valid_chassis_list):
-        unhosted_routers = {}
-        for lrouter in self._tables['Logical_Router'].rows.values():
-            if ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY not in (
-                    lrouter.external_ids):
+    def get_unhosted_gateways(self, valid_chassis_list):
+        unhosted_gateways = {}
+        for lrp in self._tables['Logical_Router_Port'].rows.values():
+            if not lrp.name.startswith('lrp-'):
                 continue
-            chassis_name = lrouter.options.get('chassis')
+            chassis_name = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
             if not chassis_name:
                 # Not a gateway router
                 continue
@@ -331,8 +349,8 @@ class OvsdbNbOvnIdl(ovn_api.API):
             # so it needs to discussed in the OVN community first.
             if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
                     chassis_name not in valid_chassis_list):
-                unhosted_routers[lrouter.name] = lrouter.options
-        return unhosted_routers
+                unhosted_gateways[lrp.name] = lrp.options
+        return unhosted_gateways
 
     def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
                          **columns):

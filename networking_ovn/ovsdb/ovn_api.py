@@ -177,13 +177,11 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def update_lrouter_port(self, name, lrouter, if_exists=True, **columns):
+    def update_lrouter_port(self, name, if_exists=True, **columns):
         """Update a command to add an OVN lrouter port
 
         :param name:         The unique name of the lrouter port
         :type name:          string
-        :param lrouter:      The unique name of the lrouter
-        :type lrouter:       string
         :param if_exists:    Do not fail if the lrouter port does not exist
         :type if_exists:     bool
         :param columns:      Dictionary of lrouter columns
@@ -342,8 +340,9 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def get_all_chassis_router_bindings(self, chassis_candidate_list=None):
-        """Return a dictionary of chassis name:list of router gateways
+    def get_all_chassis_gateway_bindings(self,
+                                         chassis_candidate_list=None):
+        """Return a dictionary of chassis name:list of gateways
 
         :param chassis_candidate_list:  List of possible chassis candidates
         :type chassis_candidate_list:   []
@@ -351,20 +350,20 @@ class API(object):
         """
 
     @abc.abstractmethod
-    def get_router_chassis_binding(self, router_id):
-        """Return the chassis to which the router is bound to
+    def get_gateway_chassis_binding(self, gateway_id):
+        """Return the chassis to which the gateway is bound to
 
-        :param router_id:     The neutron router id
-        :type router_id:      string
+        :param gateway_id:     The gateway id
+        :type gateway_id:      string
         :returns              string containing the chassis name
         """
 
     @abc.abstractmethod
-    def get_unhosted_routers(self, valid_chassis_list):
-        """Return a dictionary of routers gateways not hosted on chassis
+    def get_unhosted_gateways(self, valid_chassis_list):
+        """Return a dictionary of gateways not hosted on chassis
 
         :param valid_chassis_list: List of valid chassis
-        :returns                   List of routers not hosted on a valid
+        :returns                   List of gateways not hosted on a valid
                                    chassis
         """
 

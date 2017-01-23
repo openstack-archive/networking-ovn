@@ -15,6 +15,7 @@ import os
 from networking_ovn.common import constants
 from neutron.common import utils as n_utils
 from neutron.extensions import extra_dhcp_opt as edo_ext
+from neutron_lib.api.definitions import l3
 from neutron_lib import constants as const
 
 
@@ -25,26 +26,6 @@ def ovn_name(id):
     # We prefix the UUID to enable us to use the Neutron UUID when
     # updating, deleting etc.
     return 'neutron-%s' % id
-
-
-def ovn_gateway_router_name(id):
-    "Ovn Gateway Router"
-    return 'ogr-%s' % id
-
-
-def ovn_transit_ls_name(id):
-    "Ovn Transit Logical Switch"
-    return '%s-%s' % (constants.OVN_TRANSIT_LS_NAME_PREFIX, id)
-
-
-def ovn_dtsp_name(id):
-    "Distributed Transit switch port"
-    return 'dtsp-%s' % id
-
-
-def ovn_gtsp_name(id):
-    "Gateway Transit switch port"
-    return 'gtsp-%s' % id
 
 
 def ovn_lrouter_port_name(id):
@@ -116,3 +97,7 @@ def get_lsp_security_groups(port, skip_trusted_port=True):
     # groups RPC.  We haven't that step, so we do it here.
     return [] if (skip_trusted_port and is_lsp_trusted(port)
                   ) else port.get('security_groups', [])
+
+
+def is_snat_enabled(router):
+    return router.get(l3.EXTERNAL_GW_INFO, {}).get('enable_snat', True)

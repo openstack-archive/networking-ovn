@@ -22,17 +22,18 @@ from networking_ovn.l3 import l3_ovn_scheduler
 
 
 class FakeOVNGatewaySchedulerNbOvnIdl(object):
-    def __init__(self, chassis_router_mapping, router):
-        self.get_all_chassis_router_bindings = mock.Mock(
-            return_value=chassis_router_mapping['Chassis_Bindings'])
-        self.get_router_chassis_binding = mock.Mock(
-            return_value=chassis_router_mapping['Routers'].get(router, None))
+    def __init__(self, chassis_gateway_mapping, gateway):
+        self.get_all_chassis_gateway_bindings = mock.Mock(
+            return_value=chassis_gateway_mapping['Chassis_Bindings'])
+        self.get_gateway_chassis_binding = mock.Mock(
+            return_value=chassis_gateway_mapping['Gateways'].get(gateway,
+                                                                 None))
 
 
 class FakeOVNGatewaySchedulerSbOvnIdl(object):
-    def __init__(self, chassis_router_mapping):
+    def __init__(self, chassis_gateway_mapping):
         self.get_all_chassis = mock.Mock(
-            return_value=chassis_router_mapping['Chassis'])
+            return_value=chassis_gateway_mapping['Chassis'])
 
 
 class TestOVNGatewayScheduler(base.BaseTestCase):
@@ -44,33 +45,34 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
         self.l3_scheduler = None
 
         # Used for unit tests
-        self.new_router_name = 'router_new'
-        self.fake_chassis_router_mappings = {
+        self.new_gateway_name = 'lrp_new'
+        self.fake_chassis_gateway_mappings = {
             'None': {'Chassis': [],
-                     'Routers': {'r1': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}},
+                     'Gateways': {
+                         'g1': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}},
             'Multiple1': {'Chassis': ['hv1', 'hv2'],
-                          'Routers': {'r1': 'hv1', 'r2': 'hv2', 'r3': 'hv1'}},
+                          'Gateways': {'g1': 'hv1', 'g2': 'hv2', 'g3': 'hv1'}},
             'Multiple2': {'Chassis': ['hv1', 'hv2', 'hv3'],
-                          'Routers': {'r1': 'hv1', 'r2': 'hv1', 'r3': 'hv1'}},
+                          'Gateways': {'g1': 'hv1', 'g2': 'hv1', 'g3': 'hv1'}},
             'Multiple3': {'Chassis': ['hv1', 'hv2', 'hv3'],
-                          'Routers': {'r1': 'hv3', 'r2': 'hv2', 'r3': 'hv2'}}
+                          'Gateways': {'g1': 'hv3', 'g2': 'hv2', 'g3': 'hv2'}}
             }
 
-        # Determine the chassis to router list bindings
-        for details in self.fake_chassis_router_mappings.values():
-            self.assertNotIn(self.new_router_name, details['Routers'])
+        # Determine the chassis to gateway list bindings
+        for details in self.fake_chassis_gateway_mappings.values():
+            self.assertNotIn(self.new_gateway_name, details['Gateways'])
             details.setdefault('Chassis_Bindings', {})
             for chassis in details['Chassis']:
                 details['Chassis_Bindings'].setdefault(chassis, [])
-            for router, chassis in details['Routers'].items():
+            for gateway, chassis in details['Gateways'].items():
                 if chassis in details['Chassis_Bindings']:
-                    details['Chassis_Bindings'][chassis].append(router)
+                    details['Chassis_Bindings'][chassis].append(gateway)
 
-    def select(self, chassis_router_mapping, router_name):
-        nb_idl = FakeOVNGatewaySchedulerNbOvnIdl(chassis_router_mapping,
-                                                 router_name)
-        sb_idl = FakeOVNGatewaySchedulerSbOvnIdl(chassis_router_mapping)
-        return self.l3_scheduler.select(nb_idl, sb_idl, router_name)
+    def select(self, chassis_gateway_mapping, gateway_name):
+        nb_idl = FakeOVNGatewaySchedulerNbOvnIdl(chassis_gateway_mapping,
+                                                 gateway_name)
+        sb_idl = FakeOVNGatewaySchedulerSbOvnIdl(chassis_gateway_mapping)
+        return self.l3_scheduler.select(nb_idl, sb_idl, gateway_name)
 
 
 class OVNGatewayChanceScheduler(TestOVNGatewayScheduler):
@@ -79,29 +81,29 @@ class OVNGatewayChanceScheduler(TestOVNGatewayScheduler):
         super(OVNGatewayChanceScheduler, self).setUp()
         self.l3_scheduler = l3_ovn_scheduler.OVNGatewayChanceScheduler()
 
-    def test_no_chassis_available_for_existing_router(self):
-        mapping = self.fake_chassis_router_mappings['None']
-        router_name = random.choice(list(mapping['Routers'].keys()))
-        chassis = self.select(mapping, router_name)
+    def test_no_chassis_available_for_existing_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['None']
+        gateway_name = random.choice(list(mapping['Gateways'].keys()))
+        chassis = self.select(mapping, gateway_name)
         self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
-    def test_no_chassis_available_for_new_router(self):
-        mapping = self.fake_chassis_router_mappings['None']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_no_chassis_available_for_new_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['None']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
-    def test_random_chassis_available_for_new_router(self):
-        mapping = self.fake_chassis_router_mappings['Multiple1']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_random_chassis_available_for_new_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple1']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertIn(chassis, mapping.get('Chassis'))
 
-    def test_existing_chassis_available_for_existing_router(self):
-        mapping = self.fake_chassis_router_mappings['Multiple1']
-        router_name = random.choice(list(mapping['Routers'].keys()))
-        chassis = self.select(mapping, router_name)
-        self.assertEqual(mapping['Routers'][router_name], chassis)
+    def test_existing_chassis_available_for_existing_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple1']
+        gateway_name = random.choice(list(mapping['Gateways'].keys()))
+        chassis = self.select(mapping, gateway_name)
+        self.assertEqual(mapping['Gateways'][gateway_name], chassis)
 
 
 class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
@@ -110,41 +112,41 @@ class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
         super(OVNGatewayLeastLoadedScheduler, self).setUp()
         self.l3_scheduler = l3_ovn_scheduler.OVNGatewayLeastLoadedScheduler()
 
-    def test_no_chassis_available_for_existing_router(self):
-        mapping = self.fake_chassis_router_mappings['None']
-        router_name = random.choice(list(mapping['Routers'].keys()))
-        chassis = self.select(mapping, router_name)
+    def test_no_chassis_available_for_existing_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['None']
+        gateway_name = random.choice(list(mapping['Gateways'].keys()))
+        chassis = self.select(mapping, gateway_name)
         self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
-    def test_no_chassis_available_for_new_router(self):
-        mapping = self.fake_chassis_router_mappings['None']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_no_chassis_available_for_new_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['None']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
 
-    def test_least_loaded_chassis_available_for_new_router1(self):
-        mapping = self.fake_chassis_router_mappings['Multiple1']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_least_loaded_chassis_available_for_new_gateway1(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple1']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertIn(chassis, mapping.get('Chassis'))
         self.assertEqual('hv2', chassis)
 
-    def test_least_loaded_chassis_available_for_new_router2(self):
-        mapping = self.fake_chassis_router_mappings['Multiple2']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_least_loaded_chassis_available_for_new_gateway2(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple2']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertNotEqual(chassis, 'hv1')
         self.assertIn(chassis, ['hv2', 'hv3'])
 
-    def test_least_loaded_chassis_available_for_new_router3(self):
-        mapping = self.fake_chassis_router_mappings['Multiple3']
-        router_name = self.new_router_name
-        chassis = self.select(mapping, router_name)
+    def test_least_loaded_chassis_available_for_new_gateway3(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple3']
+        gateway_name = self.new_gateway_name
+        chassis = self.select(mapping, gateway_name)
         self.assertIn(chassis, mapping.get('Chassis'))
         self.assertEqual('hv1', chassis)
 
-    def test_existing_chassis_available_for_existing_router(self):
-        mapping = self.fake_chassis_router_mappings['Multiple1']
-        router_name = random.choice(list(mapping['Routers'].keys()))
-        chassis = self.select(mapping, router_name)
-        self.assertEqual(mapping['Routers'][router_name], chassis)
+    def test_existing_chassis_available_for_existing_gateway(self):
+        mapping = self.fake_chassis_gateway_mappings['Multiple1']
+        gateway_name = random.choice(list(mapping['Gateways'].keys()))
+        chassis = self.select(mapping, gateway_name)
+        self.assertEqual(mapping['Gateways'][gateway_name], chassis)

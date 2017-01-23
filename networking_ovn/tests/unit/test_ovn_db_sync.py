@@ -210,19 +210,26 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
              'device_id': 'r4',
              'mac_address': 'fa:16:3e:12:34:56'}]
 
+        # Mark(dongj): Will support snat fip test later.
         self.lrouters_with_rports = [{'name': 'r3',
                                       'ports': {'p1r3': ['fake']},
-                                      'static_routes': []},
+                                      'static_routes': [],
+                                      'snats': [],
+                                      'dnat_and_snats': []},
                                      {'name': 'r4',
                                       'ports': {'p1r4':
                                                 ['fdad:123:456::1/64',
                                                  'fdad:789:abc::1/64']},
-                                      'static_routes': []},
+                                      'static_routes': [],
+                                      'snats': [],
+                                      'dnat_and_snats': []},
                                      {'name': 'r1',
                                       'ports': {'p3r1': ['fake']},
                                       'static_routes':
                                       [{'nexthop': '20.0.0.100',
-                                        'destination': '10.0.0.0/24'}]}]
+                                        'destination': '10.0.0.0/24'}],
+                                      'snats': [],
+                                      'dnat_and_snats': []}]
 
         self.lswitches_with_ports = [{'name': 'neutron-n1',
                                       'ports': ['p1n1', 'p3n1']},
@@ -294,6 +301,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         # will be deleted from the OVN db
         l3_plugin.get_routers = mock.Mock()
         l3_plugin.get_routers.return_value = self.routers
+        l3_plugin.get_external_router_and_gateway_ip = mock.Mock()
+        l3_plugin.get_external_router_and_gateway_ip.return_value = None, None
         l3_plugin._get_sync_interfaces = mock.Mock()
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
@@ -301,7 +310,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin.get_networks_for_lrouter_port.return_value = (
             self.lrport_networks)
         # end of router-sync block
-
+        l3_plugin.get_floatingips = mock.Mock()
+        l3_plugin.get_floatingips.return_value = []
         ovn_api.get_all_logical_switches_with_ports = mock.Mock()
         ovn_api.get_all_logical_switches_with_ports.return_value = (
             self.lswitches_with_ports)

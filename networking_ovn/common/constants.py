@@ -26,13 +26,8 @@ OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},
                                    {'vtep-physical-switch': six.string_types,
                                     'vtep-logical-switch': six.string_types}]
-OVN_L3_ADMIN_NET_NAME = 'OVN_L3_ADMIN_NETWORK'
-OVN_L3_ADMIN_NET_SUBNET_NAME = 'OVN_L3_ADMIN_SUBNET'
-OVN_L3_ADMIN_NET_PORT_DEVICE_ID = 'OVN_L3_ADMIN_NETWORK_PORT'
-OVN_L3_ADMIN_NET_PORT_DEVICE_OWNER = 'OVN_L3_ADMIN_NETWORK'
 OVN_ROUTER_PORT_OPTION_KEYS = ['router-port', 'nat-addresses']
-OVN_L3_ADMIN_NET_PORT_NAMES = ['DTSP', 'GTSP']
-OVN_TRANSIT_LS_NAME_PREFIX = 'otls'
+OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it

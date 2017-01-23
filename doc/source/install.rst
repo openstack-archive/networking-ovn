@@ -243,8 +243,7 @@ primary node. See the :ref:`faq` for more information.
         The ``firewall_driver`` option under ``[securitygroup]`` is ignored
         since the OVN ML2 driver itself handles security groups.
 
-   * Configure OVS database access, OVN L3 mode, L3 scheduler, L3 admin net
-     CIDR and OVN DHCP mode
+   * Configure OVS database access, OVN L3 mode, L3 scheduler and OVN DHCP mode
 
      .. code-block:: ini
 
@@ -254,7 +253,6 @@ primary node. See the :ref:`faq` for more information.
         ovn_sb_connection = tcp:IP_ADDRESS:6642
         ovn_l3_mode = OVN_L3_MODE
         ovn_l3_scheduler = OVN_L3_SCHEDULER
-        ovn_l3_admin_net_cidr = OVN_L3_ADMIN_NET_CIDR
         ovn_native_dhcp = OVN_NATIVE_DHCP
 
      .. note::
@@ -265,15 +263,11 @@ primary node. See the :ref:`faq` for more information.
         ``/etc/neutron/neutron.conf`` else ``False``. The ovn_l3_scheduler
         value is only valid if ovn_l3_mode is set to ``True``. Replace
         ``OVN_L3_SCHEDULER`` with ``leastloaded`` if you want the scheduler
-        to select a compute node with the least number of gateway routers
+        to select a compute node with the least number of gateway ports
         or ``chance`` if you want the scheduler to randomly select a compute
-        node from the available list of compute nodes. The ovn_l3_admin_net_cidr
-        value is only valid if ovn_l3_mode is set to ``True``. The deafult
-        value for ``OVN_L3_ADMIN_NET_CIDR`` is ``169.254.128.0/30``, if you
-        want to use a different cidr replace ``OVN_L3_ADMIN_NET_CIDR`` to a new
-        cidr. And finally, replace ``OVN_NATIVE_DHCP`` with ``True`` if you
-        want to enable the native DHCP service else ``False`` to use the
-        conventional DHCP agent.
+        node from the available list of compute nodes. And finally, replace
+        ``OVN_NATIVE_DHCP`` with ``True`` if you want to enable the native DHCP
+        service else ``False`` to use the conventional DHCP agent.
 
 #. Start the ``neutron-server`` service.
 
