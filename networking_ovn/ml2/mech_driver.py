@@ -15,6 +15,7 @@
 import collections
 import netaddr
 
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.api import validators
 from neutron_lib import constants as const
@@ -30,7 +31,6 @@ from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron import context as n_context
 from neutron.db import provisioning_blocks
-from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api

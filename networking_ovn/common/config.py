@@ -13,7 +13,7 @@
 from oslo_config import cfg
 
 from networking_ovn._i18n import _
-from neutron.extensions import portbindings
+from neutron_lib.api.definitions import portbindings
 
 
 ovn_opts = [
