@@ -786,10 +786,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return router_interface_info
 
     def create_floatingip(self, context, floatingip,
-                          initial_status=n_const.FLOATINGIP_STATUS_ACTIVE):
+                          initial_status=n_const.FLOATINGIP_STATUS_DOWN):
         fip = super(OVNL3RouterPlugin, self).create_floatingip(
-            context, floatingip,
-            initial_status=n_const.FLOATINGIP_STATUS_ACTIVE)
+            context, floatingip, initial_status)
         router_id = fip.get('router_id')
         if router_id:
             update_fip = {}
@@ -805,6 +804,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             update_fip['gw_port_id'] = router['gw_port_id']
             try:
                 self._update_floating_ip_in_ovn(context, router_id, update_fip)
+                self.update_floatingip_status(context, fip['id'],
+                                              n_const.FLOATINGIP_STATUS_ACTIVE)
             except Exception:
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Unable to create floating ip in gateway'
