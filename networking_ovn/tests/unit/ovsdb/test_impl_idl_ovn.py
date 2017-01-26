@@ -14,7 +14,6 @@
 
 import copy
 import mock
-import six
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -39,7 +38,7 @@ class TestDBImplIdlOvn(base.TestCase):
             table.rows[fake_row.uuid] = fake_row
 
     def _find_ovsdb_fake_row(self, table, key, value):
-        for fake_row in six.itervalues(table.rows):
+        for fake_row in table.rows.values():
             if getattr(fake_row, key) == value:
                 return fake_row
         return None
