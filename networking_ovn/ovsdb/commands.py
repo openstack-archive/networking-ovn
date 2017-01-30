@@ -67,6 +67,10 @@ class AddLSwitchCommand(commands.BaseCommand):
         row.name = self.name
         for col, val in self.columns.items():
             setattr(row, col, val)
+        self.result = row.uuid
+
+    def post_commit(self, txn):
+        self.result = txn.get_insert_uuid(self.result)
 
 
 class DelLSwitchCommand(commands.BaseCommand):
@@ -152,6 +156,10 @@ class AddLSwitchPortCommand(commands.BaseCommand):
             setattr(port, col, val)
         # add the newly created port to existing lswitch
         _addvalue_to_list(lswitch, 'ports', port.uuid)
+        self.result = port.uuid
+
+    def post_commit(self, txn):
+        self.result = txn.get_insert_uuid(self.result)
 
 
 class SetLSwitchPortCommand(commands.BaseCommand):
