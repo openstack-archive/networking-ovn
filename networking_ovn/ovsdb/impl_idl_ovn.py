@@ -280,6 +280,12 @@ class OvsdbNbOvnIdl(ovn_api.API):
                                      need_compare=need_compare,
                                      is_add_acl=is_add_acl)
 
+    def add_nat(self, lrouter, **columns):
+        return cmd.AddNatCommand(self, lrouter, **columns)
+
+    def delete_nat(self, lrouter, logical_ip, if_exists=True):
+        return cmd.DelNatCommand(self, lrouter, logical_ip, if_exists)
+
     def add_static_route(self, lrouter, **columns):
         return cmd.AddStaticRouteCommand(self, lrouter, **columns)
 
@@ -480,5 +486,11 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
         # preference patch (as part of external ids) merges.
         chassis_list = []
         for ch in self.idl.tables['Chassis'].rows.values():
-            chassis_list.append(ch.name)
+            if not chassis_type:
+                chassis_list.append(ch.name)
+            else:
+                node_types = ch.external_ids.get('ovn-chassis-types', '')
+                node_tuples = node_types.split(',')
+                if chassis_type in node_tuples:
+                    chassis_list.append(ch.name)
         return chassis_list

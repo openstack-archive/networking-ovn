@@ -625,6 +625,52 @@ class AddStaticRouteCommand(commands.BaseCommand):
         _addvalue_to_list(lrouter, 'static_routes', row.uuid)
 
 
+class AddNatCommand(commands.BaseCommand):
+    def __init__(self, api, lrouter, **columns):
+        super(AddNatCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.columns = columns
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        row = txn.insert(self.api._tables['NAT'])
+        for col, val in self.columns.items():
+            setattr(row, col, val)
+        _addvalue_to_list(lrouter, 'nat', row.uuid)
+
+
+class DelNatCommand(commands.BaseCommand):
+    def __init__(self, api, lrouter, logical_ip, if_exists):
+        super(DelNatCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.logical_ip = logical_ip
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        nats = getattr(lrouter, 'nat', [])
+        for nat in nats:
+            logical_ip = getattr(nat, 'logical_ip', '')
+            if self.logical_ip == logical_ip:
+                _delvalue_from_list(lrouter, 'nat', nat)
+                nat.delete()
+                break
+
+
 class DelStaticRouteCommand(commands.BaseCommand):
     def __init__(self, api, lrouter, ip_prefix, nexthop, if_exists):
         super(DelStaticRouteCommand, self).__init__(api)
