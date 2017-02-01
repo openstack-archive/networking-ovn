@@ -76,9 +76,6 @@ r="$r|(?:tempest\.api\.network\.admin\.test_dhcp_agent_scheduler.*)"
 # exclude this test case because this expects dhcp interface to be present
 r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
 
-# TODO(numans): exclude this test until the bug #1641125 is fixed.
-r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_cross_tenant_traffic)"
-
 # exclude this test because there are no agents used by OVN
 r="$r|(?:tempest\.api\.network\.admin\.test_agent_management.*)"
 

@@ -71,9 +71,6 @@ r="$r|(?:tempest\.api\.compute\.test_quotas*)"
 r="$r|(?:tempest\.api\.compute\.test_versions*)"
 r="$r|(?:tempest\.api\.compute\.volumes*)"
 
-# TODO(numans): exclude this test until the bug #1641125 is fixed.
-r="$r|(?:tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_cross_tenant_traffic)"
-
 # End list of exclusions.
 r="$r)"
 
