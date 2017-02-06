@@ -424,8 +424,8 @@ class TestACLs(base.TestCase):
         sg_rule['ethertype'] = 'IPv10'
         match, ip_version, icmp = ovn_acl.acl_ethertype(sg_rule)
         self.assertEqual('', match)
-        self.assertEqual(None, ip_version)
-        self.assertEqual(None, icmp)
+        self.assertIsNone(ip_version)
+        self.assertIsNone(icmp)
 
     def test_acl_remote_ip_prefix(self):
         sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({

@@ -497,12 +497,12 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self.assertEqual(chassis, 'host-2')
         chassis = self.nb_ovn_idl.get_router_chassis_binding(
             utils.ovn_name('lr-id-d'))
-        self.assertEqual(chassis, None)
+        self.assertIsNone(chassis)
         chassis = self.nb_ovn_idl.get_router_chassis_binding(
             utils.ovn_name('lr-id-e'))
-        self.assertEqual(chassis, None)
+        self.assertIsNone(chassis)
         chassis = self.nb_ovn_idl.get_router_chassis_binding('bad')
-        self.assertEqual(chassis, None)
+        self.assertIsNone(chassis)
 
     def test_get_unhosted_routers(self):
         self._load_nb_db()
