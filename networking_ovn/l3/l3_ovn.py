@@ -562,40 +562,48 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def update_floatingip(self, context, id, floatingip):
         fip_db = self._get_floatingip(context, id)
         previous_fip = self._make_floatingip_dict(fip_db)
-        previous_router_id = previous_fip.get('router_id')
+        previous_port_id = previous_fip.get('port_id')
 
         fip = super(OVNL3RouterPlugin, self).update_floatingip(context, id,
                                                                floatingip)
-        new_router_id = fip['router_id']
-        if previous_router_id:
+        new_port_id = fip.get('port_id')
+        fip_status = None
+        if previous_port_id and (
+            previous_port_id != new_port_id or (
+                previous_fip['fixed_ip_address'] != fip['fixed_ip_address'])):
+            # 1. Floating IP dissociated
+            # 2. Floating IP re-associated to a new port
+            # 3. Floating IP re-associated to a new fixed_ip (same port)
             update_fip = {}
             update_fip['logical_ip'] = previous_fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
             try:
-                self._update_floating_ip_in_ovn(context, previous_router_id,
+                self._update_floating_ip_in_ovn(context,
+                                                previous_fip['router_id'],
                                                 update_fip, associate=False)
-                self.update_floatingip_status(context, id,
-                                              n_const.FLOATINGIP_STATUS_DOWN)
+                fip_status = n_const.FLOATINGIP_STATUS_DOWN
             except Exception:
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Unable to update floating ip in '
                                   'gateway router'))
 
-        if new_router_id:
+        if new_port_id:
             update_fip = {}
             update_fip['fip_port_id'] = fip_db['floating_port_id']
             update_fip['fip_net_id'] = fip['floating_network_id']
             update_fip['logical_ip'] = fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
             try:
-                self._update_floating_ip_in_ovn(context, new_router_id,
+                self._update_floating_ip_in_ovn(context, fip['router_id'],
                                                 update_fip)
-                self.update_floatingip_status(context, id,
-                                              n_const.FLOATINGIP_STATUS_ACTIVE)
+                fip_status = n_const.FLOATINGIP_STATUS_ACTIVE
             except Exception:
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Unable to update floating ip in '
                                   'gateway router'))
+
+        if fip_status:
+            self.update_floatingip_status(context, id, fip_status)
 
         return fip
 
