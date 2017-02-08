@@ -14,7 +14,7 @@
 # pip install {opts} {packages}
 
 ZUUL_CLONER=/usr/zuul-env/bin/zuul-cloner
-BRANCH_NAME=master
+BRANCH_NAME=stable/ocata
 neutron_installed=$(echo "import neutron" | python 2>/dev/null ; echo $?)
 NEUTRON_DIR=$HOME/neutron
 
