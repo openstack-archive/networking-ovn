@@ -27,6 +27,7 @@ enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn
 
 disable_all_services
 enable_service n-cpu
+enable_service placement-api
 enable_service ovn-controller
 
 # For multi-node deployments using conventional DHCP and metadata agents,
