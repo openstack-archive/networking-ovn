@@ -270,7 +270,7 @@ primary node. See the :ref:`faq` for more information.
         node from the available list of compute nodes. The ovn_l3_admin_net_cidr
         value is only valid if ovn_l3_mode is set to ``True``. The deafult
         value for ``OVN_L3_ADMIN_NET_CIDR`` is ``169.254.128.0/30``, if you
-        want to use a diferent cidr replace ``OVN_L3_ADMIN_NET_CIDR`` to a new
+        want to use a different cidr replace ``OVN_L3_ADMIN_NET_CIDR`` to a new
         cidr. And finally, replace ``OVN_NATIVE_DHCP`` with ``True`` if you
         want to enable the native DHCP service else ``False`` to use the
         conventional DHCP agent.
