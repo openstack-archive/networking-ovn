@@ -14,9 +14,11 @@
 
 import netaddr
 
+from neutron_lib.api.definitions import l3
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.services import base as service_base
 from neutron_lib.utils import helpers
 from oslo_log import log
 from oslo_utils import excutils
@@ -24,9 +26,6 @@ from oslo_utils import excutils
 from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
-from neutron.extensions import l3
-from neutron.services import service_base
-
 
 from networking_ovn._i18n import _LE, _LI
 from networking_ovn.common import config
