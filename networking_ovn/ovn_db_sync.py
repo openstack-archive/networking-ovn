@@ -321,8 +321,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         for router in self.l3_plugin.get_routers(ctx):
             db_routers[router['id']] = router
             db_extends[router['id']] = {}
-            db_extends[router['id']]['gw_port_id'] = router.get(
-                'gw_port_id', '')
             db_extends[router['id']]['routes'] = []
             db_extends[router['id']]['snats'] = []
             db_extends[router['id']]['fips'] = []
