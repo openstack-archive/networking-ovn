@@ -122,3 +122,8 @@ class TestPortBinding(base.TestOVNFunctionalBase):
                                               hostname=self.invalid_dpdk_host)
         self._verify_vif_details(port_id, self.invalid_dpdk_host, 'ovs',
                                  {'port_filter': True})
+
+
+class TestPortBindingOverTcp(TestPortBinding):
+    def get_ovsdb_server_protocol(self):
+        return 'tcp'

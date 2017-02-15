@@ -98,6 +98,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         super(TestOVNFunctionalBase, self).tearDown()
 
+    def get_ovsdb_server_protocol(self):
+        return 'unix'
+
     def _start_ovsdb_server_and_idls(self):
         self.temp_dir = self.useFixture(fixtures.TempDir()).path
         # Start 2 ovsdb-servers one each for OVN NB DB and OVN SB DB
@@ -105,7 +108,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # events.
         self.ovsdb_server_mgr = self.useFixture(
             process.OvsdbServer(self.temp_dir, self.OVS_INSTALL_SHARE_PATH,
-                                ovn_nb_db=True, ovn_sb_db=True))
+                                ovn_nb_db=True, ovn_sb_db=True,
+                                protocol=self.get_ovsdb_server_protocol()))
         cfg.CONF.set_override(
             'ovn_nb_connection',
             self.ovsdb_server_mgr.get_ovsdb_connection_path(),
