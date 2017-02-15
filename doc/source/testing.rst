@@ -105,32 +105,6 @@ their names correlate with the output from ``neutron net-list``::
     $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
     {"neutron:network_name"=private}
 
-There will be one port created automatically when not using OVN native DHCP.
-This port corresponds to the Neutron DHCP agent that is providing DHCP services
-to the ``private`` network.
-
-::
-
-    $ neutron port-list
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | id                                   | name | mac_address       | fixed_ips |
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | 51f98e51-143b-4968-a7a9-e2d8d419b246 |      | fa:16:3e:6e:63:b1 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.2"}                             |
-    |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe6e:63b1"} |
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-
-..
-
-One can determine the DHCP port by running:
-
-``neutron port-list --device-owner 'network:dhcp'``
-
-This will return the DHCP port that was created by Neutron.
-
-The owner of the port, that is, the 'device_owner', will have details of the
-port owner. For example the port owned by a Nova instance will have
-device_owner 'compute:None' when availability zone is not set.
-
 Booting VMs
 -----------
 
@@ -305,8 +279,6 @@ with the::
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
     | id                                   | name | mac_address       | fixed_ips                                                                                                   |
     +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | 51f98e51-143b-4968-a7a9-e2d8d419b246 |      | fa:16:3e:6e:63:b1 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.2"}                             |
-    |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe6e:63b1"} |
     | d660a917-5095-4bd0-92c5-d0abdffb600b |      | fa:16:3e:42:cb:c7 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.4"}                             |
     |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe42:cbc7"} |
     | e3800c90-24d4-49ad-abb2-041a2e3dd259 |      | fa:16:3e:92:57:9a | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.3"}                             |
@@ -327,9 +299,8 @@ the Neutron port ID.
     $ ovn-nbctl lsp-list neutron-$PRIVATE_NET_ID
     1117ac4e-1c83-4fd5-bb16-6c9c11150446 (e3800c90-24d4-49ad-abb2-041a2e3dd259)
     9be0ab27-1565-4b92-b2d2-c4578e90c46d (d660a917-5095-4bd0-92c5-d0abdffb600b)
-    1e81abcf-574b-4533-8202-da182491724c (51f98e51-143b-4968-a7a9-e2d8d419b246)
 
-These three ports correspond to the DHCP agent plus the two VMs we created.
+These two ports correspond to the two VMs we created.
 
 Adding Another Compute Node
 ---------------------------
@@ -395,7 +366,6 @@ chassis, their configuration, and the ports bound to each of them::
             ip: "172.16.189.3"
         Port_Binding "e3800c90-24d4-49ad-abb2-041a2e3dd259"
         Port_Binding "d660a917-5095-4bd0-92c5-d0abdffb600b"
-        Port_Binding "51f98e51-143b-4968-a7a9-e2d8d419b246"
     Chassis "52fd2e32-f9ca-4abd-a8e4-fdf1842079d2"
         Encap geneve
             ip: "172.16.189.10"
