@@ -188,9 +188,24 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                            'addresses': ['10.0.0.4']},
             }
 
-        self.routers = [{'id': 'r1', 'routes': []},
+        self.routers = [{'id': 'r1', 'routes': [{'nexthop': '20.0.0.100',
+                         'destination': '11.0.0.0/24'}, {
+                         'nexthop': '20.0.0.101',
+                         'destination': '12.0.0.0/24'}],
+                         'gw_port_id': 'gpr1',
+                         'external_gateway_info': {
+                             'network_id': "ext-net", 'enable_snat': True,
+                             'external_fixed_ips': [
+                                 {'subnet_id': 'ext-subnet',
+                                  'ip_address': '90.0.0.2'}]}},
                         {'id': 'r2', 'routes': [{'nexthop': '40.0.0.100',
-                         'destination': '30.0.0.0/24'}]},
+                         'destination': '30.0.0.0/24'}],
+                         'gw_port_id': 'gpr2',
+                         'external_gateway_info': {
+                             'network_id': "ext-net", 'enable_snat': True,
+                             'external_fixed_ips': [
+                                 {'subnet_id': 'ext-subnet',
+                                  'ip_address': '100.0.0.2'}]}},
                         {'id': 'r4', 'routes': []}]
 
         self.get_sync_router_ports = [
@@ -210,7 +225,16 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
              'device_id': 'r4',
              'mac_address': 'fa:16:3e:12:34:56'}]
 
-        # Mark(dongj): Will support snat fip test later.
+        self.floating_ips = [{'router_id': 'r1',
+                              'floating_ip_address': '90.0.0.10',
+                              'fixed_ip_address': '172.16.0.10'},
+                             {'router_id': 'r1',
+                              'floating_ip_address': '90.0.0.12',
+                              'fixed_ip_address': '172.16.2.12'},
+                             {'router_id': 'r2',
+                              'floating_ip_address': '100.0.0.10',
+                              'fixed_ip_address': '192.168.2.10'}]
+
         self.lrouters_with_rports = [{'name': 'r3',
                                       'ports': {'p1r3': ['fake']},
                                       'static_routes': [],
@@ -227,9 +251,23 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       'ports': {'p3r1': ['fake']},
                                       'static_routes':
                                       [{'nexthop': '20.0.0.100',
+                                        'destination': '11.0.0.0/24'},
+                                       {'nexthop': '20.0.0.100',
                                         'destination': '10.0.0.0/24'}],
-                                      'snats': [],
-                                      'dnat_and_snats': []}]
+                                      'snats':
+                                      [{'logical_ip': '172.16.0.0/24',
+                                        'external_ip': '90.0.0.2',
+                                        'type': 'snat'},
+                                       {'logical_ip': '172.16.1.0/24',
+                                        'external_ip': '90.0.0.2',
+                                        'type': 'snat'}],
+                                      'dnat_and_snats':
+                                      [{'logical_ip': '172.16.0.10',
+                                        'external_ip': '90.0.0.10',
+                                        'type': 'dnat_and_snat'},
+                                       {'logical_ip': '172.16.1.11',
+                                        'external_ip': '90.0.0.11',
+                                        'type': 'dnat_and_snat'}]}]
 
         self.lswitches_with_ports = [{'name': 'neutron-n1',
                                       'ports': ['p1n1', 'p3n1']},
@@ -248,6 +286,14 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                 'router': '10.0.0.1'},
                     'external_ids': {'subnet_id': 'n1-s1'}}
         return {'cidr': '', 'options': '', 'external_ids': {}}
+
+    def _fake_get_external_router_and_gateway_ip(self, ctx, router):
+        return {'r1': ('90.0.0.2', '90.0.0.1'),
+                'r2': ('100.0.0.2', '100.0.0.1')}.get(router['id'], ('', ''))
+
+    def _fake_get_v4_network_of_all_router_ports(self, ctx, router_id):
+        return {'r1': ['172.16.0.0/24', '172.16.2.0/24'],
+                'r2': ['192.168.2.0/24']}.get(router_id, [])
 
     def _test_mocks_helper(self, ovn_nb_synchronizer):
         core_plugin = ovn_nb_synchronizer.core_plugin
@@ -302,7 +348,11 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin.get_routers = mock.Mock()
         l3_plugin.get_routers.return_value = self.routers
         l3_plugin.get_external_router_and_gateway_ip = mock.Mock()
-        l3_plugin.get_external_router_and_gateway_ip.return_value = None, None
+        l3_plugin.get_external_router_and_gateway_ip.side_effect = \
+            self._fake_get_external_router_and_gateway_ip
+        l3_plugin._get_v4_network_of_all_router_ports = mock.Mock()
+        l3_plugin._get_v4_network_of_all_router_ports.side_effect = \
+            self._fake_get_v4_network_of_all_router_ports
         l3_plugin._get_sync_interfaces = mock.Mock()
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
@@ -311,7 +361,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             self.lrport_networks)
         # end of router-sync block
         l3_plugin.get_floatingips = mock.Mock()
-        l3_plugin.get_floatingips.return_value = []
+        l3_plugin.get_floatingips.return_value = self.floating_ips
         ovn_api.get_all_logical_switches_with_ports = mock.Mock()
         ovn_api.get_all_logical_switches_with_ports.return_value = (
             self.lswitches_with_ports)
@@ -407,6 +457,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                  create_network_list, create_port_list,
                                  del_network_list, del_port_list,
                                  add_static_route_list, del_static_route_list,
+                                 add_snat_list, del_snat_list,
+                                 add_floating_ip_list, del_floating_ip_list,
                                  add_address_set_list, del_address_set_list,
                                  update_address_set_list,
                                  add_subnet_dhcp_options_list,
@@ -460,11 +512,34 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.delete_lswitch_port.assert_has_calls(
             delete_lswitch_port_calls, any_order=True)
 
+        add_route_calls = [mock.call(mock.ANY, ip_prefix=route['destination'],
+                                     nexthop=route['nexthop'])
+                           for route in add_static_route_list]
+        ovn_api.add_static_route.assert_has_calls(add_route_calls,
+                                                  any_order=True)
         self.assertEqual(len(add_static_route_list),
                          ovn_api.add_static_route.call_count)
-
+        del_route_calls = [mock.call(mock.ANY, ip_prefix=route['destination'],
+                                     nexthop=route['nexthop'])
+                           for route in del_static_route_list]
+        ovn_api.delete_static_route.assert_has_calls(del_route_calls,
+                                                     any_order=True)
         self.assertEqual(len(del_static_route_list),
                          ovn_api.delete_static_route.call_count)
+
+        add_nat_list = add_snat_list + add_floating_ip_list
+        add_nat_calls = [mock.call(mock.ANY, **nat) for nat in add_nat_list]
+        ovn_api.add_nat_rule_in_lrouter.assert_has_calls(add_nat_calls,
+                                                         any_order=True)
+        self.assertEqual(len(add_nat_list),
+                         ovn_api.add_nat_rule_in_lrouter.call_count)
+
+        del_nat_list = del_snat_list + del_floating_ip_list
+        del_nat_calls = [mock.call(mock.ANY, **nat) for nat in del_nat_list]
+        ovn_api.delete_nat_rule_in_lrouter.assert_has_calls(del_nat_calls,
+                                                            any_order=True)
+        self.assertEqual(len(del_nat_list),
+                         ovn_api.delete_nat_rule_in_lrouter.call_count)
 
         create_router_calls = [mock.call(r)
                                for r in create_router_list]
@@ -564,12 +639,48 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                 # because it is already in lswitch-port list
                 create_port_list.remove(port)
 
-        create_router_list = [{'id': 'r2', 'routes': [{'nexthop': '40.0.0.100',
-                               'destination': '30.0.0.0/24'}]}]
-        add_static_route_list = [{'destination': '30.0.0.0/24',
-                                  'nexthop': '40.0.0.100'}]
+        create_router_list = [{
+            'id': 'r2', 'routes': [
+                {'nexthop': '40.0.0.100', 'destination': '30.0.0.0/24'}],
+            'gw_port_id': 'gpr2',
+            'external_gateway_info': {
+                'network_id': "ext-net", 'enable_snat': True,
+                'external_fixed_ips': [{
+                    'subnet_id': 'ext-subnet',
+                    'ip_address': '100.0.0.2'}]}}]
+
+        # Test adding and deleting routes snats fips behaviors for router r1
+        # existing in both neutron DB and OVN DB.
+        # Test adding behaviors for router r2 only existing in neutron DB.
+        # Static routes with destination 0.0.0.0/0 are default gateway routes
+        add_static_route_list = [{'nexthop': '20.0.0.101',
+                                  'destination': '12.0.0.0/24'},
+                                 {'nexthop': '90.0.0.1',
+                                  'destination': '0.0.0.0/0'},
+                                 {'nexthop': '40.0.0.100',
+                                  'destination': '30.0.0.0/24'},
+                                 {'nexthop': '100.0.0.1',
+                                  'destination': '0.0.0.0/0'}]
         del_static_route_list = [{'nexthop': '20.0.0.100',
                                   'destination': '10.0.0.0/24'}]
+        add_snat_list = [{'logical_ip': '172.16.2.0/24',
+                          'external_ip': '90.0.0.2',
+                          'type': 'snat'},
+                         {'logical_ip': '192.168.2.0/24',
+                          'external_ip': '100.0.0.2',
+                          'type': 'snat'}]
+        del_snat_list = [{'logical_ip': '172.16.1.0/24',
+                          'external_ip': '90.0.0.2',
+                          'type': 'snat'}]
+        add_floating_ip_list = [{'logical_ip': '172.16.2.12',
+                                 'external_ip': '90.0.0.12',
+                                 'type': 'dnat_and_snat'},
+                                {'logical_ip': '192.168.2.10',
+                                 'external_ip': '100.0.0.10',
+                                 'type': 'dnat_and_snat'}]
+        del_floating_ip_list = [{'logical_ip': '172.16.1.11',
+                                 'external_ip': '90.0.0.11',
+                                 'type': 'dnat_and_snat'}]
 
         del_router_list = [{'router': 'neutron-r3'}]
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
@@ -611,6 +722,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       del_network_list, del_port_list,
                                       add_static_route_list,
                                       del_static_route_list,
+                                      add_snat_list,
+                                      del_snat_list,
+                                      add_floating_ip_list,
+                                      del_floating_ip_list,
                                       add_address_set_list,
                                       del_address_set_list,
                                       update_address_set_list,
@@ -629,6 +744,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_router_port_list = []
         add_static_route_list = []
         del_static_route_list = []
+        add_snat_list = []
+        del_snat_list = []
+        add_floating_ip_list = []
+        del_floating_ip_list = []
         add_address_set_list = []
         del_address_set_list = []
         update_address_set_list = []
@@ -650,6 +769,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       del_network_list, del_port_list,
                                       add_static_route_list,
                                       del_static_route_list,
+                                      add_snat_list,
+                                      del_snat_list,
+                                      add_floating_ip_list,
+                                      del_floating_ip_list,
                                       add_address_set_list,
                                       del_address_set_list,
                                       update_address_set_list,
