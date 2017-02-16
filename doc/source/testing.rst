@@ -494,6 +494,62 @@ or if you followed the VLAN example, it would be:
 
     $ neutron port-create provider-101
 
+Run Unit Tests
+--------------
+Run the unit tests in the local environment with ``tox``.
+
+::
+
+    $ tox -e py27
+    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync
+    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
+    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
+      .test_ovn_sb_sync
+
+Run Functional Tests
+--------------------
+you can run the functional tests with ``tox`` in your devstack environment:
+
+::
+
+     $ cd networking_ovn/tests/functional
+     $ tox -e dsvm-functional
+     $ tox -e dsvm-functional networking_ovn.tests.functional.test_mech_driver\
+       .TestPortBinding.test_port_binding_create_port
+
+If you want to run functional tests in your local clean environment, you may
+need a new working directory.
+
+::
+
+     $ export BASE=/opt/stack
+     $ mkdir -p /opt/stack/new
+     $ cd /opt/stack/new
+
+Next, get networking_ovn, neutron and devstack.
+
+::
+
+     $ git clone http://git.openstack.org/openstack/networking-ovn.git
+     $ git clone http://git.openstack.org/openstack/neutron.git
+     $ git clone http://git.openstack.org/openstack-dev/devstack.git
+
+Then execute the script to prepare the environment.
+
+::
+
+     $ cd networking-ovn/
+     $ ./networking_ovn/tests/contrib/gate_hook.sh
+
+Finally, run the functional tests with ``tox``
+
+::
+
+     $ cd networking_ovn/tests/functional
+     $ tox -e dsvm-functional
+     $ tox -e dsvm-functional networking_ovn.tests.functional.test_mech_driver\
+       .TestPortBinding.test_port_binding_create_port
+
 Skydive
 -------
 
