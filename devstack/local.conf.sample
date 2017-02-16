@@ -30,8 +30,10 @@ enable_service ovn-controller
 disable_service n-net
 enable_service q-svc
 
-# We have to disable the neutron L2 agent. OVN does not use the L2 agent.
+# Disable Neutron agents not used with OVN.
 disable_service q-agt
+disable_service q-l3
+disable_service q-dhcp
 
 # How to connect to ovsdb-server hosting the OVN NB database.
 #OVN_NB_REMOTE=tcp:$SERVICE_HOST:6641
@@ -44,36 +46,10 @@ disable_service q-agt
 # DevStack runs.
 #OVN_UUID=
 
-# OVN native layer-3 service is enabled by default. To use the conventional
-# layer-3 agent, set OVN_L3_MODE to False and enable the q-l3 service. You
-# should also consider enabling the conventional metadata service (q-meta).
-#OVN_L3_MODE=False
-#enable_service q-l3
-disable_service q-l3
-
 # If using the OVN native layer-3 service, choose a router scheduler to
 # manage the distribution of router gateways on hypervisors/chassis.
 # Default value is leastloaded.
 #OVN_L3_SCHEDULER=leastloaded
-
-# OVN native DHCP functionality is enabled by default. To use the conventional
-# DHCP agent, set OVN_NATIVE_DHCP to False and enable the q-dhcp service.
-# However, if you choose the conventional DHCP agent instead of the native
-# DHCP service, see the deployment considerations. You should also consider
-# enabling the conventional metadata service (q-meta).
-#OVN_NATIVE_DHCP=False
-#enable_service q-dhcp
-disable_service q-dhcp
-
-# OVN currently relies on the conventional metadata agent to provide instances
-# with metadata. However, this mechanism only works in conjunction with the
-# conventional layer-3 and/or DHCP agents. For single-node deployments, enable
-# the metadata agent on the controller node. For multi-node deployments,
-# consider disabling the agent on the controller node and enabling the agent on
-# a subset of compute nodes. For more information, see
-# computenode-local.conf.sample.
-#enable_service q-meta
-disable_service q-meta
 
 # Whether or not to build custom openvswitch kernel modules from the ovs git
 # tree. This is enabled by default.  This is required unless your distro kernel

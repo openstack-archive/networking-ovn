@@ -46,9 +46,9 @@ if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_servi
 
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         if [[ "$OVN_L3_CREATE_PUBLIC_NETWORK" == "True" ]]; then
-            if [[ "$NEUTRON_CREATE_INITIAL_NETWORKS" != "True" || "$OVN_L3_MODE" != "True" ]]; then
-                echo "OVN_L3_CREATE_PUBLIC_NETWORK=True is being ignored because either"
-                echo "NEUTRON_CREATE_INITIAL_NETWORKS or OVN_L3_MODE is set to False"
+            if [[ "$NEUTRON_CREATE_INITIAL_NETWORKS" != "True" ]]; then
+                echo "OVN_L3_CREATE_PUBLIC_NETWORK=True is being ignored because"
+                echo "NEUTRON_CREATE_INITIAL_NETWORKS is set to False"
             else
                 create_public_bridge
             fi

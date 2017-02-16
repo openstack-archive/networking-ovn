@@ -44,6 +44,9 @@ ovn_opts = [
                       ' that are no longer in Neutron.')),
     cfg.BoolOpt('ovn_l3_mode',
                 default=True,
+                deprecated_for_removal=True,
+                deprecated_reason="This option is no longer used. Native L3 "
+                                  "support in OVN is always used.",
                 help=_('Whether to use OVN native L3 support. Do not change '
                        'the value for existing deployments that contain '
                        'routers.')),

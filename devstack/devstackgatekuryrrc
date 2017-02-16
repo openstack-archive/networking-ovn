@@ -23,5 +23,4 @@ export OVERRIDE_ENABLED_SERVICES=kuryr,etcd-server,docker-engine,key,n-api,n-cpu
 export PROJECTS="openstack/networking-ovn openstack/kuryr $PROJECTS"
 export DEVSTACK_LOCAL_CONFIG="enable_plugin networking-ovn git://git.openstack.org/openstack/networking-ovn"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin kuryr http://git.openstack.org/openstack/kuryr"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_MODE=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"

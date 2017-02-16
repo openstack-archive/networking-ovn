@@ -75,20 +75,17 @@ OVN_INSTALL_OVS_PYTHON_MODULE=$(trueorfalse False OVN_INSTALL_OVS_PYTHON_MODULE)
 # configure the DHCP agent MTU option.
 OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-38}
 
-# If using OVN_L3_MODE, this sets whether to create a public network and bridge.
+# This sets whether to create a public network and bridge.
 # If set to True, a public network and subnet(s) will be created, and a router
 # will be created to route the default private network to the public one.
-# Can only be set to True if OVN_L3_MODE is being used (and not q-l3) and
-# NEUTRON_CREATE_INITIAL_NETWORKS is True (the default).  There are known issues
-# setting this to true in a multinode devstack setup
 OVN_L3_CREATE_PUBLIC_NETWORK=$(trueorfalse False OVN_L3_CREATE_PUBLIC_NETWORK)
 
 # ml2/config for neutron_sync_mode
 OVN_NEUTRON_SYNC_MODE=${OVN_NEUTRON_SYNC_MODE:-log}
 
-# If using OVN_L3_MODE, the type of OVN L3 Scheduler to use. The OVN L3
-# Scheduler determines the hypervisor/chassis where a routers gateway should
-# be hosted in OVN. The default OVN L3 scheduler is leastloaded
+# The type of OVN L3 Scheduler to use. The OVN L3 Scheduler determines the
+# hypervisor/chassis where a routers gateway should be hosted in OVN. The
+# default OVN L3 scheduler is leastloaded
 OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 
 # Neutron directory
@@ -169,23 +166,14 @@ function configure_ovn_plugin {
         export NETWORK_API_EXTENSIONS=$(python -c \
             'from networking_ovn.common import extensions ;\
              print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS)')
-        if [[ "$OVN_L3_MODE" == "True" ]]; then
-            export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$(python -c \
-                'from networking_ovn.common import extensions ;\
-                 print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3)')
-        else
-            export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$(python -c \
-                'from networking_ovn.common import extensions ;\
-                 print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3)')
-        fi
+        export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$(python -c \
+            'from networking_ovn.common import extensions ;\
+             print ",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3)')
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ml2_type_geneve max_header_size=$OVN_GENEVE_OVERHEAD
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_nb_connection="$OVN_NB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
-        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_mode="$OVN_L3_MODE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn neutron_sync_mode="$OVN_NEUTRON_SYNC_MODE"
-        if [[ "$OVN_L3_MODE" == "True" ]]; then
-            populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
-        fi
+        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_native_dhcp="$OVN_NATIVE_DHCP"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
@@ -209,9 +197,7 @@ function configure_ovn_plugin {
     fi
 
     if is_service_enabled q-l3 ; then
-        if [[ "$OVN_L3_MODE" == "True" ]]; then
-            die $LINENO "The q-l3 service must be disabled with OVN_L3_MODE set to True."
-        fi
+        die $LINENO "The q-l3 service must be disabled with OVN."
     fi
 
     # NOTE(rtheis): OVN native layer-3 and DHCP services currently lack support
@@ -225,7 +211,7 @@ function configure_ovn_plugin {
         # support, the conventional DHCP agent will be forced to provide
         # metadata for all networks.
         iniset $Q_DHCP_CONF_FILE DEFAULT force_metadata True
-    elif [[ "$OVN_NATIVE_DHCP" == "True" && "$OVN_L3_MODE" == "True" ]]; then
+    elif [[ "$OVN_NATIVE_DHCP" == "True" ]]; then
         if is_service_enabled n-cpu ; then
             iniset $NOVA_CONF DEFAULT force_config_drive True
         fi
