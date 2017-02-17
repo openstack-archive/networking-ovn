@@ -681,19 +681,6 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
         ).start()
         self.setup_notification_driver()
 
-    # TODO(rtheis): Skip the following test cases since they are for
-    # L3 service plugins that support L3 agent RPC. These tests should
-    # be refactored in neutron.
-
-    def test__notify_subnetpool_address_scope_update(self):
-        pass
-
-    def test_router_add_interface_subnet(self):
-        pass
-
-    def test_router_add_interface_ipv6_subnet(self):
-        pass
-
     # Note(dongj): According to bug #1657693, status of an unassociated
     # floating IP is set to DOWN. Revise expected_status to DOWN for related
     # test cases.
