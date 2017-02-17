@@ -19,15 +19,12 @@ from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from oslo_config import cfg
-from oslo_log import log
 
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 
 from networking_ovn.tests.unit import fakes
 from networking_ovn.tests.unit.ml2 import test_mech_driver
-
-LOG = log.getLogger(__name__)
 
 
 class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
