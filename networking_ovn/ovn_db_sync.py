@@ -651,12 +651,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         ovn_port_dhcp_opts = {constants.IP_VERSION_4: ovn_port_dhcpv4_opts,
                               constants.IP_VERSION_6: ovn_port_dhcpv6_opts}
         for port in ports_need_sync_dhcp_opts:
-            # Ignore the floating ip ports with device_owner set to
-            # constants.DEVICE_OWNER_FLOATINGIP
-            if port.get('device_owner', '').startswith(
-                    constants.DEVICE_OWNER_FLOATINGIP):
-                continue
-
             if self.mode == SYNC_MODE_REPAIR:
                 LOG.debug('Updating DHCP options for port %s in OVN NB DB',
                           port['id'])
@@ -714,9 +708,12 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         for net in self.core_plugin.get_networks(ctx):
             db_networks[utils.ovn_name(net['id'])] = net
 
-        db_ports = {}
-        for port in self.core_plugin.get_ports(ctx):
-            db_ports[port['id']] = port
+        # Ignore the floating ip ports with device_owner set to
+        # constants.DEVICE_OWNER_FLOATINGIP
+        db_ports = {port['id']: port for port in
+                    self.core_plugin.get_ports(ctx) if not
+                    port.get('device_owner', '').startswith(
+                    constants.DEVICE_OWNER_FLOATINGIP)}
 
         ovn_all_dhcp_options = self.ovn_api.get_all_dhcp_options()
         db_network_cache = dict(db_networks)
