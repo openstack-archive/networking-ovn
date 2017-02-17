@@ -27,6 +27,7 @@ from neutron import context
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
+from neutron.tests.unit.extensions import test_securitygroup
 from neutron_lib import constants
 from neutron_lib.plugins import directory
 
@@ -37,6 +38,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         super(TestOvnNbSync, self).setUp()
         ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
         self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+        sg_mgr = test_securitygroup.SecurityGroupTestExtensionManager()
+        self._sg_api = test_extensions.setup_extensions_middleware(sg_mgr)
         self.create_lswitches = []
         self.create_lswitch_ports = []
         self.create_lrouters = []
@@ -63,6 +66,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.lport_dhcpv6_disabled = {}
         self.missed_dhcp_options = []
         self.dirty_dhcp_options = []
+
+    def _api_for_resource(self, resource):
+        if resource in ['security-groups']:
+            return self._sg_api
+        else:
+            return super(TestOvnNbSync, self)._api_for_resource(resource)
 
     def _create_resources(self):
         n1 = self._make_network(self.fmt, 'n1', True)
@@ -833,15 +842,20 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _validate_address_sets(self, should_match=True):
         db_ports = self._list('ports')['ports']
+        sgs = self._list('security-groups')['security_groups']
         db_sgs = {}
+        for sg in sgs:
+            for ip_version in ['ip4', 'ip6']:
+                name = utils.ovn_addrset_name(sg['id'], ip_version)
+                db_sgs[name] = []
+
         for port in db_ports:
-            sg_ids = port.get('security_groups', [])
+            sg_ids = utils.get_lsp_security_groups(port)
             addresses = acl_utils.acl_port_ips(port)
             for sg_id in sg_ids:
                 for ip_version in addresses:
                     name = utils.ovn_addrset_name(sg_id, ip_version)
-                    addr_list = db_sgs.setdefault(name, [])
-                    addr_list.extend(addresses[ip_version])
+                    db_sgs[name].extend(addresses[ip_version])
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         nb_address_sets = _plugin_nb_ovn.get_address_sets()
