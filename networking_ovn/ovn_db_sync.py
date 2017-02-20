@@ -343,7 +343,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         'type': 'snat'})
 
         fips = self.l3_plugin.get_floatingips(
-            ctx, {'router_id': db_routers.keys()})
+            ctx, {'router_id': list(db_routers.keys())})
         for fip in fips:
             db_extends[fip['router_id']]['fips'].append(
                 {'external_ip': fip['floating_ip_address'],
