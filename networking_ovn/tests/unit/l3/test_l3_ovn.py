@@ -21,8 +21,10 @@ from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log
 
+from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
+from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
 
 from networking_ovn.tests.unit import fakes
 from networking_ovn.tests.unit.ml2 import test_mech_driver
@@ -650,7 +652,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             external_ip='192.168.0.10')
 
 
-class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
+class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
+                           test_l3.L3NatDBIntTestCase,
                            test_extraroute.ExtraRouteDBTestCaseBase):
 
     def setUp(self):
@@ -664,6 +667,8 @@ class OVNL3ExtrarouteTests(test_l3.L3NatDBIntTestCase,
         super(test_l3.L3BaseForIntTests, self).setUp(
             plugin=plugin, ext_mgr=ext_mgr,
             service_plugins=service_plugins)
+        l3_gw_mgr = test_l3_gw.TestExtensionManager()
+        test_extensions.setup_extensions_middleware(l3_gw_mgr)
         mock.patch(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
