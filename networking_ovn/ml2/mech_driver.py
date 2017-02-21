@@ -910,7 +910,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         to dhcp disabled subnets, returns None.
         Otherwise, returns a dict:
          - with content from a existing DHCP_Options row for subnet, if the
-           port has no extra dhcp optoins.
+           port has no extra dhcp options.
          - with only one item ('cmd', AddDHCPOptionsCommand(..)), if the port
            has extra dhcp options. The command should be processed in the same
            transaction with port creating or updating command to avoid orphan
@@ -928,7 +928,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if not subnet_dhcp_options:
             # NOTE(lizk): It's possible for Neutron to configure a port with IP
             # address belongs to subnet disabled dhcp. And no DHCP_Options row
-            # wll be inserted for such a subnet. So in that case, the subnet
+            # will be inserted for such a subnet. So in that case, the subnet
             # dhcp options here will be None.
             return
 
