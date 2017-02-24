@@ -174,6 +174,12 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                            'nexthop': '10.0.3.253'},
                           {'ip_prefix': '10.0.0.0/16',
                            'nexthop': '20.0.2.253'}],
+        'nats': [{'external_ip': '10.0.3.1', 'logical_ip': '20.0.0.0/16',
+                  'type': 'snat'},
+                 {'external_ip': '20.0.2.1', 'logical_ip': '10.0.0.0/24',
+                  'type': 'snat'},
+                 {'external_ip': '20.0.2.4', 'logical_ip': '10.0.0.4',
+                  'type': 'dnat_and_snat'}],
         'acls': [
             {'unit_test_id': 1,
              'action': 'allow-related', 'direction': 'from-lport',
@@ -283,6 +289,10 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
             utils.ovn_name('lr-id-a'): ['20.0.0.0/16'],
             utils.ovn_name('lr-id-b'): ['10.0.0.0/16']
             },
+        'lrtonat': {
+            utils.ovn_name('lr-id-a'): ['10.0.3.1'],
+            utils.ovn_name('lr-id-b'): ['20.0.2.1', '20.0.2.4'],
+            },
         'lstoacl': {
             utils.ovn_name('ls-id-1'): [1, 2, 3, 4],
             utils.ovn_name('ls-id-2'): [5, 6],
@@ -298,6 +308,7 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self.lrouter_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
         self.lrp_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
         self.sroute_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
+        self.nat_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
         self.acl_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
         self.dhcp_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
         self.address_set_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
@@ -348,6 +359,14 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
             TestNBImplIdlOvn.fake_associations['lrtosroute'],
             self.lrouter_table, self.sroute_table,
             'name', 'ip_prefix', 'static_routes')
+        # Load nats
+        fake_nats = TestNBImplIdlOvn.fake_set['nats']
+        self._load_ovsdb_fake_rows(self.nat_table, fake_nats)
+        # Associate routers and nats
+        self._construct_ovsdb_references(
+            TestNBImplIdlOvn.fake_associations['lrtonat'],
+            self.lrouter_table, self.nat_table,
+            'name', 'external_ip', 'nat')
         # Load acls
         fake_acls = TestNBImplIdlOvn.fake_set['acls']
         self._load_ovsdb_fake_rows(self.acl_table, fake_acls)
@@ -395,13 +414,21 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                                'orp-id-a3': ['10.0.3.0/24']},
                      'static_routes': [{'destination': '20.0.0.0/16',
                                         'nexthop': '10.0.3.253'}],
-                     'snats': [], 'dnat_and_snats': []},
+                     'snats': [{'external_ip': '10.0.3.1',
+                                'logical_ip': '20.0.0.0/16',
+                                'type': 'snat'}],
+                     'dnat_and_snats': []},
                     {'name': 'lr-id-b',
                      'ports': {'xrp-id-b1': ['20.0.1.0/24'],
                                'orp-id-b2': ['20.0.2.0/24']},
                      'static_routes': [{'destination': '10.0.0.0/16',
                                         'nexthop': '20.0.2.253'}],
-                     'snats': [], 'dnat_and_snats': []},
+                     'snats': [{'external_ip': '20.0.2.1',
+                                'logical_ip': '10.0.0.0/24',
+                                'type': 'snat'}],
+                     'dnat_and_snats': [{'external_ip': '20.0.2.4',
+                                         'logical_ip': '10.0.0.4',
+                                         'type': 'dnat_and_snat'}]},
                     {'name': 'lr-id-c', 'ports': {}, 'static_routes': [],
                      'snats': [], 'dnat_and_snats': []},
                     {'name': 'lr-id-d', 'ports': {}, 'static_routes': [],
