@@ -528,15 +528,10 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         if router_id:
             update_fip = {}
             fip_db = self._get_floatingip(context, fip['id'])
-            # Elevating the context here, to pass this test case
-            # OVNL3ExtrarouteTests.test_floatingip_association_on_unowned_
-            # router
-            router = self.get_router(context.elevated(), router_id)
             update_fip['fip_port_id'] = fip_db['floating_port_id']
             update_fip['fip_net_id'] = fip['floating_network_id']
             update_fip['logical_ip'] = fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
-            update_fip['gw_port_id'] = router['gw_port_id']
             try:
                 self._update_floating_ip_in_ovn(context, router_id, update_fip)
                 self.update_floatingip_status(context, fip['id'],
@@ -554,10 +549,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
 
         if router_id and original_fip.get('fixed_ip_address'):
             update_fip = {}
-            router = self.get_router(context.elevated(), router_id)
             update_fip['logical_ip'] = original_fip['fixed_ip_address']
             update_fip['external_ip'] = original_fip['floating_ip_address']
-            update_fip['gw_port_id'] = router['gw_port_id']
             try:
                 self._update_floating_ip_in_ovn(context, router_id, update_fip,
                                                 associate=False)
@@ -576,10 +569,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         new_router_id = fip['router_id']
         if previous_router_id:
             update_fip = {}
-            router = self.get_router(context.elevated(), previous_router_id)
             update_fip['logical_ip'] = previous_fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
-            update_fip['gw_port_id'] = router['gw_port_id']
             try:
                 self._update_floating_ip_in_ovn(context, previous_router_id,
                                                 update_fip, associate=False)
@@ -591,13 +582,11 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                   'gateway router'))
 
         if new_router_id:
-            router = self.get_router(context.elevated(), new_router_id)
             update_fip = {}
             update_fip['fip_port_id'] = fip_db['floating_port_id']
             update_fip['fip_net_id'] = fip['floating_network_id']
             update_fip['logical_ip'] = fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
-            update_fip['gw_port_id'] = router['gw_port_id']
             try:
                 self._update_floating_ip_in_ovn(context, new_router_id,
                                                 update_fip)

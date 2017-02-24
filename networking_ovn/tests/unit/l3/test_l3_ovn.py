@@ -568,11 +568,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin._ovn.add_static_route.assert_not_called()
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_not_called()
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
-    def test_create_floatingip(self, gf, gr):
+    def test_create_floatingip(self, gf):
         gf.return_value = {'floating_port_id': 'fip-port-id'}
-        gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin.create_floatingip(self.context, 'floatingip')
         self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id',
@@ -582,11 +580,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
-    def test_create_floatingip_external_ip_present_in_nat_rule(self, gf, gr):
+    def test_create_floatingip_external_ip_present_in_nat_rule(self, gf):
         gf.return_value = {'floating_port_id': 'fip-port-id'}
-        gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin._ovn.get_lrouter_nat_rules.return_value = [
             {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.6',
              'type': 'dnat_and_snat', 'uuid': 'uuid1'}]
@@ -600,11 +596,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
-    def test_create_floatingip_external_ip_present_type_snat(self, gf, gr):
+    def test_create_floatingip_external_ip_present_type_snat(self, gf):
         gf.return_value = {'floating_port_id': 'fip-port-id'}
-        gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin._ovn.get_lrouter_nat_rules.return_value = [
             {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.0/24',
              'type': 'snat', 'uuid': 'uuid1'}]
@@ -618,10 +612,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin._ovn.delete_lswitch_port.assert_called_once_with(
             'fip-port-id', 'neutron-fip-net-id')
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.delete_floatingip')
-    def test_delete_floatingip(self, df, gr):
-        gr.return_value = {'gw_port_id': 'gw-port-id'}
+    def test_delete_floatingip(self, df):
         self.l3_plugin.delete_floatingip(self.context, 'floatingip-id')
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id',
@@ -629,14 +621,12 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10')
 
-    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_floatingip')
-    def test_update_floatingip(self, uf, gf, gr):
+    def test_update_floatingip(self, uf, gf):
         gf.return_value = self.fake_floating_ip
         uf.return_value = self.fake_floating_ip_new
-        gr.return_value = {'gw_port_id': 'gw-port-id'}
         self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id',
