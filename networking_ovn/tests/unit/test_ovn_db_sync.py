@@ -145,7 +145,13 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                   {'subnet_id': 'subnet1',
                    'ip_address': 'fd79:e1c:a55::816:eff:eff:ff2'}],
              'security_groups': ['sg2'],
-             'network_id': 'n2'}]
+             'network_id': 'n2'},
+            {'id': 'fp1',
+             'device_owner': 'network:floatingip',
+             'fixed_ips':
+                 [{'subnet_id': 'ext-subnet',
+                   'ip_address': '90.0.0.10'}],
+             'network_id': 'ext-net'}]
         self.acls_ovn = {
             'lport1':
             # ACLs need to be removed by the sync tool
@@ -634,9 +640,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                          {'id': 'p1n1', 'lswitch': 'neutron-n1'}]
         create_port_list = self.ports
         for port in create_port_list:
-            if port['id'] == 'p1n1':
+            if port['id'] in ['p1n1', 'fp1']:
                 # this will be skipped by the logic,
-                # because it is already in lswitch-port list
+                # because p1n1 is already in lswitch-port list
+                # and fp1 is a floating IP port
                 create_port_list.remove(port)
 
         create_router_list = [{
