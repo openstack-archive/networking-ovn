@@ -43,10 +43,6 @@ NW_OVN_DEVSTACK_DIR=$(dirname "$0")/..
 source $NW_OVN_DEVSTACK_DIR/lib/networking-ovn
 
 export OVN_NEUTRON_SYNC_MODE=repair
-# Use neutron l3 as there is a check in nova upgrade, which 
-# verifies an instance can be reached with its floating ip even
-# after upgrade
-export OVN_L3_MODE=False
 
 set -x
 

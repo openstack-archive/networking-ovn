@@ -243,7 +243,7 @@ primary node. See the :ref:`faq` for more information.
         The ``firewall_driver`` option under ``[securitygroup]`` is ignored
         since the OVN ML2 driver itself handles security groups.
 
-   * Configure OVS database access, OVN L3 mode, L3 scheduler and OVN DHCP mode
+   * Configure OVS database access, L3 scheduler and OVN DHCP mode
 
      .. code-block:: ini
 
@@ -251,23 +251,19 @@ primary node. See the :ref:`faq` for more information.
         ...
         ovn_nb_connection = tcp:IP_ADDRESS:6641
         ovn_sb_connection = tcp:IP_ADDRESS:6642
-        ovn_l3_mode = OVN_L3_MODE
         ovn_l3_scheduler = OVN_L3_SCHEDULER
         ovn_native_dhcp = OVN_NATIVE_DHCP
 
      .. note::
 
-        Replace ``IP_ADDRESS`` with the IP address of the controller node
-        that runs the ``ovsdb-server`` service. Replace ``OVN_L3_MODE``
-        with ``True`` if you enabled the native layer-3 service in
-        ``/etc/neutron/neutron.conf`` else ``False``. The ovn_l3_scheduler
-        value is only valid if ovn_l3_mode is set to ``True``. Replace
-        ``OVN_L3_SCHEDULER`` with ``leastloaded`` if you want the scheduler
-        to select a compute node with the least number of gateway ports
-        or ``chance`` if you want the scheduler to randomly select a compute
-        node from the available list of compute nodes. And finally, replace
-        ``OVN_NATIVE_DHCP`` with ``True`` if you want to enable the native DHCP
-        service else ``False`` to use the conventional DHCP agent.
+        Replace ``IP_ADDRESS`` with the IP address of the controller node that
+        runs the ``ovsdb-server`` service. Replace ``OVN_L3_SCHEDULER`` with
+        ``leastloaded`` if you want the scheduler to select a compute node with
+        the least number of gateway ports or ``chance`` if you want the
+        scheduler to randomly select a compute node from the available list of
+        compute nodes. And finally, replace ``OVN_NATIVE_DHCP`` with ``True``
+        if you want to enable the native DHCP service else ``False`` to use the
+        conventional DHCP agent.
 
 #. Start the ``neutron-server`` service.
 
