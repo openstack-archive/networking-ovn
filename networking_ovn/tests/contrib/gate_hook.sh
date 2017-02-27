@@ -10,7 +10,7 @@ DEVSTACK_PATH=$GATE_DEST/devstack
 GATE_STACK_USER=stack
 
 case $VENV in
-"dsvm-functional")
+"dsvm-functional"|"dsvm-functional-py35")
     source $DEVSTACK_PATH/functions
     source $NEUTRON_PATH/devstack/lib/ovs
 
