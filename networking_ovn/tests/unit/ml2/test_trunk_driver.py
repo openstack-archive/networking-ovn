@@ -13,13 +13,13 @@
 #
 
 import mock
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn.tests.unit import fakes
 
-from neutron.callbacks import events
-from neutron.callbacks import registry
 from neutron.objects import trunk as trunk_objects
 from neutron.services.trunk import constants as trunk_consts
 from neutron.tests import base
