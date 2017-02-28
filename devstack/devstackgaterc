@@ -27,6 +27,18 @@ export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
 
+OVS_BRANCH=$1
+if [[ "${OVS_BRANCH}" == "latest-release" ]] ; then
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.7"
+elif [[ "${OVS_BRANCH}" == "master" ]] ; then
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
+elif [[ -z "${OVS_BRANCH}" ]] ; then
+    : # Use the default specified in the devstack plugin
+else
+    echo "Unexpected value to ovs branch argument to devstackgaterc: \"${OVS_BRANCH}\""
+    exit 1
+fi
+
 if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
     # NOTE(rtheis): Multinode does not require creating an OVN L3 public network.
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=False"
