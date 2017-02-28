@@ -28,6 +28,7 @@ from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_securitygroup
+from neutron_lib.api.definitions import l3
 from neutron_lib import constants
 from neutron_lib.plugins import directory
 
@@ -45,6 +46,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.create_lrouters = []
         self.create_lrouter_ports = []
         self.create_lrouter_routes = []
+        self.create_lrouter_nats = []
         self.update_lrouter_ports = []
         self.create_acls = []
         self.delete_lswitches = []
@@ -52,6 +54,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.delete_lrouters = []
         self.delete_lrouter_ports = []
         self.delete_lrouter_routes = []
+        self.delete_lrouter_nats = []
         self.delete_acls = []
         self.create_address_sets = []
         self.delete_address_sets = []
@@ -66,6 +69,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.lport_dhcpv6_disabled = {}
         self.missed_dhcp_options = []
         self.dirty_dhcp_options = []
+        self.lport_dhcp_ignored = []
 
     def _api_for_resource(self, resource):
         if resource in ['security-groups']:
@@ -105,10 +109,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 n1_s1['subnet']['id'])['uuid'])
         update_port_ids_v4 = []
         update_port_ids_v6 = []
+        n1_port_dict = {}
         for p in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']:
             port = self._make_port(self.fmt, n1['network']['id'],
                                    name='n1-' + p,
                                    device_owner='compute:None')
+            n1_port_dict[p] = port['port']['id']
             lport_name = port['port']['id']
             lswitch_name = 'neutron-' + n1['network']['id']
             if p == 'p1':
@@ -264,6 +270,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             port_req = self.new_update_request('ports', data, port_id)
             port_req.get_response(self.api)
 
+        # External network and subnet
+        e1 = self._make_network(self.fmt, 'e1', True,
+                                arg_list=('router:external', ),
+                                **{'router:external': True})
+        self.assertEqual(True, e1['network']['router:external'])
+        res = self._create_subnet(self.fmt, e1['network']['id'],
+                                  '100.0.0.0/24', gateway_ip='100.0.0.1',
+                                  enable_dhcp=False)
+        e1_s1 = self.deserialize(self.fmt, res)
+
         self.create_lswitches.append('neutron-' + uuidutils.generate_uuid())
         self.create_lswitch_ports.append(('neutron-' +
                                           uuidutils.generate_uuid(),
@@ -275,8 +291,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         r1 = self.l3_plugin.create_router(
             self.context,
-            {'router': {'name': 'r1', 'admin_state_up': True,
-                        'tenant_id': self._tenant_id}})
+            {'router': {
+                'name': 'r1', 'admin_state_up': True,
+                'tenant_id': self._tenant_id,
+                'external_gateway_info': {
+                    'enable_snat': True,
+                    'network_id': e1['network']['id'],
+                    'external_fixed_ips': [
+                        {'ip_address': '100.0.0.2',
+                         'subnet_id': e1_s1['subnet']['id']}]}}})
         self.l3_plugin.add_router_interface(
             self.context, r1['id'], {'subnet_id': n1_s1['subnet']['id']})
         r1_p2 = self.l3_plugin.add_router_interface(
@@ -290,12 +313,30 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           n1_s2['subnet']['gateway_ip']))
         self.delete_lrouter_ports.append(('lrp-' + r1_p3['port_id'],
                                           'neutron-' + r1['id']))
+        self.delete_lrouter_ports.append(('lrp-' + r1['gw_port_id'],
+                                          'neutron-' + r1['id']))
         self.l3_plugin.update_router(
             self.context, r1['id'],
             {'router': {'routes': [{'destination': '10.10.0.0/24',
                                     'nexthop': '20.0.0.10'},
                                    {'destination': '10.11.0.0/24',
                                     'nexthop': '20.0.0.11'}]}})
+        r1_f1 = self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'floating_ip_address': '100.0.0.20',
+                'port_id': n1_port_dict['p1']}})
+        r1_f2 = self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'floating_ip_address': '100.0.0.21'}})
+        self.l3_plugin.update_floatingip(
+            self.context, r1_f2['id'], {'floatingip': {
+                'port_id': n1_port_dict['p2']}})
+
+        # Static routes
         self.create_lrouter_routes.append(('neutron-' + r1['id'],
                                            '10.12.0.0/24',
                                            '20.0.0.12'))
@@ -305,6 +346,37 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.delete_lrouter_routes.append(('neutron-' + r1['id'],
                                            '10.10.0.0/24',
                                            '20.0.0.10'))
+        # Gateway default route
+        self.delete_lrouter_routes.append(('neutron-' + r1['id'],
+                                           '0.0.0.0/0',
+                                           '100.0.0.1'))
+        # Gateway sNATs
+        self.create_lrouter_nats.append(('neutron-' + r1['id'],
+                                         '100.0.0.100',
+                                         '200.0.0.0/24', 'snat'))
+        self.delete_lrouter_nats.append(('neutron-' + r1['id'],
+                                         '100.0.0.2',
+                                         '10.0.0.0/24', 'snat'))
+        # Floating IPs
+        self.create_lrouter_nats.append(('neutron-' + r1['id'],
+                                         '100.0.0.200',
+                                         '200.0.0.200', 'dnat_and_snat'))
+        self.delete_lrouter_nats.append(('neutron-' + r1['id'],
+                                         r1_f1['floating_ip_address'],
+                                         r1_f1['fixed_ip_address'],
+                                         'dnat_and_snat'))
+
+        n4 = self._make_network(self.fmt, 'n4', True)
+        res = self._create_subnet(self.fmt, n4['network']['id'],
+                                  '40.0.0.0/24', enable_dhcp=False)
+        n4_s1 = self.deserialize(self.fmt, res)
+        n4_port_dict = {}
+        for p in ['p1', 'p2']:
+            port = self._make_port(self.fmt, n4['network']['id'],
+                                   name='n4-' + p,
+                                   device_owner='compute:None')
+            n4_port_dict[p] = port['port']['id']
+            self.lport_dhcp_ignored.append(port['port']['id'])
 
         r2 = self.l3_plugin.create_router(
             self.context,
@@ -314,10 +386,31 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                   name='n1-p-rtr')
         self.l3_plugin.add_router_interface(
             self.context, r2['id'], {'port_id': n1_prtr['port']['id']})
+        self.l3_plugin.add_router_interface(
+            self.context, r2['id'], {'subnet_id': n4_s1['subnet']['id']})
         self.l3_plugin.update_router(
             self.context, r2['id'],
             {'router': {'routes': [{'destination': '10.20.0.0/24',
-                                    'nexthop': '10.0.0.20'}]}})
+                                    'nexthop': '10.0.0.20'}],
+                        'external_gateway_info': {
+                        'enable_snat': False,
+                        'network_id': e1['network']['id'],
+                        'external_fixed_ips': [
+                            {'ip_address': '100.0.0.3',
+                             'subnet_id': e1_s1['subnet']['id']}]}}})
+        self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'floating_ip_address': '100.0.0.30',
+                'port_id': n4_port_dict['p1']}})
+        self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'floating_ip_address': '100.0.0.31',
+                'port_id': n4_port_dict['p2']}})
+
         self.create_lrouters.append('neutron-' + uuidutils.generate_uuid())
         self.create_lrouter_ports.append(('lrp-' + uuidutils.generate_uuid(),
                                           'neutron-' + r1['id']))
@@ -462,6 +555,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(cmd.DelStaticRouteCommand(fake_api, lrouter_name,
                                                   ip_prefix, nexthop, True))
 
+            for lrouter_name, external_ip, logical_ip, nat_type in(
+                    self.create_lrouter_nats):
+                txn.add(cmd.AddNATRuleInLRouterCommand(
+                    fake_api, lrouter_name, external_ip=external_ip,
+                    logical_ip=logical_ip, type=nat_type))
+
+            for lrouter_name, external_ip, logical_ip, nat_type in(
+                    self.delete_lrouter_nats):
+                txn.add(cmd.DeleteNATRuleInLRouterCommand(
+                    fake_api, lrouter_name, external_ip=external_ip,
+                    logical_ip=logical_ip, type=nat_type, if_exists=True))
+
             for acl in self.create_acls:
                 txn.add(cmd.AddACLCommand(fake_api, **acl))
 
@@ -569,11 +674,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _validate_ports(self, should_match=True):
         db_ports = self._list('ports')
-        db_port_ids = [port['id'] for port in db_ports['ports']]
+        db_port_ids = [port['id'] for port in db_ports['ports'] if
+                       port['device_owner'] !=
+                       constants.DEVICE_OWNER_FLOATINGIP]
         db_port_ids_dhcp_valid = set(
             port['id'] for port in db_ports['ports']
             if not port['device_owner'].startswith(
-                constants.DEVICE_OWNER_PREFIXES))
+                constants.DEVICE_OWNER_PREFIXES) and
+            port['id'] not in self.lport_dhcp_ignored)
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lport_ids = [
@@ -731,11 +839,30 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         db_routers = self._list('routers')
         db_router_ids = []
         db_routes = {}
+        db_nats = {}
         for db_router in db_routers['routers']:
             db_router_ids.append(db_router['id'])
             db_routes[db_router['id']] = [db_route['destination'] +
                                           db_route['nexthop']
                                           for db_route in db_router['routes']]
+            db_nats[db_router['id']] = []
+            if db_router.get(l3.EXTERNAL_GW_INFO):
+                r_ip, gw_ip = self.l3_plugin.\
+                    get_external_router_and_gateway_ip(self.context, db_router)
+                # Add gateway default route and snats
+                if gw_ip:
+                    db_routes[db_router['id']].append('0.0.0.0/0' + gw_ip)
+                if r_ip and utils.is_snat_enabled(db_router):
+                    networks = self.l3_plugin.\
+                        _get_v4_network_of_all_router_ports(self.context,
+                                                            db_router['id'])
+                    db_nats[db_router['id']].extend([r_ip + network + 'snat'
+                                                     for network in networks])
+        fips = self._list('floatingips')
+        for fip in fips['floatingips']:
+            db_nats[fip['router_id']].append(fip['floating_ip_address'] +
+                                             fip['fixed_ip_address'] +
+                                             'dnat_and_snat')
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lrouter_ids = [
@@ -766,6 +893,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 p['id']: self.l3_plugin.get_networks_for_lrouter_port(
                     self.context, p['fixed_ips']) for p in r_ports['ports']}
             r_routes = db_routes[router_id]
+            r_nats = db_nats[router_id]
 
             try:
                 lrouter = idlutils.row_by_value(
@@ -780,9 +908,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 sroutes = getattr(lrouter, 'static_routes', [])
                 plugin_routes = [sroute.ip_prefix + sroute.nexthop
                                  for sroute in sroutes]
+                nats = getattr(lrouter, 'nat', [])
+                plugin_nats = [nat.external_ip + nat.logical_ip + nat.type
+                               for nat in nats]
             except idlutils.RowNotFound:
                 plugin_lrouter_port_ids = []
                 plugin_routes = []
+                plugin_nats = []
 
             try:
                 lrouter = idlutils.row_by_value(
@@ -797,9 +929,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 sroutes = getattr(lrouter, 'static_routes', [])
                 monitor_routes = [sroute.ip_prefix + sroute.nexthop
                                   for sroute in sroutes]
+                nats = getattr(lrouter, 'nat', [])
+                monitor_nats = [nat.external_ip + nat.logical_ip + nat.type
+                                for nat in nats]
             except idlutils.RowNotFound:
                 monitor_lrouter_port_ids = []
                 monitor_routes = []
+                monitor_nats = []
 
             if should_match:
                 self.assertItemsEqual(r_port_ids, plugin_lrouter_port_ids)
@@ -812,6 +948,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           monitor_lport_networks[p])
                 self.assertItemsEqual(r_routes, plugin_routes)
                 self.assertItemsEqual(r_routes, monitor_routes)
+                self.assertItemsEqual(r_nats, plugin_nats)
+                self.assertItemsEqual(r_nats, monitor_nats)
             else:
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_port_ids,
@@ -839,6 +977,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_routes,
                     monitor_routes)
+
+                self.assertRaises(
+                    AssertionError, self.assertItemsEqual, r_nats,
+                    plugin_nats)
+
+                self.assertRaises(
+                    AssertionError, self.assertItemsEqual, r_nats,
+                    monitor_nats)
 
     def _validate_address_sets(self, should_match=True):
         db_ports = self._list('ports')['ports']
