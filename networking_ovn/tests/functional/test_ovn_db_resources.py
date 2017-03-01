@@ -157,13 +157,13 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         res = self._create_subnet(
             self.fmt, n2['network']['id'], '10.0.0.0/24',
             dns_nameservers=['7.7.7.7', '8.8.8.8'],
-            host_routes=[{'destination': '40.0.0.0/24',
+            host_routes=[{'destination': '30.0.0.0/24',
                           'nexthop': '10.0.0.4'},
-                         {'destination': '30.0.0.0/24',
+                         {'destination': '40.0.0.0/24',
                           'nexthop': '10.0.0.8'}])
 
         subnet = self.deserialize(self.fmt, res)['subnet']
-        static_routes = ('{40.0.0.0/24,10.0.0.4, 30.0.0.0/24,'
+        static_routes = ('{30.0.0.0/24,10.0.0.4, 40.0.0.0/24,'
                          '10.0.0.8, 0.0.0.0/0,10.0.0.1}')
         expected_dhcp_options_rows[subnet['id']] = {
             'cidr': '10.0.0.0/24',
