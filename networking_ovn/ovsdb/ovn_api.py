@@ -367,6 +367,7 @@ class API(object):
                                    chassis
         """
 
+    @abc.abstractmethod
     def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
                          **columns):
         """Adds the DHCP options specified in the @columns in DHCP_Options
