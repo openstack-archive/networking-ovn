@@ -34,6 +34,7 @@ enable_service q-svc
 disable_service q-agt
 disable_service q-l3
 disable_service q-dhcp
+disable_service q-meta
 
 # How to connect to ovsdb-server hosting the OVN NB database.
 #OVN_NB_REMOTE=tcp:$SERVICE_HOST:6641
