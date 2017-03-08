@@ -161,9 +161,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         expected_acls = []
         expected_acls += ovn_acl.drop_all_ip_traffic_for_port(
             fake_port_sg)
-        if not native_dhcp:
-            expected_acls += ovn_acl.add_acl_dhcp(
-                fake_port_sg, self.fake_subnet)
+        expected_acls += ovn_acl.add_acl_dhcp(
+            fake_port_sg, self.fake_subnet, native_dhcp)
         sg_rule_acl = ovn_acl.add_sg_rule_acl_for_port(
             fake_port_sg, self.fake_sg_rule,
             'outport == "' + fake_port_sg['id'] + '" ' +
@@ -453,7 +452,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         1, self.nb_ovn.update_address_set.call_count)
 
     def test_create_port_with_security_groups_native_dhcp_enabled(self):
-        self._test_create_port_with_security_groups_helper(6)
+        self._test_create_port_with_security_groups_helper(7)
 
     def test_create_port_with_security_groups_native_dhcp_disabled(self):
         config.cfg.CONF.set_override('ovn_native_dhcp',

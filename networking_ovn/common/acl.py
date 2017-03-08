@@ -17,7 +17,6 @@ import netaddr
 from neutron_lib import constants as const
 from oslo_config import cfg
 
-
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -135,23 +134,24 @@ def add_sg_rule_acl_for_port(port, r, match):
     return acl
 
 
-def add_acl_dhcp(port, subnet):
-    # Allow DHCP responses through from source IPs on the local subnet.
-    # We do this even if DHCP isn't enabled for the subnet.  It could be
-    # enabled later. We could hook into handling when it's enabled/disabled
-    # for a subnet, but this only used when OVN native DHCP is disabled.
+def add_acl_dhcp(port, subnet, ovn_dhcp=True):
+    # Allow DHCP requests for OVN native DHCP service, while responses are
+    # allowed in ovn-northd.
+    # Allow both DHCP requests and responses to pass for other DHCP services.
+    # We do this even if DHCP isn't enabled for the subnet
     acl_list = []
-    acl = {"lswitch": utils.ovn_name(port['network_id']),
-           "lport": port['id'],
-           "priority": ovn_const.ACL_PRIORITY_ALLOW,
-           "action": ovn_const.ACL_ACTION_ALLOW,
-           "log": False,
-           "direction": 'to-lport',
-           "match": ('outport == "%s" && ip4 && ip4.src == %s && '
-                     'udp && udp.src == 67 && udp.dst == 68'
-                     ) % (port['id'], subnet['cidr']),
-           "external_ids": {'neutron:lport': port['id']}}
-    acl_list.append(acl)
+    if not ovn_dhcp:
+        acl = {"lswitch": utils.ovn_name(port['network_id']),
+               "lport": port['id'],
+               "priority": ovn_const.ACL_PRIORITY_ALLOW,
+               "action": ovn_const.ACL_ACTION_ALLOW,
+               "log": False,
+               "direction": 'to-lport',
+               "match": ('outport == "%s" && ip4 && ip4.src == %s && '
+                         'udp && udp.src == 67 && udp.dst == 68'
+                         ) % (port['id'], subnet['cidr']),
+               "external_ids": {'neutron:lport': port['id']}}
+        acl_list.append(acl)
     acl = {"lswitch": utils.ovn_name(port['network_id']),
            "lport": port['id'],
            "priority": ovn_const.ACL_PRIORITY_ALLOW,
@@ -159,8 +159,7 @@ def add_acl_dhcp(port, subnet):
            "log": False,
            "direction": 'from-lport',
            "match": ('inport == "%s" && ip4 && '
-                     '(ip4.dst == 255.255.255.255 || '
-                     'ip4.dst == %s) && '
+                     'ip4.dst == {255.255.255.255, %s} && '
                      'udp && udp.src == 68 && udp.dst == 67'
                      ) % (port['id'], subnet['cidr']),
            "external_ids": {'neutron:lport': port['id']}}
@@ -297,20 +296,19 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
     # Drop all IP traffic to and from the logical port by default.
     acl_list += drop_all_ip_traffic_for_port(port)
 
-    # Add DHCP ACLs if not using OVN native DHCP.
-    if not config.is_ovn_dhcp():
-        port_subnet_ids = set()
-        for ip in port['fixed_ips']:
-            if netaddr.IPNetwork(ip['ip_address']).version != 4:
-                continue
-            subnet = _get_subnet_from_cache(plugin,
-                                            admin_context,
-                                            subnet_cache,
-                                            ip['subnet_id'])
-            # Ignore duplicate DHCP ACLs for the subnet.
-            if subnet['id'] not in port_subnet_ids:
-                acl_list += add_acl_dhcp(port, subnet)
-                port_subnet_ids.add(subnet['id'])
+    # Add DHCP ACLs.
+    port_subnet_ids = set()
+    for ip in port['fixed_ips']:
+        if netaddr.IPNetwork(ip['ip_address']).version != 4:
+            continue
+        subnet = _get_subnet_from_cache(plugin,
+                                        admin_context,
+                                        subnet_cache,
+                                        ip['subnet_id'])
+        # Ignore duplicate DHCP ACLs for the subnet.
+        if subnet['id'] not in port_subnet_ids:
+            acl_list += add_acl_dhcp(port, subnet, config.is_ovn_dhcp())
+            port_subnet_ids.add(subnet['id'])
 
     # We create an ACL entry for each rule on each security group applied
     # to this port.
