@@ -47,12 +47,13 @@ of git repos, and installs everything from these git repos.
 Once DevStack completes successfully, you should see output that looks
 something like this::
 
-    This is your host ip: 192.168.122.8
-    Horizon is now available at http://192.168.122.8/
-    Keystone is serving at http://192.168.122.8:5000/
+    This is your host IP address: 172.16.189.6
+    This is your host IPv6 address: ::1
+    Horizon is now available at http://172.16.189.6/dashboard
+    Keystone is serving at http://172.16.189.6/identity/
     The default users are: admin and demo
     The password: password
-    2015-04-30 22:02:40.220 | stack.sh completed in 515 seconds.
+    2017-03-09 15:10:54.117 | stack.sh completed in 2110 seconds.
 
 Environment Variables
 ---------------------
@@ -83,26 +84,27 @@ an OS prefix::
 Default Network Configuration
 -----------------------------
 
-By default, DevStack creates a network called ``private``. Run the following
-command to see the existing networks::
+By default, DevStack creates networks called ``private`` and ``public``.
+Run the following command to see the existing networks::
 
-    $ neutron net-list
-    +--------------------------------------+---------+----------------------------------------------------------+
-    | id                                   | name    | subnets                                                  |
-    +--------------------------------------+---------+----------------------------------------------------------+
-    | 266371ca-904e-4433-b653-866f9204d22e | private | 64bc14c2-52a6-4188-aaeb-d24922125c2c fde5:95da:6b50::/64 |
-    |                                      |         | 299d182b-2f2c-44e2-9bc9-d094b9ea317b 10.0.0.0/24         |
-    +--------------------------------------+---------+----------------------------------------------------------+
+    $ openstack network list
+    +--------------------------------------+---------+----------------------------------------------------------------------------+
+    | ID                                   | Name    | Subnets                                                                    |
+    +--------------------------------------+---------+----------------------------------------------------------------------------+
+    | 40080dad-0064-480a-b1b0-592ae51c1471 | private | 5ff81545-7939-4ae0-8365-1658d45fa85c, da34f952-3bfc-45bb-b062-d2d973c1a751 |
+    | 7ec986dd-aae4-40b5-86cf-8668feeeab67 | public  | 60d0c146-a29b-4cd3-bd90-3745603b1a4b, f010c309-09be-4af2-80d6-e6af9c78bae7 |
+    +--------------------------------------+---------+----------------------------------------------------------------------------+
 
 A Neutron network is implemented as an OVN logical switch.  networking-ovn
-creates logical switches with a name in the format neutron-<network UUID>.  So,
-we can use ``ovn-nbctl`` to list the configured logical switches and see that
+creates logical switches with a name in the format neutron-<network UUID>.
+We can use ``ovn-nbctl`` to list the configured logical switches and see that
 their names correlate with the output from ``neutron net-list``::
 
     $ ovn-nbctl ls-list
-    c628c46a-372f-412b-8edf-eb3408b021ca (neutron-266371ca-904e-4433-b653-866f9204d22e)
+    71206f5c-b0e6-49ce-b572-eb2e964b2c4e (neutron-40080dad-0064-480a-b1b0-592ae51c1471)
+    8d8270e7-fd51-416f-ae85-16565200b8a4 (neutron-7ec986dd-aae4-40b5-86cf-8668feeeab67)
 
-    $ ovn-nbctl get Logical_Switch neutron-266371ca-904e-4433-b653-866f9204d22e external_ids
+    $ ovn-nbctl get Logical_Switch neutron-40080dad-0064-480a-b1b0-592ae51c1471 external_ids
     {"neutron:network_name"=private}
 
 Booting VMs
@@ -121,7 +123,7 @@ and receive a small amount of traffic so performance is not very important.
 Start by getting the UUID for the ``private`` network from the output of
 ``neutron net-list`` from earlier and save it off::
 
-    $ PRIVATE_NET_ID=266371ca-904e-4433-b653-866f9204d22e
+    $ PRIVATE_NET_ID=40080dad-0064-480a-b1b0-592ae51c1471
 
 2. Create an SSH keypair.
 
@@ -130,7 +132,7 @@ the public key be put in the VM so we can SSH into it.
 
 ::
 
-    $ nova keypair-add demo > id_rsa_demo
+    $ openstack keypair create demo > id_rsa_demo
     $ chmod 600 id_rsa_demo
 
 3. Choose a flavor.
@@ -140,18 +142,23 @@ sufficient.
 
 ::
 
-    $ nova flavor-list
-    +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
-    | ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
-    +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
-    | 1  | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
-    | 2  | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
-    | 3  | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
-    | 4  | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
-    | 42 | m1.nano   | 64        | 0    | 0         |      | 1     | 1.0         | True      |
-    | 5  | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
-    | 84 | m1.micro  | 128       | 0    | 0         |      | 1     | 1.0         | True      |
-    +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+    $ openstack flavor list
+    +----+-----------+-------+------+-----------+-------+-----------+
+    | ID | Name      |   RAM | Disk | Ephemeral | VCPUs | Is Public |
+    +----+-----------+-------+------+-----------+-------+-----------+
+    | 1  | m1.tiny   |   512 |    1 |         0 |     1 | True      |
+    | 2  | m1.small  |  2048 |   20 |         0 |     1 | True      |
+    | 3  | m1.medium |  4096 |   40 |         0 |     2 | True      |
+    | 4  | m1.large  |  8192 |   80 |         0 |     4 | True      |
+    | 42 | m1.nano   |    64 |    0 |         0 |     1 | True      |
+    | 5  | m1.xlarge | 16384 |  160 |         0 |     8 | True      |
+    | 84 | m1.micro  |   128 |    0 |         0 |     1 | True      |
+    | c1 | cirros256 |   256 |    0 |         0 |     1 | True      |
+    | d1 | ds512M    |   512 |    5 |         0 |     1 | True      |
+    | d2 | ds1G      |  1024 |   10 |         0 |     1 | True      |
+    | d3 | ds2G      |  2048 |   10 |         0 |     2 | True      |
+    | d4 | ds4G      |  4096 |   20 |         0 |     4 | True      |
+    +----+-----------+-------+------+-----------+-------+-----------+
 
     $ FLAVOR_ID=42
 
@@ -162,16 +169,14 @@ It's a very small test image.
 
 ::
 
-    $ glance image-list
-    +--------------------------------------+---------------------------------+
-    | ID                                   | Name                            |
-    +--------------------------------------+---------------------------------+
-    | 990e80d3-5260-40c4-8ece-e5a428e1b6d7 | cirros-0.3.4-x86_64-uec         |
-    | 1a76e6c3-857a-4975-bdff-1ebe6f3ce193 | cirros-0.3.4-x86_64-uec-kernel  |
-    | 11fa05eb-c88a-4de7-b2f7-1da203eafc9c | cirros-0.3.4-x86_64-uec-ramdisk |
-    +--------------------------------------+---------------------------------+
+    $ openstack image list
+    +--------------------------------------+--------------------------+--------+
+    | ID                                   | Name                     | Status |
+    +--------------------------------------+--------------------------+--------+
+    | 849a8db2-3754-4cf6-9271-491fa4ff7195 | cirros-0.3.5-x86_64-disk | active |
+    +--------------------------------------+--------------------------+--------+
 
-    $ IMAGE_ID=990e80d3-5260-40c4-8ece-e5a428e1b6d7
+    $ IMAGE_ID=849a8db2-3754-4cf6-9271-491fa4ff7195
 
 5. Setup a security rule so that we can access the VMs we will boot up next.
 
@@ -179,6 +184,18 @@ By default, DevStack does not allow users to access VMs, to enable that, we
 will need to add a rule.  We will allow both ICMP and SSH.
 
 ::
+
+    $ openstack security group rule create --ingress --ethertype IPv4 --dst-port 22 --protocol tcp default
+    $ openstack security group rule create --ingress --ethertype IPv4 --protocol ICMP default
+    $ openstack security group rule list
+    +--------------------------------------+-------------+-----------+------------+--------------------------------------+--------------------------------------+
+    | ID                                   | IP Protocol | IP Range  | Port Range | Remote Security Group                | Security Group                       |
+    +--------------------------------------+-------------+-----------+------------+--------------------------------------+--------------------------------------+
+    ...
+    | ade97198-db44-429e-9b30-24693d86d9b1 | tcp         | 0.0.0.0/0 | 22:22      | None                                 | a47b14da-5607-404a-8de4-3a0f1ad3649c |
+    | d0861a98-f90e-4d1a-abfb-827b416bc2f6 | icmp        | 0.0.0.0/0 |            | None                                 | a47b14da-5607-404a-8de4-3a0f1ad3649c |
+    ...
+    +--------------------------------------+-------------+-----------+------------+--------------------------------------+--------------------------------------+
 
     $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --port-range-min 22 --port-range-max 22 --protocol tcp default
     $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --protocol ICMP default
@@ -197,96 +214,100 @@ Now we will boot two VMs.  We'll name them ``test1`` and ``test2``.
 
 ::
 
-    $ nova boot --nic net-id=$PRIVATE_NET_ID --flavor $FLAVOR_ID --image $IMAGE_ID --key-name demo test1
-    +--------------------------------------+----------------------------------------------------------------+
-    | Property                             | Value                                                          |
-    +--------------------------------------+----------------------------------------------------------------+
-    | OS-DCF:diskConfig                    | MANUAL                                                         |
-    | OS-EXT-AZ:availability_zone          | nova                                                           |
-    | OS-EXT-STS:power_state               | 0                                                              |
-    | OS-EXT-STS:task_state                | scheduling                                                     |
-    | OS-EXT-STS:vm_state                  | building                                                       |
-    | OS-SRV-USG:launched_at               | -                                                              |
-    | OS-SRV-USG:terminated_at             | -                                                              |
-    | accessIPv4                           |                                                                |
-    | accessIPv6                           |                                                                |
-    | adminPass                            | aQJMqi8vAWJP                                                   |
-    | config_drive                         |                                                                |
-    | created                              | 2015-05-01T01:55:27Z                                           |
-    | flavor                               | m1.nano (42)                                                   |
-    | hostId                               |                                                                |
-    | id                                   | 571f622e-8f65-4617-9b39-6a04438f394f                           |
-    | image                                | cirros-0.3.4-x86_64-uec (990e80d3-5260-40c4-8ece-e5a428e1b6d7) |
-    | key_name                             | demo                                                           |
-    | metadata                             | {}                                                             |
-    | name                                 | test1                                                          |
-    | os-extended-volumes:volumes_attached | []                                                             |
-    | progress                             | 0                                                              |
-    | security_groups                      | default                                                        |
-    | status                               | BUILD                                                          |
-    | tenant_id                            | c41f413079aa4389b7a41932cd8a6be6                               |
-    | updated                              | 2015-05-01T01:55:27Z                                           |
-    | user_id                              | 98978389ceb3433cb1db3f64da217ee0                               |
-    +--------------------------------------+----------------------------------------------------------------+
+    $ openstack server create --nic net-id=$PRIVATE_NET_ID --flavor $FLAVOR_ID --image $IMAGE_ID --key-name demo test1
+    +-----------------------------+-----------------------------------------------------------------+
+    | Field                       | Value                                                           |
+    +-----------------------------+-----------------------------------------------------------------+
+    | OS-DCF:diskConfig           | MANUAL                                                          |
+    | OS-EXT-AZ:availability_zone |                                                                 |
+    | OS-EXT-STS:power_state      | NOSTATE                                                         |
+    | OS-EXT-STS:task_state       | scheduling                                                      |
+    | OS-EXT-STS:vm_state         | building                                                        |
+    | OS-SRV-USG:launched_at      | None                                                            |
+    | OS-SRV-USG:terminated_at    | None                                                            |
+    | accessIPv4                  |                                                                 |
+    | accessIPv6                  |                                                                 |
+    | addresses                   |                                                                 |
+    | adminPass                   | BzAWWA6byGP6                                                    |
+    | config_drive                |                                                                 |
+    | created                     | 2017-03-09T16:56:08Z                                            |
+    | flavor                      | m1.nano (42)                                                    |
+    | hostId                      |                                                                 |
+    | id                          | d8b8084e-58ff-44f4-b029-a57e7ef6ba61                            |
+    | image                       | cirros-0.3.5-x86_64-disk (849a8db2-3754-4cf6-9271-491fa4ff7195) |
+    | key_name                    | demo                                                            |
+    | name                        | test1                                                           |
+    | progress                    | 0                                                               |
+    | project_id                  | b6522570f7344c06b1f24303abf3c479                                |
+    | properties                  |                                                                 |
+    | security_groups             | name='default'                                                  |
+    | status                      | BUILD                                                           |
+    | updated                     | 2017-03-09T16:56:08Z                                            |
+    | user_id                     | c68f77f1d85e43eb9e5176380a68ac1f                                |
+    | volumes_attached            |                                                                 |
+    +-----------------------------+-----------------------------------------------------------------+
 
-    $ nova boot --nic net-id=$PRIVATE_NET_ID --flavor $FLAVOR_ID --image $IMAGE_ID --key-name demo test2
-    +--------------------------------------+----------------------------------------------------------------+
-    | Property                             | Value                                                          |
-    +--------------------------------------+----------------------------------------------------------------+
-    | OS-DCF:diskConfig                    | MANUAL                                                         |
-    | OS-EXT-AZ:availability_zone          | nova                                                           |
-    | OS-EXT-STS:power_state               | 0                                                              |
-    | OS-EXT-STS:task_state                | scheduling                                                     |
-    | OS-EXT-STS:vm_state                  | building                                                       |
-    | OS-SRV-USG:launched_at               | -                                                              |
-    | OS-SRV-USG:terminated_at             | -                                                              |
-    | accessIPv4                           |                                                                |
-    | accessIPv6                           |                                                                |
-    | adminPass                            | HxAQk8pSi53d                                                   |
-    | config_drive                         |                                                                |
-    | created                              | 2015-05-01T01:55:33Z                                           |
-    | flavor                               | m1.nano (42)                                                   |
-    | hostId                               |                                                                |
-    | id                                   | 7a8c12da-54b3-4adf-bba5-74df9fd2e907                           |
-    | image                                | cirros-0.3.4-x86_64-uec (990e80d3-5260-40c4-8ece-e5a428e1b6d7) |
-    | key_name                             | demo                                                           |
-    | metadata                             | {}                                                             |
-    | name                                 | test2                                                          |
-    | os-extended-volumes:volumes_attached | []                                                             |
-    | progress                             | 0                                                              |
-    | security_groups                      | default                                                        |
-    | status                               | BUILD                                                          |
-    | tenant_id                            | c41f413079aa4389b7a41932cd8a6be6                               |
-    | updated                              | 2015-05-01T01:55:33Z                                           |
-    | user_id                              | 98978389ceb3433cb1db3f64da217ee0                               |
-    +--------------------------------------+----------------------------------------------------------------+
+    $ openstack server create --nic net-id=$PRIVATE_NET_ID --flavor $FLAVOR_ID --image $IMAGE_ID --key-name demo test2
+    +-----------------------------+-----------------------------------------------------------------+
+    | Field                       | Value                                                           |
+    +-----------------------------+-----------------------------------------------------------------+
+    | OS-DCF:diskConfig           | MANUAL                                                          |
+    | OS-EXT-AZ:availability_zone |                                                                 |
+    | OS-EXT-STS:power_state      | NOSTATE                                                         |
+    | OS-EXT-STS:task_state       | scheduling                                                      |
+    | OS-EXT-STS:vm_state         | building                                                        |
+    | OS-SRV-USG:launched_at      | None                                                            |
+    | OS-SRV-USG:terminated_at    | None                                                            |
+    | accessIPv4                  |                                                                 |
+    | accessIPv6                  |                                                                 |
+    | addresses                   |                                                                 |
+    | adminPass                   | YB8dmt5v88JV                                                    |
+    | config_drive                |                                                                 |
+    | created                     | 2017-03-09T16:56:50Z                                            |
+    | flavor                      | m1.nano (42)                                                    |
+    | hostId                      |                                                                 |
+    | id                          | 170d4f37-9299-4a08-b48b-2b90fce8e09b                            |
+    | image                       | cirros-0.3.5-x86_64-disk (849a8db2-3754-4cf6-9271-491fa4ff7195) |
+    | key_name                    | demo                                                            |
+    | name                        | test2                                                           |
+    | progress                    | 0                                                               |
+    | project_id                  | b6522570f7344c06b1f24303abf3c479                                |
+    | properties                  |                                                                 |
+    | security_groups             | name='default'                                                  |
+    | status                      | BUILD                                                           |
+    | updated                     | 2017-03-09T16:56:51Z                                            |
+    | user_id                     | c68f77f1d85e43eb9e5176380a68ac1f                                |
+    | volumes_attached            |                                                                 |
+    +-----------------------------+-----------------------------------------------------------------+
 
 Once both VMs have been started, they will have a status of ``ACTIVE``::
 
-    $ nova list
-    +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
-    | ID                                   | Name  | Status | Task State | Power State | Networks                                               |
-    +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
-    | 571f622e-8f65-4617-9b39-6a04438f394f | test1 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe92:579a, 10.0.0.3 |
-    | 7a8c12da-54b3-4adf-bba5-74df9fd2e907 | test2 | ACTIVE | -          | Running     | private=fde5:95da:6b50:0:f816:3eff:fe42:cbc7, 10.0.0.4 |
-    +--------------------------------------+-------+--------+------------+-------------+--------------------------------------------------------+
+    $ openstack server list
+    +--------------------------------------+-------+--------+---------------------------------------------------------+--------------------------+
+    | ID                                   | Name  | Status | Networks                                                | Image Name               |
+    +--------------------------------------+-------+--------+---------------------------------------------------------+--------------------------+
+    | 170d4f37-9299-4a08-b48b-2b90fce8e09b | test2 | ACTIVE | private=fd5d:9d1b:457c:0:f816:3eff:fe24:49df, 10.0.0.3  | cirros-0.3.5-x86_64-disk |
+    | d8b8084e-58ff-44f4-b029-a57e7ef6ba61 | test1 | ACTIVE | private=fd5d:9d1b:457c:0:f816:3eff:fe3f:953d, 10.0.0.10 | cirros-0.3.5-x86_64-disk |
+    +--------------------------------------+-------+--------+---------------------------------------------------------+--------------------------+
 
-Our two VMs have addresses of ``10.0.0.3`` and ``10.0.0.4``.  If we list
-Neutron ports again, there are two new ports with these addresses associated
-with the::
+Our two VMs have addresses of ``10.0.0.3`` and ``10.0.0.10``.  If we list
+Neutron ports, there are two new ports with these addresses associated
+with them::
 
-    $ neutron port-list
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | id                                   | name | mac_address       | fixed_ips                                                                                                   |
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
-    | d660a917-5095-4bd0-92c5-d0abdffb600b |      | fa:16:3e:42:cb:c7 | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.4"}                             |
-    |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe42:cbc7"} |
-    | e3800c90-24d4-49ad-abb2-041a2e3dd259 |      | fa:16:3e:92:57:9a | {"subnet_id": "299d182b-2f2c-44e2-9bc9-d094b9ea317b", "ip_address": "10.0.0.3"}                             |
-    |                                      |      |                   | {"subnet_id": "64bc14c2-52a6-4188-aaeb-d24922125c2c", "ip_address": "fde5:95da:6b50:0:f816:3eff:fe92:579a"} |
-    +--------------------------------------+------+-------------------+-------------------------------------------------------------------------------------------------------------+
+    $ openstack port list
+    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------------------------+--------+
+    | ID                                   | Name | MAC Address       | Fixed IP Addresses                                                                                  | Status |
+    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------------------------+--------+
+    ...
+    | 97c970b0-485d-47ec-868d-783c2f7acde3 |      | fa:16:3e:3f:95:3d | ip_address='10.0.0.10', subnet_id='da34f952-3bfc-45bb-b062-d2d973c1a751'                            | ACTIVE |
+    |                                      |      |                   | ip_address='fd5d:9d1b:457c:0:f816:3eff:fe3f:953d', subnet_id='5ff81545-7939-4ae0-8365-1658d45fa85c' |        |
+    | e003044d-334a-4de3-96d9-35b2d2280454 |      | fa:16:3e:24:49:df | ip_address='10.0.0.3', subnet_id='da34f952-3bfc-45bb-b062-d2d973c1a751'                             | ACTIVE |
+    |                                      |      |                   | ip_address='fd5d:9d1b:457c:0:f816:3eff:fe24:49df', subnet_id='5ff81545-7939-4ae0-8365-1658d45fa85c' |        |
+    ...
+    +--------------------------------------+------+-------------------+-----------------------------------------------------------------------------------------------------+--------+
 
-    $ TEST1_PORT_ID=e3800c90-24d4-49ad-abb2-041a2e3dd259
-    $ TEST2_PORT_ID=d660a917-5095-4bd0-92c5-d0abdffb600b
+    $ TEST1_PORT_ID=97c970b0-485d-47ec-868d-783c2f7acde3
+    $ TEST2_PORT_ID=e003044d-334a-4de3-96d9-35b2d2280454
 
 Now we can look at OVN using ``ovn-nbctl`` to see the logical switch ports
 that were created for these two Neutron ports.  The first part of the output
@@ -297,10 +318,67 @@ the Neutron port ID.
 ::
 
     $ ovn-nbctl lsp-list neutron-$PRIVATE_NET_ID
-    1117ac4e-1c83-4fd5-bb16-6c9c11150446 (e3800c90-24d4-49ad-abb2-041a2e3dd259)
-    9be0ab27-1565-4b92-b2d2-c4578e90c46d (d660a917-5095-4bd0-92c5-d0abdffb600b)
+    ...
+    fde1744b-e03b-46b7-b181-abddcbe60bf2 (97c970b0-485d-47ec-868d-783c2f7acde3)
+    7ce284a8-a48a-42f5-bf84-b2bca62cd0fe (e003044d-334a-4de3-96d9-35b2d2280454)
+    ...
+
 
 These two ports correspond to the two VMs we created.
+
+VM Connectivity
+---------------
+
+We can connect to our VMs by associating a floating IP address from the public
+network.
+
+::
+
+    $ openstack floating ip create --port $TEST1_PORT_ID public
+    +---------------------+--------------------------------------+
+    | Field               | Value                                |
+    +---------------------+--------------------------------------+
+    | created_at          | 2017-03-09T18:58:12Z                 |
+    | description         |                                      |
+    | fixed_ip_address    | 10.0.0.10                            |
+    | floating_ip_address | 172.24.4.8                           |
+    | floating_network_id | 7ec986dd-aae4-40b5-86cf-8668feeeab67 |
+    | id                  | 24ff0799-5a72-4a5b-abc0-58b301c9aee5 |
+    | name                | None                                 |
+    | port_id             | 97c970b0-485d-47ec-868d-783c2f7acde3 |
+    | project_id          | b6522570f7344c06b1f24303abf3c479     |
+    | revision_number     | 1                                    |
+    | router_id           | ee51adeb-0dd8-4da0-ab6f-7ce60e00e7b0 |
+    | status              | DOWN                                 |
+    | updated_at          | 2017-03-09T18:58:12Z                 |
+    +---------------------+--------------------------------------+
+
+Devstack does not wire up the public network by default so we must do
+that before connecting to this floating IP address.
+
+::
+
+    $ sudo ip link set br-ex up
+    $ sudo ip route add 172.24.4.0/24 dev br-ex
+    $ sudo ip addr add 172.24.4.1/24 dev br-ex
+
+Now you should be able to connect to the VM via its floating IP address.
+First, ping the address.
+
+::
+
+    $ ping -c 1 172.24.4.8
+    PING 172.24.4.8 (172.24.4.8) 56(84) bytes of data.
+    64 bytes from 172.24.4.8: icmp_seq=1 ttl=63 time=0.823 ms
+
+    --- 172.24.4.8 ping statistics ---
+    1 packets transmitted, 1 received, 0% packet loss, time 0ms
+    rtt min/avg/max/mdev = 0.823/0.823/0.823/0.000 ms
+
+Now SSH to the VM::
+
+    $ ssh -i id_rsa_demo cirros@172.24.4.8 hostname
+    test1
 
 Adding Another Compute Node
 ---------------------------
@@ -337,8 +415,10 @@ This should complete in less time than before, as it's only running a single
 OpenStack service (nova-compute) along with OVN (ovn-controller, ovs-vswitchd,
 ovsdb-server).  The final output will look something like this::
 
-    This is your host ip: 172.16.189.10
-    2015-05-09 01:21:49.565 | stack.sh completed in 308 seconds.
+
+    This is your host IP address: 172.16.189.30
+    This is your host IPv6 address: ::1
+    2017-03-09 18:39:27.058 | stack.sh completed in 1149 seconds.
 
 Now go back to your main DevStack host.  You can use admin credentials to
 verify that the additional hypervisor has been added to the deployment::
@@ -346,13 +426,13 @@ verify that the additional hypervisor has been added to the deployment::
     $ cd devstack
     $ . openrc admin
 
-    $ nova hypervisor-list
-    +----+------------------------------------+-------+---------+
-    | ID | Hypervisor hostname                | State | Status  |
-    +----+------------------------------------+-------+---------+
-    | 1  | ovn-devstack-1                     | up    | enabled |
-    | 2  | ovn-devstack-2                     | up    | enabled |
-    +----+------------------------------------+-------+---------+
+    $ openstack hypervisor list
+    +----+------------------------+-----------------+---------------+-------+
+    | ID | Hypervisor Hostname    | Hypervisor Type | Host IP       | State |
+    +----+------------------------+-----------------+---------------+-------+
+    |  1 | centos7-ovn-devstack   | QEMU            | 172.16.189.6  | up    |
+    |  2 | centos7-ovn-devstack-2 | QEMU            | 172.16.189.30 | up    |
+    +----+------------------------+-----------------+---------------+-------+
 
 You can also look at OVN and OVS to see that the second host has shown up.  For
 example, there will be a second entry in the Chassis table of the
@@ -361,28 +441,38 @@ chassis, their configuration, and the ports bound to each of them::
 
     $ ovn-sbctl show
 
-    Chassis "9f844100-bf55-445a-8107-8f1cba584ac5"
+    Chassis "ddc8991a-d838-4758-8d15-71032da9d062"
+        hostname: "centos7-ovn-devstack"
+        Encap vxlan
+            ip: "172.16.189.6"
+            options: {csum="true"}
         Encap geneve
-            ip: "172.16.189.3"
-        Port_Binding "e3800c90-24d4-49ad-abb2-041a2e3dd259"
-        Port_Binding "d660a917-5095-4bd0-92c5-d0abdffb600b"
-    Chassis "52fd2e32-f9ca-4abd-a8e4-fdf1842079d2"
+            ip: "172.16.189.6"
+            options: {csum="true"}
+        Port_Binding "97c970b0-485d-47ec-868d-783c2f7acde3"
+        Port_Binding "e003044d-334a-4de3-96d9-35b2d2280454"
+        Port_Binding "cr-lrp-08d1f28d-cc39-4397-b12b-7124080899a1"
+    Chassis "b194d07e-0733-4405-b795-63b172b722fd"
+        hostname: "centos7-ovn-devstack-2.os1.phx2.redhat.com"
         Encap geneve
-            ip: "172.16.189.10"
+            ip: "172.16.189.30"
+            options: {csum="true"}
+        Encap vxlan
+            ip: "172.16.189.30"
+            options: {csum="true"}
 
 You can also see a tunnel created to the other compute node::
 
     $ ovs-vsctl show
-
     ...
-
     Bridge br-int
         fail_mode: secure
-        Port "ovn-90b4d4-0"
-            Interface "ovn-90b4d4-0"
+        ...
+        Port "ovn-b194d0-0"
+            Interface "ovn-b194d0-0"
                 type: geneve
-                options: {key=flow, remote_ip="172.16.189.10"}
-
+                options: {csum="true", key=flow, remote_ip="172.16.189.30"}
+        ...
     ...
 
 Provider Networks
