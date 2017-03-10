@@ -31,7 +31,10 @@ OVS_BRANCH=$1
 if [[ "${OVS_BRANCH}" == "latest-release" ]] ; then
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.7"
 elif [[ "${OVS_BRANCH}" == "master" ]] ; then
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
+    #export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
+    # TODO ovs master is broken
+    # https://mail.openvswitch.org/pipermail/ovs-dev/2017-March/329586.html
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.7"
 elif [[ -z "${OVS_BRANCH}" ]] ; then
     : # Use the default specified in the devstack plugin
 else

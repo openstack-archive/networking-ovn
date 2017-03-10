@@ -14,6 +14,7 @@
 
 import mock
 
+from neutron_lib import context
 from oslo_utils import uuidutils
 
 from networking_ovn.common import acl as acl_utils
@@ -23,7 +24,6 @@ from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
-from neutron import context
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
