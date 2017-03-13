@@ -20,12 +20,12 @@ from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.utils import net as n_net
 from oslo_db import exception as os_db_exc
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
@@ -931,13 +931,13 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
     def setUp(self):
         super(TestOVNMechansimDriverDHCPOptions, self).setUp()
-        self.orig_get_random_mac = n_utils.get_random_mac
-        n_utils.get_random_mac = mock.Mock()
-        n_utils.get_random_mac.return_value = '01:02:03:04:05:06'
+        self.orig_get_random_mac = n_net.get_random_mac
+        n_net.get_random_mac = mock.Mock()
+        n_net.get_random_mac.return_value = '01:02:03:04:05:06'
 
     def tearDown(self):
         super(TestOVNMechansimDriverDHCPOptions, self).tearDown()
-        n_utils.get_random_mac = self.orig_get_random_mac
+        n_net.get_random_mac = self.orig_get_random_mac
 
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
                                           expected_dhcp_options):

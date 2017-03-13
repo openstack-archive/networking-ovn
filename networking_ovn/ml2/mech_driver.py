@@ -22,6 +22,7 @@ from neutron_lib import constants as const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
@@ -29,7 +30,6 @@ from oslo_log import log
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.extensions import portsecurity as psec
 from neutron.plugins.common import constants as plugin_const
@@ -433,7 +433,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         if server_mac:
             options['server_mac'] = server_mac
         else:
-            options['server_mac'] = n_utils.get_random_mac(
+            options['server_mac'] = n_net.get_random_mac(
                 cfg.CONF.base_mac.split(':'))
 
         if subnet['dns_nameservers']:
@@ -461,7 +461,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         """Returns the DHCPv6 options"""
 
         dhcpv6_opts = {
-            'server_id': n_utils.get_random_mac(cfg.CONF.base_mac.split(':'))
+            'server_id': n_net.get_random_mac(cfg.CONF.base_mac.split(':'))
         }
 
         if subnet['dns_nameservers']:
