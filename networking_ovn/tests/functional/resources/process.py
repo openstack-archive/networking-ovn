@@ -16,18 +16,23 @@
 from distutils import spawn
 
 import fixtures
+import psutil
+import tenacity
 
 from neutron.agent.linux import utils
 
 
 class OvsdbServer(fixtures.Fixture):
 
-    def __init__(self, temp_dir, ovs_dir, ovn_nb_db=True, ovn_sb_db=False):
+    def __init__(self, temp_dir, ovs_dir, ovn_nb_db=True, ovn_sb_db=False,
+                 protocol='unix'):
         super(OvsdbServer, self).__init__()
         self.temp_dir = temp_dir
         self.ovs_dir = ovs_dir
         self.ovn_nb_db = ovn_nb_db
         self.ovn_sb_db = ovn_sb_db
+        # The value of the protocol must be unix or tcp or ssl
+        self.protocol = protocol
         self.ovsdb_server_processes = []
 
     def _setUp(self):
@@ -36,6 +41,9 @@ class OvsdbServer(fixtures.Fixture):
                 {'db_path': self.temp_dir + '/ovn_nb.db',
                  'schema_path': self.ovs_dir + '/ovn-nb.ovsschema',
                  'remote_path': self.temp_dir + '/ovnnb_db.sock',
+                 'protocol': self.protocol,
+                 'remote_ip': '127.0.0.1',
+                 'remote_port': '6641',
                  'unixctl_path': self.temp_dir + '/ovnnb_db.ctl',
                  'log_file_path': self.temp_dir + '/ovn_nb.log',
                  'db_type': 'nb'})
@@ -45,6 +53,9 @@ class OvsdbServer(fixtures.Fixture):
                 {'db_path': self.temp_dir + '/ovn_sb.db',
                  'schema_path': self.ovs_dir + '/ovn-sb.ovsschema',
                  'remote_path': self.temp_dir + '/ovnsb_db.sock',
+                 'protocol': self.protocol,
+                 'remote_ip': '127.0.0.1',
+                 'remote_port': '6642',
                  'unixctl_path': self.temp_dir + '/ovnsb_db.ctl',
                  'log_file_path': self.temp_dir + '/ovn_sb.log',
                  'db_type': 'sb'})
@@ -61,13 +72,32 @@ class OvsdbServer(fixtures.Fixture):
 
             # start the ovsdb-server
             ovsdb_server_cmd = [
-                spawn.find_executable('ovsdb-server'),
-                '--detach', '-vconsole:off',
+                spawn.find_executable('ovsdb-server'), '-vconsole:off',
                 '--log-file=%s' % (ovsdb_process['log_file_path']),
                 '--remote=punix:%s' % (ovsdb_process['remote_path']),
-                '--unixctl=%s' % (ovsdb_process['unixctl_path']),
-                ovsdb_process['db_path']]
-            utils.execute(ovsdb_server_cmd)
+                '--unixctl=%s' % (ovsdb_process['unixctl_path'])]
+            if ovsdb_process['protocol'] != 'unix':
+                ovsdb_server_cmd.append(
+                    '--remote=p%s:0:%s' % (ovsdb_process['protocol'],
+                                           ovsdb_process['remote_ip'])
+                )
+            ovsdb_server_cmd.append(ovsdb_process['db_path'])
+            obj, _ = utils.create_process(ovsdb_server_cmd)
+
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(multiplier=0.1),
+                stop=tenacity.stop_after_delay(10),
+                reraise=True)
+            def get_ovsdb_remote_port_retry(pid):
+                process = psutil.Process(pid)
+                for connect in process.connections():
+                    if connect.status == 'LISTEN':
+                        return connect.laddr[1]
+                raise Exception(_("Could not find LISTEN port."))
+
+            if ovsdb_process['protocol'] != 'unix':
+                ovsdb_process['remote_port'] = \
+                    get_ovsdb_remote_port_retry(obj.pid)
 
     def stop(self):
         for ovsdb_process in self.ovsdb_server_processes:
@@ -84,4 +114,9 @@ class OvsdbServer(fixtures.Fixture):
     def get_ovsdb_connection_path(self, db_type='nb'):
         for ovsdb_process in self.ovsdb_server_processes:
             if ovsdb_process['db_type'] == db_type:
-                return 'unix:' + ovsdb_process['remote_path']
+                if ovsdb_process['protocol'] == 'unix':
+                    return 'unix:' + ovsdb_process['remote_path']
+                else:
+                    return '%s:%s:%s' % (ovsdb_process['protocol'],
+                                         ovsdb_process['remote_ip'],
+                                         ovsdb_process['remote_port'])

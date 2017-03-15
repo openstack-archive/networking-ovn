@@ -600,3 +600,8 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # The Logical_Switch_Port.dhcpv4_options for this port should be
         # empty.
         self._verify_dhcp_option_row_for_port(p1['id'], {})
+
+
+class TestNBDbResourcesOverTcp(TestNBDbResources):
+    def get_ovsdb_server_protocol(self):
+        return 'tcp'

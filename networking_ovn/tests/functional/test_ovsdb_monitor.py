@@ -135,3 +135,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
             self._test_port_up_down_helper(p, fake_driver)
             self.assertFalse(self.mech_driver.set_port_status_up.called)
             self.assertFalse(self.mech_driver.set_port_status_down.called)
+
+
+class TestNBDbMonitorOverTcp(TestNBDbMonitor):
+    def get_ovsdb_server_protocol(self):
+        return 'tcp'
