@@ -359,7 +359,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_plugin._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_router_port_assert)
-        self.l3_plugin._ovn.add_nat_rule_in_lrouter.called_once_with(
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
 
@@ -400,7 +400,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_plugin._ovn.delete_lrouter_port.assert_called_once_with(
             'lrp-router-port-id', 'neutron-router-id', if_exists=False)
-        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.called_once_with(
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
 
@@ -466,7 +466,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_plugin._ovn.delete_static_route.assert_called_once_with(
             'neutron-router-id', ip_prefix='0.0.0.0/0',
             nexthop='192.168.2.254')
-        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.called_once_with(
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.2.1', type='snat')
 
