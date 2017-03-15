@@ -18,7 +18,7 @@ import netaddr
 
 from networking_ovn.tests.functional import base
 from neutron.agent.ovsdb.native import idlutils
-from neutron.common import utils as n_utils
+from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 
 
@@ -29,16 +29,16 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self.fake_api = mock.MagicMock()
         self.fake_api.idl = self.monitor_nb_db_idl
         self.fake_api._tables = self.monitor_nb_db_idl.tables
-        self.orig_get_random_mac = n_utils.get_random_mac
-        n_utils.get_random_mac = mock.Mock()
-        n_utils.get_random_mac.return_value = '01:02:03:04:05:06'
+        self.orig_get_random_mac = n_net.get_random_mac
+        n_net.get_random_mac = mock.Mock()
+        n_net.get_random_mac.return_value = '01:02:03:04:05:06'
         cfg.CONF.set_override('quota_subnet', -1, group='QUOTAS')
 
     def tearDown(self):
         super(TestNBDbResources, self).tearDown()
         # This is required, else other tests run by the same worker
         # would fail.
-        n_utils.get_random_mac = self.orig_get_random_mac
+        n_net.get_random_mac = self.orig_get_random_mac
 
     def _verify_dhcp_option_rows(self, expected_dhcp_options_rows):
         expected_dhcp_options_rows = list(expected_dhcp_options_rows.values())
@@ -191,7 +191,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # Verify that DHCP_Options rows are created for these subnets or not
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
-        n_utils.get_random_mac = self.orig_get_random_mac
+        n_net.get_random_mac = self.orig_get_random_mac
 
         # Create a port and verify if Logical_Switch_Port.dhcpv4_options
         # is properly set or not
@@ -234,7 +234,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                   ip_version=6)
         subnet_v6 = self.deserialize(self.fmt, res)['subnet']
 
-        n_utils.get_random_mac = self.orig_get_random_mac
+        n_net.get_random_mac = self.orig_get_random_mac
         expected_dhcp_options_rows = {
             subnet['id']: {
                 'cidr': '10.0.0.0/24',
@@ -386,8 +386,8 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # to the DHCP options of the p1. Note that it should not get
         # propagate to DHCP options of port p2 because, it has overridden
         # dns-server in the Extra DHCP options.
-        n_utils.get_random_mac = mock.Mock()
-        n_utils.get_random_mac.return_value = '01:02:03:04:05:06'
+        n_net.get_random_mac = mock.Mock()
+        n_net.get_random_mac.return_value = '01:02:03:04:05:06'
         data = {'subnet': {'dns_nameservers': ['7.7.7.7', '8.8.8.8']}}
         req = self.new_update_request('subnets', data, subnet['id'])
         req.get_response(self.api)
@@ -470,7 +470,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                   ip_version=6)
         subnet_v6 = self.deserialize(self.fmt, res)['subnet']
 
-        n_utils.get_random_mac = self.orig_get_random_mac
+        n_net.get_random_mac = self.orig_get_random_mac
         expected_dhcp_options_rows = {
             subnet['id']: {
                 'cidr': '10.0.0.0/24',
