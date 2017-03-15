@@ -99,6 +99,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                  'floating_ip_address': '192.168.0.10',
                                  'floating_network_id': 'fip-net-id',
                                  'router_id': 'router-id',
+                                 # API level attribute
+                                 'port_id': 'port_id',
                                  'fixed_port_id': 'port_id',
                                  'floating_port_id': 'fip-port-id',
                                  'fixed_ip_address': '10.0.0.10',
@@ -108,6 +110,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                      'floating_ip_address': '192.168.0.10',
                                      'floating_network_id': 'fip-net-id',
                                      'router_id': 'new-router-id',
+                                     # API level attribute
+                                     'port_id': 'new-port_id',
                                      'fixed_port_id': 'new-port_id',
                                      'floating_port_id': 'fip-port-id',
                                      'fixed_ip_address': '10.10.10.10',
@@ -627,6 +631,58 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         gf.return_value = self.fake_floating_ip
         uf.return_value = self.fake_floating_ip_new
         self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id',
+            type='dnat_and_snat',
+            logical_ip='10.0.0.10',
+            external_ip='192.168.0.10')
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-new-router-id',
+            type='dnat_and_snat',
+            logical_ip='10.10.10.10',
+            external_ip='192.168.0.10')
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_floatingip')
+    def test_update_floatingip_associate(self, uf, gf):
+        self.fake_floating_ip.update({'fixed_port_id': None})
+        gf.return_value = self.fake_floating_ip
+        uf.return_value = self.fake_floating_ip_new
+        self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_not_called()
+        self.l3_plugin._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-new-router-id',
+            type='dnat_and_snat',
+            logical_ip='10.10.10.10',
+            external_ip='192.168.0.10')
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_floatingip')
+    def test_update_floatingip_association_not_changed(self, uf, gf):
+        self.fake_floating_ip.update({'fixed_port_id': None})
+        self.fake_floating_ip_new.update({'port_id': None})
+        gf.return_value = self.fake_floating_ip
+        uf.return_value = self.fake_floating_ip_new
+        self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
+
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_not_called()
+
+        self.l3_plugin._ovn. \
+            add_nat_rule_in_lrouter.assert_not_called()
+
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_floatingip')
+    def test_update_floatingip_reassociate_to_same_port_diff_fixed_ip(
+            self, uf, gf):
+        self.fake_floating_ip_new.update({'port_id': 'port_id',
+                                          'fixed_port_id': 'port_id'})
+        gf.return_value = self.fake_floating_ip
+        uf.return_value = self.fake_floating_ip_new
+        self.l3_plugin.update_floatingip(self.context, 'id', 'floatingip')
+
         self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id',
             type='dnat_and_snat',
