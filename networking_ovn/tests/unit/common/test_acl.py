@@ -72,7 +72,10 @@ class TestACLs(base.TestCase):
                 self.assertEqual(acl_from_lport, acl)
 
     def test_add_acl_dhcp(self):
-        acls = ovn_acl.add_acl_dhcp(self.fake_port, self.fake_subnet)
+        ovn_dhcp_acls = ovn_acl.add_acl_dhcp(self.fake_port, self.fake_subnet)
+        other_dhcp_acls = ovn_acl.add_acl_dhcp(self.fake_port,
+                                               self.fake_subnet,
+                                               ovn_dhcp=False)
 
         expected_match_to_lport = (
             'outport == "%s" && ip4 && ip4.src == %s && udp && udp.src == 67 '
@@ -85,7 +88,7 @@ class TestACLs(base.TestCase):
                         'match': expected_match_to_lport, 'priority': 1002}
         expected_match_from_lport = (
             'inport == "%s" && ip4 && '
-            '(ip4.dst == 255.255.255.255 || ip4.dst == %s) && '
+            'ip4.dst == {255.255.255.255, %s} && '
             'udp && udp.src == 68 && udp.dst == 67'
         ) % (self.fake_port['id'], self.fake_subnet['cidr'])
         acl_from_lport = {'action': 'allow', 'direction': 'from-lport',
@@ -93,7 +96,10 @@ class TestACLs(base.TestCase):
                           'log': False, 'lport': 'fake_port_id1',
                           'lswitch': 'neutron-network_id1',
                           'match': expected_match_from_lport, 'priority': 1002}
-        for acl in acls:
+        self.assertEqual(1, len(ovn_dhcp_acls))
+        self.assertEqual(acl_from_lport, ovn_dhcp_acls[0])
+        self.assertEqual(2, len(other_dhcp_acls))
+        for acl in other_dhcp_acls:
             if 'to-lport' in acl.values():
                 self.assertEqual(acl_to_lport, acl)
             if 'from-lport' in acl.values():
