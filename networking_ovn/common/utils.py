@@ -39,6 +39,13 @@ def ovn_lrouter_port_name(id):
     return 'lrp-%s' % id
 
 
+def ovn_provnet_port_name(network_id):
+    # The name of OVN lswitch provider network port entry will be
+    # provnet-<Network-UUID>. The port is created for network having
+    # provider:physical_network attribute.
+    return constants.OVN_PROVNET_PORT_NAME_PREFIX + '%s' % network_id
+
+
 def ovn_vhu_sockpath(sock_dir, port_id):
     # Frame the socket path of a virtio socket
     return os.path.join(

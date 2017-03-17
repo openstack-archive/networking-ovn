@@ -244,6 +244,16 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 msg = _('Network type %s is not supported') % network_type
                 raise n_exc.InvalidInput(error_message=msg)
 
+    def create_provnet_port(self, txn, network, physnet, tag):
+        txn.add(self._nb_ovn.create_lswitch_port(
+            lport_name=utils.ovn_provnet_port_name(network['id']),
+            lswitch_name=utils.ovn_name(network['id']),
+            addresses=['unknown'],
+            external_ids={},
+            type='localnet',
+            tag=tag if tag else [],
+            options={'network_name': physnet}))
+
     def create_network_precommit(self, context):
         """Allocate resources for a new network.
 
@@ -288,17 +298,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 lswitch_name=lswitch_name,
                 external_ids=ext_ids))
             if physnet:
-                vlan_id = []
-                if segid is not None:
-                    vlan_id = int(segid)
-                txn.add(self._nb_ovn.create_lswitch_port(
-                    lport_name='provnet-%s' % network['id'],
-                    lswitch_name=lswitch_name,
-                    addresses=['unknown'],
-                    external_ids={},
-                    type='localnet',
-                    tag=vlan_id,
-                    options={'network_name': physnet}))
+                tag = int(segid) if segid is not None else None
+                self.create_provnet_port(txn, network, physnet, tag)
         return network
 
     def _set_network_name(self, network_id, name):

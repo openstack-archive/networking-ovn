@@ -90,6 +90,9 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                               'lsp-rp-name-1'},
              'options': {'router-port':
                          utils.ovn_lrouter_port_name('orp-id-a1')}},
+            {'name': 'provnet-ls-id-1', 'addresses': ['unknown'],
+             'external_ids': {},
+             'options': {'network_name': 'physnet1'}},
             {'name': 'lsp-id-21', 'addresses': ['10.0.2.1'],
              'external_ids': {ovn_const.OVN_PORT_NAME_EXT_ID_KEY:
                               'lsp-name-21'}},
@@ -102,6 +105,9 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                               'lsp-rp-name-2'},
              'options': {'router-port':
                          utils.ovn_lrouter_port_name('orp-id-a2')}},
+            {'name': 'provnet-ls-id-2', 'addresses': ['unknown'],
+             'external_ids': {},
+             'options': {'network_name': 'physnet2'}},
             {'name': 'lsp-id-31', 'addresses': ['10.0.3.1'],
              'external_ids': {ovn_const.OVN_PORT_NAME_EXT_ID_KEY:
                               'lsp-name-31'}},
@@ -268,9 +274,10 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
     fake_associations = {
         'lstolsp': {
             utils.ovn_name('ls-id-1'): [
-                'lsp-id-11', 'lsp-id-12', 'lsp-rp-id-1'],
+                'lsp-id-11', 'lsp-id-12', 'lsp-rp-id-1', 'provnet-ls-id-1'],
             utils.ovn_name('ls-id-2'): [
-                'lsp-id-21', 'lsp-id-22', 'lsp-id-23', 'lsp-rp-id-2'],
+                'lsp-id-21', 'lsp-id-22', 'lsp-id-23', 'lsp-rp-id-2',
+                'provnet-ls-id-2'],
             utils.ovn_name('ls-id-3'): [
                 'lsp-id-31', 'lsp-id-32', 'lsp-rp-id-3', 'lsp-vpn-id-3'],
             'ls-id-4': [
@@ -390,15 +397,19 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self._load_nb_db()
         mapping = self.nb_ovn_idl.get_all_logical_switches_with_ports()
         expected = [{'name': utils.ovn_name('ls-id-1'),
-                     'ports': ['lsp-id-11', 'lsp-id-12', 'lsp-rp-id-1']},
+                     'ports': ['lsp-id-11', 'lsp-id-12', 'lsp-rp-id-1'],
+                     'provnet_port': 'provnet-ls-id-1'},
                     {'name': utils.ovn_name('ls-id-2'),
-                     'ports': ['lsp-id-21', 'lsp-rp-id-2']},
+                     'ports': ['lsp-id-21', 'lsp-rp-id-2'],
+                     'provnet_port': 'provnet-ls-id-2'},
                     {'name': utils.ovn_name('ls-id-3'),
                      'ports': ['lsp-id-31', 'lsp-id-32', 'lsp-rp-id-3',
-                               'lsp-vpn-id-3']},
+                               'lsp-vpn-id-3'],
+                     'provnet_port': None},
                     {'name': utils.ovn_name('ls-id-5'),
                      'ports': ['lsp-id-51', 'lsp-id-52', 'lsp-rp-id-5',
-                               'lsp-vpn-id-5']}]
+                               'lsp-vpn-id-5'],
+                     'provnet_port': None}]
         self.assertItemsEqual(mapping, expected)
 
     def test_get_all_logical_routers_with_rports(self):
