@@ -3,9 +3,9 @@
 # process, which may cause wedges in the gate later.
 
 netaddr!=0.7.16,>=0.7.13 # BSD
-neutron-lib>=1.2.0 # Apache-2.0
+neutron-lib>=1.3.0 # Apache-2.0
 oslo.config>=3.22.0 # Apache-2.0
-ovs>=2.6.1 # Apache-2.0
+ovs>=2.7.0 # Apache-2.0
 pbr>=2.0.0 # Apache-2.0
 tenacity>=3.2.1 # Apache-2.0
 Babel>=2.3.4 # BSD
