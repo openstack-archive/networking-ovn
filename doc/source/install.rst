@@ -40,7 +40,7 @@ vSwitch dependencies as needed.
 
 A ``python-networking-ovn`` RPM may be obtained for Fedora or CentOS from
 the RDO project.  A package based on the ``master`` branch of
-``networking-ovn`` can be found at http://trunk.rdoproject.org/.
+``networking-ovn`` can be found at https://trunk.rdoproject.org/.
 
 Fedora and CentOS RPM builds of OVS and OVN from the ``master`` branch of
 ``ovs`` can be found in this COPR repository:
