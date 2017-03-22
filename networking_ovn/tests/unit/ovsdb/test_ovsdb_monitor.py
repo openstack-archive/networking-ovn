@@ -306,7 +306,7 @@ class TestOvnBaseConnection(base.TestCase):
     def setUp(self):
         super(TestOvnBaseConnection, self).setUp()
 
-    @mock.patch.object(idlutils, 'get_schema_helper')
+    @mock.patch.object(idlutils, '_get_schema_helper')
     def test_get_schema_helper_success(self, mock_gsh):
         mock_gsh_helper = mock.Mock()
         mock_gsh.side_effect = [mock_gsh_helper]
@@ -317,7 +317,7 @@ class TestOvnBaseConnection(base.TestCase):
                                          ovn_base_connection.schema_name)
         self.assertEqual(mock_gsh_helper, helper)
 
-    @mock.patch.object(idlutils, 'get_schema_helper')
+    @mock.patch.object(idlutils, '_get_schema_helper')
     def test_get_schema_helper_initial_exception(self, mock_gsh):
         mock_gsh_helper = mock.Mock()
         mock_gsh.side_effect = [Exception, mock_gsh_helper]
@@ -329,7 +329,7 @@ class TestOvnBaseConnection(base.TestCase):
         mock_gsh.assert_has_calls([gsh_call, gsh_call])
         self.assertEqual(mock_gsh_helper, helper)
 
-    @mock.patch.object(idlutils, 'get_schema_helper')
+    @mock.patch.object(idlutils, '_get_schema_helper')
     def test_get_schema_helper_all_exception(self, mock_gsh):
         mock_gsh.side_effect = RuntimeError
         ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
@@ -344,7 +344,7 @@ class TestOvnConnection(base.TestCase):
 
     @mock.patch.object(ovsdb_monitor, 'OvnSbIdl')
     @mock.patch.object(ovsdb_monitor, 'OvnNbIdl')
-    @mock.patch.object(idlutils, 'get_schema_helper')
+    @mock.patch.object(idlutils, '_get_schema_helper')
     @mock.patch.object(idlutils, 'wait_for_change')
     def _test_connection_start(self, mock_wfc, mock_gsh,
                                mock_nb_idl, mock_sb_idl,

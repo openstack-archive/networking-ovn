@@ -305,16 +305,16 @@ class OvnBaseConnection(connection.Connection):
         # without the enable_connection_uri() called (since ovs-vsctl won't
         # exist on the controller node when using the reference architecture).
         try:
-            helper = idlutils.get_schema_helper(self.connection,
-                                                self.schema_name)
+            helper = idlutils._get_schema_helper(self.connection,
+                                                 self.schema_name)
         except Exception:
             # There is a small window for a race, so retry up to a second
             @tenacity.retry(wait=tenacity.wait_exponential(multiplier=0.01),
                             stop=tenacity.stop_after_delay(1),
                             reraise=True)
             def do_get_schema_helper():
-                return idlutils.get_schema_helper(self.connection,
-                                                  self.schema_name)
+                return idlutils._get_schema_helper(self.connection,
+                                                   self.schema_name)
             helper = do_get_schema_helper()
 
         return helper
