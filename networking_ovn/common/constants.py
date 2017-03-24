@@ -29,6 +29,8 @@ OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
 OVN_ROUTER_PORT_OPTION_KEYS = ['router-port', 'nat-addresses']
 OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 
+OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
+
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it
 # leaves room above and below the ACLs we create.  We only need two priorities.

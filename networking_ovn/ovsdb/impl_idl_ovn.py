@@ -144,11 +144,17 @@ class OvsdbNbOvnIdl(ovn_api.API):
                     lswitch.external_ids):
                 continue
             ports = []
+            provnet_port = None
             for lport in getattr(lswitch, 'ports', []):
                 if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in lport.external_ids:
                     ports.append(lport.name)
+                # Handle provider network port
+                elif lport.name.startswith(
+                        ovn_const.OVN_PROVNET_PORT_NAME_PREFIX):
+                    provnet_port = lport.name
             result.append({'name': lswitch.name,
-                           'ports': ports})
+                           'ports': ports,
+                           'provnet_port': provnet_port})
         return result
 
     def get_all_logical_routers_with_rports(self):

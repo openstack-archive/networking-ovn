@@ -39,9 +39,14 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.matches = ["", "", "", ""]
 
         self.networks = [{'id': 'n1',
-                          'mtu': 1450},
+                          'mtu': 1450,
+                          'provider:physical_network': 'physnet1',
+                          'provider:segmentation_id': 1000},
                          {'id': 'n2',
-                          'mtu': 1450}]
+                          'mtu': 1450},
+                         {'id': 'n4',
+                          'mtu': 1450,
+                          'provider:physical_network': 'physnet2'}]
 
         self.subnets = [{'id': 'n1-s1',
                          'network_id': 'n1',
@@ -276,9 +281,14 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                         'type': 'dnat_and_snat'}]}]
 
         self.lswitches_with_ports = [{'name': 'neutron-n1',
-                                      'ports': ['p1n1', 'p3n1']},
+                                      'ports': ['p1n1', 'p3n1'],
+                                      'provnet_port': None},
                                      {'name': 'neutron-n3',
-                                      'ports': ['p1n3', 'p2n3']}]
+                                      'ports': ['p1n3', 'p2n3'],
+                                      'provnet_port': None},
+                                     {'name': 'neutron-n4',
+                                      'ports': [],
+                                      'provnet_port': 'provnet-n4'}]
 
         self.lrport_networks = ['fdad:123:456::1/64', 'fdad:cafe:a1b2::1/64']
 
@@ -383,6 +393,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_driver.validate_and_get_data_from_binding_profile = mock.Mock()
         ovn_driver.get_ovn_port_options = mock.Mock()
         ovn_driver.get_ovn_port_options.return_value = mock.ANY
+        ovn_driver.create_provnet_port = mock.Mock()
         ovn_api.delete_lswitch = mock.Mock()
         ovn_api.delete_lswitch_port = mock.Mock()
 
@@ -461,6 +472,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                  update_router_port_list,
                                  del_router_list, del_router_port_list,
                                  create_network_list, create_port_list,
+                                 create_provnet_port_list,
                                  del_network_list, del_port_list,
                                  add_static_route_list, del_static_route_list,
                                  add_snat_list, del_snat_list,
@@ -502,6 +514,16 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                              for port in create_port_list]
         ovn_driver.create_port_in_ovn.assert_has_calls(create_port_calls,
                                                        any_order=True)
+
+        create_provnet_port_calls = [
+            mock.call(mock.ANY, mock.ANY,
+                      network['provider:physical_network'],
+                      network['provider:segmentation_id'])
+            for network in create_provnet_port_list]
+        self.assertEqual(len(create_provnet_port_list),
+                         ovn_driver.create_provnet_port.call_count)
+        ovn_driver.create_provnet_port.assert_has_calls(
+            create_provnet_port_calls, any_order=True)
 
         self.assertEqual(len(del_network_list),
                          ovn_api.delete_lswitch.call_count)
@@ -645,7 +667,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                 # because p1n1 is already in lswitch-port list
                 # and fp1 is a floating IP port
                 create_port_list.remove(port)
-
+        create_provnet_port_list = [{'id': 'n1', 'mtu': 1450,
+                                     'provider:physical_network': 'physnet1',
+                                     'provider:segmentation_id': 1000}]
         create_router_list = [{
             'id': 'r2', 'routes': [
                 {'nexthop': '40.0.0.100', 'destination': '30.0.0.0/24'}],
@@ -726,6 +750,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       update_router_port_list,
                                       del_router_list, del_router_port_list,
                                       create_network_list, create_port_list,
+                                      create_provnet_port_list,
                                       del_network_list, del_port_list,
                                       add_static_route_list,
                                       del_static_route_list,
@@ -742,6 +767,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
     def test_ovn_nb_sync_mode_log(self):
         create_network_list = []
         create_port_list = []
+        create_provnet_port_list = []
         del_network_list = []
         del_port_list = []
         create_router_list = []
@@ -773,6 +799,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       update_router_port_list,
                                       del_router_list, del_router_port_list,
                                       create_network_list, create_port_list,
+                                      create_provnet_port_list,
                                       del_network_list, del_port_list,
                                       add_static_route_list,
                                       del_static_route_list,

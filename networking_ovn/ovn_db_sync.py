@@ -720,6 +720,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         lswitches = self.ovn_api.get_all_logical_switches_with_ports()
         del_lswitchs_list = []
         del_lports_list = []
+        add_provnet_ports_list = []
         for lswitch in lswitches:
             if lswitch['name'] in db_networks:
                 for lport in lswitch['ports']:
@@ -728,6 +729,15 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     else:
                         del_lports_list.append({'port': lport,
                                                 'lswitch': lswitch['name']})
+                db_network = db_networks[lswitch['name']]
+                physnet = db_network.get(pnet.PHYSICAL_NETWORK)
+                # Updating provider attributes is forbidden by neutron, thus
+                # we only need to consider missing provnet-ports in OVN DB.
+                if physnet and not lswitch['provnet_port']:
+                    add_provnet_ports_list.append(
+                        {'network': db_network,
+                         'lswitch': lswitch['name']})
+
                 del db_networks[lswitch['name']]
             else:
                 del_lswitchs_list.append(lswitch)
@@ -778,6 +788,18 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                               lswitch['name'])
                     txn.add(self.ovn_api.delete_lswitch(
                         lswitch_name=lswitch['name']))
+
+            for provnet_port_info in add_provnet_ports_list:
+                network = provnet_port_info['network']
+                LOG.warning(_LW("Provider network found in Neutron but "
+                                "provider network port not found in OVN DB, "
+                                "network_id=%s"), provnet_port_info['lswitch'])
+                if self.mode == SYNC_MODE_REPAIR:
+                    LOG.debug('Creating the provnet port %s in OVN NB DB',
+                              utils.ovn_provnet_port_name(network['id']))
+                    self.ovn_driver.create_provnet_port(
+                        txn, network, network.get(pnet.PHYSICAL_NETWORK),
+                        network.get(pnet.SEGMENTATION_ID))
 
             for lport_info in del_lports_list:
                 LOG.warning(_LW("Port found in OVN but not in "
