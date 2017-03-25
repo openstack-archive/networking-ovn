@@ -89,6 +89,17 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self._start_ovsdb_server_and_idls()
 
     def tearDown(self):
+        # Set Mock() to idl to avoid SSL file access errors.
+        # This is because, destroying temporary directory containing SSL files
+        # is earlier than terminating thread in Connection() object that
+        # the errors are likely to occur in the short period of time.
+        # However, Connection() does not provider a stop method for run(), we
+        # replace idl with Mock() to avoid accessing.
+        if self._ovsdb_protocol == 'ssl':
+            impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection.idl = mock.Mock()
+            impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection.idl = mock.Mock()
+            self.monitor_nb_idl_con.idl = mock.Mock()
+            self.monitor_sb_idl_con.idl = mock.Mock()
         # Need to set OvsdbNbOvnIdl.ovsdb_connection and
         # OvsdbSbOvnIdl.ovsdb_connection to None.
         # This is because, when the test worker runs the next functional test
@@ -97,6 +108,10 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
         impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         super(TestOVNFunctionalBase, self).tearDown()
+
+    @property
+    def _ovsdb_protocol(self):
+        return self.get_ovsdb_server_protocol()
 
     def get_ovsdb_server_protocol(self):
         return 'unix'
@@ -109,15 +124,20 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.ovsdb_server_mgr = self.useFixture(
             process.OvsdbServer(self.temp_dir, self.OVS_INSTALL_SHARE_PATH,
                                 ovn_nb_db=True, ovn_sb_db=True,
-                                protocol=self.get_ovsdb_server_protocol()))
-        cfg.CONF.set_override(
-            'ovn_nb_connection',
-            self.ovsdb_server_mgr.get_ovsdb_connection_path(),
-            'ovn')
-        cfg.CONF.set_override(
-            'ovn_sb_connection',
-            self.ovsdb_server_mgr.get_ovsdb_connection_path(db_type='sb'),
-            'ovn')
+                                protocol=self._ovsdb_protocol))
+        set_cfg = cfg.CONF.set_override
+        set_cfg('ovn_nb_connection',
+                self.ovsdb_server_mgr.get_ovsdb_connection_path(), 'ovn')
+        set_cfg('ovn_sb_connection',
+                self.ovsdb_server_mgr.get_ovsdb_connection_path(
+                    db_type='sb'), 'ovn')
+        set_cfg('ovn_nb_private_key', self.ovsdb_server_mgr.private_key, 'ovn')
+        set_cfg('ovn_nb_certificate', self.ovsdb_server_mgr.certificate, 'ovn')
+        set_cfg('ovn_nb_ca_cert', self.ovsdb_server_mgr.ca_cert, 'ovn')
+        set_cfg('ovn_sb_private_key', self.ovsdb_server_mgr.private_key, 'ovn')
+        set_cfg('ovn_sb_certificate', self.ovsdb_server_mgr.certificate, 'ovn')
+        set_cfg('ovn_sb_ca_cert', self.ovsdb_server_mgr.ca_cert, 'ovn')
+
         num_attempts = 0
         # 5 seconds should be more than enough for the transaction to complete
         # for the test cases.
@@ -188,6 +208,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         if self.ovsdb_server_mgr:
             self.ovsdb_server_mgr.stop()
 
+        if self._ovsdb_protocol == 'ssl':
+            impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection.idl = mock.Mock()
+            impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection.idl = mock.Mock()
+            self.monitor_nb_idl_con.idl = mock.Mock()
+            self.monitor_sb_idl_con.idl = mock.Mock()
         impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
         impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         self.mech_driver._nb_ovn = None

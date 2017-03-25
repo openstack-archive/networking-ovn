@@ -605,3 +605,8 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
 class TestNBDbResourcesOverTcp(TestNBDbResources):
     def get_ovsdb_server_protocol(self):
         return 'tcp'
+
+
+class TestNBDbResourcesOverSsl(TestNBDbResources):
+    def get_ovsdb_server_protocol(self):
+        return 'ssl'

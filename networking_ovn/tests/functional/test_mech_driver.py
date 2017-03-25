@@ -127,3 +127,8 @@ class TestPortBinding(base.TestOVNFunctionalBase):
 class TestPortBindingOverTcp(TestPortBinding):
     def get_ovsdb_server_protocol(self):
         return 'tcp'
+
+
+class TestPortBindingOverSsl(TestPortBinding):
+    def get_ovsdb_server_protocol(self):
+        return 'ssl'

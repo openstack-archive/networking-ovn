@@ -16,6 +16,7 @@
 from distutils import spawn
 
 import fixtures
+import os
 import psutil
 import tenacity
 
@@ -34,6 +35,10 @@ class OvsdbServer(fixtures.Fixture):
         # The value of the protocol must be unix or tcp or ssl
         self.protocol = protocol
         self.ovsdb_server_processes = []
+        self.private_key = os.path.join(self.temp_dir, 'ovn-privkey.pem')
+        self.certificate = os.path.join(self.temp_dir, 'ovn-cert.pem')
+        self.ca_cert = os.path.join(self.temp_dir, 'controllerca',
+                                    'cacert.pem')
 
     def _setUp(self):
         if self.ovn_nb_db:
@@ -62,7 +67,19 @@ class OvsdbServer(fixtures.Fixture):
         self.addCleanup(self.stop)
         self.start()
 
+    def _init_ovsdb_pki(self):
+        os.chdir(self.temp_dir)
+        pki_init_cmd = [spawn.find_executable('ovs-pki'), 'init',
+                        '-d', self.temp_dir, '-l',
+                        os.path.join(self.temp_dir, 'pki.log'), '--force']
+        utils.execute(pki_init_cmd)
+        pki_req_sign = [spawn.find_executable('ovs-pki'), 'req+sign', 'ovn',
+                        'controller', '-d', self.temp_dir, '-l',
+                        os.path.join(self.temp_dir, 'pki.log'), '--force']
+        utils.execute(pki_req_sign)
+
     def start(self):
+        pki_done = False
         for ovsdb_process in self.ovsdb_server_processes:
             # create the db from the schema using ovsdb-tool
             ovsdb_tool_cmd = [spawn.find_executable('ovsdb-tool'),
@@ -81,6 +98,13 @@ class OvsdbServer(fixtures.Fixture):
                     '--remote=p%s:0:%s' % (ovsdb_process['protocol'],
                                            ovsdb_process['remote_ip'])
                 )
+            if ovsdb_process['protocol'] == 'ssl':
+                if not pki_done:
+                    pki_done = True
+                    self._init_ovsdb_pki()
+                ovsdb_server_cmd.append('--private-key=%s' % self.private_key)
+                ovsdb_server_cmd.append('--certificate=%s' % self.certificate)
+                ovsdb_server_cmd.append('--ca-cert=%s' % self.ca_cert)
             ovsdb_server_cmd.append(ovsdb_process['db_path'])
             obj, _ = utils.create_process(ovsdb_server_cmd)
 

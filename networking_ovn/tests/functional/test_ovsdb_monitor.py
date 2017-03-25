@@ -140,3 +140,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
 class TestNBDbMonitorOverTcp(TestNBDbMonitor):
     def get_ovsdb_server_protocol(self):
         return 'tcp'
+
+
+class TestNBDbMonitorOverSsl(TestNBDbMonitor):
+    def get_ovsdb_server_protocol(self):
+        return 'ssl'
