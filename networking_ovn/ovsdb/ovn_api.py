@@ -355,7 +355,7 @@ class API(object):
 
         :param gateway_id:     The gateway id
         :type gateway_id:      string
-        :returns              string containing the chassis name
+        :returns:              string containing the chassis name
         """
 
     @abc.abstractmethod
@@ -363,7 +363,7 @@ class API(object):
         """Return a dictionary of gateways not hosted on chassis
 
         :param valid_chassis_list: List of valid chassis
-        :returns                   List of gateways not hosted on a valid
+        :returns:                   List of gateways not hosted on a valid
                                    chassis
         """
 
