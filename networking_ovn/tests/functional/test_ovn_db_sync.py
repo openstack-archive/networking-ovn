@@ -272,9 +272,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         # External network and subnet
         e1 = self._make_network(self.fmt, 'e1', True,
-                                arg_list=('router:external', ),
-                                **{'router:external': True})
+                                arg_list=('router:external',
+                                          'provider:network_type',
+                                          'provider:physical_network'),
+                                **{'router:external': True,
+                                   'provider:network_type': 'flat',
+                                   'provider:physical_network': 'public'})
         self.assertEqual(True, e1['network']['router:external'])
+        self.assertEqual('flat', e1['network']['provider:network_type'])
+        self.assertEqual('public', e1['network']['provider:physical_network'])
         res = self._create_subnet(self.fmt, e1['network']['id'],
                                   '100.0.0.0/24', gateway_ip='100.0.0.1',
                                   enable_dhcp=False)
@@ -288,6 +294,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           uuidutils.generate_uuid(),
                                           'neutron-' + n1['network']['id']))
         self.delete_lswitches.append('neutron-' + n2['network']['id'])
+        self.delete_lswitch_ports.append(
+            (utils.ovn_provnet_port_name(e1['network']['id']),
+             utils.ovn_name(e1['network']['id'])))
 
         r1 = self.l3_plugin.create_router(
             self.context,
@@ -648,6 +657,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
         db_net_ids = [net['id'] for net in db_networks['networks']]
+        db_provnet_ports = [utils.ovn_provnet_port_name(net['id'])
+                            for net in db_networks['networks']
+                            if net.get('provider:physical_network')]
 
         # Get the list of lswitch ids stored in the OVN plugin IDL
         _plugin_nb_ovn = self.mech_driver._nb_ovn
@@ -660,9 +672,21 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             row.name.replace('neutron-', '') for row in (
                 self.monitor_nb_db_idl.tables['Logical_Switch'].rows.values())]
 
+        # Get the list of provnet ports stored in the OVN plugin IDL
+        plugin_provnet_ports = [row.name for row in (
+            _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if row.name.startswith(ovn_const.OVN_PROVNET_PORT_NAME_PREFIX)]
+
+        # Get the list of provnet ports stored in the monitor IDL connection
+        monitor_provnet_ports = [row.name for row in (
+            self.monitor_nb_db_idl.tables['Logical_Switch_Port'].rows.values())
+            if row.name.startswith(ovn_const.OVN_PROVNET_PORT_NAME_PREFIX)]
+
         if should_match:
             self.assertItemsEqual(db_net_ids, plugin_lswitch_ids)
             self.assertItemsEqual(db_net_ids, monitor_lswitch_ids)
+            self.assertItemsEqual(db_provnet_ports, plugin_provnet_ports)
+            self.assertItemsEqual(db_provnet_ports, monitor_provnet_ports)
         else:
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_net_ids,
@@ -671,6 +695,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_net_ids,
                 monitor_lswitch_ids)
+
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual, db_provnet_ports,
+                plugin_provnet_ports)
+
+            self.assertRaises(
+                AssertionError, self.assertItemsEqual, db_provnet_ports,
+                monitor_provnet_ports)
 
     def _validate_ports(self, should_match=True):
         db_ports = self._list('ports')
@@ -686,7 +718,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lport_ids = [
             row.name for row in (
-                _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())]
+                _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in row.external_ids]
         plugin_lport_ids_dhcpv4_enabled = [
             row.name for row in (
                 _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
@@ -699,7 +732,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         monitor_lport_ids = [
             row.name for row in (
                 self.monitor_nb_db_idl.tables['Logical_Switch_Port'].
-                rows.values())]
+                rows.values())
+            if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in row.external_ids]
         monitor_lport_ids_dhcpv4_enabled = [
             row.name for row in (
                 _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
