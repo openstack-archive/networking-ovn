@@ -607,6 +607,27 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
 
         return fip
 
+    def disassociate_floatingips(self, context, port_id, do_notify=True):
+        fips = self.get_floatingips(context.elevated(),
+                                    filters={'port_id': [port_id]})
+        router_ids = super(OVNL3RouterPlugin, self).disassociate_floatingips(
+            context, port_id, do_notify)
+        for fip in fips:
+            router_id = fip.get('router_id')
+            fixed_ip_address = fip.get('fixed_ip_address')
+            if router_id and fixed_ip_address:
+                update_fip = {'logical_ip': fixed_ip_address,
+                              'external_ip': fip['floating_ip_address']}
+                try:
+                    self._update_floating_ip_in_ovn(
+                        context, router_id, update_fip, associate=False)
+                    self.update_floatingip_status(
+                        context, fip['id'], n_const.FLOATINGIP_STATUS_DOWN)
+                except Exception:
+                    LOG.error(_LE('Error in disassociating floatingip %s'),
+                              fip['id'])
+        return router_ids
+
     def _update_floating_ip_in_ovn(self, context, router_id, update,
                                    associate=True):
         fip_apis = {}
