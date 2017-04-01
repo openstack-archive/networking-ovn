@@ -17,7 +17,8 @@ from networking_ovn.neutron_lib.db import model_base
 from oslo_log import log as logging
 import sqlalchemy as sa
 
-from neutron._i18n import _LE
+#from neutron._i18n import _LE
+from networking_ovn._i18n import _LE
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.db import api as db_api
