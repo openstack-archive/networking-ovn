@@ -20,7 +20,7 @@ Neutron base exception handling.
 from oslo_utils import excutils
 import six
 
-from neutron_lib._i18n import _
+from networking_ovn.neutron_lib._i18n import _
 
 
 class NeutronException(Exception):
