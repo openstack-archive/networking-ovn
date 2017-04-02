@@ -17,7 +17,7 @@
 #from neutron._i18n import _
 from networking_ovn._i18n import _
 #from neutron_lib import exceptions as n_exc
-from networking_ovn.neutorn_lib import exceptions as n_exc
+from networking_ovn.neutron_lib import exceptions as n_exc
 
 
 class TrunkPortInUse(n_exc.InUse):

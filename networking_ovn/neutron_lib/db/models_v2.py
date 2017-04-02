@@ -13,17 +13,23 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron_lib import constants
-from neutron_lib.db import model_base
+#from neutron_lib import constants
+from networking_ovn.neutron_lib import constants
+#from neutron_lib.db import model_base
+from networking_ovn.neutron_lib.db import model_base
 import sqlalchemy as sa
 from sqlalchemy import orm
 from sqlalchemy import sql
 
 from neutron.api.v2 import attributes as attr
-from neutron.common import _deprecate
-from neutron.db.network_dhcp_agent_binding import models as ndab_model
-from neutron.db import rbac_db_models
-from neutron.db import standard_attr
+#from neutron.common import _deprecate
+from networking_ovn.neutron_lib.common import _deprecate
+#from neutron.db.network_dhcp_agent_binding import models as ndab_model
+from networking_ovn.neutron_lib.network_dhcp_agent_binding import models as ndab_model
+#from neutron.db import rbac_db_models
+from networking_ovn.neutron_lib.db import rbac_db_models
+#from neutron.db import standard_attr
+from networking_ovn.neutron.db import standard_attr
 
 
 # NOTE(kevinbenton): these are here for external projects that expect them

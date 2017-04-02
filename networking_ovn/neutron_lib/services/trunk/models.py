@@ -20,7 +20,7 @@ from sqlalchemy import sql
 
 from neutron.api.v2 import attributes
 #from neutron.db import models_v2
-from networking_ovn.neutorn_lib.db import models_v2
+from networking_ovn.neutron_lib.db import models_v2
 #from neutron.db import standard_attr
 from networking_ovn.neutron_lib.db import standard_attr
 #from neutron.services.trunk import constants
