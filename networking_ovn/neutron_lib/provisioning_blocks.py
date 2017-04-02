@@ -24,7 +24,7 @@ from neutron.callbacks import resources
 from neutron.db import api as db_api
 from neutron.db import models_v2
 #from neutron.db import standard_attr
-from networking_ovn.neutron_lib import standard_attr
+from networking_ovn.neutron_lib.db import standard_attr
 
 LOG = logging.getLogger(__name__)
 PROVISIONING_COMPLETE = 'provisioning_complete'
