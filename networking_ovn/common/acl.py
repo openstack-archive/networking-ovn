@@ -14,7 +14,8 @@
 
 import netaddr
 
-from neutron_lib import constants as const
+#from neutron_lib import constants as const
+from networking_ovn.neutron_lib import constants as const
 from oslo_config import cfg
 
 

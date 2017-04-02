@@ -12,7 +12,8 @@
 
 from oslo_log import log as logging
 
-from neutron_lib import constants
+#from neutron_lib import constants
+from networking_ovn.neutron_lib import constants
 
 from neutron import context as n_context
 from neutron import manager

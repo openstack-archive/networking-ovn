@@ -17,8 +17,10 @@ from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 
 from neutron.callbacks import events
 from neutron.callbacks import registry
-from neutron.services.trunk import constants as trunk_consts
-from neutron.services.trunk.drivers import base as trunk_base
+#from neutron.services.trunk import constants as trunk_consts
+from networking_ovn.neutron_lib.services.trunk import constants as trunk_consts
+#from neutron.services.trunk.drivers import base as trunk_base
+from networking_ovn.neutron_lib.services.trunk.drivers import base as trunk_base
 
 
 SUPPORTED_SEGMENTATION_TYPES = (
