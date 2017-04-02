@@ -48,7 +48,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
-#from networking_ovn.ml2 import trunk_driver
+from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -103,6 +103,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         self._setup_vif_port_bindings()
         self.subscribe()
         self.qos_driver = qos_driver.OVNQosDriver(self)
+        print "macauley TODO"
         self.trunk_driver = trunk_driver.OVNTrunkDriver.create(self)
 
     @property
@@ -135,13 +136,14 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             }
 
     def subscribe(self):
-        registry.subscribe(self.post_fork_initialize,
-                           resources.PROCESS,
-                           events.AFTER_INIT)
+        print "macauley TODO"
+        #registry.subscribe(self.post_fork_initialize,
+        #                   resources.PROCESS,
+        #                   events.AFTER_INIT)
 
-        registry.subscribe(self._add_segment_host_mapping_for_segment,
-                           resources.SEGMENT,
-                           events.PRECOMMIT_CREATE)
+        #registry.subscribe(self._add_segment_host_mapping_for_segment,
+        #                   resources.SEGMENT,
+        #                   events.PRECOMMIT_CREATE)
 
         # Handle security group/rule notifications
         if self.sg_enabled:
