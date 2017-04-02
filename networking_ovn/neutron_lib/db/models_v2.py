@@ -25,7 +25,7 @@ from neutron.api.v2 import attributes as attr
 #from neutron.common import _deprecate
 from networking_ovn.neutron_lib.common import _deprecate
 #from neutron.db.network_dhcp_agent_binding import models as ndab_model
-from networking_ovn.neutron_lib.network_dhcp_agent_binding import models as ndab_model
+from networking_ovn.neutron_lib.db.network_dhcp_agent_binding import models as ndab_model
 #from neutron.db import rbac_db_models
 from networking_ovn.neutron_lib.db import rbac_db_models
 #from neutron.db import standard_attr
