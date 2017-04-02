@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #from neutron_lib.db import model_base
-from networking_ovn.neutron_lib import model_base
+from networking_ovn.neutron_lib.db import model_base
 from oslo_utils import timeutils
 import sqlalchemy as sa
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -23,7 +23,7 @@ from sqlalchemy.ext import declarative
 from networking_ovn._i18n import _LE
 from neutron.api.v2 import attributes as attr
 #from neutron.db import sqlalchemytypes
-from networking_ovn import sqlalchemytypes
+from networking_ovn.neutron_lib import sqlalchemytypes
 
 
 class StandardAttribute(model_base.BASEV2):

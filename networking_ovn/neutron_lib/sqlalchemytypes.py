@@ -16,7 +16,7 @@ import netaddr
 from sqlalchemy import types
 
 #from neutron._i18n import _
-from networking_ovn._i18N import _
+from networking_ovn._i18n import _
 
 
 class IPAddress(types.TypeDecorator):

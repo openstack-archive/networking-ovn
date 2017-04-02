@@ -23,7 +23,8 @@ from neutron import context
 from neutron.extensions import providernet as pnet
 from neutron import manager
 from neutron.plugins.common import constants as service_constants
-from neutron.services.segments import db as segments_db
+#from neutron.services.segments import db as segments_db
+from networking_ovn.neutron_lib.segments import db as segments_db
 
 from networking_ovn._i18n import _LW
 from networking_ovn.common import acl as acl_utils

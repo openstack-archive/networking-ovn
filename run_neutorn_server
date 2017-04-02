@@ -1,0 +1,5 @@
+#!/bin/sh
+python setup.py install
+rm -rf /var/log/neutron/server.log
+systemctl start neutron-server
+vi /var/log/neutron/server.log

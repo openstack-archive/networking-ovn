@@ -15,9 +15,12 @@
 import collections
 import netaddr
 
-from neutron_lib.api import validators
-from neutron_lib import constants as const
-from neutron_lib import exceptions as n_exc
+#from neutron_lib.api import validators
+#from neutron_lib import constants as const
+#from neutron_lib import exceptions as n_exc
+from networking_ovn.neutron_lib.api import validators
+from networking_ovn.neutron_lib import constants as const
+from networking_ovn.neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
@@ -28,7 +31,8 @@ from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import utils as n_utils
 from neutron import context as n_context
-from neutron.db import provisioning_blocks
+#from neutron.db import provisioning_blocks
+from networking_ovn.neutron_lib import provisioning_blocks
 from neutron.extensions import portbindings
 from neutron.extensions import portsecurity as psec
 from neutron.extensions import providernet as pnet
@@ -36,7 +40,7 @@ from neutron import manager
 from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
-from neutron.services.segments import db as segment_service_db
+#from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _, _LI, _LW
 from networking_ovn.common import acl as ovn_acl
@@ -44,7 +48,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
-from networking_ovn.ml2 import trunk_driver
+#from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -1003,30 +1007,31 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
             LOG.debug("Port not found during OVN status down report: %s",
                       port_id)
+        
+    #def update_segment_host_mapping(self, host, phy_nets):
+    #    """Update SegmentHostMapping in DB"""
+    #    if not host:
+    #        return
 
-    def update_segment_host_mapping(self, host, phy_nets):
-        """Update SegmentHostMapping in DB"""
-        if not host:
-            return
+    #    ctx = n_context.get_admin_context()
+    #    segments = segment_service_db.get_segments_with_phys_nets(
+    #        ctx, phy_nets)
 
-        ctx = n_context.get_admin_context()
-        segments = segment_service_db.get_segments_with_phys_nets(
-            ctx, phy_nets)
+    #    available_seg_ids = {
+    #        segment['id'] for segment in segments
+    #        if segment['network_type'] in ('flat', 'vlan')}
 
-        available_seg_ids = {
-            segment['id'] for segment in segments
-            if segment['network_type'] in ('flat', 'vlan')}
+    #    segment_service_db.update_segment_host_mapping(
+    #        ctx, host, available_seg_ids)
 
-        segment_service_db.update_segment_host_mapping(
-            ctx, host, available_seg_ids)
+    #def _add_segment_host_mapping_for_segment(self, resource, event, trigger,
+    #                                          context, segment):
+    #    phynet = segment.physical_network
+    #    if not phynet:
+    #        return
 
-    def _add_segment_host_mapping_for_segment(self, resource, event, trigger,
-                                              context, segment):
-        phynet = segment.physical_network
-        if not phynet:
-            return
-
-        host_phynets_map = self._sb_ovn.get_chassis_hostname_and_physnets()
-        hosts = {host for host, phynets in six.iteritems(host_phynets_map)
-                 if phynet in phynets}
-        segment_service_db.map_segment_to_hosts(context, segment.id, hosts)
+    #    host_phynets_map = self._sb_ovn.get_chassis_hostname_and_physnets()
+    #    hosts = {host for host, phynets in six.iteritems(host_phynets_map)
+    #             if phynet in phynets}
+    #    segment_service_db.map_segment_to_hosts(context, segment.id, hosts)
+    
