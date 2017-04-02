@@ -16,7 +16,8 @@
 import contextlib
 import weakref
 
-from neutron_lib.db import utils as db_utils
+#from neutron_lib.db import utils as db_utils
+from networking_ovn.neutron_lib.db import utils as db_utils
 from oslo_db.sqlalchemy import utils as sa_utils
 from oslo_log import log as logging
 from oslo_utils import excutils
@@ -26,7 +27,8 @@ from sqlalchemy.ext import associationproxy
 from sqlalchemy import or_
 from sqlalchemy import sql
 
-from neutron._i18n import _LE
+#from neutron._i18n import _LE
+from networking_ovn._i18n import _LE
 from neutron.api.v2 import attributes
 
 

@@ -38,11 +38,12 @@ from networking_ovn.neutron_lib.db import api as db_api
 #from neutron.db import common_db_mixin
 from networking_ovn.neutron_lib.db import common_db_mixin
 #from neutron.db import segments_db as db
-from networling_ovn.neutron_lib.db import segments_db as db
-from neutron.extensions import segment as extension
+from networking_ovn.neutron_lib.db import segments_db as db
+#from neutron.extensions import segment as extension
+from networking_ovn.neutron_lib.extensions import segment as extension
 from neutron import manager
 #from neutron.services.segments import exceptions
-from networking_ovn.services.segmetns import exceptions
+from networking_ovn.neutron_lib.services.segments import exceptions
 
 
 class SegmentHostMapping(model_base.BASEV2):
@@ -342,10 +343,12 @@ def subscribe():
     registry.subscribe(_update_segment_host_mapping_for_agent,
                        resources.AGENT,
                        events.AFTER_UPDATE)
-    registry.subscribe(_add_segment_host_mapping_for_segment,
-                       resources.SEGMENT, events.PRECOMMIT_CREATE)
-    registry.subscribe(_delete_segments_for_network,
-                       resources.NETWORK,
-                       events.PRECOMMIT_DELETE)
+    print "macauley TODO"
+    #registry.subscribe(_add_segment_host_mapping_for_segment,
+    #                   resources.SEGMENT, events.PRECOMMIT_CREATE)
+
+    #registry.subscribe(_delete_segments_for_network,
+    #                   resources.NETWORK,
+    #                   events.PRECOMMIT_DELETE)
 
 subscribe()
