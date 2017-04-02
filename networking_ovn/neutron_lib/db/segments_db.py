@@ -24,7 +24,7 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 #from neutron.db import standard_attr
-from networking_ovn.neutron_lib import standard_attr
+from networking_ovn.neutron_lib.db import standard_attr
 #from neutron.extensions import segment
 from networking_ovn.neutron_lib.extensions import segment
 

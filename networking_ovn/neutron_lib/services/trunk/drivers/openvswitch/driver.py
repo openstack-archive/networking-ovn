@@ -26,7 +26,7 @@ from networking_ovn.neutron_lib.services.trunk import constants as trunk_consts
 #from neutron.services.trunk.drivers import base
 from networking_ovn.neutron_lib.services.trunk.drivers import base
 #from neutron.services.trunk.drivers.openvswitch import utils
-from networking_ovn.neutron_lib.services.trunk.driver.openvswitch import utils
+from networking_ovn.neutron_lib.services.trunk.drivers.openvswitch import utils
 
 LOG = logging.getLogger(__name__)
 

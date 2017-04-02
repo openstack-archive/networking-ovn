@@ -14,13 +14,18 @@
 
 import abc
 
-from neutron_lib.api import validators
-from neutron_lib import exceptions
+#from neutron_lib.api import validators
+from networking_ovn.neutron_lib.api import validators
+#from neutron_lib import exceptions
+from networking_ovn.neutron_lib import exceptions
+
 from oslo_serialization import jsonutils
 import six
 
-from neutron._i18n import _
-from neutron.api import extensions
+#from neutron._i18n import _
+from networking_ovn._i18n import _
+#from neutron.api import extensions
+from networking_ovn.neutron_lib.api import extensions
 from neutron.api.v2 import attributes as attr
 from neutron.api.v2 import base
 from neutron import manager

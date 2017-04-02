@@ -42,9 +42,10 @@ class DriverBase(object):
         self.segmentation_types = segmentation_types
         self.agent_type = agent_type
         self.can_trunk_bound_port = can_trunk_bound_port
-        registry.subscribe(self.register,
-                           trunk_consts.TRUNK_PLUGIN,
-                           events.AFTER_INIT)
+        #macauley TODO
+        #registry.subscribe(self.register,
+        #                   trunk_consts.TRUNK_PLUGIN,
+        #                   events.AFTER_INIT)
 
     @abc.abstractproperty
     def is_loaded(self):

@@ -29,7 +29,7 @@ from networking_ovn.neutron_lib.db.network_dhcp_agent_binding import models as n
 #from neutron.db import rbac_db_models
 from networking_ovn.neutron_lib.db import rbac_db_models
 #from neutron.db import standard_attr
-from networking_ovn.neutron.db import standard_attr
+from networking_ovn.neutron_lib.db import standard_attr
 
 
 # NOTE(kevinbenton): these are here for external projects that expect them

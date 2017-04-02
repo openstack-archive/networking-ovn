@@ -35,7 +35,8 @@ from sqlalchemy import sql
 
 #from neutron._i18n import _, _LE, _LI, _LW
 from networking_ovn._i18n import _, _LE, _LI, _LW
-from neutron.api.rpc.callbacks import version_manager
+#from neutron.api.rpc.callbacks import version_manager
+from networking_ovn.neutron_lib.api.rpc.callbacks import version_manager
 from neutron.api.v2 import attributes
 from neutron.callbacks import events
 from neutron.callbacks import registry
@@ -48,7 +49,7 @@ from networking_ovn.neutron_lib.db import api as db_api
 #from neutron.extensions import agent as ext_agent
 from networking_ovn.neutron_lib.extensions import agent as ext_agent
 #from neutron.extensions import availability_zone as az_ext
-from networking_ovn.neutron_lib.extensions import availability_zon as az_ext
+from networking_ovn.neutron_lib.extensions import availability_zone as az_ext
 from neutron import manager
 
 LOG = logging.getLogger(__name__)
