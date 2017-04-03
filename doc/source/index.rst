@@ -36,6 +36,7 @@ Design Notes:
    design/data_model
    design/native_dhcp
    design/ovn_worker
+   design/metadata_api
 
 Indices and tables
 ==================
