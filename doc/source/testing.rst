@@ -20,8 +20,8 @@ Create a user and grant it sudo access. Install git.
 
 ::
 
-     $ git clone http://git.openstack.org/openstack-dev/devstack.git
-     $ git clone http://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://git.openstack.org/openstack/networking-ovn.git
 
 3. Configure DevStack to use networking-ovn.
 
@@ -394,8 +394,8 @@ Once the VM is setup, create a user with sudo access and install git.
 
 ::
 
-     $ git clone http://git.openstack.org/openstack-dev/devstack.git
-     $ git clone http://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://git.openstack.org/openstack/networking-ovn.git
 
 networking-ovn comes with another sample configuration file that can be used
 for this::
@@ -590,9 +590,9 @@ Next, get networking_ovn, neutron and devstack.
 
 ::
 
-     $ git clone http://git.openstack.org/openstack/networking-ovn.git
-     $ git clone http://git.openstack.org/openstack/neutron.git
-     $ git clone http://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://git.openstack.org/openstack/neutron.git
+     $ git clone https://git.openstack.org/openstack-dev/devstack.git
 
 Then execute the script to prepare the environment.
 
