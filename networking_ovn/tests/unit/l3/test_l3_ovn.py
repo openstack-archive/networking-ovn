@@ -694,6 +694,34 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             logical_ip='10.10.10.10',
             external_ip='192.168.0.10')
 
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_floatingips')
+    def test_disassociate_floatingips(self, gfs):
+        gfs.return_value = [{'id': 'fip-id1',
+                             'floating_ip_address': '192.168.0.10',
+                             'router_id': 'router-id',
+                             'port_id': 'port_id',
+                             'floating_port_id': 'fip-port-id1',
+                             'fixed_ip_address': '10.0.0.10'},
+                            {'id': 'fip-id2',
+                             'floating_ip_address': '192.167.0.10',
+                             'router_id': 'router-id',
+                             'port_id': 'port_id',
+                             'floating_port_id': 'fip-port-id2',
+                             'fixed_ip_address': '10.0.0.11'}]
+        self.l3_plugin.disassociate_floatingips(self.context, 'port_id',
+                                                do_notify=False)
+
+        delete_nat_calls = [mock.call('neutron-router-id',
+                                      type='dnat_and_snat',
+                                      logical_ip=fip['fixed_ip_address'],
+                                      external_ip=fip['floating_ip_address'])
+                            for fip in gfs.return_value]
+        self.assertEqual(
+            len(delete_nat_calls),
+            self.l3_plugin._ovn.delete_nat_rule_in_lrouter.call_count)
+        self.l3_plugin._ovn.delete_nat_rule_in_lrouter.assert_has_calls(
+            delete_nat_calls, any_order=True)
+
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
                            test_l3.L3NatDBIntTestCase,

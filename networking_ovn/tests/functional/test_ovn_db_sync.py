@@ -380,7 +380,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                   '40.0.0.0/24', enable_dhcp=False)
         n4_s1 = self.deserialize(self.fmt, res)
         n4_port_dict = {}
-        for p in ['p1', 'p2']:
+        for p in ['p1', 'p2', 'p3']:
             port = self._make_port(self.fmt, n4['network']['id'],
                                    name='n4-' + p,
                                    device_owner='compute:None')
@@ -419,6 +419,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 'floating_network_id': e1['network']['id'],
                 'floating_ip_address': '100.0.0.31',
                 'port_id': n4_port_dict['p2']}})
+        # To test l3_plugin.disassociate_floatingips, associating floating IP
+        # to port p3 and then deleting p3.
+        self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'floating_ip_address': '100.0.0.32',
+                'port_id': n4_port_dict['p3']}})
+        self._delete('ports', n4_port_dict['p3'])
 
         self.create_lrouters.append('neutron-' + uuidutils.generate_uuid())
         self.create_lrouter_ports.append(('lrp-' + uuidutils.generate_uuid(),
@@ -894,9 +903,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                                      for network in networks])
         fips = self._list('floatingips')
         for fip in fips['floatingips']:
-            db_nats[fip['router_id']].append(fip['floating_ip_address'] +
-                                             fip['fixed_ip_address'] +
-                                             'dnat_and_snat')
+            if fip['router_id']:
+                db_nats[fip['router_id']].append(fip['floating_ip_address'] +
+                                                 fip['fixed_ip_address'] +
+                                                 'dnat_and_snat')
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lrouter_ids = [
