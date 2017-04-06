@@ -87,6 +87,13 @@ class OvsdbNbOvnIdl(ovn_api.API):
                 OvsdbNbOvnIdl.ovsdb_connection.start()
             self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
             self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+
+            # FIXME(lucasagomes): We should not access the _session
+            # private attribute like this, ideally the IDL class would
+            # expose a public method to allow others to tune the probe
+            # interval. This shoule be done in the OVS python library.
+            self.idl._session.reconnect.set_probe_interval(
+                cfg.get_ovn_ovsdb_probe_interval())
         except Exception as e:
             connection_exception = OvsdbConnectionUnavailable(
                 db_schema='OVN_Northbound', error=e)
@@ -539,6 +546,13 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
                     table_name_list=['Chassis'])
             self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
             self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
+
+            # FIXME(lucasagomes): We should not access the _session
+            # private attribute like this, ideally the IDL class would
+            # expose a public method to allow others to tune the probe
+            # interval. This shoule be done in the OVS python library.
+            self.idl._session.reconnect.set_probe_interval(
+                cfg.get_ovn_ovsdb_probe_interval())
         except Exception as e:
             connection_exception = OvsdbConnectionUnavailable(
                 db_schema='OVN_Southbound', error=e)
