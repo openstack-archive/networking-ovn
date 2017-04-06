@@ -17,7 +17,6 @@ import netaddr
 from neutron_lib import constants as const
 from oslo_config import cfg
 
-from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
@@ -307,7 +306,7 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache):
                                         ip['subnet_id'])
         # Ignore duplicate DHCP ACLs for the subnet.
         if subnet['id'] not in port_subnet_ids:
-            acl_list += add_acl_dhcp(port, subnet, config.is_ovn_dhcp())
+            acl_list += add_acl_dhcp(port, subnet, True)
             port_subnet_ids.add(subnet['id'])
 
     # We create an ACL entry for each rule on each security group applied

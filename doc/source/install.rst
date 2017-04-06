@@ -141,22 +141,13 @@ primary node. See the :ref:`faq` for more information.
         ...
         notification_drivers = ovn-qos
 
-   * (Optional) Enable the native or conventional layer-3 service.
+   * Enable the OVN layer-3 service.
 
      .. code-block:: ini
 
         [DEFAULT]
         ...
-        service_plugins = L3_SERVICE
-
-     .. note::
-
-        Replace ``L3_SERVICE`` with
-        ``networking_ovn.l3.l3_ovn.OVNL3RouterPlugin``
-        to enable the native layer-3 service or with
-        ``neutron.services.l3_router.l3_router_plugin.L3RouterPlugin``
-        to enable the conventional layer-3 service.
-        See :ref:`features` and :ref:`faq` for more information.
+        service_plugins = networking_ovn.l3.l3_ovn.OVNL3RouterPlugin
 
 #. Configure the ML2 plug-in. Edit the
    ``/etc/neutron/plugins/ml2/ml2_conf.ini`` file:
@@ -243,7 +234,7 @@ primary node. See the :ref:`faq` for more information.
         The ``firewall_driver`` option under ``[securitygroup]`` is ignored
         since the OVN ML2 driver itself handles security groups.
 
-   * Configure OVS database access, L3 scheduler and OVN DHCP mode
+   * Configure OVS database access and L3 scheduler
 
      .. code-block:: ini
 
@@ -252,7 +243,6 @@ primary node. See the :ref:`faq` for more information.
         ovn_nb_connection = tcp:IP_ADDRESS:6641
         ovn_sb_connection = tcp:IP_ADDRESS:6642
         ovn_l3_scheduler = OVN_L3_SCHEDULER
-        ovn_native_dhcp = OVN_NATIVE_DHCP
 
      .. note::
 
@@ -261,9 +251,7 @@ primary node. See the :ref:`faq` for more information.
         ``leastloaded`` if you want the scheduler to select a compute node with
         the least number of gateway ports or ``chance`` if you want the
         scheduler to randomly select a compute node from the available list of
-        compute nodes. And finally, replace ``OVN_NATIVE_DHCP`` with ``True``
-        if you want to enable the native DHCP service else ``False`` to use the
-        conventional DHCP agent.
+        compute nodes.
 
 #. Start the ``neutron-server`` service.
 
@@ -273,9 +261,6 @@ Network nodes
 Deployments using OVN native layer-3 and DHCP services do not require
 conventional network nodes because connectivity to external networks
 (including VTEP gateways) and routing occurs on compute nodes.
-OVN currently relies on the conventional metadata agent that typically
-operates on network nodes. However, you can deploy this agent on
-controller or compute nodes.
 
 Compute nodes
 -------------
@@ -321,14 +306,6 @@ Each compute node runs the OVS and ``ovn-controller`` services. The
      .. note::
 
         Deployments without VTEP gateways can safely enable both protocols.
-
-     .. note::
-
-        Overlay network protocols generally require reducing MTU on VM
-        interfaces to account for additional packet overhead. See the
-        DHCP agent configuration in the
-        `Installation Guide <http://docs.openstack.org/liberty/install-guide-ubuntu/neutron-controller-install-option2.html>`_
-        for more information.
 
    * Configure the overlay network local endpoint IP address.
 

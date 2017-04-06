@@ -72,7 +72,7 @@ OVN_INSTALL_OVS_PYTHON_MODULE=$(trueorfalse False OVN_INSTALL_OVS_PYTHON_MODULE)
 # GENEVE overlay protocol overhead. Defaults to 38 bytes plus the IP version
 # overhead (20 bytes for IPv4 (default) or 40 bytes for IPv6) which is determined
 # based on the ML2 overlay_ip_version option. The ML2 framework will use this to
-# configure the DHCP agent MTU option.
+# configure the MTU DHCP option.
 OVN_GENEVE_OVERHEAD=${OVN_GENEVE_OVERHEAD:-38}
 
 # This sets whether to create a public network and bridge.
@@ -174,47 +174,22 @@ function configure_ovn_plugin {
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn neutron_sync_mode="$OVN_NEUTRON_SYNC_MODE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
-        populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_native_dhcp="$OVN_NATIVE_DHCP"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
     fi
 
-    # NOTE(rtheis): Conventional and native DHCP are not supported at the
-    # same time since there aren't any confirmed benefits to supporting
-    # both. Also, there are a couple problems with such a setup:
-    #   1) Neutron still creates DHCP provisioning blocks when launching
-    #      instances. As a result, the conventional DHCP agent must be
-    #      up and remove the DHCP provisioning blocks or instances will
-    #      fail to launch.
-    #   2) Even though the conventional DHCP agent can setup a metadata
-    #      proxy for isolated networks, host routes are not added to an
-    #      instance. As a result, instances aren't able to access the proxy
-    #      via "curl http://169.254.169.254".
     if is_service_enabled q-dhcp ; then
-        if [[ "$OVN_NATIVE_DHCP" == "True" ]]; then
-            die $LINENO "The q-dhcp service must be disabled with OVN_NATIVE_DHCP set to True."
-        fi
+        die $LINENO "The q-dhcp service must be disabled with OVN."
     fi
 
     if is_service_enabled q-l3 ; then
         die $LINENO "The q-l3 service must be disabled with OVN."
     fi
 
-    # NOTE(rtheis): OVN native layer-3 and DHCP services currently lack support
-    # for metadata. Thus, enabling both native services also requires enabling
-    # config drive to provide instances with metadata. However, if you choose the
-    # conventional DHCP agent instead of the native DHCP service, you can
-    # configure it to provide instances with metadata.
-    if is_service_enabled q-dhcp ; then
-        # Conventional DHCP agent must provide all metadata when OVN native
-        # layer-3 is enabled. So for consistency, regardless of the layer-3
-        # support, the conventional DHCP agent will be forced to provide
-        # metadata for all networks.
-        iniset $Q_DHCP_CONF_FILE DEFAULT force_metadata True
-    elif [[ "$OVN_NATIVE_DHCP" == "True" ]]; then
-        if is_service_enabled n-cpu ; then
-            iniset $NOVA_CONF DEFAULT force_config_drive True
-        fi
+    # NOTE(rtheis): OVN currently lacks support for metadata so enabling
+    # config drive is required to provide metadata to instances.
+    if is_service_enabled n-cpu ; then
+        iniset $NOVA_CONF DEFAULT force_config_drive True
     fi
 
     if is_service_enabled q-qos ; then

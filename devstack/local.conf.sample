@@ -108,19 +108,6 @@ disable_service q-meta
 # NOTE: DO NOT MOVE THESE SECTIONS FROM THE END OF THIS FILE
 # IF YOU DO, THEY WON'T WORK!!!!!
 #
-# Enable two DHCP agents per neutron subnet with support for availability
-# zones. Requires a multi-node deployment.
-#[[post-config|/$NEUTRON_CONF]]
-#[DEFAULT]
-#network_scheduler_driver = neutron.scheduler.dhcp_agent_scheduler.AZAwareWeightScheduler
-#dhcp_load_type = networks
-#dhcp_agents_per_network = 2
-
-# If you enable the DHCP agent, you can configure the availability
-# zone name (default is nova).
-#[[post-config|$Q_DHCP_CONF_FILE]]
-#[AGENT]
-#availability_zone = nova
 
 # Enable Nova automatic host discovery for cell every 2 seconds
 [[post-config|$NOVA_CONF]]
