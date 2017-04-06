@@ -141,6 +141,7 @@ function cleanup_ovn {
     local _pwd=$(pwd)
     cd $DEST/$OVN_REPO_NAME
     sudo make uninstall
+    sudo make distclean
     cd $_pwd
 }
 
