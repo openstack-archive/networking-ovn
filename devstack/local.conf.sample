@@ -123,6 +123,8 @@ disable_service q-meta
 #availability_zone = nova
 
 # Enable Nova automatic host discovery for cell every 2 seconds
+# Only needed in case of multinode devstack, as otherwise there will be issues
+# when the 2nd compute node goes online.
 [[post-config|$NOVA_CONF]]
 [scheduler]
 discover_hosts_in_cells_interval = 2
