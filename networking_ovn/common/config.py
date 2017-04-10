@@ -27,6 +27,14 @@ ovn_opts = [
                default=180,
                help=_('Timeout in seconds for the OVSDB '
                       'connection transaction')),
+    cfg.IntOpt('ovsdb_probe_interval',
+               min=0,
+               default=0,
+               help=_('The probe interval in for the OVSDB session in '
+                      'milliseconds. If this is zero, it disables the '
+                      'connection keepalive feature. If non-zero the value '
+                      'will be forced to at least 1000 milliseconds. Probing '
+                      'is disabled by default.')),
     cfg.StrOpt('neutron_sync_mode',
                default='log',
                choices=('off', 'log', 'repair'),
@@ -102,6 +110,10 @@ def get_ovn_sb_connection():
 
 def get_ovn_ovsdb_timeout():
     return cfg.CONF.ovn.ovsdb_connection_timeout
+
+
+def get_ovn_ovsdb_probe_interval():
+    return cfg.CONF.ovn.ovsdb_probe_interval
 
 
 def get_ovn_neutron_sync_mode():
