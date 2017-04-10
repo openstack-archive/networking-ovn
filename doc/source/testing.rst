@@ -9,21 +9,27 @@ Single Node Test Environment
 
 1. Create a test system.
 
-It's best to use a throwaway dev system for running DevStack.  In this example
-I'm using a Fedora 21 VM with 4 GB of RAM.  You should be able to use any
-distribution that is supported by DevStack.  So far, networking-ovn is being
-tested on Fedora 21 and Ubuntu 14.04.
+It's best to use a throwaway dev system for running DevStack. In this
+example I'm using a Fedora 21 VM with 4 GB of RAM. You should be able to
+use any distribution that is supported by DevStack. So far, networking-ovn
+is being tested on Fedora 21 and Ubuntu 14.04.
 
-Create a user and grant it sudo access. Install git.
-
-2. Get DevStack and networking-ovn.
+2. Create the ``stack`` user.
 
 ::
 
      $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ sudo ./devstack/tools/create-stack-user.sh
+
+3. Switch to the ``stack`` user and clone DevStack and networking-ovn.
+
+::
+
+     $ sudo su - stack
+     $ git clone https://git.openstack.org/openstack-dev/devstack.git
      $ git clone https://git.openstack.org/openstack/networking-ovn.git
 
-3. Configure DevStack to use networking-ovn.
+4. Configure DevStack to use networking-ovn.
 
 networking-ovn comes with a sample DevStack configuration file you can start
 with.  For example, you may want to set some values for the various PASSWORD
@@ -35,7 +41,7 @@ free to edit it if you'd like, but it should work as-is.
     $ cd devstack
     $ cp ../networking-ovn/devstack/local.conf.sample local.conf
 
-4. Run DevStack.
+5. Run DevStack.
 
 This is going to take a while.  It installs a bunch of packages, clones a bunch
 of git repos, and installs everything from these git repos.
@@ -390,10 +396,14 @@ testing as it exercises the tunnels created by OVN between the hypervisors.
 Just as before, create a throwaway VM but make sure that this VM has a
 different host name. Having same host name for both VMs will confuse Nova and
 will not produce two hypervisors when you query nova hypervisor list later.
-Once the VM is setup, create a user with sudo access and install git.
+Once the VM is setup, create the ``stack`` user::
 
-::
+     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ sudo ./devstack/tools/create-stack-user.sh
 
+Switch to the ``stack`` user and clone DevStack and networking-ovn::
+
+     $ sudo su - stack
      $ git clone https://git.openstack.org/openstack-dev/devstack.git
      $ git clone https://git.openstack.org/openstack/networking-ovn.git
 
