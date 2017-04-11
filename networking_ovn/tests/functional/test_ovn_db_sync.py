@@ -70,6 +70,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.missed_dhcp_options = []
         self.dirty_dhcp_options = []
         self.lport_dhcp_ignored = []
+        self.match_old_mac_dhcp_subnets = []
 
     def _api_for_resource(self, resource):
         if resource in ['security-groups']:
@@ -77,7 +78,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         else:
             return super(TestOvnNbSync, self)._api_for_resource(resource)
 
-    def _create_resources(self):
+    def _create_resources(self, restart_ovsdb_processes=False):
         n1 = self._make_network(self.fmt, 'n1', True)
         res = self._create_subnet(self.fmt, n1['network']['id'],
                                   '10.0.0.0/24')
@@ -452,21 +453,34 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         res = self._create_subnet(self.fmt, n3['network']['id'],
                                   '30.0.0.0/24')
         n3_s1 = self.deserialize(self.fmt, res)
+        res = self._create_subnet(self.fmt, n3['network']['id'],
+                                  '2001:dbc::/64', ip_version=6)
+        n3_s2 = self.deserialize(self.fmt, res)
+        if not restart_ovsdb_processes:
+            # Test using original mac when syncing.
+            dhcp_mac_v4 = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n3_s1['subnet']['id']).get('options', {}).get('server_mac')
+            dhcp_mac_v6 = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n3_s2['subnet']['id']).get('options', {}).get('server_id')
+            self.assertTrue(dhcp_mac_v4 is not None)
+            self.assertTrue(dhcp_mac_v6 is not None)
+            self.match_old_mac_dhcp_subnets.append(n3_s1['subnet']['id'])
+            self.match_old_mac_dhcp_subnets.append(n3_s2['subnet']['id'])
+        else:
+            dhcp_mac_v4 = '01:02:03:04:05:06'
+            dhcp_mac_v6 = '01:02:03:04:05:06'
         self.expected_dhcp_options_rows.append({
             'cidr': '30.0.0.0/24',
             'external_ids': {'subnet_id': n3_s1['subnet']['id']},
             'options': {'server_id': '30.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac_v4,
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n3['network']['mtu']),
                         'router': n3_s1['subnet']['gateway_ip']}})
-        res = self._create_subnet(self.fmt, n3['network']['id'],
-                                  '2001:dbc::/64', ip_version=6)
-        n3_s2 = self.deserialize(self.fmt, res)
         self.expected_dhcp_options_rows.append({
             'cidr': '2001:dbc::/64',
             'external_ids': {'subnet_id': n3_s2['subnet']['id']},
-            'options': {'server_id': '01:02:03:04:05:06'}})
+            'options': {'server_id': dhcp_mac_v6}})
         fake_port_id1 = uuidutils.generate_uuid()
         fake_port_id2 = uuidutils.generate_uuid()
         self.create_lswitch_ports.append(('neutron-' + fake_port_id1,
@@ -478,7 +492,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             'port_id': fake_port_id1,
             'cidr': '30.0.0.0/24',
             'options': {'server_id': '30.0.0.254',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac_v4,
                         'lease_time': str(3 * 60 * 60),
                         'mtu': str(n3['network']['mtu'] / 2),
                         'router': '30.0.0.254',
@@ -499,7 +513,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             'subnet_id': n3_s2['subnet']['id'],
             'port_id': fake_port_id1,
             'cidr': '2001:dbc::/64',
-            'options': {'server_id': '01:02:03:04:05:06',
+            'options': {'server_id': dhcp_mac_v6,
                         'domain-search': 'foo-domain'},
             'external_ids': {'subnet_id': n3_s2['subnet']['id'],
                              'port_id': fake_port_id1},
@@ -793,10 +807,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         for row in _plugin_nb_ovn._tables['DHCP_Options'].rows.values():
             opts = dict(row.options)
-            if 'server_mac' in opts:
-                opts['server_mac'] = '01:02:03:04:05:06'
-            else:
-                opts['server_id'] = '01:02:03:04:05:06'
+            ids = dict(row.external_ids)
+            if ids.get('subnet_id') not in self.match_old_mac_dhcp_subnets:
+                if 'server_mac' in opts:
+                    opts['server_mac'] = '01:02:03:04:05:06'
+                else:
+                    opts['server_id'] = '01:02:03:04:05:06'
             observed_plugin_dhcp_options_rows.append({
                 'cidr': row.cidr, 'external_ids': row.external_ids,
                 'options': opts})
@@ -804,10 +820,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         observed_monitor_dhcp_options_rows = []
         for row in self.monitor_nb_db_idl.tables['DHCP_Options'].rows.values():
             opts = dict(row.options)
-            if 'server_mac' in opts:
-                opts['server_mac'] = '01:02:03:04:05:06'
-            else:
-                opts['server_id'] = '01:02:03:04:05:06'
+            ids = dict(row.external_ids)
+            if ids.get('subnet_id') not in self.match_old_mac_dhcp_subnets:
+                if 'server_mac' in opts:
+                    opts['server_mac'] = '01:02:03:04:05:06'
+                else:
+                    opts['server_id'] = '01:02:03:04:05:06'
             observed_monitor_dhcp_options_rows.append({
                 'cidr': row.cidr, 'external_ids': row.external_ids,
                 'options': opts})
@@ -1086,7 +1104,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _test_ovn_nb_sync_helper(self, mode, modify_resources=True,
                                  restart_ovsdb_processes=False,
                                  should_match_after_sync=True):
-        self._create_resources()
+        self._create_resources(restart_ovsdb_processes)
         self._validate_resources(should_match=True)
 
         if modify_resources:

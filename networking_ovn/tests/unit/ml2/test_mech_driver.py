@@ -927,8 +927,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         n_net.get_random_mac = self.orig_get_random_mac
 
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
-                                          expected_dhcp_options):
-        dhcp_options = self.mech_driver.get_ovn_dhcp_options(subnet, network)
+                                          expected_dhcp_options,
+                                          service_mac=None):
+        dhcp_options = self.mech_driver.get_ovn_dhcp_options(subnet, network,
+                                                             service_mac)
         self.assertEqual(expected_dhcp_options, dhcp_options)
 
     def test_get_ovn_dhcp_options(self):
@@ -957,6 +959,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options)
+        expected_dhcp_options['options']['server_mac'] = '11:22:33:44:55:66'
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options,
+                                               service_mac='11:22:33:44:55:66')
 
     def test_get_ovn_dhcp_options_dhcp_disabled(self):
         subnet = {'id': 'foo-subnet',
@@ -1009,6 +1015,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options)
+        expected_dhcp_options['options']['server_id'] = '11:22:33:44:55:66'
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options,
+                                               service_mac='11:22:33:44:55:66')
 
     def test_get_ovn_dhcp_options_dhcpv6_stateless_subnet(self):
         subnet = {'id': 'foo-subnet',
@@ -1027,6 +1037,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options)
+        expected_dhcp_options['options']['server_id'] = '11:22:33:44:55:66'
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options,
+                                               service_mac='11:22:33:44:55:66')
 
     def _test__get_port_dhcp_options_port_dhcp_opts_set(self, ip_version=4):
         if ip_version == 4:

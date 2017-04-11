@@ -586,7 +586,11 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             if subnet_id in db_subnets:
                 network = db_networks[utils.ovn_name(
                     db_subnets[subnet_id]['network_id'])]
-                server_mac = ovn_dhcp_opts['options'].get('server_mac')
+                if constants.IP_VERSION_6 == db_subnets[subnet_id][
+                        'ip_version']:
+                    server_mac = ovn_dhcp_opts['options'].get('server_id')
+                else:
+                    server_mac = ovn_dhcp_opts['options'].get('server_mac')
                 dhcp_options = self.ovn_driver.get_ovn_dhcp_options(
                     db_subnets[subnet_id], network, server_mac=server_mac)
                 # Verify that the cidr and options are also in sync.
