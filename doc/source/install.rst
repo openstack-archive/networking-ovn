@@ -44,10 +44,7 @@ the RDO project.  A package based on the ``master`` branch of
 
 Fedora and CentOS RPM builds of OVS and OVN from the ``master`` branch of
 ``ovs`` can be found in this COPR repository:
-https://copr.fedorainfracloud.org/coprs/leifmadsen/ovs-master/.  If you would
-like packages that are built with DPDK integration enabled, you can try this
-COPR repository, instead:
-https://copr.fedorainfracloud.org/coprs/pmatilai/dpdk-snapshot/.
+https://copr.fedorainfracloud.org/coprs/leifmadsen/ovs-master/.
 
 Controller nodes
 ----------------
