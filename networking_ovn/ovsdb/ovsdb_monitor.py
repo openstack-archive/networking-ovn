@@ -21,6 +21,7 @@ import threading
 from oslo_log import log
 from ovs.db import idl
 from ovs import poller
+from ovs.stream import Stream
 
 from networking_ovn._i18n import _LE
 from networking_ovn.common import config as ovn_config
@@ -297,6 +298,17 @@ class OvnSbIdl(OvnIdl):
         self.notify_handler.watch_events([self._chassis_event])
 
 
+def _set_ssl_files(schema_name):
+    if schema_name == 'OVN_Southbound':
+        Stream.ssl_set_private_key_file(ovn_config.get_ovn_sb_private_key())
+        Stream.ssl_set_certificate_file(ovn_config.get_ovn_sb_certificate())
+        Stream.ssl_set_ca_cert_file(ovn_config.get_ovn_sb_ca_cert())
+    else:
+        Stream.ssl_set_private_key_file(ovn_config.get_ovn_nb_private_key())
+        Stream.ssl_set_certificate_file(ovn_config.get_ovn_nb_certificate())
+        Stream.ssl_set_ca_cert_file(ovn_config.get_ovn_nb_ca_cert())
+
+
 class OvnBaseConnection(connection.Connection):
 
     def get_schema_helper(self):
@@ -304,6 +316,7 @@ class OvnBaseConnection(connection.Connection):
         # The implementation of this function is same as the base class method
         # without the enable_connection_uri() called (since ovs-vsctl won't
         # exist on the controller node when using the reference architecture).
+        _set_ssl_files(self.schema_name)
         try:
             helper = idlutils._get_schema_helper(self.connection,
                                                  self.schema_name)
