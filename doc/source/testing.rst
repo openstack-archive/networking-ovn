@@ -9,10 +9,8 @@ Single Node Test Environment
 
 1. Create a test system.
 
-It's best to use a throwaway dev system for running DevStack. In this
-example I'm using a Fedora 21 VM with 4 GB of RAM. You should be able to
-use any distribution that is supported by DevStack. So far, networking-ovn
-is being tested on Fedora 21 and Ubuntu 14.04.
+It's best to use a throwaway dev system for running DevStack. Your best bet is
+to use either CentOS 7 or the latest Ubuntu LTS (16.04, Xenial).
 
 2. Create the ``stack`` user.
 
