@@ -623,9 +623,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         context, router_id, update_fip, associate=False)
                     self.update_floatingip_status(
                         context, fip['id'], n_const.FLOATINGIP_STATUS_DOWN)
-                except Exception:
-                    LOG.error(_LE('Error in disassociating floatingip %s'),
-                              fip['id'])
+                except Exception as e:
+                    LOG.error(_LE('Error in disassociating floatingip %(id)s: '
+                                  '%(error)s'), {'id': fip['id'], 'error': e})
         return router_ids
 
     def _update_floating_ip_in_ovn(self, context, router_id, update,
