@@ -25,7 +25,6 @@ if [ -z "${RALLY_SCENARIO}" ] ; then
 fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
-export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
 
 OVS_BRANCH=$1
 if [[ "${OVS_BRANCH}" == "latest-release" ]] ; then
@@ -47,7 +46,6 @@ if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
     export DEVSTACK_SUBNODE_CONFIG+=$'\n'"ENABLED_SERVICES=n-cpu,dstat,c-vol,c-bak,ovn-controller"
 
     # NOTE(rtheis): Configure OVN on the compute node.
-    export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_NATIVE_DHCP=True"
     export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_SB_REMOTE=tcp:\$SERVICE_HOST:6642"
     export DEVSTACK_SUBNODE_CONFIG+=$'\n'"OVN_NB_REMOTE=tcp:\$SERVICE_HOST:6641"
 

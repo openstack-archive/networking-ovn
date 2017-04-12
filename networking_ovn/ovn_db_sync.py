@@ -571,9 +571,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
     def _sync_subnet_dhcp_options(self, ctx, db_networks,
                                   ovn_subnet_dhcp_options):
-        if not config.is_ovn_dhcp():
-            return
-
         LOG.debug('OVN-NB Sync DHCP options for Neutron subnets started')
 
         db_subnets = {}
@@ -637,9 +634,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
     def _sync_port_dhcp_options(self, ctx, ports_need_sync_dhcp_opts,
                                 ovn_port_dhcpv4_opts, ovn_port_dhcpv6_opts):
-        if not config.is_ovn_dhcp():
-            return
-
         LOG.debug('OVN-NB Sync DHCP options for Neutron ports with extra '
                   'dhcp options assigned started')
 

@@ -31,11 +31,6 @@ OVN_NB_REMOTE=tcp:$OVN_DB_IP:6641
 LOGFILE=/opt/stack/log/stack.sh.log
 SCREEN_LOGDIR=/opt/stack/log/data
 
-# Disable the OVN native DHCP service and enable the conventional DHCP and
-# metadata agents on the compute node.
-OVN_NATIVE_DHCP=False
-enable_service q-dhcp q-meta
-
 # Use provider network for public.
 Q_USE_PROVIDERNET_FOR_PUBLIC=True
 OVS_PHYSICAL_BRIDGE=br-provider

@@ -366,26 +366,24 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
     def create_subnet_postcommit(self, context):
         subnet = context.current
-        if subnet['enable_dhcp'] and config.is_ovn_dhcp():
+        if subnet['enable_dhcp']:
             self.add_subnet_dhcp_options_in_ovn(subnet,
                                                 context.network.current)
 
     def update_subnet_postcommit(self, context):
         subnet = context.current
-        if config.is_ovn_dhcp() and (
-            subnet['enable_dhcp'] or context.original['enable_dhcp']):
+        if subnet['enable_dhcp'] or context.original['enable_dhcp']:
             self.add_subnet_dhcp_options_in_ovn(subnet,
                                                 context.network.current)
 
     def delete_subnet_postcommit(self, context):
         subnet = context.current
-        if config.is_ovn_dhcp():
-            with self._nb_ovn.transaction(check_error=True) as txn:
-                subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
-                    subnet['id'])
-                if subnet_dhcp_options:
-                    txn.add(self._nb_ovn.delete_dhcp_options(
-                        subnet_dhcp_options['uuid']))
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
+                subnet['id'])
+            if subnet_dhcp_options:
+                txn.add(self._nb_ovn.delete_dhcp_options(
+                    subnet_dhcp_options['uuid']))
 
     def add_subnet_dhcp_options_in_ovn(self, subnet, network,
                                        ovn_dhcp_options=None):

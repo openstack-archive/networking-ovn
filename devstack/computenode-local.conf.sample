@@ -30,17 +30,6 @@ enable_service n-cpu
 enable_service placement-api
 enable_service ovn-controller
 
-# For multi-node deployments using conventional DHCP and metadata agents,
-# we recommend testing multiple instances of those agents. In a small
-# lab environment with one controller node, you can run them on two or
-# more compute nodes to simulate a more realistic environment. However,
-# in a large lab that potentially simulates a production environment, you
-# should determine whether to run them on controller nodes, network nodes,
-# or a subset of compute nodes. Deploying too many agents can cause
-# scaling issues, particularly with the message bus.
-#enable_service q-dhcp
-#enable_service q-meta
-
 # Set this to the address of the main DevStack host running the rest of the
 # OpenStack services.
 SERVICE_HOST=<IP address of host running everything else>
@@ -80,14 +69,3 @@ VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
 #PHYSICAL_NETWORK=providernet
 #OVS_PHYSICAL_BRIDGE=br-provider
 #PUBLIC_INTERFACE=<public interface>
-
-# NOTE: DO NOT MOVE THIS SECTION FROM THE END OF THE FILE, AS IT
-# WON'T WORK OTHERWISE
-#
-# If you enable the DHCP agent, you can configure the availability
-# zone name (default is nova).
-#[[post-config|$Q_DHCP_CONF_FILE]]
-#[AGENT]
-#availability_zone = nova
-
-

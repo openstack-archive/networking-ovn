@@ -13,18 +13,14 @@ services:
 
 * Layer-3 (routing)
 
-  Native implementation that supports distributed routing.
+  Native implementation that supports distributed routing.  Replaces the
+  conventional Neutron L3 agent.
 
 * DHCP
 
-  Native implementation or conventional DHCP agent. The native implementation
-  supports distributed DHCP. However, it currently lacks
-  support for the Neutron internal DNS and metadata proxy features.
-
-* Metadata
-
-  The metadata API is currently only supported in conjunction with the Neutron
-  DHCP agent.
+  Native distributed implementation.  Replaces the conventional Neutron DHCP
+  agent.  Note that the native implementation does not yet support DNS or
+  Metadata features.
 
 * DPDK
 
@@ -45,8 +41,6 @@ The following Neutron API extensions are supported with OVN:
 +==================================+===========================+
 | agent                            | agent                     |
 +----------------------------------+---------------------------+
-| Address Scopes *                 | address-scope             |
-+----------------------------------+---------------------------+
 | Allowed Address Pairs            | allowed-address-pairs     |
 +----------------------------------+---------------------------+
 | Auto Allocated Topology Services | auto-allocated-topology   |
@@ -55,19 +49,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Default Subnetpools              | default-subnetpools       |
 +----------------------------------+---------------------------+
-| DHCP Agent Scheduler **          | dhcp_agent_scheduler      |
-+----------------------------------+---------------------------+
-| Distributed Virtual Router *     | dvr                       |
-+----------------------------------+---------------------------+
-| DNS Integration *                | dns-integration           |
-+----------------------------------+---------------------------+
-| HA Router extension *            | l3-ha                     |
-+----------------------------------+---------------------------+
-| L3 Agent Scheduler *             | l3_agent_scheduler        |
-+----------------------------------+---------------------------+
 | Multi Provider Network           | multi-provider            |
-+----------------------------------+---------------------------+
-| Network Availability Zone **     | network_availability_zone |
 +----------------------------------+---------------------------+
 | Network IP Availability          | network-ip-availability   |
 +----------------------------------+---------------------------+
@@ -97,8 +79,6 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Resource revision numbers        | revisions                 |
 +----------------------------------+---------------------------+
-| Router Availability Zone *       | router_availability_zone  |
-+----------------------------------+---------------------------+
 | security-group                   | security-group            |
 +----------------------------------+---------------------------+
 | standard-attr-description        | standard-attr-description |
@@ -109,8 +89,3 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Time Stamp Fields                | timestamp_core            |
 +----------------------------------+---------------------------+
-
-
-(\*) Only applicable when conventional layer-3 agent enabled.
-
-(\*\*) Only applicable when conventional DHCP agent enabled.

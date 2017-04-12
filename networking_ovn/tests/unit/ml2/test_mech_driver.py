@@ -215,12 +215,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
     def test_add_acls_with_sec_group_native_dhcp_enabled(self):
         self._test_add_acls_with_sec_group_helper()
 
-    def test_add_acls_with_sec_group_native_dhcp_disabled(self):
-        config.cfg.CONF.set_override('ovn_native_dhcp',
-                                     False,
-                                     group='ovn')
-        self._test_add_acls_with_sec_group_helper(native_dhcp=False)
-
     def test_port_invalid_binding_profile(self):
         invalid_binding_profiles = [
             {'tag': 0,
@@ -453,12 +447,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test_create_port_with_security_groups_native_dhcp_enabled(self):
         self._test_create_port_with_security_groups_helper(7)
-
-    def test_create_port_with_security_groups_native_dhcp_disabled(self):
-        config.cfg.CONF.set_override('ovn_native_dhcp',
-                                     False,
-                                     group='ovn')
-        self._test_create_port_with_security_groups_helper(8)
 
     def test_update_port_changed_security_groups(self):
         with self.network(set_context=True, tenant_id='test') as net1:

@@ -10,9 +10,6 @@ DHCPv4 requests based on statically configured address mappings. To do this it
 allows a short list of DHCPv4 options to be configured and applied at each
 compute host running ovn-controller.
 
-OVN ML2 driver uses this feature if the config option 'ovn_native_dhcp' is
-set to True.
-
 OVN northbound db provides a table 'DHCP_Options' to store the DHCP options.
 Logical switch port has a reference to this table.
 

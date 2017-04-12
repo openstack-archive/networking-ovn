@@ -42,12 +42,6 @@ disable_service ovn-northd
 # on the controller node that depend on it.
 disable_service ovn-controller
 
-# Disable the OVN native DHCP service and conventional DHCP and metadata
-# agents on the controller node because the architecture deploys them on
-# compute nodes.
-OVN_NATIVE_DHCP=False
-disable_service q-dhcp q-meta
-
 # Disable the nova compute service on the controller node because the
 # architecture only deploys it on separate compute nodes.
 disable_service n-cpu
