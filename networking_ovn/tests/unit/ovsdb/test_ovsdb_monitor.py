@@ -14,7 +14,6 @@
 
 import copy
 import mock
-import time
 
 from oslo_utils import uuidutils
 
@@ -73,6 +72,7 @@ OVN_SB_SCHEMA = {
 }
 
 
+@mock.patch.object(ovsdb_monitor, 'greenthread', None)
 class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     def setUp(self):
@@ -99,9 +99,10 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         else:
             old_row = None
         self.idl.notify(event, lp_row, updates=old_row)
-        # sleep for a second so that the notify handler green thread
-        # handles the notify event
-        time.sleep(1)
+        # Add a STOP EVENT to the queue
+        self.idl.notify_handler.shutdown()
+        # Execute the notifications queued
+        self.idl.notify_handler.notify_loop()
 
     def test_lsp_up_create_event(self):
         row_data = {"up": True, "name": "foo-name"}
@@ -199,6 +200,7 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertTrue(self.idl.notify_handler.notify.called)
 
 
+@mock.patch.object(ovsdb_monitor, 'greenthread', None)
 class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
@@ -234,9 +236,10 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         else:
             old_row = None
         self.sb_idl.notify(event, row, updates=old_row)
-        # sleep for a second so that the notify handler green thread
-        # handles the notify event
-        time.sleep(1)
+        # Add a STOP EVENT to the queue
+        self.sb_idl.notify_handler.shutdown()
+        # Execute the notifications queued
+        self.sb_idl.notify_handler.notify_loop()
 
     def test_chassis_create_event(self):
         self._test_chassis_helper('create', self.row_json)
