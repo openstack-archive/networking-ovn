@@ -21,6 +21,7 @@ from neutron_lib import constants
 from neutron_lib.plugins import directory
 from ovs.db import idl as ovs_idl
 from ovs import poller
+from ovs.stream import Stream
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -374,8 +375,18 @@ class TestOvnConnection(base.TestCase):
             mock_helper.register_all.assert_called_once_with()
 
     def test_connection_nb_start(self):
+        ovn_config.cfg.CONF.set_override('ovn_nb_private_key', 'foo-key',
+                                         'ovn')
+        Stream.ssl_set_private_key_file = mock.Mock()
+        Stream.ssl_set_certificate_file = mock.Mock()
+        Stream.ssl_set_ca_cert_file = mock.Mock()
+
         self._test_connection_start(
             schema='OVN_Northbound', table_name=None)
+
+        Stream.ssl_set_private_key_file.assert_called_once_with('foo-key')
+        Stream.ssl_set_certificate_file.assert_not_called()
+        Stream.ssl_set_ca_cert_file.assert_not_called()
 
     def test_connection_sb_start(self):
         self._test_connection_start(

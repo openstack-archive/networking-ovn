@@ -298,15 +298,24 @@ class OvnSbIdl(OvnIdl):
         self.notify_handler.watch_events([self._chassis_event])
 
 
-def _set_ssl_files(schema_name):
+def _check_and_set_ssl_files(schema_name):
     if schema_name == 'OVN_Southbound':
-        Stream.ssl_set_private_key_file(ovn_config.get_ovn_sb_private_key())
-        Stream.ssl_set_certificate_file(ovn_config.get_ovn_sb_certificate())
-        Stream.ssl_set_ca_cert_file(ovn_config.get_ovn_sb_ca_cert())
+        priv_key_file = ovn_config.get_ovn_sb_private_key()
+        cert_file = ovn_config.get_ovn_sb_certificate()
+        ca_cert_file = ovn_config.get_ovn_sb_ca_cert()
     else:
-        Stream.ssl_set_private_key_file(ovn_config.get_ovn_nb_private_key())
-        Stream.ssl_set_certificate_file(ovn_config.get_ovn_nb_certificate())
-        Stream.ssl_set_ca_cert_file(ovn_config.get_ovn_nb_ca_cert())
+        priv_key_file = ovn_config.get_ovn_nb_private_key()
+        cert_file = ovn_config.get_ovn_nb_certificate()
+        ca_cert_file = ovn_config.get_ovn_nb_ca_cert()
+
+    if priv_key_file:
+        Stream.ssl_set_private_key_file(priv_key_file)
+
+    if cert_file:
+        Stream.ssl_set_certificate_file(cert_file)
+
+    if ca_cert_file:
+        Stream.ssl_set_ca_cert_file(ca_cert_file)
 
 
 class OvnBaseConnection(connection.Connection):
@@ -316,7 +325,7 @@ class OvnBaseConnection(connection.Connection):
         # The implementation of this function is same as the base class method
         # without the enable_connection_uri() called (since ovs-vsctl won't
         # exist on the controller node when using the reference architecture).
-        _set_ssl_files(self.schema_name)
+        _check_and_set_ssl_files(self.schema_name)
         try:
             helper = idlutils._get_schema_helper(self.connection,
                                                  self.schema_name)
