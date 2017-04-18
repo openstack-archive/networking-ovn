@@ -769,3 +769,8 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             self, expected_status=constants.FLOATINGIP_STATUS_DOWN):
         super(OVNL3ExtrarouteTests, self).\
             test_floatingip_update_to_same_port_id_twice(expected_status)
+
+    def test_floatingip_update_subnet_gateway_disabled(
+            self, expected_status=constants.FLOATINGIP_STATUS_DOWN):
+        super(OVNL3ExtrarouteTests, self).\
+            test_floatingip_update_subnet_gateway_disabled(expected_status)

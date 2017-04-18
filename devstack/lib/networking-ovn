@@ -192,11 +192,6 @@ function configure_ovn_plugin {
     if is_service_enabled n-cpu ; then
         iniset $NOVA_CONF DEFAULT force_config_drive True
     fi
-
-    if is_service_enabled q-qos ; then
-        NEUTRON_CONF=/etc/neutron/neutron.conf
-        iniset $NEUTRON_CONF qos notification_drivers ovn-qos
-    fi
 }
 
 # init_ovn() - Initialize databases, etc.

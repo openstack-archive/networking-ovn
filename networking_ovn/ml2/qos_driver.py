@@ -12,29 +12,57 @@
 
 from oslo_log import log as logging
 
+from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
 from neutron_lib import context as n_context
 from neutron_lib.plugins import directory
 
+from neutron.common import constants as n_consts
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.plugins.ml2 import plugin as ml2_plugin
-from neutron.services.qos.notification_drivers import qos_base
+from neutron.services.qos.drivers import base
+from neutron.services.qos import qos_consts
 
 from networking_ovn._i18n import _LI
-
+from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
+OVN_QOS = 'qos'
+SUPPORTED_RULES = {
+    qos_consts.RULE_TYPE_BANDWIDTH_LIMIT: {
+        qos_consts.MAX_KBPS: {
+            'type:range': [0, n_consts.DB_INTEGER_MAX_VALUE]},
+        qos_consts.MAX_BURST: {
+            'type:range': [0, n_consts.DB_INTEGER_MAX_VALUE]}
+    },
+}
 
-class OVNQosNotificationDriver(qos_base.QosServiceNotificationDriverBase):
+VIF_TYPES = [portbindings.VIF_TYPE_OVS, portbindings.VIF_TYPE_VHOST_USER]
+VNIC_TYPES = [portbindings.VNIC_NORMAL]
+
+
+class OVNQosNotificationDriver(base.DriverBase):
     """OVN notification driver for QoS."""
 
-    def __init__(self):
+    def __init__(self, name='OVNQosDriver',
+                 vif_types=VIF_TYPES,
+                 vnic_types=VNIC_TYPES,
+                 supported_rules=SUPPORTED_RULES,
+                 requires_rpc_notifications=False):
+        super(OVNQosNotificationDriver, self).__init__(
+            name, vif_types, vnic_types, supported_rules,
+            requires_rpc_notifications)
         self._driver_property = None
 
-    def get_description(self):
-        return "OVN notification driver"
+    @staticmethod
+    def create():
+        return OVNQosNotificationDriver()
+
+    @property
+    def is_loaded(self):
+        return OVN_QOS in cfg.CONF.ml2.extension_drivers
 
     @property
     def _driver(self):

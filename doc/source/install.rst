@@ -129,15 +129,6 @@ primary node. See the :ref:`faq` for more information.
         ...
         core_plugin = neutron.plugins.ml2.plugin.Ml2Plugin
 
-   * If the QoS service is enabled then you also need to enable the OVN QoS
-     notification driver.
-
-     .. code-block:: ini
-
-        [qos]
-        ...
-        notification_drivers = ovn-qos
-
    * Enable the OVN layer-3 service.
 
      .. code-block:: ini

@@ -98,6 +98,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             LOG.warning(_LW('Firewall driver configuration is ignored'))
         self._setup_vif_port_bindings()
         self.subscribe()
+        qos_driver.OVNQosNotificationDriver.create()
         self.qos_driver = qos_driver.OVNQosDriver(self)
         self.trunk_driver = trunk_driver.OVNTrunkDriver.create(self)
 
