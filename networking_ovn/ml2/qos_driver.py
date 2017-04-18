@@ -117,9 +117,9 @@ class OVNQosDriver(object):
         for rule in all_rules:
             if isinstance(rule, qos_rule.QosBandwidthLimitRule):
                 if rule.max_kbps:
-                    options['policing_rate'] = str(rule.max_kbps)
+                    options['qos_max_rate'] = str(rule.max_kbps * 1000)
                 if rule.max_burst_kbps:
-                    options['policing_burst'] = str(rule.max_burst_kbps)
+                    options['qos_burst'] = str(rule.max_burst_kbps * 1000)
         return options
 
     def get_qos_options(self, port):

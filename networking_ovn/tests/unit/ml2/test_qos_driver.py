@@ -62,7 +62,7 @@ class TestOVNQosDriver(base.BaseTestCase):
         self.policy = self._create_fake_policy()
         self.port = self._create_fake_port()
         self.rule = self._create_bw_limit_rule()
-        self.expected = {'policing_rate': '1', 'policing_burst': '100'}
+        self.expected = {'qos_max_rate': '1000', 'qos_burst': '100000'}
 
     def _create_bw_limit_rule(self):
         rule_obj = qos_rule.QosBandwidthLimitRule()
