@@ -16,10 +16,11 @@
 import mock
 import netaddr
 
-from networking_ovn.tests.functional import base
-from neutron.agent.ovsdb.native import idlutils
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
+from ovsdbapp.backend.ovs_idl import idlutils
+
+from networking_ovn.tests.functional import base
 
 
 class TestNBDbResources(base.TestOVNFunctionalBase):

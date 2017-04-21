@@ -21,9 +21,10 @@ from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import uuidutils
+from ovsdbapp.backend.ovs_idl import command
+from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import transaction
 
-from neutron.agent.ovsdb import impl_idl
-from neutron.agent.ovsdb.native import commands
 from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
@@ -37,7 +38,7 @@ PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
 LOG = log.getLogger(__name__)
 
 
-class AddFakeChassisCommand(commands.BaseCommand):
+class AddFakeChassisCommand(command.BaseCommand):
     """Add a fake chassis in OVN SB DB for functional test."""
 
     def __init__(self, api, name, ip, **columns):
@@ -153,9 +154,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #     ML2 OVN driver scope to test scenarios like ovn_nb_sync.
         while num_attempts < 3:
             try:
-                self.monitor_nb_idl_con = ovsdb_monitor.OvnBaseConnection(
+                _idlnb = ovsdb_monitor.BaseOvnIdl.from_server(
                     self.ovsdb_server_mgr.get_ovsdb_connection_path(),
-                    60, 'OVN_Northbound')
+                    'OVN_Northbound')
+                self.monitor_nb_idl_con = connection.Connection(
+                    idl=_idlnb, timeout=60)
                 self.monitor_nb_idl_con.start()
                 self.monitor_nb_db_idl = self.monitor_nb_idl_con.idl
                 break
@@ -172,10 +175,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #  - Update chassis columns etc.
         while num_attempts < 3:
             try:
-                self.monitor_sb_idl_con = ovsdb_monitor.OvnBaseConnection(
-                    self.ovsdb_server_mgr.get_ovsdb_connection_path(
-                        db_type='sb'),
-                    60, 'OVN_Southbound')
+                _idlsb = ovsdb_monitor.BaseOvnIdl.from_server(
+                    self.ovsdb_server_mgr.get_ovsdb_connection_path('sb'),
+                    'OVN_Southbound')
+                self.monitor_sb_idl_con = connection.Connection(
+                    idl=_idlsb, timeout=60)
                 self.monitor_sb_idl_con.start()
                 self.monitor_sb_db_idl = self.monitor_sb_idl_con.idl
                 break
@@ -195,13 +199,13 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
     def nb_idl_transaction(self, fake_api, check_error=False, log_errors=True,
                            **kwargs):
-        return impl_idl.Transaction(fake_api, self.monitor_nb_idl_con, 60,
-                                    check_error, log_errors)
+        return transaction.Transaction(fake_api, self.monitor_nb_idl_con, 60,
+                                       check_error, log_errors)
 
     def sb_idl_transaction(self, fake_api, check_error=False, log_errors=True,
                            **kwargs):
-        return impl_idl.Transaction(fake_api, self.monitor_sb_idl_con, 60,
-                                    check_error, log_errors)
+        return transaction.Transaction(fake_api, self.monitor_sb_idl_con, 60,
+                                       check_error, log_errors)
 
     def restart(self):
         if self.ovsdb_server_mgr:

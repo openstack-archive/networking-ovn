@@ -14,6 +14,7 @@
 
 import copy
 import mock
+import os
 
 from oslo_utils import uuidutils
 
@@ -22,6 +23,7 @@ from neutron_lib.plugins import directory
 from ovs.db import idl as ovs_idl
 from ovs import poller
 from ovs.stream import Stream
+from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import config as ovn_config
@@ -29,6 +31,11 @@ from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
+basedir = os.path.dirname(os.path.abspath(__file__))
+schema_files = {
+    'OVN_Northbound': os.path.join(basedir, 'schemas', 'ovn-nb.ovsschema'),
+    'OVN_Southbound': os.path.join(basedir, 'schemas', 'ovn-sb.ovsschema'),
+}
 
 OVN_NB_SCHEMA = {
     "name": "OVN_Northbound", "version": "3.0.0",
@@ -135,8 +142,8 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertFalse(self.driver.set_port_status_up.called)
         self.assertFalse(self.driver.set_port_status_down.called)
 
-    def test_post_initialize(self):
-        self.idl.post_initialize(self.driver)
+    def test_post_connect(self):
+        self.idl.post_connect()
         self.assertIsNone(self.idl._lsp_create_up_event)
         self.assertIsNone(self.idl._lsp_create_down_event)
 
@@ -213,7 +220,7 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.sb_idl = ovsdb_monitor.OvnSbIdl(self.driver, "remote", sb_helper)
         self.sb_idl.lock_name = self.sb_idl.event_lock_name
         self.sb_idl.has_lock = True
-        self.sb_idl.post_initialize(self.driver)
+        self.sb_idl.post_connect()
         self.chassis_table = self.sb_idl.tables.get('Chassis')
         self.driver.update_segment_host_mapping = mock.Mock()
         self.l3_plugin = directory.get_plugin(constants.L3)
@@ -305,74 +312,52 @@ class TestOvnDbNotifyHandler(base.TestCase):
         self.handler.shutdown()
 
 
-class TestOvnBaseConnection(base.TestCase):
-
-    def setUp(self):
-        super(TestOvnBaseConnection, self).setUp()
-
-    @mock.patch.object(idlutils, 'get_schema_helper')
-    def testget_schema_helper_success(self, mock_gsh):
-        mock_gsh_helper = mock.Mock()
-        mock_gsh.side_effect = [mock_gsh_helper]
-        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), mock.Mock())
-        helper = ovn_base_connection.get_schema_helper()
-        mock_gsh.assert_called_once_with(ovn_base_connection.connection,
-                                         ovn_base_connection.schema_name)
-        self.assertEqual(mock_gsh_helper, helper)
-
-    @mock.patch.object(idlutils, 'get_schema_helper')
-    def testget_schema_helper_initial_exception(self, mock_gsh):
-        mock_gsh_helper = mock.Mock()
-        mock_gsh.side_effect = [Exception, mock_gsh_helper]
-        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), mock.Mock())
-        helper = ovn_base_connection.get_schema_helper()
-        gsh_call = mock.call(ovn_base_connection.connection,
-                             ovn_base_connection.schema_name)
-        mock_gsh.assert_has_calls([gsh_call, gsh_call])
-        self.assertEqual(mock_gsh_helper, helper)
-
-    @mock.patch.object(idlutils, 'get_schema_helper')
-    def testget_schema_helper_all_exception(self, mock_gsh):
-        mock_gsh.side_effect = RuntimeError
-        ovn_base_connection = ovsdb_monitor.OvnBaseConnection(
-            mock.Mock(), mock.Mock(), mock.Mock())
-        self.assertRaises(RuntimeError, ovn_base_connection.get_schema_helper)
-
+# class TestOvnBaseConnection(base.TestCase):
+#
+# Each test is being deleted, but for reviewers sake I wanted to exaplain why:
+#
+#     @mock.patch.object(idlutils, 'get_schema_helper')
+#     def testget_schema_helper_success(self, mock_gsh):
+#
+# 1. OvnBaseConnection and OvnConnection no longer exist
+# 2. get_schema_helper is no longer a part of the Connection class
+#
+#     @mock.patch.object(idlutils, 'get_schema_helper')
+#     def testget_schema_helper_initial_exception(self, mock_gsh):
+#
+#     @mock.patch.object(idlutils, 'get_schema_helper')
+#     def testget_schema_helper_all_exception(self, mock_gsh):
+#
+# 3. The only reason get_schema_helper had a retry loop was for Neutron's
+#    use case of trying to set the Manager to listen on ptcp:127.0.0.1:6640
+#    if it wasn't already set up. Since that code being removed was the whole
+#    reason to re-implement get_schema_helper here,the exception retry is not
+#    needed and therefor is not a part of ovsdbapp's implementation of
+#    idlutils.get_schema_helper which we now use directly in from_server()
+# 4. These tests now would be testing the various from_server() calls, but
+#    there is almost nothing to test in those except maybe SSL being set up
+#    but that was done below.
 
 class TestOvnConnection(base.TestCase):
 
     def setUp(self):
         super(TestOvnConnection, self).setUp()
 
-    @mock.patch.object(ovsdb_monitor, 'OvnSbIdl')
-    @mock.patch.object(ovsdb_monitor, 'OvnNbIdl')
     @mock.patch.object(idlutils, 'get_schema_helper')
     @mock.patch.object(idlutils, 'wait_for_change')
     def _test_connection_start(self, mock_wfc, mock_gsh,
-                               mock_nb_idl, mock_sb_idl,
-                               schema=None, table_name=None):
-        mock_helper = mock.Mock()
-        mock_gsh.side_effect = [Exception, mock_helper]
-        self.ovn_connection = ovsdb_monitor.OvnConnection(
-            mock.Mock(), mock.Mock(), schema)
+                               idl_class, schema):
+        mock_gsh.return_value = ovs_idl.SchemaHelper(
+            location=schema_files[schema])
+        _idl = idl_class.from_server('punix:/tmp/fake', schema, mock.Mock())
+        self.ovn_connection = connection.Connection(_idl, mock.Mock())
         with mock.patch.object(poller, 'Poller'), \
             mock.patch('threading.Thread'):
-            if table_name:
-                table_name_list = [table_name]
-            else:
-                table_name_list = None
-            self.ovn_connection.start(
-                mock.Mock(), table_name_list=table_name_list)
+            self.ovn_connection.start()
             # A second start attempt shouldn't re-register.
-            self.ovn_connection.start(
-                mock.Mock(), table_name_list=table_name_list)
+            self.ovn_connection.start()
 
-        if table_name:
-            mock_helper.register_table.assert_called_once_with(table_name)
-        else:
-            mock_helper.register_all.assert_called_once_with()
+        self.ovn_connection.thread.start.assert_called_once_with()
 
     def test_connection_nb_start(self):
         ovn_config.cfg.CONF.set_override('ovn_nb_private_key', 'foo-key',
@@ -381,13 +366,13 @@ class TestOvnConnection(base.TestCase):
         Stream.ssl_set_certificate_file = mock.Mock()
         Stream.ssl_set_ca_cert_file = mock.Mock()
 
-        self._test_connection_start(
-            schema='OVN_Northbound', table_name=None)
+        self._test_connection_start(idl_class=ovsdb_monitor.OvnNbIdl,
+                                    schema='OVN_Northbound')
 
         Stream.ssl_set_private_key_file.assert_called_once_with('foo-key')
         Stream.ssl_set_certificate_file.assert_not_called()
         Stream.ssl_set_ca_cert_file.assert_not_called()
 
     def test_connection_sb_start(self):
-        self._test_connection_start(
-            schema='OVN_Southbound', table_name='Chassis')
+        self._test_connection_start(idl_class=ovsdb_monitor.OvnSbIdl,
+                                    schema='OVN_Southbound')

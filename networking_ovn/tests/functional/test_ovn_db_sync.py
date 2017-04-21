@@ -14,8 +14,16 @@
 
 import mock
 
+from neutron.services.segments import db as segments_db
+from neutron.tests.unit.api import test_extensions
+from neutron.tests.unit.extensions import test_extraroute
+from neutron.tests.unit.extensions import test_securitygroup
+from neutron_lib.api.definitions import l3
+from neutron_lib import constants
 from neutron_lib import context
+from neutron_lib.plugins import directory
 from oslo_utils import uuidutils
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import constants as ovn_const
@@ -23,14 +31,6 @@ from networking_ovn.common import utils
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
-from neutron.agent.ovsdb.native import idlutils
-from neutron.services.segments import db as segments_db
-from neutron.tests.unit.api import test_extensions
-from neutron.tests.unit.extensions import test_extraroute
-from neutron.tests.unit.extensions import test_securitygroup
-from neutron_lib.api.definitions import l3
-from neutron_lib import constants
-from neutron_lib.plugins import directory
 
 
 class TestOvnNbSync(base.TestOVNFunctionalBase):

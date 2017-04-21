@@ -15,18 +15,15 @@
 import atexit
 from eventlet import greenthread
 from six.moves import queue
-import tenacity
 import threading
 
 from oslo_log import log
-from ovs.db import idl
-from ovs import poller
 from ovs.stream import Stream
+from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
-from neutron.agent.ovsdb.native import connection
-from neutron.agent.ovsdb.native import idlutils
 from neutron.common import config
 from neutron import worker
 from neutron_lib import constants
@@ -212,11 +209,20 @@ class OvnDbNotifyHandler(object):
             self.notifications.put((match, event, row, updates))
 
 
-class OvnIdl(idl.Idl):
+class BaseOvnIdl(connection.OvsdbIdl):
+    @classmethod
+    def from_server(cls, connection_string, schema_name):
+        _check_and_set_ssl_files(schema_name)
+        helper = idlutils.get_schema_helper(connection_string, schema_name)
+        helper.register_all()
+        return cls(connection_string, helper)
+
+
+class OvnIdl(BaseOvnIdl):
 
     def __init__(self, driver, remote, schema):
         super(OvnIdl, self).__init__(remote, schema)
-
+        self.driver = driver
         self.notify_handler = OvnDbNotifyHandler(driver)
         # ovsdb lock name to acquire.
         # This event lock is used to handle the notify events sent by idl.Idl
@@ -247,7 +253,7 @@ class OvnIdl(idl.Idl):
         LOG.debug("Have the event lock to handle the notify events")
         self.notify_handler.notify(event, row, updates)
 
-    def post_initialize(self, driver):
+    def post_connect(self):
         """Should be called after the idl has been initialized"""
         pass
 
@@ -266,6 +272,16 @@ class OvnNbIdl(OvnIdl):
                                           self._lsp_update_up_event,
                                           self._lsp_update_down_event])
 
+    @classmethod
+    def from_server(cls, connection_string, schema_name, driver):
+
+        _check_and_set_ssl_files(schema_name)
+        helper = idlutils.get_schema_helper(connection_string, schema_name)
+        helper.register_all()
+        _idl = cls(driver, connection_string, helper)
+        _idl.set_lock(_idl.event_lock_name)
+        return _idl
+
     def unwatch_logical_switch_port_create_events(self):
         """Unwatch the logical switch port create events.
 
@@ -280,13 +296,22 @@ class OvnNbIdl(OvnIdl):
         self._lsp_create_up_event = None
         self._lsp_create_down_event = None
 
-    def post_initialize(self, driver):
+    def post_connect(self):
         self.unwatch_logical_switch_port_create_events()
 
 
 class OvnSbIdl(OvnIdl):
 
-    def post_initialize(self, driver):
+    @classmethod
+    def from_server(cls, connection_string, schema_name, driver):
+        _check_and_set_ssl_files(schema_name)
+        helper = idlutils.get_schema_helper(connection_string, schema_name)
+        helper.register_table('Chassis')
+        _idl = cls(driver, connection_string, helper)
+        _idl.set_lock(_idl.event_lock_name)
+        return _idl
+
+    def post_connect(self):
         """Watch Chassis events.
 
         When the ovs idl client connects to the ovsdb-server, it gets
@@ -294,7 +319,7 @@ class OvnSbIdl(OvnIdl):
         because there will be sync up at startup. After that, we will watch
         the events to make notify work.
         """
-        self._chassis_event = ChassisEvent(driver)
+        self._chassis_event = ChassisEvent(self.driver)
         self.notify_handler.watch_events([self._chassis_event])
 
 
@@ -316,70 +341,6 @@ def _check_and_set_ssl_files(schema_name):
 
     if ca_cert_file:
         Stream.ssl_set_ca_cert_file(ca_cert_file)
-
-
-class OvnBaseConnection(connection.Connection):
-
-    def get_schema_helper(self):
-        """Retrieve the schema helper object from OVSDB"""
-        # The implementation of this function is same as the base class method
-        # without the enable_connection_uri() called (since ovs-vsctl won't
-        # exist on the controller node when using the reference architecture).
-        _check_and_set_ssl_files(self.schema_name)
-        try:
-            helper = idlutils.get_schema_helper(self.connection,
-                                                self.schema_name)
-        except Exception:
-            # There is a small window for a race, so retry up to a second
-            @tenacity.retry(wait=tenacity.wait_exponential(multiplier=0.01),
-                            stop=tenacity.stop_after_delay(1),
-                            reraise=True)
-            def do_get_schema_helper():
-                return idlutils.get_schema_helper(self.connection,
-                                                  self.schema_name)
-            helper = do_get_schema_helper()
-
-        return helper
-
-
-class OvnConnection(OvnBaseConnection):
-
-    def get_ovn_idl_cls(self):
-        """Get the ovn idl class
-
-        The connection might be for OVN_Southbound or OVN_Northbound. Return
-        different idl class according to the schema_name of connection.
-        """
-        if self.schema_name == 'OVN_Southbound':
-            return OvnSbIdl
-
-        # Return the ovn nb idl for the backward compatibility
-        return OvnNbIdl
-
-    def start(self, driver, table_name_list=None):
-        # The implementation of this function is same as the base class start()
-        # except that OvnIdl object is created instead of idl.Idl.
-        with self.lock:
-            if self.idl is not None:
-                return
-
-            helper = self.get_schema_helper()
-
-            if table_name_list is None:
-                helper.register_all()
-            else:
-                for table_name in table_name_list:
-                    helper.register_table(table_name)
-
-            idl_cls = self.get_ovn_idl_cls()
-            self.idl = idl_cls(driver, self.connection, helper)
-            self.idl.set_lock(self.idl.event_lock_name)
-            idlutils.wait_for_change(self.idl, self.timeout)
-            self.idl.post_initialize(driver)
-            self.poller = poller.Poller()
-            self.thread = threading.Thread(target=self.run)
-            self.thread.setDaemon(True)
-            self.thread.start()
 
 
 class OvnWorker(worker.NeutronWorker):

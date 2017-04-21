@@ -55,7 +55,8 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
 
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    def test_main_invalid_nb_idl(self, mock_conf, mock_log_setup):
+    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
+    def test_main_invalid_nb_idl(self, mock_con, mock_conf, mock_log_setup):
         with mock.patch('oslo_config.cfg.CONF') as mock_cfg, \
             mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl',
                        side_effect=RuntimeError):
@@ -69,7 +70,8 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
     @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl')
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    def _test_main(self, mock_conf, mock_log_setup, mock_nb_idl,
+    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
+    def _test_main(self, mock_con, mock_conf, mock_log_setup, mock_nb_idl,
                    mock_plugin, mock_manager_init):
         cmd.main()
 

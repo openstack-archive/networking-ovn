@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.agent.ovsdb.native import commands
-from neutron.agent.ovsdb.native import idlutils
+from ovsdbapp.backend.ovs_idl import command
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import utils
@@ -50,7 +50,7 @@ def get_lsp_dhcp_options_uuids(lsp, lsp_name):
     return uuids
 
 
-class AddLSwitchCommand(commands.BaseCommand):
+class AddLSwitchCommand(command.BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddLSwitchCommand, self).__init__(api)
         self.name = name
@@ -73,7 +73,7 @@ class AddLSwitchCommand(commands.BaseCommand):
         self.result = txn.get_insert_uuid(self.result)
 
 
-class DelLSwitchCommand(commands.BaseCommand):
+class DelLSwitchCommand(command.BaseCommand):
     def __init__(self, api, name, if_exists):
         super(DelLSwitchCommand, self).__init__(api)
         self.name = name
@@ -92,7 +92,7 @@ class DelLSwitchCommand(commands.BaseCommand):
         self.api._tables['Logical_Switch'].rows[lswitch.uuid].delete()
 
 
-class LSwitchSetExternalIdCommand(commands.BaseCommand):
+class LSwitchSetExternalIdCommand(command.BaseCommand):
     def __init__(self, api, name, field, value, if_exists):
         super(LSwitchSetExternalIdCommand, self).__init__(api)
         self.name = name
@@ -118,7 +118,7 @@ class LSwitchSetExternalIdCommand(commands.BaseCommand):
         lswitch.external_ids = external_ids
 
 
-class AddLSwitchPortCommand(commands.BaseCommand):
+class AddLSwitchPortCommand(command.BaseCommand):
     def __init__(self, api, lport, lswitch, may_exist, **columns):
         super(AddLSwitchPortCommand, self).__init__(api)
         self.lport = lport
@@ -162,7 +162,7 @@ class AddLSwitchPortCommand(commands.BaseCommand):
         self.result = txn.get_insert_uuid(self.result)
 
 
-class SetLSwitchPortCommand(commands.BaseCommand):
+class SetLSwitchPortCommand(command.BaseCommand):
     def __init__(self, api, lport, if_exists, **columns):
         super(SetLSwitchPortCommand, self).__init__(api)
         self.lport = lport
@@ -208,7 +208,7 @@ class SetLSwitchPortCommand(commands.BaseCommand):
             setattr(port, col, val)
 
 
-class DelLSwitchPortCommand(commands.BaseCommand):
+class DelLSwitchPortCommand(command.BaseCommand):
     def __init__(self, api, lport, lswitch, if_exists):
         super(DelLSwitchPortCommand, self).__init__(api)
         self.lport = lport
@@ -237,7 +237,7 @@ class DelLSwitchPortCommand(commands.BaseCommand):
         self.api._tables['Logical_Switch_Port'].rows[lport.uuid].delete()
 
 
-class AddLRouterCommand(commands.BaseCommand):
+class AddLRouterCommand(command.BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddLRouterCommand, self).__init__(api)
         self.name = name
@@ -257,7 +257,7 @@ class AddLRouterCommand(commands.BaseCommand):
             setattr(row, col, val)
 
 
-class UpdateLRouterCommand(commands.BaseCommand):
+class UpdateLRouterCommand(command.BaseCommand):
     def __init__(self, api, name, if_exists, **columns):
         super(UpdateLRouterCommand, self).__init__(api)
         self.name = name
@@ -280,7 +280,7 @@ class UpdateLRouterCommand(commands.BaseCommand):
             return
 
 
-class DelLRouterCommand(commands.BaseCommand):
+class DelLRouterCommand(command.BaseCommand):
     def __init__(self, api, name, if_exists):
         super(DelLRouterCommand, self).__init__(api)
         self.name = name
@@ -299,7 +299,7 @@ class DelLRouterCommand(commands.BaseCommand):
         self.api._tables['Logical_Router'].rows[lrouter.uuid].delete()
 
 
-class AddLRouterPortCommand(commands.BaseCommand):
+class AddLRouterPortCommand(command.BaseCommand):
     def __init__(self, api, name, lrouter, **columns):
         super(AddLRouterPortCommand, self).__init__(api)
         self.name = name
@@ -332,7 +332,7 @@ class AddLRouterPortCommand(commands.BaseCommand):
             _addvalue_to_list(lrouter, 'ports', lrouter_port)
 
 
-class UpdateLRouterPortCommand(commands.BaseCommand):
+class UpdateLRouterPortCommand(command.BaseCommand):
     def __init__(self, api, name, if_exists, **columns):
         super(UpdateLRouterPortCommand, self).__init__(api)
         self.name = name
@@ -356,7 +356,7 @@ class UpdateLRouterPortCommand(commands.BaseCommand):
             return
 
 
-class DelLRouterPortCommand(commands.BaseCommand):
+class DelLRouterPortCommand(command.BaseCommand):
     def __init__(self, api, name, lrouter, if_exists):
         super(DelLRouterPortCommand, self).__init__(api)
         self.name = name
@@ -383,7 +383,7 @@ class DelLRouterPortCommand(commands.BaseCommand):
         _delvalue_from_list(lrouter, 'ports', lrouter_port)
 
 
-class SetLRouterPortInLSwitchPortCommand(commands.BaseCommand):
+class SetLRouterPortInLSwitchPortCommand(command.BaseCommand):
     def __init__(self, api, lswitch_port, lrouter_port):
         super(SetLRouterPortInLSwitchPortCommand, self).__init__(api)
         self.lswitch_port = lswitch_port
@@ -404,7 +404,7 @@ class SetLRouterPortInLSwitchPortCommand(commands.BaseCommand):
         setattr(port, 'addresses', 'router')
 
 
-class AddACLCommand(commands.BaseCommand):
+class AddACLCommand(command.BaseCommand):
     def __init__(self, api, lswitch, lport, **columns):
         super(AddACLCommand, self).__init__(api)
         self.lswitch = lswitch
@@ -426,7 +426,7 @@ class AddACLCommand(commands.BaseCommand):
         _addvalue_to_list(lswitch, 'acls', row.uuid)
 
 
-class DelACLCommand(commands.BaseCommand):
+class DelACLCommand(command.BaseCommand):
     def __init__(self, api, lswitch, lport, if_exists):
         super(DelACLCommand, self).__init__(api)
         self.lswitch = lswitch
@@ -454,7 +454,7 @@ class DelACLCommand(commands.BaseCommand):
         _updatevalues_in_list(lswitch, 'acls', old_values=acls_to_del)
 
 
-class UpdateACLsCommand(commands.BaseCommand):
+class UpdateACLsCommand(command.BaseCommand):
     def __init__(self, api, lswitch_names, port_list, acl_new_values_dict,
                  need_compare=True, is_add_acl=True):
         """This command updates the acl list for the logical switches
@@ -609,7 +609,7 @@ class UpdateACLsCommand(commands.BaseCommand):
                                   old_values=acl_del_objs)
 
 
-class AddStaticRouteCommand(commands.BaseCommand):
+class AddStaticRouteCommand(command.BaseCommand):
     def __init__(self, api, lrouter, **columns):
         super(AddStaticRouteCommand, self).__init__(api)
         self.lrouter = lrouter
@@ -629,7 +629,7 @@ class AddStaticRouteCommand(commands.BaseCommand):
         _addvalue_to_list(lrouter, 'static_routes', row.uuid)
 
 
-class DelStaticRouteCommand(commands.BaseCommand):
+class DelStaticRouteCommand(command.BaseCommand):
     def __init__(self, api, lrouter, ip_prefix, nexthop, if_exists):
         super(DelStaticRouteCommand, self).__init__(api)
         self.lrouter = lrouter
@@ -657,7 +657,7 @@ class DelStaticRouteCommand(commands.BaseCommand):
                 break
 
 
-class AddAddrSetCommand(commands.BaseCommand):
+class AddAddrSetCommand(command.BaseCommand):
     def __init__(self, api, name, may_exist, **columns):
         super(AddAddrSetCommand, self).__init__(api)
         self.name = name
@@ -676,7 +676,7 @@ class AddAddrSetCommand(commands.BaseCommand):
             setattr(row, col, val)
 
 
-class DelAddrSetCommand(commands.BaseCommand):
+class DelAddrSetCommand(command.BaseCommand):
     def __init__(self, api, name, if_exists):
         super(DelAddrSetCommand, self).__init__(api)
         self.name = name
@@ -696,7 +696,7 @@ class DelAddrSetCommand(commands.BaseCommand):
         self.api._tables['Address_Set'].rows[addrset.uuid].delete()
 
 
-class UpdateAddrSetCommand(commands.BaseCommand):
+class UpdateAddrSetCommand(command.BaseCommand):
     def __init__(self, api, name, addrs_add, addrs_remove, if_exists):
         super(UpdateAddrSetCommand, self).__init__(api)
         self.name = name
@@ -721,7 +721,7 @@ class UpdateAddrSetCommand(commands.BaseCommand):
             old_values=self.addrs_remove)
 
 
-class UpdateAddrSetExtIdsCommand(commands.BaseCommand):
+class UpdateAddrSetExtIdsCommand(command.BaseCommand):
     def __init__(self, api, name, external_ids, if_exists):
         super(UpdateAddrSetExtIdsCommand, self).__init__(api)
         self.name = name
@@ -746,7 +746,7 @@ class UpdateAddrSetExtIdsCommand(commands.BaseCommand):
         addrset.external_ids = addrset_external_ids
 
 
-class AddDHCPOptionsCommand(commands.BaseCommand):
+class AddDHCPOptionsCommand(command.BaseCommand):
     def __init__(self, api, subnet_id, port_id=None, may_exists=True,
                  **columns):
         super(AddDHCPOptionsCommand, self).__init__(api)
@@ -783,7 +783,7 @@ class AddDHCPOptionsCommand(commands.BaseCommand):
             self.result = txn.get_insert_uuid(self.result)
 
 
-class DelDHCPOptionsCommand(commands.BaseCommand):
+class DelDHCPOptionsCommand(command.BaseCommand):
     def __init__(self, api, row_uuid, if_exists=True):
         super(DelDHCPOptionsCommand, self).__init__(api)
         self.if_exists = if_exists
@@ -799,7 +799,7 @@ class DelDHCPOptionsCommand(commands.BaseCommand):
         self.api._tables['DHCP_Options'].rows[self.row_uuid].delete()
 
 
-class AddNATRuleInLRouterCommand(commands.BaseCommand):
+class AddNATRuleInLRouterCommand(command.BaseCommand):
     # TODO(chandrav): Add unit tests, bug #1638715.
     def __init__(self, api, lrouter, **columns):
         super(AddNATRuleInLRouterCommand, self).__init__(api)
@@ -824,7 +824,7 @@ class AddNATRuleInLRouterCommand(commands.BaseCommand):
         setattr(lrouter, 'nat', nat)
 
 
-class DeleteNATRuleInLRouterCommand(commands.BaseCommand):
+class DeleteNATRuleInLRouterCommand(command.BaseCommand):
     # TODO(chandrav): Add unit tests, bug #1638715.
     def __init__(self, api, lrouter, type, logical_ip, external_ip,
                  if_exists):
@@ -861,7 +861,7 @@ class DeleteNATRuleInLRouterCommand(commands.BaseCommand):
         setattr(lrouter, 'nat', nats)
 
 
-class SetNATRuleInLRouterCommand(commands.BaseCommand):
+class SetNATRuleInLRouterCommand(command.BaseCommand):
     def __init__(self, api, lrouter, nat_rule_uuid, **columns):
         super(SetNATRuleInLRouterCommand, self).__init__(api)
         self.lrouter = lrouter
@@ -885,7 +885,7 @@ class SetNATRuleInLRouterCommand(commands.BaseCommand):
                 break
 
 
-class AddNatIpToLRPortPeerOptionsCommand(commands.BaseCommand):
+class AddNatIpToLRPortPeerOptionsCommand(command.BaseCommand):
     # TODO(chandrav): Add unit tests, bug #1638715.
     def __init__(self, api, lport, nat_ip):
         super(AddNatIpToLRPortPeerOptionsCommand, self).__init__(api)
@@ -917,7 +917,7 @@ class AddNatIpToLRPortPeerOptionsCommand(commands.BaseCommand):
         lport.options = options
 
 
-class DeleteNatIpFromLRPortPeerOptionsCommand(commands.BaseCommand):
+class DeleteNatIpFromLRPortPeerOptionsCommand(command.BaseCommand):
     # TODO(chandrav): Add unit tests, bug #1638715.
     def __init__(self, api, lport, nat_ip):
         super(DeleteNatIpFromLRPortPeerOptionsCommand, self).__init__(api)

@@ -66,14 +66,16 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def _ovn(self):
         if self._nb_ovn_idl is None:
             LOG.info("Getting OvsdbNbOvnIdl")
-            self._nb_ovn_idl = impl_idl_ovn.OvsdbNbOvnIdl(self)
+            conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbNbOvnIdl)
+            self._nb_ovn_idl = impl_idl_ovn.OvsdbNbOvnIdl(conn)
         return self._nb_ovn_idl
 
     @property
     def _sb_ovn(self):
         if self._sb_ovn_idl is None:
             LOG.info("Getting OvsdbSbOvnIdl")
-            self._sb_ovn_idl = impl_idl_ovn.OvsdbSbOvnIdl(self)
+            conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbSbOvnIdl)
+            self._sb_ovn_idl = impl_idl_ovn.OvsdbSbOvnIdl(conn)
         return self._sb_ovn_idl
 
     @property

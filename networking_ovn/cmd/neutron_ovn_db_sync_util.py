@@ -105,7 +105,8 @@ def main():
         return
 
     try:
-        ovn_api = impl_idl_ovn.OvsdbNbOvnIdl(None)
+        conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbNbOvnIdl)
+        ovn_api = impl_idl_ovn.OvsdbNbOvnIdl(conn)
     except RuntimeError:
         LOG.error('Invalid --ovn-ovn_nb_connection parameter provided.')
         return
