@@ -45,7 +45,7 @@ class TestACLs(base.TestCase):
             'cidr': '1.1.1.0/24',
         }).info()
         patcher = mock.patch(
-            'neutron.agent.ovsdb.native.idlutils.row_by_value',
+            'ovsdbapp.backend.ovs_idl.idlutils.row_by_value',
             lambda *args, **kwargs: mock.MagicMock())
         patcher.start()
 
@@ -318,7 +318,7 @@ class TestACLs(base.TestCase):
             match='outport == port-id1 && ip4 && (ip4.src == fake_ip)')
         lswitch_obj = mock.Mock(
             name='neutron-lswitch-1', acls=[acl1, acl2, acl3])
-        with mock.patch('neutron.agent.ovsdb.native.idlutils.row_by_value',
+        with mock.patch('ovsdbapp.backend.ovs_idl.idlutils.row_by_value',
                         return_value=lswitch_obj):
             update_cmd_del_acl = cmd.UpdateACLsCommand(self.driver._nb_ovn,
                                                        [lswitch_name],

@@ -14,9 +14,9 @@ from neutron_lib import exceptions as n_exc
 from oslo_log import log
 import tenacity
 
-from neutron.agent.ovsdb import impl_idl
 from neutron.agent.ovsdb.native import idlutils
 from neutron_lib.utils import helpers
+from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 
 from networking_ovn._i18n import _, _LI
 from networking_ovn.common import config as cfg
@@ -105,10 +105,10 @@ class OvsdbNbOvnIdl(ovn_api.API):
         return self.idl.tables
 
     def transaction(self, check_error=False, log_errors=True, **kwargs):
-        return impl_idl.Transaction(self,
-                                    OvsdbNbOvnIdl.ovsdb_connection,
-                                    self.ovsdb_timeout,
-                                    check_error, log_errors)
+        return idl_trans.Transaction(self,
+                                     OvsdbNbOvnIdl.ovsdb_connection,
+                                     self.ovsdb_timeout,
+                                     check_error, log_errors)
 
     def create_lswitch(self, lswitch_name, may_exist=True, **columns):
         return cmd.AddLSwitchCommand(self, lswitch_name,

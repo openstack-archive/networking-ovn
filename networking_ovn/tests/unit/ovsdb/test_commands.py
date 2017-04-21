@@ -14,7 +14,7 @@
 
 import mock
 
-from neutron.agent.ovsdb.native import idlutils
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
