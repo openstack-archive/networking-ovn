@@ -37,6 +37,7 @@ from neutron.tests.unit.plugins.ml2 import test_plugin
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
+from networking_ovn.ml2 import mech_driver
 from networking_ovn.tests.unit import fakes
 
 
@@ -739,6 +740,51 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'ipv6_address_mode': const.IPV6_SLAAC}
         self._test_add_subnet_dhcp_options_in_ovn(
             subnet, call_get_dhcp_opts=False, call_compose_dhcp_opts=False)
+
+    @mock.patch.object(provisioning_blocks, 'provisioning_complete')
+    def test_notify_dhcp_updated(self, mock_prov_complete):
+        port_id = 'fake-port-id'
+        self.mech_driver._notify_dhcp_updated(port_id)
+        mock_prov_complete.assert_called_once_with(
+            mock.ANY, port_id, resources.PORT,
+            provisioning_blocks.DHCP_ENTITY)
+
+    @mock.patch.object(mech_driver.OVNMechanismDriver,
+                       '_is_port_provisioning_required', lambda *_: True)
+    @mock.patch.object(mech_driver.OVNMechanismDriver, '_notify_dhcp_updated')
+    @mock.patch.object(mech_driver.OVNMechanismDriver, 'get_ovn_port_options')
+    @mock.patch.object(mech_driver.OVNMechanismDriver, 'create_port_in_ovn')
+    def test_create_port_postcommit(self, mock_create_port, mock_ovn_opts,
+                                    mock_notify_dhcp):
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={'status': const.PORT_STATUS_DOWN}).info()
+        fake_ctx = mock.Mock(current=fake_port)
+        fake_opts = 'fake-ovn-opts'
+        mock_ovn_opts.return_value = fake_opts
+
+        self.mech_driver.create_port_postcommit(fake_ctx)
+
+        mock_ovn_opts.assert_called_once_with(fake_port)
+        mock_create_port.assert_called_once_with(fake_port, fake_opts)
+        mock_notify_dhcp.assert_called_once_with(fake_port['id'])
+
+    @mock.patch.object(mech_driver.OVNMechanismDriver,
+                       '_is_port_provisioning_required', lambda *_: True)
+    @mock.patch.object(mech_driver.OVNMechanismDriver, '_notify_dhcp_updated')
+    @mock.patch.object(mech_driver.OVNMechanismDriver, 'update_port')
+    def test_update_port_postcommit(self, mock_update_port,
+                                    mock_notify_dhcp):
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={'status': const.PORT_STATUS_ACTIVE}).info()
+        fake_original_port = fakes.FakePort.create_one_port(
+            attrs={'status': const.PORT_STATUS_DOWN}).info()
+        fake_ctx = mock.Mock(current=fake_port, original=fake_original_port)
+
+        self.mech_driver.update_port_postcommit(fake_ctx)
+
+        mock_update_port.assert_called_once_with(
+            fake_port, fake_original_port)
+        mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):

@@ -585,6 +585,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             provisioning_blocks.L2_AGENT_ENTITY
         )
 
+    def _notify_dhcp_updated(self, port_id):
+        """Notifies Neutron that the DHCP has been update for port."""
+        provisioning_blocks.provisioning_complete(
+            n_context.get_admin_context(), port_id, resources.PORT,
+            provisioning_blocks.DHCP_ENTITY)
+
     def create_port_postcommit(self, context):
         """Create a port.
 
@@ -598,6 +604,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         port = context.current
         ovn_port_info = self.get_ovn_port_options(port)
         self.create_port_in_ovn(port, ovn_port_info)
+        self._notify_dhcp_updated(port['id'])
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
@@ -763,6 +770,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         port = context.current
         original_port = context.original
         self.update_port(port, original_port)
+        self._notify_dhcp_updated(port['id'])
 
     def update_port(self, port, original_port, qos_options=None):
         ovn_port_info = self.get_ovn_port_options(port, qos_options)
