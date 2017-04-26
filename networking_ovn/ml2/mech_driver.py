@@ -413,7 +413,8 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                 dhcp_options['options'] = self._get_ovn_dhcpv4_opts(
                     subnet, network, server_mac=server_mac)
             else:
-                dhcp_options['options'] = self._get_ovn_dhcpv6_opts(subnet)
+                dhcp_options['options'] = self._get_ovn_dhcpv6_opts(
+                    subnet, server_id=server_mac)
 
         return dhcp_options
 
@@ -457,11 +458,12 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
 
         return options
 
-    def _get_ovn_dhcpv6_opts(self, subnet):
+    def _get_ovn_dhcpv6_opts(self, subnet, server_id=None):
         """Returns the DHCPv6 options"""
 
         dhcpv6_opts = {
-            'server_id': n_net.get_random_mac(cfg.CONF.base_mac.split(':'))
+            'server_id': server_id or n_net.get_random_mac(
+                cfg.CONF.base_mac.split(':'))
         }
 
         if subnet['dns_nameservers']:
