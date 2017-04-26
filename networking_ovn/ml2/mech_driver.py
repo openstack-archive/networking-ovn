@@ -18,6 +18,9 @@ import netaddr
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.api import validators
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
@@ -27,9 +30,6 @@ from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 
-from neutron.callbacks import events
-from neutron.callbacks import registry
-from neutron.callbacks import resources
 from neutron.db import provisioning_blocks
 from neutron.extensions import portsecurity as psec
 from neutron.plugins.common import constants as plugin_const
