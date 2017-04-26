@@ -751,7 +751,7 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
         self._start_mock(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._sb_ovn',
             new_callable=mock.PropertyMock,
-            return_value=fakes.FakeOvsdbNbOvnIdl())
+            return_value=fakes.FakeOvsdbSbOvnIdl())
         self._start_mock(
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayScheduler._schedule_gateway',
