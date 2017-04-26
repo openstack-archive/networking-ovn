@@ -283,7 +283,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.assertEqual('flat', e1['network']['provider:network_type'])
         self.assertEqual('public', e1['network']['provider:physical_network'])
         res = self._create_subnet(self.fmt, e1['network']['id'],
-                                  '100.0.0.0/24', gateway_ip='100.0.0.1',
+                                  '100.0.0.0/24', gateway_ip='100.0.0.254',
+                                  allocation_pools=[{'start': '100.0.0.2',
+                                                     'end': '100.0.0.253'}],
                                   enable_dhcp=False)
         e1_s1 = self.deserialize(self.fmt, res)
 
@@ -345,6 +347,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.l3_plugin.update_floatingip(
             self.context, r1_f2['id'], {'floatingip': {
                 'port_id': n1_port_dict['p2']}})
+
+        # update External subnet gateway ip
+        data = {'subnet': {'gateway_ip': '100.0.0.1'}}
+        subnet_req = self.new_update_request(
+            'subnets', data, e1_s1['subnet']['id'])
+        subnet_req.get_response(self.api)
 
         # Static routes
         self.create_lrouter_routes.append(('neutron-' + r1['id'],

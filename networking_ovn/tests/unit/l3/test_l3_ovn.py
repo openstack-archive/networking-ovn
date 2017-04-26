@@ -786,6 +786,7 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             service_plugins=service_plugins)
         l3_gw_mgr = test_l3_gw.TestExtensionManager()
         test_extensions.setup_extensions_middleware(l3_gw_mgr)
+        self.l3_inst = directory.get_plugin(constants.L3)
         self._start_mock(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
@@ -817,3 +818,11 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             self, expected_status=constants.FLOATINGIP_STATUS_DOWN):
         super(OVNL3ExtrarouteTests, self).\
             test_floatingip_update_subnet_gateway_disabled(expected_status)
+
+    def test_update_subnet_gateway_for_external_net(self):
+        super(OVNL3ExtrarouteTests, self). \
+            test_update_subnet_gateway_for_external_net()
+        self.l3_inst._ovn.add_static_route.assert_called_once_with(
+            'neutron-fake_device', ip_prefix='0.0.0.0/0', nexthop='120.0.0.2')
+        self.l3_inst._ovn.delete_static_route.assert_called_once_with(
+            'neutron-fake_device', ip_prefix='0.0.0.0/0', nexthop='120.0.0.1')

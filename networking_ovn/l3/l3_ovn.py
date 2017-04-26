@@ -15,6 +15,9 @@
 import netaddr
 
 from neutron_lib.api.definitions import l3
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
@@ -37,6 +40,7 @@ from networking_ovn.ovsdb import impl_idl_ovn
 LOG = log.getLogger(__name__)
 
 
+@registry.has_registry_receivers
 class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         common_db_mixin.CommonDbMixin,
                         extraroute_db.ExtraRoute_dbonly_mixin,
@@ -690,3 +694,30 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     r_options['redirect-chassis'] = chassis
                     txn.add(self._ovn.update_lrouter_port(g_name,
                                                           options=r_options))
+
+    @staticmethod
+    @registry.receives(resources.SUBNET_GATEWAY,
+                       [events.BEFORE_UPDATE, events.AFTER_UPDATE])
+    def _subnet_gateway_ip_update(resource, event, trigger, **kwargs):
+        l3plugin = directory.get_plugin(n_const.L3)
+        if not l3plugin:
+            return
+        context = kwargs['context']
+        network_id = kwargs['network_id']
+        subnet_id = kwargs['subnet_id']
+        gw_ports = l3plugin._plugin.get_ports(context, filters={
+            'network_id': [network_id],
+            'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW],
+            'fixed_ips': {'subnet_id': [subnet_id]},
+        })
+        router_ids = set(port['device_id'] for port in gw_ports)
+        gateway_ip = l3plugin._plugin.get_subnet(context, subnet_id). \
+            get('gateway_ip')
+        add = []
+        remove = []
+        if event == events.AFTER_UPDATE:
+            add = [{'destination': '0.0.0.0/0', 'nexthop': gateway_ip}]
+        elif event == events.BEFORE_UPDATE:
+            remove = [{'destination': '0.0.0.0/0', 'nexthop': gateway_ip}]
+        for router_id in router_ids:
+            l3plugin._update_lrouter_routes(None, router_id, add, remove)
