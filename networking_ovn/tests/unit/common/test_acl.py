@@ -333,7 +333,7 @@ class TestACLs(base.TestCase):
             self.assertEqual(expected_acls, acl_del_dict)
             self.assertEqual({}, acl_add_dict)
 
-    def test_acl_protocol_and_ports_for_tcp_and_udp_number(self):
+    def test_acl_protocol_and_ports_for_tcp_udp_and_sctp_number(self):
         sg_rule = {'port_range_min': None,
                    'port_range_max': None}
 
@@ -344,6 +344,10 @@ class TestACLs(base.TestCase):
         sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
         match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
         self.assertEqual(' && udp', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_SCTP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && sctp', match)
 
     def test_acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
         sg_rule = {'port_range_min': None,
@@ -398,6 +402,41 @@ class TestACLs(base.TestCase):
             sg_rule['port_range_max'] = pmax
             match = ovn_acl.acl_protocol_and_ports(sg_rule, icmp)
             self.assertEqual(expected_match, match)
+
+    def test_acl_protocol_and_ports_protocol_not_supported(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+        sg_rule['protocol'] = '1234567'
+        self.assertRaises(ovn_acl.ProtocolNotSupported,
+                          ovn_acl.acl_protocol_and_ports, sg_rule, None)
+
+    def test_acl_protocol_and_ports_protocol_range(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+
+        # For more common protocols such as TCP, UDP and ICMP, we
+        # prefer to use the protocol name in the match string instead of
+        # the protocol number (e.g: the word "tcp" instead of "ip.proto
+        # == 6"). This improves the readability/debbugability when
+        # troubleshooting the ACLs
+        skip_protos = (const.PROTO_NUM_TCP, const.PROTO_NUM_UDP,
+                       const.PROTO_NUM_SCTP, const.PROTO_NUM_ICMP,
+                       const.PROTO_NUM_IPV6_ICMP)
+
+        for proto in range(256):
+            if proto in skip_protos:
+                continue
+            sg_rule['protocol'] = str(proto)
+            match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+            self.assertEqual(' && ip.proto == %s' % proto, match)
+
+    def test_acl_protocol_and_ports_name_to_number(self):
+        sg_rule = {'port_range_min': None,
+                   'port_range_max': None}
+
+        sg_rule['protocol'] = str(const.PROTO_NAME_OSPF)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && ip.proto == 89', match)
 
     def test_acl_direction(self):
         sg_rule = fakes.FakeSecurityGroupRule.create_one_security_group_rule({

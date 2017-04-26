@@ -15,10 +15,41 @@
 import netaddr
 
 from neutron_lib import constants as const
+from neutron_lib import exceptions as n_exceptions
 from oslo_config import cfg
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
+
+# Convert the protocol number from integer to strings because that's
+# how Neutron will pass it to us
+PROTOCOL_NAME_TO_NUM_MAP = {k: str(v) for k, v in
+                            const.IP_PROTOCOL_MAP.items()}
+# Create a map from protocol numbers to names
+PROTOCOL_NUM_TO_NAME_MAP = {v: k for k, v in
+                            PROTOCOL_NAME_TO_NUM_MAP.items()}
+
+# Group of transport protocols supported
+TRANSPORT_PROTOCOLS = (const.PROTO_NAME_TCP,
+                       const.PROTO_NAME_UDP,
+                       const.PROTO_NAME_SCTP,
+                       PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_TCP],
+                       PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_UDP],
+                       PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_SCTP])
+
+# Group of versions of the ICMP protocol supported
+ICMP_PROTOCOLS = (const.PROTO_NAME_ICMP,
+                  const.PROTO_NAME_IPV6_ICMP,
+                  const.PROTO_NAME_IPV6_ICMP_LEGACY,
+                  PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_ICMP],
+                  PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_IPV6_ICMP],
+                  PROTOCOL_NAME_TO_NUM_MAP[const.PROTO_NAME_IPV6_ICMP_LEGACY])
+
+
+class ProtocolNotSupported(n_exceptions.NeutronException):
+    message = _('The protocol "%(protocol)s" is not supported. Valid '
+                'protocols are: %(valid_protocols); or protocol '
+                'numbers ranging from 0 to 255.')
 
 
 def is_sg_enabled():
@@ -56,47 +87,50 @@ def acl_remote_ip_prefix(r, ip_version):
                                 r['remote_ip_prefix'])
 
 
+def _get_protocol_number(protocol):
+    if protocol is None:
+        return
+    try:
+        protocol = int(protocol)
+        if protocol >= 0 and protocol <= 255:
+            return str(protocol)
+    except (ValueError, TypeError):
+        protocol = PROTOCOL_NAME_TO_NUM_MAP.get(protocol)
+        if protocol is not None:
+            return protocol
+
+    raise ProtocolNotSupported(
+        protocol=protocol, valid_protocols=', '.join(PROTOCOL_NAME_TO_NUM_MAP))
+
+
 def acl_protocol_and_ports(r, icmp):
-    protocol = None
     match = ''
-    if r['protocol'] in ('tcp', 'udp',
-                         str(const.PROTO_NUM_TCP),
-                         str(const.PROTO_NUM_UDP)):
-        # OVN expects the protocol name not number
-        if r['protocol'] == str(const.PROTO_NUM_TCP):
-            protocol = 'tcp'
-        elif r['protocol'] == str(const.PROTO_NUM_UDP):
-            protocol = 'udp'
-        else:
-            protocol = r['protocol']
-        port_match = '%s.dst' % protocol
-    elif r.get('protocol') in (const.PROTO_NAME_ICMP,
-                               const.PROTO_NAME_IPV6_ICMP,
-                               const.PROTO_NAME_IPV6_ICMP_LEGACY,
-                               str(const.PROTO_NUM_ICMP),
-                               str(const.PROTO_NUM_IPV6_ICMP)):
-        protocol = icmp
-        port_match = '%s.type' % icmp
-    if protocol:
+    protocol = _get_protocol_number(r.get('protocol'))
+    if protocol is None:
+        return match
+
+    min_port = r.get('port_range_min')
+    max_port = r.get('port_range_max')
+    if protocol in TRANSPORT_PROTOCOLS:
+        protocol = PROTOCOL_NUM_TO_NAME_MAP[protocol]
         match += ' && %s' % protocol
-        # If min or max are set to -1, then we just treat it like it wasn't
-        # specified at all and don't match on it.
-        min_port = -1 if r['port_range_min'] is None else r['port_range_min']
-        max_port = -1 if r['port_range_max'] is None else r['port_range_max']
-        if protocol != icmp:
-            if (min_port > -1 and min_port == max_port):
-                match += ' && %s == %d' % (port_match, min_port)
-            else:
-                if min_port > -1:
-                    match += ' && %s >= %d' % (port_match, min_port)
-                if max_port > -1:
-                    match += ' && %s <= %d' % (port_match, max_port)
-        # It's invalid to create security group rule for ICMP and ICMPv6 with
-        # ICMP(v6) code but without ICMP(v6) type.
-        elif protocol == icmp and min_port > -1:
-            match += ' && %s == %d' % (port_match, min_port)
-            if max_port > -1:
-                match += ' && %s.code == %s' % (icmp, max_port)
+        if min_port is not None and min_port == max_port:
+            match += ' && %s.dst == %d' % (protocol, min_port)
+        else:
+            if min_port is not None:
+                match += ' && %s >= %d' % (protocol, min_port)
+            if max_port is not None:
+                match += ' && %s <= %d' % (protocol, max_port)
+    elif protocol in ICMP_PROTOCOLS:
+        protocol = icmp
+        match += ' && %s' % protocol
+        if min_port is not None:
+            match += ' && %s.type == %d' % (protocol, min_port)
+        if max_port is not None:
+            match += ' && %s.code == %d' % (protocol, max_port)
+    else:
+        match += ' && ip.proto == %s' % protocol
+
     return match
 
 
