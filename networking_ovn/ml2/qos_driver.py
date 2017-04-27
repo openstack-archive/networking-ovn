@@ -24,7 +24,6 @@ from neutron.plugins.ml2 import plugin as ml2_plugin
 from neutron.services.qos.drivers import base
 from neutron.services.qos import qos_consts
 
-from networking_ovn._i18n import _LI
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
@@ -90,7 +89,7 @@ class OVNQosDriver(object):
     """Qos driver for OVN"""
 
     def __init__(self, driver):
-        LOG.info(_LI("Starting OVNQosDriver"))
+        LOG.info("Starting OVNQosDriver")
         super(OVNQosDriver, self).__init__()
         self._driver = driver
         self._plugin_property = None

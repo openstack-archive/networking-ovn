@@ -27,7 +27,6 @@ from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 
-from networking_ovn._i18n import _LE, _LI
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions
 from networking_ovn.common import utils
@@ -52,7 +51,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3
 
     def __init__(self):
-        LOG.info(_LI("Starting OVNL3RouterPlugin"))
+        LOG.info("Starting OVNL3RouterPlugin")
         super(OVNL3RouterPlugin, self).__init__()
         self._nb_ovn_idl = None
         self._sb_ovn_idl = None
@@ -62,14 +61,14 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     @property
     def _ovn(self):
         if self._nb_ovn_idl is None:
-            LOG.info(_LI("Getting OvsdbNbOvnIdl"))
+            LOG.info("Getting OvsdbNbOvnIdl")
             self._nb_ovn_idl = impl_idl_ovn.OvsdbNbOvnIdl(self)
         return self._nb_ovn_idl
 
     @property
     def _sb_ovn(self):
         if self._sb_ovn_idl is None:
-            LOG.info(_LI("Getting OvsdbSbOvnIdl"))
+            LOG.info("Getting OvsdbSbOvnIdl")
             self._sb_ovn_idl = impl_idl_ovn.OvsdbSbOvnIdl(self)
         return self._sb_ovn_idl
 
@@ -150,8 +149,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._delete_router_ext_gw(context, router_id, router)
-                LOG.error(_LE('Unable to add external router port %(id)s to'
-                              'lrouter %(name)s'),
+                LOG.error('Unable to add external router port %(id)s to '
+                          'lrouter %(name)s',
                           {'id': port['id'], 'name': lrouter_name})
 
         # 2. Add default route with nexthop as ext_gw_ip
@@ -161,9 +160,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._delete_router_ext_gw(context, router_id, router)
-                LOG.error(_LE('Error updating routes %(route)s in lrouter '
-                              '%(name)s'), {'route': route,
-                                            'name': lrouter_name})
+                LOG.error('Error updating routes %(route)s in lrouter '
+                          '%(name)s', {'route': route, 'name': lrouter_name})
 
         # 3. Add snat rules for tenant networks in lrouter if snat is enabled
         if utils.is_snat_enabled(router):
@@ -176,7 +174,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             except Exception:
                 with excutils.save_and_reraise_exception():
                     self._delete_router_ext_gw(context, router_id, router)
-                    LOG.error(_LE('Error in updating SNAT for lrouter %s'),
+                    LOG.error('Error in updating SNAT for lrouter %s',
                               lrouter_name)
 
     def _delete_router_ext_gw(self, context, router_id, router,
@@ -211,7 +209,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         except Exception:
             with excutils.save_and_reraise_exception():
                 # Delete the logical router
-                LOG.error(_LE('Unable to create lrouter for %s'), router['id'])
+                LOG.error('Unable to create lrouter for %s', router['id'])
                 super(OVNL3RouterPlugin, self).delete_router(context,
                                                              router['id'])
         return router
@@ -284,7 +282,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                             enable_snat=new_snat_state)
         except Exception:
             with excutils.save_and_reraise_exception():
-                LOG.error(_LE('Unable to update lrouter for %s'), id)
+                LOG.error('Unable to update lrouter for %s', id)
                 super(OVNL3RouterPlugin, self).update_router(context, id,
                                                              revert_router)
 
@@ -309,7 +307,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     check_error=True)
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Unable to update lrouter for %s'), id)
+                    LOG.error('Unable to update lrouter for %s', id)
                     super(OVNL3RouterPlugin, self).update_router(context, id,
                                                                  revert_router)
 
@@ -326,8 +324,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 self._update_lrouter_routes(context, id, added, removed)
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Unable to update static routes in lrouter '
-                                  '%s'), id)
+                    LOG.error(
+                        'Unable to update static routes in lrouter %s', id)
                     super(OVNL3RouterPlugin, self).update_router(context, id,
                                                                  revert_router)
 
@@ -476,8 +474,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     utils.ovn_name(router_id)).execute(check_error=True)
                 super(OVNL3RouterPlugin, self).remove_router_interface(
                     context, router_id, router_interface_info)
-                LOG.error(_LE('Error updating snat for subnet %(subnet)s in '
-                          'router %(router)s'),
+                LOG.error('Error updating snat for subnet %(subnet)s in '
+                          'router %(router)s',
                           {'subnet': router_interface_info['subnet_id'],
                            'router': router_id})
 
@@ -531,7 +529,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             with excutils.save_and_reraise_exception():
                 super(OVNL3RouterPlugin, self).add_router_interface(
                     context, router_id, interface_info)
-                LOG.error(_LE('Error is deleting snat'))
+                LOG.error('Error is deleting snat')
 
         return router_interface_info
 
@@ -553,8 +551,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                               n_const.FLOATINGIP_STATUS_ACTIVE)
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Unable to create floating ip in gateway'
-                              'router'))
+                    LOG.error('Unable to create floating ip in gateway router')
         return fip
 
     def delete_floatingip(self, context, id):
@@ -571,8 +568,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                 associate=False)
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Error in disassociating floatingip: %s'),
-                              id)
+                    LOG.error('Error in disassociating floatingip: %s', id)
 
     def update_floatingip(self, context, id, floatingip):
         fip_db = self._get_floatingip(context, id)
@@ -599,8 +595,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 fip_status = n_const.FLOATINGIP_STATUS_DOWN
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Unable to update floating ip in '
-                                  'gateway router'))
+                    LOG.error('Unable to update floating ip in gateway router')
 
         if new_port_id:
             update_fip = {}
@@ -614,8 +609,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 fip_status = n_const.FLOATINGIP_STATUS_ACTIVE
             except Exception:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Unable to update floating ip in '
-                                  'gateway router'))
+                    LOG.error('Unable to update floating ip in gateway router')
 
         if fip_status:
             self.update_floatingip_status(context, id, fip_status)
@@ -639,8 +633,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                     self.update_floatingip_status(
                         context, fip['id'], n_const.FLOATINGIP_STATUS_DOWN)
                 except Exception as e:
-                    LOG.error(_LE('Error in disassociating floatingip %(id)s: '
-                                  '%(error)s'), {'id': fip['id'], 'error': e})
+                    LOG.error('Error in disassociating floatingip %(id)s: '
+                              '%(error)s', {'id': fip['id'], 'error': e})
         return router_ids
 
     def _update_floating_ip_in_ovn(self, context, router_id, update,
@@ -682,7 +676,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                         external_ip=update['external_ip']))
         except Exception:
             with excutils.save_and_reraise_exception():
-                LOG.error(_LE('Unable to update NAT rule in gateway router'))
+                LOG.error('Unable to update NAT rule in gateway router')
 
     def schedule_unhosted_gateways(self):
         valid_chassis_list = self._sb_ovn.get_all_chassis()

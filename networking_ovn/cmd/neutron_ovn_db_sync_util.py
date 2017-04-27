@@ -23,7 +23,6 @@ from neutron import manager
 from neutron import opts as neutron_options
 from neutron.plugins.ml2 import plugin as ml2_plugin
 
-from networking_ovn._i18n import _LI, _LE
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ml2 import mech_driver
 from networking_ovn import ovn_db_sync
@@ -75,16 +74,15 @@ def main():
     try:
         conf(project='neutron')
     except TypeError:
-        LOG.error(_LE('Error parsing the configuration values. '
-                      'Please verify.'))
+        LOG.error('Error parsing the configuration values. Please verify.')
         return
 
     logging.setup(conf, 'neutron_ovn_db_sync_util')
-    LOG.info(_LI('Started Neutron OVN db sync'))
+    LOG.info('Started Neutron OVN db sync')
     mode = ovn_config.get_ovn_neutron_sync_mode()
     if mode not in [ovn_db_sync.SYNC_MODE_LOG, ovn_db_sync.SYNC_MODE_REPAIR]:
-        LOG.error(_LE('Invalid sync mode : ["%s"]. Should be "log" or '
-                      '"repair"'), mode)
+        LOG.error(
+            'Invalid sync mode : ["%s"]. Should be "log" or "repair"', mode)
         return
 
     # Validate and modify core plugin and ML2 mechanism drivers for syncing.
@@ -93,23 +91,23 @@ def main():
         cfg.CONF.core_plugin = (
             'networking_ovn.cmd.neutron_ovn_db_sync_util.Ml2Plugin')
         if not cfg.CONF.ml2.mechanism_drivers:
-            LOG.error(_LE('please use --config-file to specify '
-                          'neutron and ml2 configuration file.'))
+            LOG.error('please use --config-file to specify '
+                      'neutron and ml2 configuration file.')
             return
         if 'ovn' not in cfg.CONF.ml2.mechanism_drivers:
-            LOG.error(_LE('No "ovn" mechanism driver found : "%s".'),
+            LOG.error('No "ovn" mechanism driver found : "%s".',
                       cfg.CONF.ml2.mechanism_drivers)
             return
         cfg.CONF.set_override('mechanism_drivers', ['ovn-sync'], 'ml2')
         conf.service_plugins = ['networking_ovn.l3.l3_ovn.OVNL3RouterPlugin']
     else:
-        LOG.error(_LE('Invalid core plugin : ["%s"].'), cfg.CONF.core_plugin)
+        LOG.error('Invalid core plugin : ["%s"].', cfg.CONF.core_plugin)
         return
 
     try:
         ovn_api = impl_idl_ovn.OvsdbNbOvnIdl(None)
     except RuntimeError:
-        LOG.error(_LE('Invalid --ovn-ovn_nb_connection parameter provided.'))
+        LOG.error('Invalid --ovn-ovn_nb_connection parameter provided.')
         return
 
     manager.init()
@@ -122,29 +120,28 @@ def main():
 
     ctx = context.get_admin_context()
 
-    LOG.info(_LI('Syncing the networks and ports with mode : %s'), mode)
+    LOG.info('Syncing the networks and ports with mode : %s', mode)
     try:
         synchronizer.sync_address_sets(ctx)
     except Exception:
-        LOG.exception(_LE("Error syncing  the Address Sets. Check the "
-                          "--database-connection value again"))
+        LOG.exception("Error syncing the Address Sets. Check the "
+                      "--database-connection value again")
         return
     try:
         synchronizer.sync_networks_ports_and_dhcp_opts(ctx)
     except Exception:
-        LOG.exception(_LE("Error syncing  Networks, Ports and DHCP options "
-                          "for unknown reason please try again"))
+        LOG.exception("Error syncing Networks, Ports and DHCP options "
+                      "for unknown reason please try again")
         return
     try:
         synchronizer.sync_acls(ctx)
     except Exception:
-        LOG.exception(_LE("Error syncing  ACLs for unknown "
-                          "reason please try again"))
+        LOG.exception("Error syncing ACLs for unknown reason please try again")
         return
     try:
         synchronizer.sync_routers_and_rports(ctx)
     except Exception:
-        LOG.exception(_LE("Error syncing  Routers and Router ports "
-                          "please try again"))
+        LOG.exception(
+            "Error syncing Routers and Router ports please try again")
         return
-    LOG.info(_LI('Sync completed'))
+    LOG.info('Sync completed')

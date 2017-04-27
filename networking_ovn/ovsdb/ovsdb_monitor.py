@@ -23,7 +23,6 @@ from ovs.db import idl
 from ovs import poller
 from ovs.stream import Stream
 
-from networking_ovn._i18n import _LE
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
 from neutron.agent.ovsdb.native import connection
@@ -203,7 +202,7 @@ class OvnDbNotifyHandler(object):
             except Exception:
                 # If any unexpected exception happens we don't want the
                 # notify_loop to exit.
-                LOG.exception(_LE('Unexpected exception in notify_loop'))
+                LOG.exception('Unexpected exception in notify_loop')
 
     def notify(self, event, row, updates=None):
         matching = self.matching_events(

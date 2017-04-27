@@ -28,7 +28,6 @@ from neutron.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
-from networking_ovn._i18n import _LE
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional.resources import process
@@ -161,7 +160,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 self.monitor_nb_db_idl = self.monitor_nb_idl_con.idl
                 break
             except Exception:
-                LOG.exception(_LE("Error connecting to the OVN_Northbound DB"))
+                LOG.exception("Error connecting to the OVN_Northbound DB")
                 num_attempts += 1
                 time.sleep(1)
 
@@ -181,7 +180,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 self.monitor_sb_db_idl = self.monitor_sb_idl_con.idl
                 break
             except Exception:
-                LOG.exception(_LE("Error connecting to the OVN_Southbound DB"))
+                LOG.exception("Error connecting to the OVN_Southbound DB")
                 num_attempts += 1
                 time.sleep(1)
 

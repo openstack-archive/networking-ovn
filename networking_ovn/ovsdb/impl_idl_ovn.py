@@ -18,7 +18,7 @@ from neutron.agent.ovsdb.native import idlutils
 from neutron_lib.utils import helpers
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 
-from networking_ovn._i18n import _, _LI
+from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
@@ -45,7 +45,7 @@ def get_ovn_idls(driver, trigger):
         wait=tenacity.wait_exponential(max=180),
         reraise=True)
     def get_ovn_idl_retry(cls, driver, trigger):
-        LOG.info(_LI('Getting %(cls)s for %(trigger)s with retry'),
+        LOG.info('Getting %(cls)s for %(trigger)s with retry',
                  {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
         return cls(driver, trigger)
 

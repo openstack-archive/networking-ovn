@@ -37,7 +37,7 @@ from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
 
-from networking_ovn._i18n import _, _LI, _LW
+from networking_ovn._i18n import _
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
@@ -89,13 +89,13 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         been initialized. No abstract methods defined below will be
         called prior to this method being called.
         """
-        LOG.info(_LI("Starting OVNMechanismDriver"))
+        LOG.info("Starting OVNMechanismDriver")
         self._nb_ovn = None
         self._sb_ovn = None
         self._plugin_property = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
-            LOG.warning(_LW('Firewall driver configuration is ignored'))
+            LOG.warning('Firewall driver configuration is ignored')
         self._setup_vif_port_bindings()
         self.subscribe()
         qos_driver.OVNQosNotificationDriver.create()
@@ -1070,18 +1070,18 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
             # network types. Once bug/1621879 is fixed, refuse to bind
             # ports with unsupported network types.
             if not self._is_network_type_supported(network_type):
-                LOG.info(_LI('Upgrade allowing bind port %(port_id)s with '
-                             'unsupported network type: %(network_type)s'),
+                LOG.info('Upgrade allowing bind port %(port_id)s with '
+                         'unsupported network type: %(network_type)s',
                          {'port_id': port['id'],
                           'network_type': network_type})
 
             if (network_type in ['flat', 'vlan']) and \
                (physical_network not in chassis_physnets):
-                LOG.info(_LI('Refusing to bind port %(port_id)s on '
-                             'host %(host)s due to the OVN chassis '
-                             'bridge mapping physical networks '
-                             '%(chassis_physnets)s not supporting '
-                             'physical network: %(physical_network)s'),
+                LOG.info('Refusing to bind port %(port_id)s on '
+                         'host %(host)s due to the OVN chassis '
+                         'bridge mapping physical networks '
+                         '%(chassis_physnets)s not supporting '
+                         'physical network: %(physical_network)s',
                          {'port_id': port['id'],
                           'host': context.host,
                           'chassis_physnets': chassis_physnets,
@@ -1118,7 +1118,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # Port provisioning is complete now that OVN has reported that the
         # port is up. Any provisioning block (possibly added during port
         # creation or when OVN reports that the port is down) must be removed.
-        LOG.info(_LI("OVN reports status up for port: %s"), port_id)
+        LOG.info("OVN reports status up for port: %s", port_id)
         provisioning_blocks.provisioning_complete(
             n_context.get_admin_context(),
             port_id,
@@ -1131,7 +1131,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
         # in neutron. The block is inserted before the port status update
         # to prevent another entity from bypassing the block with its own
         # port status update.
-        LOG.info(_LI("OVN reports status down for port: %s"), port_id)
+        LOG.info("OVN reports status down for port: %s", port_id)
         admin_context = n_context.get_admin_context()
         try:
             port = self._plugin.get_port(admin_context, port_id)

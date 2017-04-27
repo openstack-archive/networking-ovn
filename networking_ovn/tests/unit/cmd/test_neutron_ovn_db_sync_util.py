@@ -134,23 +134,23 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
     def test_main_sync_stage1_fail(self):
         self._test_main_sync_fail(1)
         self.cmd_log.exception.assert_called_once_with(
-            "Error syncing  the Address Sets. Check the "
+            "Error syncing the Address Sets. Check the "
             "--database-connection value again")
 
     def test_main_sync_stage2_fail(self):
         self._test_main_sync_fail(2)
         self.cmd_log.exception.assert_called_once_with(
-            "Error syncing  Networks, Ports and DHCP options "
+            "Error syncing Networks, Ports and DHCP options "
             "for unknown reason please try again")
 
     def test_main_sync_stage3_fail(self):
         self._test_main_sync_fail(3)
         self.cmd_log.exception.assert_called_once_with(
-            "Error syncing  ACLs for unknown "
+            "Error syncing ACLs for unknown "
             "reason please try again")
 
     def test_main_sync_stage4_fail(self):
         self._test_main_sync_fail(4)
         self.cmd_log.exception.assert_called_once_with(
-            "Error syncing  Routers and Router ports "
+            "Error syncing Routers and Router ports "
             "please try again")
