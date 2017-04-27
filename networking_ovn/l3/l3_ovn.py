@@ -233,6 +233,25 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                              enabled=enabled,
                                              options={}))
 
+    def _check_external_ips_changed(self, gateway_old, gateway_new):
+        if gateway_old['network_id'] != gateway_new['network_id']:
+            return True
+        old_ext_ips = gateway_old.get('external_fixed_ips', [])
+        new_ext_ips = gateway_new.get('external_fixed_ips', [])
+        old_subnet_ids = set(f['subnet_id'] for f in old_ext_ips
+                             if f.get('subnet_id'))
+        new_subnet_ids = set(f['subnet_id'] for f in new_ext_ips
+                             if f.get('subnet_id'))
+        if old_subnet_ids != new_subnet_ids:
+            return True
+        old_ip_addresses = set(f['ip_address'] for f in old_ext_ips
+                               if f.get('ip_address'))
+        new_ip_addresses = set(f['ip_address'] for f in new_ext_ips
+                               if f.get('ip_address'))
+        if old_ip_addresses != new_ip_addresses:
+            return True
+        return False
+
     def update_router(self, context, id, router):
         original_router = self.get_router(context, id)
         result = super(OVNL3RouterPlugin, self).update_router(context, id,
@@ -250,11 +269,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             elif gateway_new and gateway_old:
                 # Check if external gateway has changed, if yes, delete the old
                 # gateway and add the new gateway
-                if (gateway_old['network_id'] != gateway_new['network_id'] or
-                        set([str(fixed_ip) for fixed_ip in
-                             gateway_old['external_fixed_ips']]) !=
-                        set([str(fixed_ip) for fixed_ip in
-                             gateway_new['external_fixed_ips']])):
+                if self._check_external_ips_changed(gateway_old, gateway_new):
                     self._delete_router_ext_gw(context, id, original_router)
                     self._add_router_ext_gw(context, result)
                 else:

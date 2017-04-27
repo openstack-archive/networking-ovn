@@ -474,6 +474,48 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', type='snat',
             logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
 
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
+                'update_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    def test_update_router_ext_gw_change_ip_address(self, gr, ur, gs,
+                                                    grps, gp):
+        router = {'router': {'name': 'router'}}
+        # Old gateway info with same subnet and different ip address
+        gr_value = copy.deepcopy(self.fake_router_with_ext_gw)
+        gr_value['external_gateway_info'][
+            'external_fixed_ips'][0]['ip_address'] = '192.168.1.2'
+        gr_value['gw_port_id'] = 'old-gw-port-id'
+        gr.return_value = gr_value
+        ur.return_value = self.fake_router_with_ext_gw
+        gs.side_effect = lambda ctx, sid: {
+            'ext-subnet-id': self.fake_ext_subnet}.get(sid, self.fake_subnet)
+        gp.return_value = self.fake_ext_gw_port
+        grps.return_value = self.fake_router_ports
+
+        self.l3_inst.update_router(self.context, 'router-id', router)
+
+        # Check deleting old router gateway
+        self.l3_inst._ovn.delete_lrouter_port.assert_called_once_with(
+            'lrp-old-gw-port-id', 'neutron-router-id')
+        self.l3_inst._ovn.delete_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.1.254')
+        self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.2', type='snat')
+        # Check adding new router gateway
+        self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
+            **self.fake_ext_gw_port_assert)
+        self.l3_inst._ovn.add_static_route.assert_called_once_with(
+            'neutron-router-id', ip_prefix='0.0.0.0/0',
+            nexthop='192.168.1.254')
+        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', type='snat',
+            logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
+
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
