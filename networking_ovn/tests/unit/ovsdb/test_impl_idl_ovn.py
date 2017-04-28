@@ -662,7 +662,7 @@ class TestSBImplIdlOvn(TestDBImplIdlOvn):
                               'public:br-ex,private:br-0'}},
             {'name': 'host-2', 'hostname': 'host-2.localdomain.com',
              'external_ids': {'ovn-bridge-mappings':
-                              'public:br-ex'}},
+                              'public:br-ex,public2:br-ex'}},
             {'name': 'host-3', 'hostname': 'host-3.localdomain.com',
              'external_ids': {'ovn-bridge-mappings':
                               'public:br-ex'}},
