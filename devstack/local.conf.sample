@@ -58,9 +58,10 @@ disable_service q-meta
 # and will likely be backported by some distros.
 #OVN_BUILD_MODULES=False
 
-# Enable QoS
+# Enable services, these services depend on neutron plugin.
 #enable_plugin neutron https://git.openstack.org/openstack/neutron
 #enable_service q-qos
+#enable_service q-trunk
 
 # Skydive
 #enable_plugin skydive https://github.com/redhat-cip/skydive.git

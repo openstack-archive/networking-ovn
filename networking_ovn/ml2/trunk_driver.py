@@ -89,6 +89,7 @@ class OVNTrunkDriver(trunk_base.DriverBase):
         except cfg.NoSuchOptError:
             return False
 
+    @registry.receives(trunk_consts.TRUNK_PLUGIN, [events.AFTER_INIT])
     def register(self, resource, event, trigger, **kwargs):
         super(OVNTrunkDriver, self).register(
             resource, event, trigger, **kwargs)
