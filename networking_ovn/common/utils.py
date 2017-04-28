@@ -171,3 +171,10 @@ def validate_and_get_data_from_binding_profile(port):
             raise n_exc.InvalidInput(error_message=msg)
 
     return param_dict
+
+
+def is_dhcp_options_ignored(subnet):
+    # Don't insert DHCP_Options entry for v6 subnet with 'SLAAC' as
+    # 'ipv6_address_mode', since DHCPv6 shouldn't work for this mode.
+    return (subnet['ip_version'] == const.IP_VERSION_6 and
+            subnet.get('ipv6_address_mode') == const.IPV6_SLAAC)

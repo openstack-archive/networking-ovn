@@ -187,15 +187,21 @@ class SetLSwitchPortCommand(command.BaseCommand):
         cur_port_dhcp_opts = get_lsp_dhcp_options_uuids(
             port, self.lport)
         new_port_dhcp_opts = set()
-        dhcpv4_options = self.columns.pop('dhcpv4_options', [])
-        if isinstance(dhcpv4_options, list):
+        dhcpv4_options = self.columns.pop('dhcpv4_options', None)
+        if dhcpv4_options is None:
+            new_port_dhcp_opts.update([option.uuid for option in
+                                       getattr(port, 'dhcpv4_options', [])])
+        elif isinstance(dhcpv4_options, list):
             new_port_dhcp_opts.update(dhcpv4_options)
             port.dhcpv4_options = dhcpv4_options
         else:
             new_port_dhcp_opts.add(dhcpv4_options.result)
             port.dhcpv4_options = [dhcpv4_options.result]
-        dhcpv6_options = self.columns.pop('dhcpv6_options', [])
-        if isinstance(dhcpv6_options, list):
+        dhcpv6_options = self.columns.pop('dhcpv6_options', None)
+        if dhcpv6_options is None:
+            new_port_dhcp_opts.update([option.uuid for option in
+                                       getattr(port, 'dhcpv6_options', [])])
+        elif isinstance(dhcpv6_options, list):
             new_port_dhcp_opts.update(dhcpv6_options)
             port.dhcpv6_options = dhcpv6_options
         else:
