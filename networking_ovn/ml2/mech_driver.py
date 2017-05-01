@@ -15,6 +15,7 @@
 import collections
 import netaddr
 
+from neutron_lib.api.definitions import port_security as psec
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.api import validators
@@ -31,7 +32,6 @@ from oslo_db import exception as os_db_exc
 from oslo_log import log
 
 from neutron.db import provisioning_blocks
-from neutron.extensions import portsecurity as psec
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
