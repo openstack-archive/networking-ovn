@@ -36,6 +36,16 @@ disable_service q-l3
 disable_service q-dhcp
 disable_service q-meta
 
+# Horizon (the web UI) is enabled by default. You may want to disable
+# it here to speed up DevStack a bit.
+enable_service horizon
+#disable_service horizon
+
+# Cinder (OpenStack Block Storage) is disabled by default to speed up
+# DevStack a bit. You may enable it here if you would like to use it.
+disable_service cinder c-sch c-api c-vol
+#enable_service cinder c-sch c-api c-vol
+
 # How to connect to ovsdb-server hosting the OVN NB database.
 #OVN_NB_REMOTE=tcp:$SERVICE_HOST:6641
 
