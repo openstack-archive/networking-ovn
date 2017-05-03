@@ -32,7 +32,6 @@ from oslo_log import log
 
 from neutron.db import provisioning_blocks
 from neutron.extensions import portsecurity as psec
-from neutron.plugins.common import constants as plugin_const
 from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
@@ -224,10 +223,10 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                                                is_add_acl=is_add_acl)
 
     def _is_network_type_supported(self, network_type):
-        return (network_type in [plugin_const.TYPE_LOCAL,
-                                 plugin_const.TYPE_FLAT,
-                                 plugin_const.TYPE_GENEVE,
-                                 plugin_const.TYPE_VLAN])
+        return (network_type in [const.TYPE_LOCAL,
+                                 const.TYPE_FLAT,
+                                 const.TYPE_GENEVE,
+                                 const.TYPE_VLAN])
 
     def _validate_network_segments(self, network_segments):
         for network_segment in network_segments:
