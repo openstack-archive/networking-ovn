@@ -26,13 +26,13 @@ from neutron_lib import constants as const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.plugins.ml2 import api
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 
 from neutron.db import provisioning_blocks
-from neutron.plugins.ml2 import driver_api
 from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
 
@@ -58,7 +58,7 @@ OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
                                                      'dhcpv6_options'])
 
 
-class OVNMechanismDriver(driver_api.MechanismDriver):
+class OVNMechanismDriver(api.MechanismDriver):
     """OVN ML2 mechanism driver
 
     A mechanism driver is called on the creation, update, and deletion
@@ -1101,7 +1101,7 @@ class OVNMechanismDriver(driver_api.MechanismDriver):
                     vif_type = portbindings.VIF_TYPE_OVS
                     vif_details = self.vif_details[vif_type]
 
-                context.set_binding(segment_to_bind[driver_api.ID], vif_type,
+                context.set_binding(segment_to_bind[api.ID], vif_type,
                                     vif_details)
 
     def get_workers(self):
