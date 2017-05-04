@@ -18,6 +18,7 @@ from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exceptions
 from oslo_config import cfg
 
+from networking_ovn._i18n import _
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
