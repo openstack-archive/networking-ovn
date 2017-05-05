@@ -1102,12 +1102,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _sync_resources(self, mode):
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
-
-        ctx = context.get_admin_context()
-        nb_synchronizer.sync_address_sets(ctx)
-        nb_synchronizer.sync_networks_ports_and_dhcp_opts(ctx)
-        nb_synchronizer.sync_acls(ctx)
-        nb_synchronizer.sync_routers_and_rports(ctx)
+        nb_synchronizer.do_sync()
 
     def _test_ovn_nb_sync_helper(self, mode, modify_resources=True,
                                  restart_ovsdb_processes=False,

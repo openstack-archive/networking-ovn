@@ -488,10 +488,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_driver = ovn_nb_synchronizer.ovn_driver
         l3_plugin = ovn_nb_synchronizer.l3_plugin
 
-        ovn_nb_synchronizer.sync_address_sets(mock.MagicMock())
-        ovn_nb_synchronizer.sync_networks_ports_and_dhcp_opts(mock.ANY)
-        ovn_nb_synchronizer.sync_acls(mock.ANY)
-        ovn_nb_synchronizer.sync_routers_and_rports(mock.ANY)
+        ovn_nb_synchronizer.do_sync()
 
         get_security_group_calls = [mock.call(mock.ANY, sg['id'])
                                     for sg in self.security_groups]

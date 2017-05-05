@@ -12,7 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron_lib import context
 from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import options as db_options
@@ -119,30 +118,6 @@ def main():
     synchronizer = ovn_db_sync.OvnNbSynchronizer(
         core_plugin, ovn_api, mode, ovn_driver)
 
-    ctx = context.get_admin_context()
-
-    LOG.info('Syncing the networks and ports with mode : %s', mode)
-    try:
-        synchronizer.sync_address_sets(ctx)
-    except Exception:
-        LOG.exception("Error syncing the Address Sets. Check the "
-                      "--database-connection value again")
-        return
-    try:
-        synchronizer.sync_networks_ports_and_dhcp_opts(ctx)
-    except Exception:
-        LOG.exception("Error syncing Networks, Ports and DHCP options "
-                      "for unknown reason please try again")
-        return
-    try:
-        synchronizer.sync_acls(ctx)
-    except Exception:
-        LOG.exception("Error syncing ACLs for unknown reason please try again")
-        return
-    try:
-        synchronizer.sync_routers_and_rports(ctx)
-    except Exception:
-        LOG.exception(
-            "Error syncing Routers and Router ports please try again")
-        return
+    LOG.info('Sync started with mode : %s', mode)
+    synchronizer.do_sync()
     LOG.info('Sync completed')
