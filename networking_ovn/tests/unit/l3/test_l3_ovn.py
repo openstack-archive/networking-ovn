@@ -219,7 +219,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             self.context, router_id, interface_info)
 
         self.l3_inst._ovn.delete_lrouter_port.assert_called_once_with(
-            'lrp-router-port-id', 'neutron-router-id', if_exists=False)
+            'lrp-router-port-id', 'neutron-router-id', if_exists=True)
 
     def test_remove_router_interface_update_lrouter_port(self):
         router_id = 'router-id'
@@ -232,14 +232,16 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             networks=['10.0.0.100/24'])
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
-    def test_update_router_admin_state_no_change(self, func):
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    def test_update_router_admin_state_no_change(self, get_rps, func):
         router_id = 'router-id'
         update_data = {'router': {'admin_state_up': False}}
         self.l3_inst.update_router(self.context, router_id, update_data)
         self.assertFalse(self.l3_inst._ovn.update_lrouter.called)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
-    def test_update_router_admin_state_change(self, func):
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    def test_update_router_admin_state_change(self, get_rps, func):
         router_id = 'router-id'
         update_data = {'router': {'admin_state_up': True}}
         self.l3_inst.update_router(self.context, router_id, update_data)
@@ -247,14 +249,16 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', enabled=True)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
-    def test_update_router_name_no_change(self, func):
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    def test_update_router_name_no_change(self, get_rps, func):
         router_id = 'router-id'
         update_data = {'router': {'name': 'router'}}
         self.l3_inst.update_router(self.context, router_id, update_data)
         self.assertFalse(self.l3_inst._ovn.update_lrouter.called)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
-    def test_update_router_name_change(self, func):
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
+    def test_update_router_name_change(self, get_rps, func):
         router_id = 'router-id'
         update_data = {'router': {'name': 'test'}}
         self.l3_inst.update_router(self.context, router_id, update_data)
@@ -393,7 +397,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             self.context, router_id, interface_info)
 
         self.l3_inst._ovn.delete_lrouter_port.assert_called_once_with(
-            'lrp-router-port-id', 'neutron-router-id', if_exists=False)
+            'lrp-router-port-id', 'neutron-router-id', if_exists=True)
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
@@ -516,10 +520,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', type='snat',
             logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
 
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
-    def test_update_router_ext_gw_no_change(self, gr, ur):
+    def test_update_router_ext_gw_no_change(self, gr, ur, get_rps):
         router = {'router': {'name': 'router'}}
         gr.return_value = self.fake_router_with_ext_gw
         ur.return_value = self.fake_router_with_ext_gw
@@ -582,6 +587,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', type='snat', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1')
 
+    @mock.patch('networking_ovn.common.utils.is_snat_enabled',
+                mock.Mock(return_value=True))
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._get_router_ports')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
@@ -799,6 +806,10 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayScheduler._schedule_gateway',
             return_value='hv1')
+        self._start_mock(
+            'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
+            '_get_v4_network_of_all_router_ports',
+            return_value=[])
         self.setup_notification_driver()
 
     # Note(dongj): According to bug #1657693, status of an unassociated

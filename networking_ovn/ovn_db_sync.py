@@ -28,6 +28,7 @@ from neutron.services.segments import db as segments_db
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import config
 from networking_ovn.common import constants as const
+from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
 import six
 
@@ -62,6 +63,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             core_plugin, ovn_api, ovn_driver)
         self.mode = mode
         self.l3_plugin = directory.get_plugin(constants.L3)
+        self._ovn_client = ovn_client.OVNClient(
+            ovn_api, self.l3_plugin._sb_ovn)
 
     def do_sync(self):
         if self.mode == SYNC_MODE_OFF:
@@ -95,8 +98,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         # Create the port in OVN. This will include ACL and Address Set
         # updates as needed.
-        ovn_port_info = self.ovn_driver.get_ovn_port_options(port)
-        self.ovn_driver.create_port_in_ovn(port, ovn_port_info)
+        self.ovn_driver._ovn_client.create_port(port)
 
     def remove_common_acls(self, neutron_acls, nb_acls):
         """Take out common acls of the two acl dictionaries.
@@ -349,8 +351,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
             db_router_ports[interface['id']]['networks'] = sorted(
-                self.l3_plugin.get_networks_for_lrouter_port(
-                    ctx, interface['fixed_ips']))
+                self._ovn_client._get_networks_for_router_port(
+                    interface['fixed_ips']))
         lrouters = self.ovn_api.get_all_logical_routers_with_rports()
 
         del_lrouters_list = []
@@ -409,7 +411,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 try:
                     LOG.warning("Creating the router %s in OVN NB DB",
                                 router['id'])
-                    self.l3_plugin.create_lrouter_in_ovn(router)
+                    self._ovn_client.create_router(router)
                     if 'routes' in router:
                         update_sroutes_list.append(
                             {'id': router['id'], 'add': router['routes'],
@@ -440,8 +442,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 try:
                     LOG.warning("Creating the router port %s in OVN NB DB",
                                 rrport['id'])
-                    self.l3_plugin.create_lrouter_port_in_ovn(
-                        ctx, rrport['device_id'], rrport)
+                    self._ovn_client.create_router_port(
+                        rrport['device_id'], rrport)
                 except RuntimeError:
                     LOG.warning("Create router port in OVN "
                                 "NB failed for router port %s", rrport['id'])
@@ -455,8 +457,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning(
                         "Updating networks on router port %s in OVN NB DB",
                         rport['id'])
-                    self.l3_plugin.update_lrouter_port_in_ovn(
-                        ctx, router_id, rport, rport['networks'])
+                    self._ovn_client.update_router_port(
+                        router_id, rport, rport['networks'])
                 except RuntimeError:
                     LOG.warning("Update router port networks in OVN "
                                 "NB failed for router port %s", rport['id'])
@@ -647,8 +649,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                           port['id'])
                 set_lsp = {}
                 for ip_v in [constants.IP_VERSION_4, constants.IP_VERSION_6]:
-                    dhcp_opts = self.ovn_driver.get_port_dhcp_options(
-                        port, ip_v)
+                    dhcp_opts = (
+                        self.ovn_driver._ovn_client._get_port_dhcp_options(
+                            port, ip_v))
                     if not dhcp_opts or 'uuid' in dhcp_opts:
                         # If the Logical_Switch_Port.dhcpv4_options or
                         # dhcpv6_options no longer refers a port dhcp options
@@ -658,9 +661,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         set_lsp[lsp_dhcp_key[ip_v]] = (
                             dhcp_opts and [dhcp_opts['uuid']] or [])
                     else:
-                        # If port has extra port dhcp options, a command will
-                        # returned by ovn_driver.get_port_dhcp_options to add
-                        # or update port dhcp options.
+                        # If port has extra port dhcp
+                        # options, a command will returned by
+                        # ovn_driver._ovn_client._get_port_dhcp_options
+                        # to add or update port dhcp options.
                         ovn_port_dhcp_opts[ip_v].pop(port['id'], None)
                         dhcp_options = dhcp_opts['cmd']
                         txn_commands.append(dhcp_options)

@@ -19,6 +19,7 @@ from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 
+@mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._sb_ovn', mock.Mock())
 class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
@@ -372,9 +373,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin._get_sync_interfaces = mock.Mock()
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
-        l3_plugin.get_networks_for_lrouter_port = mock.Mock()
-        l3_plugin.get_networks_for_lrouter_port.return_value = (
-            self.lrport_networks)
+        ovn_nb_synchronizer._ovn_client = mock.Mock()
+        ovn_nb_synchronizer._ovn_client._get_networks_for_router_port. \
+            return_value = self.lrport_networks
         # end of router-sync block
         l3_plugin.get_floatingips = mock.Mock()
         l3_plugin.get_floatingips.return_value = self.floating_ips
@@ -391,15 +392,12 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_driver.create_network_in_ovn = mock.Mock()
         ovn_driver.create_port_in_ovn = mock.Mock()
         ovn_driver.validate_and_get_data_from_binding_profile = mock.Mock()
-        ovn_driver.get_ovn_port_options = mock.Mock()
-        ovn_driver.get_ovn_port_options.return_value = mock.ANY
+        ovn_driver._ovn_client.create_port = mock.Mock()
+        ovn_driver._ovn_client.create_port.return_value = mock.ANY
         ovn_driver.create_provnet_port = mock.Mock()
         ovn_api.delete_lswitch = mock.Mock()
         ovn_api.delete_lswitch_port = mock.Mock()
 
-        l3_plugin.create_lrouter_in_ovn = mock.Mock()
-        l3_plugin.create_lrouter_port_in_ovn = mock.Mock()
-        l3_plugin.update_lrouter_port_in_ovn = mock.Mock()
         ovn_api.delete_lrouter = mock.Mock()
         ovn_api.delete_lrouter_port = mock.Mock()
         ovn_api.add_static_route = mock.Mock()
@@ -486,7 +484,6 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         core_plugin = ovn_nb_synchronizer.core_plugin
         ovn_api = ovn_nb_synchronizer.ovn_api
         ovn_driver = ovn_nb_synchronizer.ovn_driver
-        l3_plugin = ovn_nb_synchronizer.l3_plugin
 
         ovn_nb_synchronizer.do_sync()
 
@@ -506,11 +503,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             create_network_calls, any_order=True)
 
         self.assertEqual(len(create_port_list),
-                         ovn_driver.create_port_in_ovn.call_count)
-        create_port_calls = [mock.call(port, mock.ANY)
-                             for port in create_port_list]
-        ovn_driver.create_port_in_ovn.assert_has_calls(create_port_calls,
-                                                       any_order=True)
+                         ovn_driver._ovn_client.create_port.call_count)
+        create_port_calls = [mock.call(port) for port in create_port_list]
+        ovn_driver._ovn_client.create_port.assert_has_calls(create_port_calls,
+                                                            any_order=True)
 
         create_provnet_port_calls = [
             mock.call(mock.ANY, mock.ANY,
@@ -570,30 +566,28 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                for r in create_router_list]
         self.assertEqual(
             len(create_router_list),
-            l3_plugin.create_lrouter_in_ovn.call_count)
-        l3_plugin.create_lrouter_in_ovn.assert_has_calls(
+            ovn_nb_synchronizer._ovn_client.create_router.call_count)
+        ovn_nb_synchronizer._ovn_client.create_router.assert_has_calls(
             create_router_calls, any_order=True)
 
-        create_router_port_calls = [mock.call(mock.ANY,
-                                              p['device_id'],
+        create_router_port_calls = [mock.call(p['device_id'],
                                               mock.ANY)
                                     for p in create_router_port_list]
         self.assertEqual(
             len(create_router_port_list),
-            l3_plugin.create_lrouter_port_in_ovn.call_count)
-        l3_plugin.create_lrouter_port_in_ovn.assert_has_calls(
+            ovn_nb_synchronizer._ovn_client.create_router_port.call_count)
+        ovn_nb_synchronizer._ovn_client.create_router_port.assert_has_calls(
             create_router_port_calls,
             any_order=True)
 
         self.assertEqual(len(del_router_list),
                          ovn_api.delete_lrouter.call_count)
-        update_router_port_calls = [mock.call(mock.ANY, r, p,
-                                              self.lrport_networks)
+        update_router_port_calls = [mock.call(r, p, self.lrport_networks)
                                     for (r, p) in update_router_port_list]
         self.assertEqual(
             len(update_router_port_list),
-            l3_plugin.update_lrouter_port_in_ovn.call_count)
-        l3_plugin.update_lrouter_port_in_ovn.assert_has_calls(
+            ovn_nb_synchronizer._ovn_client.update_router_port.call_count)
+        ovn_nb_synchronizer._ovn_client.update_router_port.assert_has_calls(
             update_router_port_calls,
             any_order=True)
 

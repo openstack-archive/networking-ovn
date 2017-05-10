@@ -960,8 +960,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                  query_params='device_id=%s' % (router_id))
             r_port_ids = [p['id'] for p in r_ports['ports']]
             r_port_networks = {
-                p['id']: self.l3_plugin.get_networks_for_lrouter_port(
-                    self.context, p['fixed_ips']) for p in r_ports['ports']}
+                p['id']:
+                    self.l3_plugin._ovn_client._get_networks_for_router_port(
+                        p['fixed_ips'])
+                    for p in r_ports['ports']}
             r_routes = db_routes[router_id]
             r_nats = db_nats[router_id]
 

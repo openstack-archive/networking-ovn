@@ -12,13 +12,8 @@
 #    under the License.
 #
 
-import collections
-import netaddr
-
-from neutron_lib.api.definitions import port_security as psec
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
-from neutron_lib.api import validators
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
@@ -40,6 +35,7 @@ from networking_ovn._i18n import _
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver
 from networking_ovn.ml2 import trunk_driver
@@ -49,13 +45,6 @@ from networking_ovn.ovsdb import ovsdb_monitor
 
 
 LOG = log.getLogger(__name__)
-
-OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
-                                                     'addresses',
-                                                     'port_security',
-                                                     'parent_name', 'tag',
-                                                     'dhcpv4_options',
-                                                     'dhcpv6_options'])
 
 
 class OVNMechanismDriver(api.MechanismDriver):
@@ -92,6 +81,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._nb_ovn = None
         self._sb_ovn = None
         self._plugin_property = None
+        self._ovn_client = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
             LOG.warning('Firewall driver configuration is ignored')
@@ -159,6 +149,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # plugin service and OVN) with OVN IDL connections.
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
                                                                trigger)
+        self._ovn_client = ovn_client.OVNClient(self._nb_ovn, self._sb_ovn)
 
         if trigger.im_class == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker
@@ -485,65 +476,9 @@ class OVNMechanismDriver(api.MechanismDriver):
         of the current transaction.
         """
         port = context.current
-        self.validate_and_get_data_from_binding_profile(port)
+        utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host):
             self._insert_port_provisioning_block(context._plugin_context, port)
-
-    def validate_and_get_data_from_binding_profile(self, port):
-        if (ovn_const.OVN_PORT_BINDING_PROFILE not in port or
-                not validators.is_attr_set(
-                    port[ovn_const.OVN_PORT_BINDING_PROFILE])):
-            return {}
-        param_set = {}
-        param_dict = {}
-        for param_set in ovn_const.OVN_PORT_BINDING_PROFILE_PARAMS:
-            param_keys = param_set.keys()
-            for param_key in param_keys:
-                try:
-                    param_dict[param_key] = (port[
-                        ovn_const.OVN_PORT_BINDING_PROFILE][param_key])
-                except KeyError:
-                    pass
-            if len(param_dict) == 0:
-                continue
-            if len(param_dict) != len(param_keys):
-                msg = _('Invalid binding:profile. %s are all '
-                        'required.') % param_keys
-                raise n_exc.InvalidInput(error_message=msg)
-            if (len(port[ovn_const.OVN_PORT_BINDING_PROFILE]) != len(
-                    param_keys)):
-                msg = _('Invalid binding:profile. too many parameters')
-                raise n_exc.InvalidInput(error_message=msg)
-            break
-
-        if not param_dict:
-            return {}
-
-        for param_key, param_type in param_set.items():
-            if param_type is None:
-                continue
-            param_value = param_dict[param_key]
-            if not isinstance(param_value, param_type):
-                msg = _('Invalid binding:profile. %(key)s %(value)s '
-                        'value invalid type') % {'key': param_key,
-                                                 'value': param_value}
-                raise n_exc.InvalidInput(error_message=msg)
-
-        # Make sure we can successfully look up the port indicated by
-        # parent_name.  Just let it raise the right exception if there is a
-        # problem.
-        if 'parent_name' in param_set:
-            self._plugin.get_port(n_context.get_admin_context(),
-                                  param_dict['parent_name'])
-
-        if 'tag' in param_set:
-            tag = int(param_dict['tag'])
-            if tag < 0 or tag > 4095:
-                msg = _('Invalid binding:profile. tag "%s" must be '
-                        'an integer between 0 and 4095, inclusive') % tag
-                raise n_exc.InvalidInput(error_message=msg)
-
-        return param_dict
 
     def _is_port_provisioning_required(self, port, host, original_host=None):
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
@@ -603,133 +538,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         result in the deletion of the resource.
         """
         port = context.current
-        ovn_port_info = self.get_ovn_port_options(port)
-        self.create_port_in_ovn(port, ovn_port_info)
+        self._ovn_client.create_port(port)
         self._notify_dhcp_updated(port['id'])
-
-    def _get_allowed_addresses_from_port(self, port):
-        if not port.get(psec.PORTSECURITY):
-            return []
-
-        if utils.is_lsp_trusted(port):
-            return []
-
-        allowed_addresses = set()
-        addresses = port['mac_address']
-        for ip in port.get('fixed_ips', []):
-            addresses += ' ' + ip['ip_address']
-
-        for allowed_address in port.get('allowed_address_pairs', []):
-            # If allowed address pair has same mac as the port mac,
-            # append the allowed ip address to the 'addresses'.
-            # Else we will have multiple entries for the same mac in
-            # 'Logical_Switch_Port.port_security'.
-            if allowed_address['mac_address'] == port['mac_address']:
-                addresses += ' ' + allowed_address['ip_address']
-            else:
-                allowed_addresses.add(allowed_address['mac_address'] + ' ' +
-                                      allowed_address['ip_address'])
-
-        allowed_addresses.add(addresses)
-
-        return list(allowed_addresses)
-
-    def get_ovn_port_options(self, port, qos_options=None):
-        binding_profile = self.validate_and_get_data_from_binding_profile(port)
-        if qos_options is None:
-            qos_options = self.qos_driver.get_qos_options(port)
-        vtep_physical_switch = binding_profile.get('vtep-physical-switch')
-
-        if vtep_physical_switch:
-            vtep_logical_switch = binding_profile.get('vtep-logical-switch')
-            port_type = 'vtep'
-            options = {'vtep-physical-switch': vtep_physical_switch,
-                       'vtep-logical-switch': vtep_logical_switch}
-            addresses = "unknown"
-            parent_name = []
-            tag = []
-            port_security = []
-        else:
-            options = qos_options
-            parent_name = binding_profile.get('parent_name', [])
-            tag = binding_profile.get('tag', [])
-            addresses = port['mac_address']
-            for ip in port.get('fixed_ips', []):
-                addresses += ' ' + ip['ip_address']
-            port_security = self._get_allowed_addresses_from_port(port)
-            port_type = ''
-
-        dhcpv4_options = self.get_port_dhcp_options(port, const.IP_VERSION_4)
-        dhcpv6_options = self.get_port_dhcp_options(port, const.IP_VERSION_6)
-
-        return OvnPortInfo(port_type, options, [addresses], port_security,
-                           parent_name, tag, dhcpv4_options, dhcpv6_options)
-
-    def create_port_in_ovn(self, port, ovn_port_info):
-        external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
-        lswitch_name = utils.ovn_name(port['network_id'])
-        admin_context = n_context.get_admin_context()
-        sg_cache = {}
-        subnet_cache = {}
-
-        # It's possible to have a network created on one controller and then a
-        # port created on a different controller quickly enough that the second
-        # controller does not yet see that network in its local cache of the
-        # OVN northbound database.  Check if the logical switch is present
-        # or not in the idl's local copy of the database before creating
-        # the lswitch port.
-        self._nb_ovn.check_for_row_by_value_and_retry(
-            'Logical_Switch', 'name', lswitch_name)
-
-        with self._nb_ovn.transaction(check_error=True) as txn:
-            if not ovn_port_info.dhcpv4_options:
-                dhcpv4_options = []
-            elif 'cmd' in ovn_port_info.dhcpv4_options:
-                dhcpv4_options = txn.add(ovn_port_info.dhcpv4_options['cmd'])
-            else:
-                dhcpv4_options = [ovn_port_info.dhcpv4_options['uuid']]
-            if not ovn_port_info.dhcpv6_options:
-                dhcpv6_options = []
-            elif 'cmd' in ovn_port_info.dhcpv6_options:
-                dhcpv6_options = txn.add(ovn_port_info.dhcpv6_options['cmd'])
-            else:
-                dhcpv6_options = [ovn_port_info.dhcpv6_options['uuid']]
-            # The lport_name *must* be neutron port['id'].  It must match the
-            # iface-id set in the Interfaces table of the Open_vSwitch
-            # database which nova sets to be the port ID.
-            txn.add(self._nb_ovn.create_lswitch_port(
-                    lport_name=port['id'],
-                    lswitch_name=lswitch_name,
-                    addresses=ovn_port_info.addresses,
-                    external_ids=external_ids,
-                    parent_name=ovn_port_info.parent_name,
-                    tag=ovn_port_info.tag,
-                    enabled=port.get('admin_state_up'),
-                    options=ovn_port_info.options,
-                    type=ovn_port_info.type,
-                    port_security=ovn_port_info.port_security,
-                    dhcpv4_options=dhcpv4_options,
-                    dhcpv6_options=dhcpv6_options))
-
-            acls_new = ovn_acl.add_acls(self._plugin, admin_context,
-                                        port, sg_cache, subnet_cache)
-            for acl in acls_new:
-                txn.add(self._nb_ovn.add_acl(**acl))
-
-            sg_ids = utils.get_lsp_security_groups(port)
-            if port.get('fixed_ips') and sg_ids:
-                addresses = ovn_acl.acl_port_ips(port)
-                # NOTE(rtheis): Fail port creation if the address set doesn't
-                # exist. This prevents ports from being created on any security
-                # groups out-of-sync between neutron and OVN.
-                for sg_id in sg_ids:
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_ovn.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=addresses[ip_version],
-                                addrs_remove=None,
-                                if_exists=False))
 
     def update_port_precommit(self, context):
         """Update resources of a port.
@@ -747,7 +557,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         state changes that it does not know or care about.
         """
         port = context.current
-        self.validate_and_get_data_from_binding_profile(port)
+        utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host,
                                                context.original_host):
             self._insert_port_provisioning_block(context._plugin_context, port)
@@ -770,192 +580,14 @@ class OVNMechanismDriver(api.MechanismDriver):
         """
         port = context.current
         original_port = context.original
-        self.update_port(port, original_port)
+        self._ovn_client.update_port(port, original_port)
         self._notify_dhcp_updated(port['id'])
 
+    # TODO(lucasagomes): We need this because the QOS driver is still
+    # relying on a method called update_port(), delete it after QOS driver
+    # is updated
     def update_port(self, port, original_port, qos_options=None):
-        ovn_port_info = self.get_ovn_port_options(port, qos_options)
-        self._update_port_in_ovn(original_port, port, ovn_port_info)
-
-    def _update_port_in_ovn(self, original_port, port, ovn_port_info):
-        external_ids = {
-            ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name']}
-        admin_context = n_context.get_admin_context()
-        sg_cache = {}
-        subnet_cache = {}
-
-        with self._nb_ovn.transaction(check_error=True) as txn:
-            columns_dict = {}
-            if port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
-                                            const.DEVICE_OWNER_ROUTER_GW]:
-                ovn_port_info.options.update(
-                    self._nb_ovn.get_router_port_options(port['id']))
-            else:
-                columns_dict['type'] = ovn_port_info.type
-                columns_dict['addresses'] = ovn_port_info.addresses
-            if not ovn_port_info.dhcpv4_options:
-                dhcpv4_options = []
-            elif 'cmd' in ovn_port_info.dhcpv4_options:
-                dhcpv4_options = txn.add(ovn_port_info.dhcpv4_options['cmd'])
-            else:
-                dhcpv4_options = [ovn_port_info.dhcpv4_options['uuid']]
-            if not ovn_port_info.dhcpv6_options:
-                dhcpv6_options = []
-            elif 'cmd' in ovn_port_info.dhcpv6_options:
-                dhcpv6_options = txn.add(ovn_port_info.dhcpv6_options['cmd'])
-            else:
-                dhcpv6_options = [ovn_port_info.dhcpv6_options['uuid']]
-            # NOTE(lizk): Fail port updating if port doesn't exist. This
-            # prevents any new inserted resources to be orphan, such as port
-            # dhcp options or ACL rules for port, e.g. a port was created
-            # without extra dhcp options and security group, while updating
-            # includes the new attributes setting to port.
-            txn.add(self._nb_ovn.set_lswitch_port(
-                    lport_name=port['id'],
-                    external_ids=external_ids,
-                    parent_name=ovn_port_info.parent_name,
-                    tag=ovn_port_info.tag,
-                    options=ovn_port_info.options,
-                    enabled=port['admin_state_up'],
-                    port_security=ovn_port_info.port_security,
-                    dhcpv4_options=dhcpv4_options,
-                    dhcpv6_options=dhcpv6_options,
-                    if_exists=False,
-                    **columns_dict))
-
-            # Determine if security groups or fixed IPs are updated.
-            old_sg_ids = set(utils.get_lsp_security_groups(original_port))
-            new_sg_ids = set(utils.get_lsp_security_groups(port))
-            detached_sg_ids = old_sg_ids - new_sg_ids
-            attached_sg_ids = new_sg_ids - old_sg_ids
-            is_fixed_ips_updated = \
-                original_port.get('fixed_ips') != port.get('fixed_ips')
-
-            # Refresh ACLs for changed security groups or fixed IPs.
-            if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated:
-                # Note that update_acls will compare the port's ACLs to
-                # ensure only the necessary ACLs are added and deleted
-                # on the transaction.
-                acls_new = ovn_acl.add_acls(self._plugin,
-                                            admin_context,
-                                            port,
-                                            sg_cache,
-                                            subnet_cache)
-                txn.add(self._nb_ovn.update_acls([port['network_id']],
-                                                 [port],
-                                                 {port['id']: acls_new},
-                                                 need_compare=True))
-
-            # Refresh address sets for changed security groups or fixed IPs.
-            if (len(port.get('fixed_ips')) != 0 or
-                    len(original_port.get('fixed_ips')) != 0):
-                addresses = ovn_acl.acl_port_ips(port)
-                addresses_old = ovn_acl.acl_port_ips(original_port)
-                # Add current addresses to attached security groups.
-                for sg_id in attached_sg_ids:
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_ovn.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=addresses[ip_version],
-                                addrs_remove=None))
-                # Remove old addresses from detached security groups.
-                for sg_id in detached_sg_ids:
-                    for ip_version in addresses_old:
-                        if addresses_old[ip_version]:
-                            txn.add(self._nb_ovn.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=None,
-                                addrs_remove=addresses_old[ip_version]))
-
-                if is_fixed_ips_updated:
-                    # We have refreshed address sets for attached and detached
-                    # security groups, so now we only need to take care of
-                    # unchanged security groups.
-                    unchanged_sg_ids = new_sg_ids & old_sg_ids
-                    for sg_id in unchanged_sg_ids:
-                        for ip_version in addresses:
-                            addr_add = (set(addresses[ip_version]) -
-                                        set(addresses_old[ip_version])) or None
-                            addr_remove = (set(addresses_old[ip_version]) -
-                                           set(addresses[ip_version])) or None
-
-                            if addr_add or addr_remove:
-                                txn.add(self._nb_ovn.update_address_set(
-                                        name=utils.ovn_addrset_name(
-                                            sg_id, ip_version),
-                                        addrs_add=addr_add,
-                                        addrs_remove=addr_remove))
-
-    def _get_subnet_dhcp_options_for_port(self, port, ip_version):
-        """Returns the subnet dhcp options for the port.
-
-        Return the first found DHCP options belong for the port.
-        """
-        subnets = [
-            fixed_ip['subnet_id']
-            for fixed_ip in port['fixed_ips']
-            if netaddr.IPAddress(fixed_ip['ip_address']).version == ip_version]
-        get_opts = self._nb_ovn.get_subnets_dhcp_options(subnets)
-        if get_opts:
-            if ip_version == const.IP_VERSION_6:
-                # Always try to find a dhcpv6 stateful v6 subnet to return.
-                # This ensures port can get one stateful v6 address when port
-                # has multiple dhcpv6 stateful and stateless subnets.
-                for opts in get_opts:
-                    # We are setting ovn_const.DHCPV6_STATELESS_OPT to "true"
-                    # in _get_ovn_dhcpv6_opts, so entries in DHCP_Options table
-                    # should have unicode type 'true' if they were defined as
-                    # dhcpv6 stateless.
-                    if opts['options'].get(
-                        ovn_const.DHCPV6_STATELESS_OPT) != 'true':
-                        return opts
-            return get_opts[0]
-
-    def get_port_dhcp_options(self, port, ip_version):
-        """Return dhcp options for port.
-
-        In case the port is dhcp disabled, or IP addresses it has belong
-        to dhcp disabled subnets, returns None.
-        Otherwise, returns a dict:
-         - with content from a existing DHCP_Options row for subnet, if the
-           port has no extra dhcp options.
-         - with only one item ('cmd', AddDHCPOptionsCommand(..)), if the port
-           has extra dhcp options. The command should be processed in the same
-           transaction with port creating or updating command to avoid orphan
-           row issue happen.
-        """
-        lsp_dhcp_disabled, lsp_dhcp_opts = utils.get_lsp_dhcp_opts(
-            port, ip_version)
-
-        if lsp_dhcp_disabled:
-            return
-
-        subnet_dhcp_options = self._get_subnet_dhcp_options_for_port(
-            port, ip_version)
-
-        if not subnet_dhcp_options:
-            # NOTE(lizk): It's possible for Neutron to configure a port with IP
-            # address belongs to subnet disabled dhcp. And no DHCP_Options row
-            # will be inserted for such a subnet. So in that case, the subnet
-            # dhcp options here will be None.
-            return
-
-        if not lsp_dhcp_opts:
-            return subnet_dhcp_options
-
-        # This port has extra DHCP options defined, so we will create a new
-        # row in DHCP_Options table for it.
-        subnet_dhcp_options['options'].update(lsp_dhcp_opts)
-        subnet_dhcp_options['external_ids'].update(
-            {'port_id': port['id']})
-        subnet_id = subnet_dhcp_options['external_ids']['subnet_id']
-        add_dhcp_opts_cmd = self._nb_ovn.add_dhcp_options(
-            subnet_id, port_id=port['id'],
-            cidr=subnet_dhcp_options['cidr'],
-            options=subnet_dhcp_options['options'],
-            external_ids=subnet_dhcp_options['external_ids'])
-        return {'cmd': add_dhcp_opts_cmd}
+        self._ovn_client.update_port(port, original_port)
 
     def delete_port_postcommit(self, context):
         """Delete a port.
@@ -970,22 +602,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         deleted.
         """
         port = context.current
-        with self._nb_ovn.transaction(check_error=True) as txn:
-            txn.add(self._nb_ovn.delete_lswitch_port(port['id'],
-                    utils.ovn_name(port['network_id'])))
-            txn.add(self._nb_ovn.delete_acl(
-                    utils.ovn_name(port['network_id']), port['id']))
-
-            if port.get('fixed_ips'):
-                addresses = ovn_acl.acl_port_ips(port)
-                # Set skip_trusted_port False for deleting port
-                for sg_id in utils.get_lsp_security_groups(port, False):
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_ovn.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=None,
-                                addrs_remove=addresses[ip_version]))
+        self._ovn_client.delete_port(port)
 
     def bind_port(self, context):
         """Attempt to bind a port.
