@@ -386,19 +386,31 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                            '100.0.0.1'))
         # Gateway sNATs
         self.create_lrouter_nats.append(('neutron-' + r1['id'],
-                                         '100.0.0.100',
-                                         '200.0.0.0/24', 'snat'))
+                                         {'external_ip': '100.0.0.100',
+                                          'logical_ip': '200.0.0.0/24',
+                                          'type': 'snat'}))
         self.delete_lrouter_nats.append(('neutron-' + r1['id'],
-                                         '100.0.0.2',
-                                         '10.0.0.0/24', 'snat'))
+                                         {'external_ip': '100.0.0.2',
+                                          'logical_ip': '10.0.0.0/24',
+                                          'type': 'snat'}))
         # Floating IPs
         self.create_lrouter_nats.append(('neutron-' + r1['id'],
-                                         '100.0.0.200',
-                                         '200.0.0.200', 'dnat_and_snat'))
+                                         {'external_ip': '100.0.0.200',
+                                          'logical_ip': '200.0.0.200',
+                                          'type': 'dnat_and_snat'}))
+        self.create_lrouter_nats.append(('neutron-' + r1['id'],
+                                         {'external_ip': '100.0.0.201',
+                                          'logical_ip': '200.0.0.201',
+                                          'type': 'dnat_and_snat',
+                                          'external_mac': '01:02:03:04:05:06',
+                                          'logical_port': 'vm1'
+                                          }))
         self.delete_lrouter_nats.append(('neutron-' + r1['id'],
-                                         r1_f1['floating_ip_address'],
-                                         r1_f1['fixed_ip_address'],
-                                         'dnat_and_snat'))
+                                         {'external_ip':
+                                             r1_f1['floating_ip_address'],
+                                          'logical_ip':
+                                             r1_f1['fixed_ip_address'],
+                                          'type': 'dnat_and_snat'}))
 
         n4 = self._make_network(self.fmt, 'n4', True)
         res = self._create_subnet(self.fmt, n4['network']['id'],
@@ -614,17 +626,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                                         ip_prefix, nexthop,
                                                         True))
 
-            for lrouter_name, external_ip, logical_ip, nat_type in(
+            for lrouter_name, nat_dict in(
                     self.create_lrouter_nats):
                 txn.add(self.nb_api.add_nat_rule_in_lrouter(
-                    lrouter_name, external_ip=external_ip,
-                    logical_ip=logical_ip, type=nat_type))
+                    lrouter_name, **nat_dict))
 
-            for lrouter_name, external_ip, logical_ip, nat_type in(
+            for lrouter_name, nat_dict in(
                     self.delete_lrouter_nats):
                 txn.add(self.nb_api.delete_nat_rule_in_lrouter(
-                    lrouter_name, external_ip=external_ip,
-                    logical_ip=logical_ip, type=nat_type, if_exists=True))
+                    lrouter_name, if_exists=True, **nat_dict))
 
             for acl in self.create_acls:
                 txn.add(self.nb_api.add_acl(**acl))
@@ -982,11 +992,22 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     db_nats[db_router['id']].extend([r_ip + network + 'snat'
                                                      for network in networks])
         fips = self._list('floatingips')
+        fip_macs = {}
+        if ovn_config.is_ovn_distributed_floating_ip():
+            params = 'device_owner=%s' % constants.DEVICE_OWNER_FLOATINGIP
+            fports = self._list('ports', query_params=params)['ports']
+            fip_macs = {p['device_id']: p['mac_address'] for p in fports
+                        if p['device_id']}
         for fip in fips['floatingips']:
             if fip['router_id']:
-                db_nats[fip['router_id']].append(fip['floating_ip_address'] +
-                                                 fip['fixed_ip_address'] +
-                                                 'dnat_and_snat')
+                mac_address = ''
+                fip_port = ''
+                if fip['id'] in fip_macs:
+                    mac_address = fip_macs[fip['id']]
+                    fip_port = fip['port_id']
+                db_nats[fip['router_id']].append(
+                    fip['floating_ip_address'] + fip['fixed_ip_address'] +
+                    'dnat_and_snat' + mac_address + fip_port)
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_lrouter_ids = [
@@ -1035,8 +1056,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 plugin_routes = [sroute.ip_prefix + sroute.nexthop
                                  for sroute in sroutes]
                 nats = getattr(lrouter, 'nat', [])
-                plugin_nats = [nat.external_ip + nat.logical_ip + nat.type
-                               for nat in nats]
+                plugin_nats = [
+                    nat.external_ip + nat.logical_ip + nat.type +
+                    (nat.external_mac[0] if nat.external_mac else '') +
+                    (nat.logical_port[0] if nat.logical_port else '')
+                    for nat in nats]
             except idlutils.RowNotFound:
                 plugin_lrouter_port_ids = []
                 plugin_routes = []
@@ -1056,8 +1080,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 monitor_routes = [sroute.ip_prefix + sroute.nexthop
                                   for sroute in sroutes]
                 nats = getattr(lrouter, 'nat', [])
-                monitor_nats = [nat.external_ip + nat.logical_ip + nat.type
-                                for nat in nats]
+                monitor_nats = [
+                    nat.external_ip + nat.logical_ip + nat.type +
+                    (nat.external_mac[0] if nat.external_mac else '') +
+                    (nat.logical_port[0] if nat.logical_port else '')
+                    for nat in nats]
             except idlutils.RowNotFound:
                 monitor_lrouter_port_ids = []
                 monitor_routes = []
@@ -1318,6 +1345,11 @@ class TestOvnSbSync(base.TestOVNFunctionalBase):
 
 
 class TestOvnNbSyncOverTcp(TestOvnNbSync):
+    def setUp(self):
+        super(TestOvnNbSyncOverTcp, self).setUp()
+        ovn_config.cfg.CONF.set_override(
+            'enable_distributed_floating_ip', True, group='ovn')
+
     def get_ovsdb_server_protocol(self):
         return 'tcp'
 

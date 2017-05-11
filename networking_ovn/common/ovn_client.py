@@ -463,9 +463,13 @@ class OVNClient(object):
                             nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
                             break
 
-                txn.add(fip_apis['nat'](*nat_rule_args, type='dnat_and_snat',
-                                        logical_ip=floatingip['logical_ip'],
-                                        external_ip=floatingip['external_ip']))
+                columns = {'type': 'dnat_and_snat',
+                           'logical_ip': floatingip['logical_ip'],
+                           'external_ip': floatingip['external_ip']}
+                if associate and config.is_ovn_distributed_floating_ip():
+                    columns['external_mac'] = floatingip['fip_port_mac']
+                    columns['logical_port'] = floatingip['logical_port']
+                txn.add(fip_apis['nat'](*nat_rule_args, **columns))
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to update NAT rule in gateway '
