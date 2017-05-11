@@ -12,11 +12,12 @@
 
 import os
 
-from networking_ovn.common import constants
-from neutron.extensions import extra_dhcp_opt as edo_ext
+from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib import constants as const
 from neutron_lib.utils import net as n_utils
+
+from networking_ovn.common import constants
 
 
 def ovn_name(id):
