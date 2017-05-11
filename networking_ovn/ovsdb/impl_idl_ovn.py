@@ -55,7 +55,7 @@ def get_ovn_idls(driver, trigger):
 
 
 def get_connection(db_class, trigger=None, driver=None):
-    # The trigger is the start() method of the NeutronWorker class
+    # The trigger is the start() method of the worker class
     if db_class == OvsdbNbOvnIdl:
         args = (cfg.get_ovn_nb_connection(), 'OVN_Northbound')
         cls = ovsdb_monitor.OvnNbIdl
