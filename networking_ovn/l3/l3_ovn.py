@@ -696,15 +696,22 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                           options=r_options))
 
     @staticmethod
-    @registry.receives(resources.SUBNET_GATEWAY,
+    @registry.receives(resources.SUBNET,
                        [events.BEFORE_UPDATE, events.AFTER_UPDATE])
     def _subnet_gateway_ip_update(resource, event, trigger, **kwargs):
         l3plugin = directory.get_plugin(n_const.L3)
         if not l3plugin:
             return
         context = kwargs['context']
-        network_id = kwargs['network_id']
-        subnet_id = kwargs['subnet_id']
+        orig = kwargs['original_subnet']
+        if event == events.BEFORE_UPDATE:
+            new_ip = kwargs['request'].get('gateway_ip', orig['gateway_ip'])
+        else:
+            new_ip = kwargs['subnet']['gateway_ip']
+        if new_ip == orig['gateway_ip']:
+            return
+        network_id = orig['network_id']
+        subnet_id = orig['id']
         gw_ports = l3plugin._plugin.get_ports(context, filters={
             'network_id': [network_id],
             'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW],
