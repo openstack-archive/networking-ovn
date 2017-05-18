@@ -698,35 +698,27 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                           options=r_options))
 
     @staticmethod
-    @registry.receives(resources.SUBNET,
-                       [events.BEFORE_UPDATE, events.AFTER_UPDATE])
-    def _subnet_gateway_ip_update(resource, event, trigger, **kwargs):
+    @registry.receives(resources.SUBNET, [events.AFTER_UPDATE])
+    def _subnet_update(resource, event, trigger, **kwargs):
         l3plugin = directory.get_plugin(n_const.L3)
         if not l3plugin:
             return
         context = kwargs['context']
         orig = kwargs['original_subnet']
-        if event == events.BEFORE_UPDATE:
-            new_ip = kwargs['request'].get('gateway_ip', orig['gateway_ip'])
-        else:
-            new_ip = kwargs['subnet']['gateway_ip']
-        if new_ip == orig['gateway_ip']:
+        current = kwargs['subnet']
+        orig_gw_ip = orig['gateway_ip']
+        current_gw_ip = current['gateway_ip']
+        if orig_gw_ip == current_gw_ip:
             return
-        network_id = orig['network_id']
-        subnet_id = orig['id']
         gw_ports = l3plugin._plugin.get_ports(context, filters={
-            'network_id': [network_id],
+            'network_id': [orig['network_id']],
             'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW],
-            'fixed_ips': {'subnet_id': [subnet_id]},
+            'fixed_ips': {'subnet_id': [orig['id']]},
         })
-        router_ids = set(port['device_id'] for port in gw_ports)
-        gateway_ip = l3plugin._plugin.get_subnet(context, subnet_id). \
-            get('gateway_ip')
-        add = []
-        remove = []
-        if event == events.AFTER_UPDATE:
-            add = [{'destination': '0.0.0.0/0', 'nexthop': gateway_ip}]
-        elif event == events.BEFORE_UPDATE:
-            remove = [{'destination': '0.0.0.0/0', 'nexthop': gateway_ip}]
+        router_ids = set([port['device_id'] for port in gw_ports])
+        remove = [{'destination': '0.0.0.0/0', 'nexthop': orig_gw_ip}
+                  ] if orig_gw_ip else []
+        add = [{'destination': '0.0.0.0/0', 'nexthop': current_gw_ip}
+               ] if current_gw_ip else []
         for router_id in router_ids:
-            l3plugin._update_lrouter_routes(None, router_id, add, remove)
+            l3plugin._update_lrouter_routes(context, router_id, add, remove)
