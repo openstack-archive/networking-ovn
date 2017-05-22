@@ -14,6 +14,8 @@
 
 import mock
 
+from ovsdbapp.backend.ovs_idl import connection
+
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
@@ -102,11 +104,12 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         class is created using 'connection.Connection' and hence it will not
         contend for any lock.
         """
-        tst_ovn_idl_conn = ovsdb_monitor.OvnConnection(
-            self.ovsdb_server_mgr.get_ovsdb_connection_path(), 10,
-            'OVN_Northbound')
         fake_driver = mock.MagicMock()
-        tst_ovn_idl_conn.start(fake_driver)
+        _idl = ovsdb_monitor.OvnNbIdl.from_server(
+            self.ovsdb_server_mgr.get_ovsdb_connection_path(),
+            'OVN_Northbound', fake_driver)
+        tst_ovn_idl_conn = connection.Connection(_idl, timeout=10)
+        tst_ovn_idl_conn.start()
 
         self.mech_driver.set_port_status_up = mock.Mock()
         self.mech_driver.set_port_status_down = mock.Mock()

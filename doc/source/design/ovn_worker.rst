@@ -18,7 +18,7 @@ worker (all these workers are separate processes).
 Api workers and rpc workers will create ovsdb idl client object
 ('ovs.db.idl.Idl') to connect to the OVN_Northbound db.
 See 'networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl' and
-'neutron.agent.ovsdb.native.connection.Connection' classes for more details.
+'ovsdbapp.backend.ovs_idl.connection.Connection' classes for more details.
 
 Ovn worker will create 'networking_ovn.ovsdb.ovsdb_monitor.OvnIdl' class
 object (which inherits from 'ovs.db.idl.Idl') to connect to the

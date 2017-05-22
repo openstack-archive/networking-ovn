@@ -14,8 +14,9 @@ from neutron_lib import exceptions as n_exc
 from oslo_log import log
 import tenacity
 
-from neutron.agent.ovsdb.native import idlutils
 from neutron_lib.utils import helpers
+from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 
 from networking_ovn._i18n import _
@@ -44,47 +45,41 @@ def get_ovn_idls(driver, trigger):
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=180),
         reraise=True)
-    def get_ovn_idl_retry(cls, driver, trigger):
+    def get_ovn_idl_retry(cls):
         LOG.info('Getting %(cls)s for %(trigger)s with retry',
                  {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
-        return cls(driver, trigger)
+        return cls(get_connection(cls, trigger, driver))
 
     vlog.use_oslo_logger()
-    nb_ovn_idl = get_ovn_idl_retry(OvsdbNbOvnIdl, driver, trigger)
-    sb_ovn_idl = get_ovn_idl_retry(OvsdbSbOvnIdl, driver, trigger)
-    return nb_ovn_idl, sb_ovn_idl
+    return tuple(get_ovn_idl_retry(c) for c in (OvsdbNbOvnIdl, OvsdbSbOvnIdl))
 
 
-def get_connection(db_class, trigger=None):
+def get_connection(db_class, trigger=None, driver=None):
     # The trigger is the start() method of the NeutronWorker class
-    if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
-        cls = ovsdb_monitor.OvnConnection
-    else:
-        cls = ovsdb_monitor.OvnBaseConnection
-
     if db_class == OvsdbNbOvnIdl:
-        return cls(cfg.get_ovn_nb_connection(),
-                   cfg.get_ovn_ovsdb_timeout(), 'OVN_Northbound')
+        args = (cfg.get_ovn_nb_connection(), 'OVN_Northbound')
+        cls = ovsdb_monitor.OvnNbIdl
     elif db_class == OvsdbSbOvnIdl:
-        return cls(cfg.get_ovn_sb_connection(),
-                   cfg.get_ovn_ovsdb_timeout(), 'OVN_Southbound')
+        args = (cfg.get_ovn_sb_connection(), 'OVN_Southbound')
+        cls = ovsdb_monitor.OvnSbIdl
+
+    if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
+        idl_ = cls.from_server(*args, driver=driver)
+    else:
+        idl_ = ovsdb_monitor.BaseOvnIdl.from_server(*args)
+    return connection.Connection(idl_, timeout=cfg.get_ovn_ovsdb_timeout())
 
 
 class OvsdbNbOvnIdl(ovn_api.API):
 
     ovsdb_connection = None
 
-    def __init__(self, driver, trigger=None):
+    def __init__(self, connection):
         super(OvsdbNbOvnIdl, self).__init__()
         try:
             if OvsdbNbOvnIdl.ovsdb_connection is None:
-                OvsdbNbOvnIdl.ovsdb_connection = get_connection(
-                    OvsdbNbOvnIdl, trigger)
-            if isinstance(OvsdbNbOvnIdl.ovsdb_connection,
-                          ovsdb_monitor.OvnConnection):
-                OvsdbNbOvnIdl.ovsdb_connection.start(driver)
-            else:
-                OvsdbNbOvnIdl.ovsdb_connection.start()
+                OvsdbNbOvnIdl.ovsdb_connection = connection
+            OvsdbNbOvnIdl.ovsdb_connection.start()
             self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
             self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
@@ -530,20 +525,12 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
 
     ovsdb_connection = None
 
-    def __init__(self, driver, trigger=None):
+    def __init__(self, connection):
         super(OvsdbSbOvnIdl, self).__init__()
         try:
             if OvsdbSbOvnIdl.ovsdb_connection is None:
-                OvsdbSbOvnIdl.ovsdb_connection = get_connection(OvsdbSbOvnIdl,
-                                                                trigger)
-            if isinstance(OvsdbSbOvnIdl.ovsdb_connection,
-                          ovsdb_monitor.OvnConnection):
-                # We only need to know the content of Chassis in OVN_Southbound
-                OvsdbSbOvnIdl.ovsdb_connection.start(
-                    driver, table_name_list=['Chassis'])
-            else:
-                OvsdbSbOvnIdl.ovsdb_connection.start(
-                    table_name_list=['Chassis'])
+                OvsdbSbOvnIdl.ovsdb_connection = connection
+            OvsdbSbOvnIdl.ovsdb_connection.start()
             self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
             self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
 
