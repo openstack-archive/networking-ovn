@@ -34,7 +34,11 @@ The OVN architecture is described here:
 Here are two tutorials that help with learning different aspects of OVN:
 
 * http://blog.spinhirne.com/p/blog-series.html#introToOVN
-* http://docs.openvswitch.org/en/latest/tutorials/ovn-basics/
+* http://docs.openvswitch.org/en/latest/tutorials/ovn-sandbox/
+
+There is also an in depth tutorial on using OVN with OpenStack:
+
+* http://docs.openvswitch.org/en/latest/tutorials/ovn-openstack/
 
 OVN DB schemas and other man pages:
 
@@ -46,10 +50,19 @@ OVN DB schemas and other man pages:
 * http://openvswitch.org/support/dist-docs/ovn-controller.8.html
 * http://openvswitch.org/support/dist-docs/ovn-controller-vtep.8.html
 
+or find a full list of OVS and OVN man pages here:
+
+* http://docs.openvswitch.org/en/latest/ref/
+
 The openvswitch web page includes a list of presentations, some of which are
 about OVN:
 
 * http://openvswitch.org/support/
+
+Here are some direct links to past OVN presentations:
+
+* OVN talk at OpenStack Summit in Boston, Spring 2017
+   * https://www.youtube.com/watch?v=sgc7myiX6ts
 * OVN talk at OpenStack Summit in Barcelona, Fall 2016
    * https://www.youtube.com/watch?v=q3cJ6ezPnCU
 * OVN talk at OpenStack Summit in Austin, Spring 2016
