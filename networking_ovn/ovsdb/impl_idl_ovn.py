@@ -99,7 +99,7 @@ class OvsdbNbOvnIdl(ovn_api.API):
     def _tables(self):
         return self.idl.tables
 
-    def transaction(self, check_error=False, log_errors=True, **kwargs):
+    def create_transaction(self, check_error=False, log_errors=True, **kwargs):
         return idl_trans.Transaction(self,
                                      OvsdbNbOvnIdl.ovsdb_connection,
                                      self.ovsdb_timeout,
@@ -545,6 +545,12 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
                 db_schema='OVN_Southbound', error=e)
             LOG.exception(connection_exception)
             raise connection_exception
+
+    def create_transaction(self, check_error=False, log_errors=True, **kwargs):
+        return idl_trans.Transaction(self,
+                                     OvsdbSbOvnIdl.ovsdb_connection,
+                                     self.ovsdb_timeout,
+                                     check_error, log_errors)
 
     def _get_chassis_physnets(self, chassis):
         bridge_mappings = chassis.external_ids.get('ovn-bridge-mappings', '')

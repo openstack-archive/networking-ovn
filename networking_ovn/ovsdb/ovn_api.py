@@ -13,21 +13,11 @@
 import abc
 import six
 
+from ovsdbapp import api
+
 
 @six.add_metaclass(abc.ABCMeta)
-class API(object):
-
-    @abc.abstractmethod
-    def transaction(self, check_error=False, log_errors=True, **kwargs):
-        """Create a transaction
-
-        :param check_error: Allow the transaction to raise an exception?
-        :type check_error:  bool
-        :param log_errors:  Log an error if the transaction fails?
-        :type log_errors:   bool
-        :returns: A new transaction
-        :rtype: :class:`Transaction`
-        """
+class API(api.API):
 
     @abc.abstractmethod
     def create_lswitch(self, name, may_exist=True, **columns):
@@ -535,7 +525,7 @@ class API(object):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class SbAPI(object):
+class SbAPI(api.API):
 
     @abc.abstractmethod
     def chassis_exists(self, hostname):
