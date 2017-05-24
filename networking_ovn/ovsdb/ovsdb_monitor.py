@@ -25,10 +25,10 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
 from neutron.common import config
-from neutron import worker
 from neutron_lib import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
+from neutron_lib import worker
 
 LOG = log.getLogger(__name__)
 
@@ -343,7 +343,7 @@ def _check_and_set_ssl_files(schema_name):
         Stream.ssl_set_ca_cert_file(ca_cert_file)
 
 
-class OvnWorker(worker.NeutronWorker):
+class OvnWorker(worker.BaseWorker):
     def start(self):
         super(OvnWorker, self).start()
         # NOTE(twilson) The super class will trigger the post_fork_initialize

@@ -1105,10 +1105,10 @@ class OVNMechanismDriver(api.MechanismDriver):
                                     vif_details)
 
     def get_workers(self):
-        """Get any NeutronWorker instances that should have their own process
+        """Get any worker instances that should have their own process
 
         Any driver that needs to run processes separate from the API or RPC
-        workers, can return a sequence of NeutronWorker instances.
+        workers, can return a sequence of worker instances.
         """
         # See doc/source/design/ovn_worker.rst for more details.
         return [ovsdb_monitor.OvnWorker()]
