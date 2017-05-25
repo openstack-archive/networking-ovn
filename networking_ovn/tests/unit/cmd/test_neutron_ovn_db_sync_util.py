@@ -25,16 +25,7 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
         self.cmd_log = mock.Mock()
         cmd.LOG = self.cmd_log
         self.cmd_sync = mock.Mock()
-        self.cmd_sync.sync_address_sets = mock.Mock()
-        self.cmd_sync.sync_networks_ports_and_dhcp_opts = mock.Mock()
-        self.cmd_sync.sync_acls = mock.Mock()
-        self.cmd_sync.sync_routers_and_rports = mock.Mock()
-        self.cmd_sync_stages = [
-            self.cmd_sync.sync_address_sets,
-            self.cmd_sync.sync_networks_ports_and_dhcp_opts,
-            self.cmd_sync.sync_acls,
-            self.cmd_sync.sync_routers_and_rports,
-        ]
+        self.cmd_sync.do_sync = mock.Mock()
 
     def _setup_default_mock_cfg(self, mock_cfg):
         mock_cfg.ovn.neutron_sync_mode = 'log'
@@ -118,41 +109,5 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
 
     def test_main_sync_success(self):
         self._test_main_sync()
-        self.cmd_sync.sync_address_sets.assert_called_once_with(mock.ANY)
-        self.cmd_sync.sync_networks_ports_and_dhcp_opts.\
-            assert_called_once_with(mock.ANY)
-        self.cmd_sync.sync_acls.assert_called_once_with(mock.ANY)
-        self.cmd_sync.sync_routers_and_rports.assert_called_once_with(mock.ANY)
+        self.cmd_sync.do_sync.assert_called_once_with()
         self.cmd_log.info.assert_called_with('Sync completed')
-
-    def _test_main_sync_fail(self, stage):
-        self.cmd_sync_stages[(stage - 1)].side_effect = Exception
-        self._test_main_sync()
-        for sync_stage in self.cmd_sync_stages[:stage]:
-            sync_stage.assert_called_once_with(mock.ANY)
-        for sync_stage in self.cmd_sync_stages[stage:]:
-            sync_stage.assert_not_called()
-
-    def test_main_sync_stage1_fail(self):
-        self._test_main_sync_fail(1)
-        self.cmd_log.exception.assert_called_once_with(
-            "Error syncing the Address Sets. Check the "
-            "--database-connection value again")
-
-    def test_main_sync_stage2_fail(self):
-        self._test_main_sync_fail(2)
-        self.cmd_log.exception.assert_called_once_with(
-            "Error syncing Networks, Ports and DHCP options "
-            "for unknown reason please try again")
-
-    def test_main_sync_stage3_fail(self):
-        self._test_main_sync_fail(3)
-        self.cmd_log.exception.assert_called_once_with(
-            "Error syncing ACLs for unknown "
-            "reason please try again")
-
-    def test_main_sync_stage4_fail(self):
-        self._test_main_sync_fail(4)
-        self.cmd_log.exception.assert_called_once_with(
-            "Error syncing Routers and Router ports "
-            "please try again")

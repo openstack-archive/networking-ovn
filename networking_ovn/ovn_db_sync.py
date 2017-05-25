@@ -46,11 +46,11 @@ class OvnDbSynchronizer(object):
         self.ovn_api = ovn_api
         self.core_plugin = core_plugin
 
-    def sync(self):
-        greenthread.spawn_n(self._sync)
+    def sync(self, delay_seconds=10):
+        greenthread.spawn_after_local(delay_seconds, self.do_sync)
 
     @abc.abstractmethod
-    def _sync(self):
+    def do_sync(self):
         """Method to sync the OVN DB."""
 
 
@@ -63,13 +63,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         self.mode = mode
         self.l3_plugin = directory.get_plugin(constants.L3)
 
-    def _sync(self):
+    def do_sync(self):
         if self.mode == SYNC_MODE_OFF:
             LOG.debug("Neutron sync mode is off")
             return
-
-        # Initial delay until service is up
-        greenthread.sleep(10)
         LOG.debug("Starting OVN-Northbound DB sync process")
 
         ctx = context.get_admin_context()
@@ -833,15 +830,13 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
             core_plugin, ovn_api, ovn_driver)
         self.l3_plugin = directory.get_plugin(constants.L3)
 
-    def _sync(self):
+    def do_sync(self):
         """Method to sync the OVN_Southbound DB with neutron DB.
 
         OvnSbSynchronizer will sync data from OVN_Southbound to neutron. And
         the synchronization will always be performed, no matter what mode it
         is.
         """
-        # Initial delay until service is up
-        greenthread.sleep(10)
         LOG.debug("Starting OVN-Southbound DB sync process")
 
         ctx = context.get_admin_context()
