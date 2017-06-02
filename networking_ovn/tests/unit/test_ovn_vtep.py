@@ -82,7 +82,8 @@ class TestOVNVtepPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
             OVN_PROFILE: {"vtep-logical-switch": "lsw1",
                           "vtep-physical-switch": "psw1"}
         }
-        ovn_port_info = self.mech_driver.get_ovn_port_options(port)
+        ovn_port_info = (
+            self.mech_driver._ovn_client._get_port_options(port))
         self.assertEqual(port[OVN_PROFILE]["vtep-physical-switch"],
                          ovn_port_info.options["vtep-physical-switch"])
         self.assertEqual(port[OVN_PROFILE]["vtep-logical-switch"],

@@ -14,7 +14,11 @@ import os
 
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
+from neutron_lib.api import validators
 from neutron_lib import constants as const
+from neutron_lib import context as n_context
+from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_utils
 
 from networking_ovn.common import constants
@@ -109,3 +113,61 @@ def get_lsp_security_groups(port, skip_trusted_port=True):
 
 def is_snat_enabled(router):
     return router.get(l3.EXTERNAL_GW_INFO, {}).get('enable_snat', True)
+
+
+def validate_and_get_data_from_binding_profile(port):
+    if (constants.OVN_PORT_BINDING_PROFILE not in port or
+            not validators.is_attr_set(
+                port[constants.OVN_PORT_BINDING_PROFILE])):
+        return {}
+    param_set = {}
+    param_dict = {}
+    for param_set in constants.OVN_PORT_BINDING_PROFILE_PARAMS:
+        param_keys = param_set.keys()
+        for param_key in param_keys:
+            try:
+                param_dict[param_key] = (port[
+                    constants.OVN_PORT_BINDING_PROFILE][param_key])
+            except KeyError:
+                pass
+        if len(param_dict) == 0:
+            continue
+        if len(param_dict) != len(param_keys):
+            msg = _('Invalid binding:profile. %s are all '
+                    'required.') % param_keys
+            raise n_exc.InvalidInput(error_message=msg)
+        if (len(port[constants.OVN_PORT_BINDING_PROFILE]) != len(
+                param_keys)):
+            msg = _('Invalid binding:profile. too many parameters')
+            raise n_exc.InvalidInput(error_message=msg)
+        break
+
+    if not param_dict:
+        return {}
+
+    for param_key, param_type in param_set.items():
+        if param_type is None:
+            continue
+        param_value = param_dict[param_key]
+        if not isinstance(param_value, param_type):
+            msg = _('Invalid binding:profile. %(key)s %(value)s '
+                    'value invalid type') % {'key': param_key,
+                                             'value': param_value}
+            raise n_exc.InvalidInput(error_message=msg)
+
+    # Make sure we can successfully look up the port indicated by
+    # parent_name.  Just let it raise the right exception if there is a
+    # problem.
+    if 'parent_name' in param_set:
+        plugin = directory.get_plugin()
+        plugin.get_port(n_context.get_admin_context(),
+                        param_dict['parent_name'])
+
+    if 'tag' in param_set:
+        tag = int(param_dict['tag'])
+        if tag < 0 or tag > 4095:
+            msg = _('Invalid binding:profile. tag "%s" must be '
+                    'an integer between 0 and 4095, inclusive') % tag
+            raise n_exc.InvalidInput(error_message=msg)
+
+    return param_dict
