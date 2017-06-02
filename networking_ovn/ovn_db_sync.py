@@ -88,7 +88,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def _create_network_in_ovn(self, net):
         physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
         segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
-        self.ovn_driver.create_network_in_ovn(net, {}, physnet, segid)
+        self._ovn_client.create_network(net, physnet, segid)
 
     def _create_port_in_ovn(self, ctx, port):
         # Remove any old ACLs for the port to avoid creating duplicate ACLs.
@@ -98,7 +98,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         # Create the port in OVN. This will include ACL and Address Set
         # updates as needed.
-        self.ovn_driver._ovn_client.create_port(port)
+        self._ovn_client.create_port(port)
 
     def remove_common_acls(self, neutron_acls, nb_acls):
         """Take out common acls of the two acl dictionaries.
@@ -588,7 +588,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     server_mac = ovn_dhcp_opts['options'].get('server_id')
                 else:
                     server_mac = ovn_dhcp_opts['options'].get('server_mac')
-                dhcp_options = self.ovn_driver.get_ovn_dhcp_options(
+                dhcp_options = self._ovn_client._get_ovn_dhcp_options(
                     db_subnets[subnet_id], network, server_mac=server_mac)
                 # Verify that the cidr and options are also in sync.
                 if dhcp_options['cidr'] == ovn_dhcp_opts['cidr'] and (
@@ -607,10 +607,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.debug('Adding/Updating DHCP options for subnet %s in '
                               ' OVN NB DB', subnet_id)
                     network = db_networks[utils.ovn_name(subnet['network_id'])]
-                    # ovn_driver.add_subnet_dhcp_options_in_ovn doesn't create
+                    # _ovn_client._add_subnet_dhcp_options doesn't create
                     # a new row in DHCP_Options if the row already exists.
                     # See commands.AddDHCPOptionsCommand.
-                    self.ovn_driver.add_subnet_dhcp_options_in_ovn(
+                    self._ovn_client._add_subnet_dhcp_options(
                         subnet, network, subnet.get('ovn_dhcp_options'))
                 except RuntimeError:
                     LOG.warning('Adding/Updating DHCP options for subnet '
@@ -650,7 +650,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 set_lsp = {}
                 for ip_v in [constants.IP_VERSION_4, constants.IP_VERSION_6]:
                     dhcp_opts = (
-                        self.ovn_driver._ovn_client._get_port_dhcp_options(
+                        self._ovn_client._get_port_dhcp_options(
                             port, ip_v))
                     if not dhcp_opts or 'uuid' in dhcp_opts:
                         # If the Logical_Switch_Port.dhcpv4_options or
@@ -663,7 +663,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     else:
                         # If port has extra port dhcp
                         # options, a command will returned by
-                        # ovn_driver._ovn_client._get_port_dhcp_options
+                        # self._ovn_client._get_port_dhcp_options
                         # to add or update port dhcp options.
                         ovn_port_dhcp_opts[ip_v].pop(port['id'], None)
                         dhcp_options = dhcp_opts['cmd']
@@ -794,7 +794,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 if self.mode == SYNC_MODE_REPAIR:
                     LOG.debug('Creating the provnet port %s in OVN NB DB',
                               utils.ovn_provnet_port_name(network['id']))
-                    self.ovn_driver.create_provnet_port(
+                    self._ovn_client._create_provnet_port(
                         txn, network, network.get(pnet.PHYSICAL_NETWORK),
                         network.get(pnet.SEGMENTATION_ID))
 

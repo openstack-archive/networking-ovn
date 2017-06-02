@@ -389,12 +389,12 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
         ovn_api.transaction = mock.MagicMock()
 
-        ovn_driver.create_network_in_ovn = mock.Mock()
-        ovn_driver.create_port_in_ovn = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.create_network = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.create_port = mock.Mock()
         ovn_driver.validate_and_get_data_from_binding_profile = mock.Mock()
-        ovn_driver._ovn_client.create_port = mock.Mock()
-        ovn_driver._ovn_client.create_port.return_value = mock.ANY
-        ovn_driver.create_provnet_port = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.create_port = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.create_port.return_value = mock.ANY
+        ovn_nb_synchronizer._ovn_client._create_provnet_port = mock.Mock()
         ovn_api.delete_lswitch = mock.Mock()
         ovn_api.delete_lswitch_port = mock.Mock()
 
@@ -457,9 +457,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.create_address_set = mock.Mock()
         ovn_api.delete_address_set = mock.Mock()
         ovn_api.update_address_set = mock.Mock()
-        ovn_driver.add_subnet_dhcp_options_in_ovn = mock.Mock()
-        ovn_driver.get_ovn_dhcp_options = mock.Mock()
-        ovn_driver.get_ovn_dhcp_options.side_effect = (
+        ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options = mock.Mock()
+        ovn_nb_synchronizer._ovn_client._get_ovn_dhcp_options = mock.Mock()
+        ovn_nb_synchronizer._ovn_client._get_ovn_dhcp_options.side_effect = (
             self._fake_get_ovn_dhcp_options)
         ovn_api.delete_dhcp_options = mock.Mock()
 
@@ -483,7 +483,6 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
         core_plugin = ovn_nb_synchronizer.core_plugin
         ovn_api = ovn_nb_synchronizer.ovn_api
-        ovn_driver = ovn_nb_synchronizer.ovn_driver
 
         ovn_nb_synchronizer.do_sync()
 
@@ -494,28 +493,30 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         core_plugin.get_security_group.assert_has_calls(
             get_security_group_calls, any_order=True)
 
-        self.assertEqual(len(create_network_list),
-                         ovn_driver.create_network_in_ovn.call_count)
-        create_network_calls = [mock.call(net['net'], net['ext_ids'],
-                                          None, None)
+        self.assertEqual(
+            len(create_network_list),
+            ovn_nb_synchronizer._ovn_client.create_network.call_count)
+        create_network_calls = [mock.call(net['net'], None, None)
                                 for net in create_network_list]
-        ovn_driver.create_network_in_ovn.assert_has_calls(
+        ovn_nb_synchronizer._ovn_client.create_network.assert_has_calls(
             create_network_calls, any_order=True)
 
-        self.assertEqual(len(create_port_list),
-                         ovn_driver._ovn_client.create_port.call_count)
+        self.assertEqual(
+            len(create_port_list),
+            ovn_nb_synchronizer._ovn_client.create_port.call_count)
         create_port_calls = [mock.call(port) for port in create_port_list]
-        ovn_driver._ovn_client.create_port.assert_has_calls(create_port_calls,
-                                                            any_order=True)
+        ovn_nb_synchronizer._ovn_client.create_port.assert_has_calls(
+            create_port_calls, any_order=True)
 
         create_provnet_port_calls = [
             mock.call(mock.ANY, mock.ANY,
                       network['provider:physical_network'],
                       network['provider:segmentation_id'])
             for network in create_provnet_port_list]
-        self.assertEqual(len(create_provnet_port_list),
-                         ovn_driver.create_provnet_port.call_count)
-        ovn_driver.create_provnet_port.assert_has_calls(
+        self.assertEqual(
+            len(create_provnet_port_list),
+            ovn_nb_synchronizer._ovn_client._create_provnet_port.call_count)
+        ovn_nb_synchronizer._ovn_client._create_provnet_port.assert_has_calls(
             create_provnet_port_calls, any_order=True)
 
         self.assertEqual(len(del_network_list),
@@ -629,13 +630,15 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.update_address_set.assert_has_calls(
             update_address_set_calls, any_order=True)
 
-        self.assertEqual(len(add_subnet_dhcp_options_list),
-                         ovn_driver.add_subnet_dhcp_options_in_ovn.call_count)
+        self.assertEqual(
+            len(add_subnet_dhcp_options_list),
+            ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options.
+            call_count)
         add_subnet_dhcp_options_calls = [
             mock.call(subnet, net, mock.ANY)
             for (subnet, net) in add_subnet_dhcp_options_list]
-        ovn_driver.add_subnet_dhcp_options_in_ovn.assert_has_calls(
-            add_subnet_dhcp_options_calls, any_order=True)
+        ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options. \
+            assert_has_calls(add_subnet_dhcp_options_calls, any_order=True)
 
         self.assertEqual(ovn_api.delete_dhcp_options.call_count,
                          len(delete_dhcp_options_list))
