@@ -19,6 +19,13 @@ case $VENV in
     # Installing the package for now as a workaround
     # https://bugs.launchpad.net/networking-ovn/+bug/1648670
     sudo pip install six
+    # Install SSL dependencies here for now as a workaround
+    # https://bugs.launchpad.net/networking-ovn/+bug/1696713
+    if is_fedora ; then
+        install_package openssl-devel
+    elif is_ubuntu ; then
+        install_package libssl-dev
+    fi
     # In order to run functional tests, we want to compile OVS
     # from sources and installed. We don't need to start ovs services.
     remove_ovs_packages
