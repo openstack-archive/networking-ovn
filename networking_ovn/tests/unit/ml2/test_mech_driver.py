@@ -719,7 +719,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def _test_add_subnet_dhcp_options_in_ovn(self, subnet, ovn_dhcp_opts=None,
                                              call_get_dhcp_opts=True,
-                                             call_compose_dhcp_opts=True):
+                                             call_add_dhcp_opts=True):
         subnet['id'] = 'fake_id'
         with mock.patch.object(self.mech_driver,
                                'get_ovn_dhcp_options') as get_opts:
@@ -727,8 +727,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 subnet, mock.ANY, ovn_dhcp_opts)
             self.assertEqual(call_get_dhcp_opts, get_opts.called)
             self.assertEqual(
-                call_compose_dhcp_opts,
-                self.mech_driver._nb_ovn.compose_dhcp_options_commands.called)
+                call_add_dhcp_opts,
+                self.mech_driver._nb_ovn.add_dhcp_options.called)
 
     def test_add_subnet_dhcp_options_in_ovn(self):
         subnet = {'ip_version': const.IP_VERSION_4}
@@ -743,7 +743,325 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         subnet = {'ip_version': const.IP_VERSION_6,
                   'ipv6_address_mode': const.IPV6_SLAAC}
         self._test_add_subnet_dhcp_options_in_ovn(
-            subnet, call_get_dhcp_opts=False, call_compose_dhcp_opts=False)
+            subnet, call_get_dhcp_opts=False, call_add_dhcp_opts=False)
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    @mock.patch('neutron_lib.utils.net.get_random_mac')
+    def test_enable_subnet_dhcp_options_in_ovn_ipv4(self, grm, gps):
+        grm.return_value = '01:02:03:04:05:06'
+        gps.return_value = [
+            {'id': 'port-id-1', 'device_owner': 'nova:compute'},
+            {'id': 'port-id-2', 'device_owner': 'nova:compute',
+             'extra_dhcp_opts': [
+                 {'opt_value': '10.0.0.33', 'ip_version': 4,
+                   'opt_name': 'router'}]},
+            {'id': 'port-id-3', 'device_owner': 'nova:compute',
+             'extra_dhcp_opts': [
+                 {'opt_value': '1200', 'ip_version': 4,
+                   'opt_name': 'mtu'}]},
+            {'id': 'port-id-10', 'device_owner': 'network:foo'}]
+        subnet = {'id': 'subnet-id', 'ip_version': 4, 'cidr': '10.0.0.0/24',
+                  'gateway_ip': '10.0.0.1', 'enable_dhcp': True,
+                  'dns_nameservers': [], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        cmd = mock.Mock()
+        self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
+
+        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
+
+        # Check adding DHCP_Options rows
+        subnet_dhcp_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'router': subnet['gateway_ip'],
+                'server_id': subnet['gateway_ip'],
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1000)}}
+        ports_dhcp_options = [{
+            'external_ids': {'subnet_id': subnet['id'],
+                             'port_id': 'port-id-2'},
+            'cidr': subnet['cidr'], 'options': {
+                'router': '10.0.0.33',
+                'server_id': subnet['gateway_ip'],
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1000)}}, {
+            'external_ids': {'subnet_id': subnet['id'],
+                             'port_id': 'port-id-3'},
+            'cidr': subnet['cidr'], 'options': {
+                'router': subnet['gateway_ip'],
+                'server_id': subnet['gateway_ip'],
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1200)}}]
+        add_dhcp_calls = [mock.call('subnet-id', **subnet_dhcp_options)]
+        add_dhcp_calls.extend([mock.call(
+            'subnet-id', port_id=port_dhcp_options['external_ids']['port_id'],
+            **port_dhcp_options) for port_dhcp_options in ports_dhcp_options])
+        self.assertEqual(len(add_dhcp_calls),
+                         self.mech_driver._nb_ovn.add_dhcp_options.call_count)
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_has_calls(
+            add_dhcp_calls, any_order=True)
+
+        # Check setting lport rows
+        set_lsp_calls = [mock.call(lport_name='port-id-1',
+                                   dhcpv4_options=[cmd.result]),
+                         mock.call(lport_name='port-id-2',
+                                   dhcpv4_options=mock.ANY),
+                         mock.call(lport_name='port-id-3',
+                                   dhcpv4_options=mock.ANY)]
+        self.assertEqual(len(set_lsp_calls),
+                         self.mech_driver._nb_ovn.set_lswitch_port.call_count)
+        self.mech_driver._nb_ovn.set_lswitch_port.assert_has_calls(
+            set_lsp_calls, any_order=True)
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    @mock.patch('neutron_lib.utils.net.get_random_mac')
+    def test_enable_subnet_dhcp_options_in_ovn_ipv6(self, grm, gps):
+        grm.return_value = '01:02:03:04:05:06'
+        gps.return_value = [
+            {'id': 'port-id-1', 'device_owner': 'nova:compute'},
+            {'id': 'port-id-2', 'device_owner': 'nova:compute',
+             'extra_dhcp_opts': [
+                 {'opt_value': '11:22:33:44:55:66', 'ip_version': 6,
+                   'opt_name': 'server-id'}]},
+            {'id': 'port-id-3', 'device_owner': 'nova:compute',
+             'extra_dhcp_opts': [
+                 {'opt_value': '10::34', 'ip_version': 6,
+                   'opt_name': 'dns-server'}]},
+            {'id': 'port-id-10', 'device_owner': 'network:foo'}]
+        subnet = {'id': 'subnet-id', 'ip_version': 6, 'cidr': '10::0/64',
+                  'gateway_ip': '10::1', 'enable_dhcp': True,
+                  'ipv6_address_mode': 'dhcpv6-stateless',
+                  'dns_nameservers': [], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        cmd = mock.Mock()
+        self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
+
+        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
+
+        # Check adding DHCP_Options rows
+        subnet_dhcp_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'server_id': '01:02:03:04:05:06'}}
+        ports_dhcp_options = [{
+            'external_ids': {'subnet_id': subnet['id'],
+                             'port_id': 'port-id-2'},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'server_id': '11:22:33:44:55:66'}}, {
+            'external_ids': {'subnet_id': subnet['id'],
+                             'port_id': 'port-id-3'},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'server_id': '01:02:03:04:05:06',
+                'dns_server': '10::34'}}]
+        add_dhcp_calls = [mock.call('subnet-id', **subnet_dhcp_options)]
+        add_dhcp_calls.extend([mock.call(
+            'subnet-id', port_id=port_dhcp_options['external_ids']['port_id'],
+            **port_dhcp_options) for port_dhcp_options in ports_dhcp_options])
+        self.assertEqual(len(add_dhcp_calls),
+                         self.mech_driver._nb_ovn.add_dhcp_options.call_count)
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_has_calls(
+            add_dhcp_calls, any_order=True)
+
+        # Check setting lport rows
+        set_lsp_calls = [mock.call(lport_name='port-id-1',
+                                   dhcpv6_options=[cmd.result]),
+                         mock.call(lport_name='port-id-2',
+                                   dhcpv6_options=mock.ANY),
+                         mock.call(lport_name='port-id-3',
+                                   dhcpv6_options=mock.ANY)]
+        self.assertEqual(len(set_lsp_calls),
+                         self.mech_driver._nb_ovn.set_lswitch_port.call_count)
+        self.mech_driver._nb_ovn.set_lswitch_port.assert_has_calls(
+            set_lsp_calls, any_order=True)
+
+    def test_enable_subnet_dhcp_options_in_ovn_ipv6_slaac(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 6, 'enable_dhcp': True,
+                  'ipv6_address_mode': 'slaac'}
+        network = {'id': 'network-id'}
+
+        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.set_lswitch_port.assert_not_called()
+
+    def _test_remove_subnet_dhcp_options_in_ovn(self, ip_version):
+        uuids = [{'uuid': 'subnet-uuid'}, {'uuid': 'port-1-uuid'}]
+        self.mech_driver._nb_ovn.get_subnet_and_ports_dhcp_options.\
+            return_value = uuids
+
+        self.mech_driver.remove_subnet_dhcp_options_in_ovn(
+            {'id': 'subnet-id', 'ip_version': ip_version})
+
+        # Check deleting DHCP_Options rows
+        delete_dhcp_calls = [mock.call(uuid['uuid']) for uuid in uuids]
+        self.assertEqual(
+            len(delete_dhcp_calls),
+            self.mech_driver._nb_ovn.delete_dhcp_options.call_count)
+        self.mech_driver._nb_ovn.delete_dhcp_options.assert_has_calls(
+            delete_dhcp_calls, any_order=True)
+
+    def test_remove_subnet_dhcp_options_in_ovn_ipv4(self):
+        self._test_remove_subnet_dhcp_options_in_ovn(4)
+
+    def test_remove_subnet_dhcp_options_in_ovn_ipv6(self):
+        self._test_remove_subnet_dhcp_options_in_ovn(6)
+
+    def test_update_subnet_dhcp_options_in_ovn_ipv4(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 4, 'cidr': '10.0.0.0/24',
+                  'gateway_ip': '10.0.0.1', 'enable_dhcp': True,
+                  'dns_nameservers': [], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        orignal_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'router': '10.0.0.2',
+                'server_id': '10.0.0.2',
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1000)}}
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
+            orignal_options
+
+        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+
+        new_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'router': subnet['gateway_ip'],
+                'server_id': subnet['gateway_ip'],
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1000)}}
+        self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
+            assert_called_once_with(subnet['id'], **new_options)
+
+    def test_update_subnet_dhcp_options_in_ovn_ipv4_not_change(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 4, 'cidr': '10.0.0.0/24',
+                  'gateway_ip': '10.0.0.1', 'enable_dhcp': True,
+                  'dns_nameservers': [], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        orignal_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'router': subnet['gateway_ip'],
+                'server_id': subnet['gateway_ip'],
+                'server_mac': '01:02:03:04:05:06',
+                'lease_time': str(12 * 60 * 60),
+                'mtu': str(1000)}}
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
+            orignal_options
+
+        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+
+        self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
+            assert_not_called()
+
+    def test_update_subnet_dhcp_options_in_ovn_ipv6(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 6, 'cidr': '10::0/64',
+                  'gateway_ip': '10::1', 'enable_dhcp': True,
+                  'ipv6_address_mode': 'dhcpv6-stateless',
+                  'dns_nameservers': ['10::3'], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        orignal_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'server_id': '01:02:03:04:05:06'}}
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
+            orignal_options
+        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+
+        new_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'dns_server': '{10::3}',
+                'server_id': '01:02:03:04:05:06'}}
+        self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
+            assert_called_once_with(subnet['id'], **new_options)
+
+    def test_update_subnet_dhcp_options_in_ovn_ipv6_not_change(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 6, 'cidr': '10::0/64',
+                  'gateway_ip': '10::1', 'enable_dhcp': True,
+                  'ipv6_address_mode': 'dhcpv6-stateless',
+                  'dns_nameservers': [], 'host_routes': []}
+        network = {'id': 'network-id', 'mtu': 1000}
+        orignal_options = {
+            'external_ids': {'subnet_id': subnet['id']},
+            'cidr': subnet['cidr'], 'options': {
+                'dhcpv6_stateless': 'true',
+                'server_id': '01:02:03:04:05:06'}}
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
+            orignal_options
+
+        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+
+        self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
+            assert_not_called()
+
+    def test_update_subnet_dhcp_options_in_ovn_ipv6_slaac(self):
+        subnet = {'id': 'subnet-id', 'ip_version': 6, 'enable_dhcp': True,
+                  'ipv6_address_mode': 'slaac'}
+        network = {'id': 'network-id'}
+        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
+        self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
+            assert_not_called()
+
+    def test_update_subnet_postcommit_ovn_do_nothing(self):
+        context = fakes.FakeSubnetContext(
+            subnet={'enable_dhcp': False},
+            original_subnet={'enable_dhcp': False}, network={})
+        with mock.patch.object(
+                self.mech_driver,
+                'enable_subnet_dhcp_options_in_ovn') as esd,\
+                mock.patch.object(
+                    self.mech_driver,
+                    'remove_subnet_dhcp_options_in_ovn') as dsd,\
+                mock.patch.object(
+                    self.mech_driver,
+                    'update_subnet_dhcp_options_in_ovn') as usd:
+            self.mech_driver.update_subnet_postcommit(context)
+            esd.assert_not_called()
+            dsd.assert_not_called()
+            usd.assert_not_called()
+
+    def test_update_subnet_postcommit_enable_dhcp(self):
+        context = fakes.FakeSubnetContext(
+            subnet={'enable_dhcp': True},
+            original_subnet={'enable_dhcp': False}, network={})
+        with mock.patch.object(
+                self.mech_driver,
+                'enable_subnet_dhcp_options_in_ovn') as esd:
+            self.mech_driver.update_subnet_postcommit(context)
+            esd.assert_called_once_with(context.current,
+                                        context.network.current)
+
+    def test_update_subnet_postcommit_disable_dhcp(self):
+        context = fakes.FakeSubnetContext(
+            subnet={'enable_dhcp': False},
+            original_subnet={'enable_dhcp': True}, network={})
+        with mock.patch.object(
+                self.mech_driver,
+                'remove_subnet_dhcp_options_in_ovn') as dsd:
+            self.mech_driver.update_subnet_postcommit(context)
+            dsd.assert_called_once_with(context.current)
+
+    def test_update_subnet_postcommit_update_dhcp(self):
+        context = fakes.FakeSubnetContext(
+            subnet={'enable_dhcp': True},
+            original_subnet={'enable_dhcp': True}, network={})
+        with mock.patch.object(
+                self.mech_driver,
+                'update_subnet_dhcp_options_in_ovn') as usd:
+            self.mech_driver.update_subnet_postcommit(context)
+            usd.assert_called_once_with(context.current,
+                                        context.network.current)
 
     @mock.patch.object(provisioning_blocks, 'provisioning_complete')
     def test_notify_dhcp_updated(self, mock_prov_complete):

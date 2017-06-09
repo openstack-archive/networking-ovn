@@ -12,6 +12,8 @@
 #    under the License.
 #
 
+import copy
+
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -363,32 +365,102 @@ class OVNMechanismDriver(api.MechanismDriver):
 
     def update_subnet_postcommit(self, context):
         subnet = context.current
-        if subnet['enable_dhcp'] or context.original['enable_dhcp']:
-            self.add_subnet_dhcp_options_in_ovn(subnet,
-                                                context.network.current)
+        original_subnet = context.original
+        network = context.network.current
+        if not subnet['enable_dhcp'] and not original_subnet['enable_dhcp']:
+            return
+        if not original_subnet['enable_dhcp']:
+            self.enable_subnet_dhcp_options_in_ovn(subnet, network)
+        elif not subnet['enable_dhcp']:
+            self.remove_subnet_dhcp_options_in_ovn(subnet)
+        else:
+            self.update_subnet_dhcp_options_in_ovn(subnet, network)
 
     def delete_subnet_postcommit(self, context):
         subnet = context.current
-        with self._nb_ovn.transaction(check_error=True) as txn:
-            subnet_dhcp_options = self._nb_ovn.get_subnet_dhcp_options(
-                subnet['id'])
-            if subnet_dhcp_options:
-                txn.add(self._nb_ovn.delete_dhcp_options(
-                    subnet_dhcp_options['uuid']))
+        self.remove_subnet_dhcp_options_in_ovn(subnet)
 
     def add_subnet_dhcp_options_in_ovn(self, subnet, network,
                                        ovn_dhcp_options=None):
-        # Don't insert DHCP_Options entry for v6 subnet with 'SLAAC' as
-        # 'ipv6_address_mode', since DHCPv6 shouldn't work for this mode.
-        if (subnet['ip_version'] == const.IP_VERSION_6 and
-                subnet.get('ipv6_address_mode') == const.IPV6_SLAAC):
+        if utils.is_dhcp_options_ignored(subnet):
             return
 
         if not ovn_dhcp_options:
             ovn_dhcp_options = self.get_ovn_dhcp_options(subnet, network)
 
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            txn.add(self._nb_ovn.add_dhcp_options(
+                subnet['id'], **ovn_dhcp_options))
+
+    def remove_subnet_dhcp_options_in_ovn(self, subnet):
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            dhcp_options = self._nb_ovn.get_subnet_and_ports_dhcp_options(
+                subnet['id'])
+            # Remove subnet and port DHCP_Options rows, the DHCP options in
+            # lsp rows will be removed by related UUID
+            for dhcp_option in dhcp_options:
+                txn.add(self._nb_ovn.delete_dhcp_options(dhcp_option['uuid']))
+
+    def enable_subnet_dhcp_options_in_ovn(self, subnet, network):
+        if utils.is_dhcp_options_ignored(subnet):
+            return
+
+        filters = {'fixed_ips': {'subnet_id': [subnet['id']]}}
+        all_ports = self._plugin.get_ports(n_context.get_admin_context(),
+                                           filters=filters)
+        ports = [p for p in all_ports if not p['device_owner'].startswith(
+            const.DEVICE_OWNER_PREFIXES)]
+
+        subnet_dhcp_options = self.get_ovn_dhcp_options(subnet, network)
+        subnet_dhcp_cmd = self._nb_ovn.add_dhcp_options(subnet['id'],
+                                                        **subnet_dhcp_options)
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            txn.add(subnet_dhcp_cmd)
+        with self._nb_ovn.transaction(check_error=True) as txn:
+            # Traverse ports to add port DHCP_Options rows
+            for port in ports:
+                lsp_dhcp_disabled, lsp_dhcp_opts = utils.get_lsp_dhcp_opts(
+                    port, subnet['ip_version'])
+                if lsp_dhcp_disabled:
+                    continue
+                elif not lsp_dhcp_opts:
+                    lsp_dhcp_options = [subnet_dhcp_cmd.result]
+                else:
+                    port_dhcp_options = copy.deepcopy(subnet_dhcp_options)
+                    port_dhcp_options['options'].update(lsp_dhcp_opts)
+                    port_dhcp_options['external_ids'].update(
+                        {'port_id': port['id']})
+                    lsp_dhcp_options = txn.add(self._nb_ovn.add_dhcp_options(
+                        subnet['id'], port_id=port['id'],
+                        **port_dhcp_options))
+                columns = {'dhcpv6_options': lsp_dhcp_options} if \
+                    subnet['ip_version'] == const.IP_VERSION_6 else {
+                    'dhcpv4_options': lsp_dhcp_options}
+
+                # Set lsp DHCP options
+                txn.add(self._nb_ovn.set_lswitch_port(
+                        lport_name=port['id'],
+                        **columns))
+
+    def update_subnet_dhcp_options_in_ovn(self, subnet, network):
+        if utils.is_dhcp_options_ignored(subnet):
+            return
+        original_options = self._nb_ovn.get_subnet_dhcp_options(subnet['id'])
+        mac = None
+        if original_options:
+            if subnet['ip_version'] == const.IP_VERSION_6:
+                mac = original_options['options'].get('server_id')
+            else:
+                mac = original_options['options'].get('server_mac')
+        new_options = self.get_ovn_dhcp_options(subnet, network, mac)
+        # Check whether DHCP changed
+        if (original_options and
+                original_options['cidr'] == new_options['cidr'] and
+                original_options['options'] == new_options['options']):
+            return
+
         txn_commands = self._nb_ovn.compose_dhcp_options_commands(
-            subnet['id'], **ovn_dhcp_options)
+            subnet['id'], **new_options)
         with self._nb_ovn.transaction(check_error=True) as txn:
             for cmd in txn_commands:
                 txn.add(cmd)

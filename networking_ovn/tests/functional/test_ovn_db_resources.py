@@ -31,15 +31,10 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self.fake_api.idl = self.monitor_nb_db_idl
         self.fake_api._tables = self.monitor_nb_db_idl.tables
         self.orig_get_random_mac = n_net.get_random_mac
-        n_net.get_random_mac = mock.Mock()
-        n_net.get_random_mac.return_value = '01:02:03:04:05:06'
         cfg.CONF.set_override('quota_subnet', -1, group='QUOTAS')
 
     def tearDown(self):
         super(TestNBDbResources, self).tearDown()
-        # This is required, else other tests run by the same worker
-        # would fail.
-        n_net.get_random_mac = self.orig_get_random_mac
 
     def _verify_dhcp_option_rows(self, expected_dhcp_options_rows):
         expected_dhcp_options_rows = list(expected_dhcp_options_rows.values())
@@ -83,6 +78,14 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self.assertEqual(expected_lsp_dhcpv6_options,
                          observed_lsp_dhcpv6_options)
 
+    def _get_subnet_dhcp_mac(self, subnet):
+
+        mac_key = 'server_id' if subnet['ip_version'] == 6 else 'server_mac'
+        dhcp_options = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+            subnet['id'])
+        return dhcp_options.get('options', {}).get(
+            mac_key) if dhcp_options else None
+
     def test_dhcp_options(self):
         """Test for DHCP_Options table rows
 
@@ -107,6 +110,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         n1 = self._make_network(self.fmt, 'n1', True)
         created_subnets = {}
         expected_dhcp_options_rows = {}
+        dhcp_mac = {}
 
         for cidr in ['10.0.0.0/24', '20.0.0.0/24', '30.0.0.0/24',
                      '40.0.0.0/24', 'aef0::/64', 'bef0::/64']:
@@ -116,15 +120,16 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                       ip_version=ip_version)
             subnet = self.deserialize(self.fmt, res)['subnet']
             created_subnets[cidr] = subnet
+            dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
 
             if ip_version == 4:
                 options = {'server_id': cidr.replace('0/24', '1'),
-                           'server_mac': '01:02:03:04:05:06',
+                           'server_mac': dhcp_mac[subnet['id']],
                            'lease_time': str(12 * 60 * 60),
                            'mtu': str(n1['network']['mtu']),
                            'router': subnet['gateway_ip']}
             else:
-                options = {'server_id': '01:02:03:04:05:06'}
+                options = {'server_id': dhcp_mac[subnet['id']]}
 
             expected_dhcp_options_rows[subnet['id']] = {
                 'cidr': cidr,
@@ -143,11 +148,12 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                       gateway_ip=gateway_ip)
             subnet = self.deserialize(self.fmt, res)['subnet']
             created_subnets[cidr] = subnet
+            dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
             if enable_dhcp:
                 if ip_version == 4:
                     options = {}
                 else:
-                    options = {'server_id': '01:02:03:04:05:06'}
+                    options = {'server_id': dhcp_mac[subnet['id']]}
                 expected_dhcp_options_rows[subnet['id']] = {
                     'cidr': cidr,
                     'external_ids': {'subnet_id': subnet['id']},
@@ -164,13 +170,15 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                           'nexthop': '10.0.0.8'}])
 
         subnet = self.deserialize(self.fmt, res)['subnet']
+        dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
+
         static_routes = ('{30.0.0.0/24,10.0.0.4, 40.0.0.0/24,'
                          '10.0.0.8, 0.0.0.0/0,10.0.0.1}')
         expected_dhcp_options_rows[subnet['id']] = {
             'cidr': '10.0.0.0/24',
             'external_ids': {'subnet_id': subnet['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n2['network']['mtu']),
                         'router': subnet['gateway_ip'],
@@ -183,14 +191,34 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             dns_nameservers=['be10::7', 'be10::8'])
 
         subnet = self.deserialize(self.fmt, res)['subnet']
+        dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
+
         expected_dhcp_options_rows[subnet['id']] = {
             'cidr': 'ae10::/64',
             'external_ids': {'subnet_id': subnet['id']},
-            'options': {'server_id': '01:02:03:04:05:06',
+            'options': {'server_id': dhcp_mac[subnet['id']],
                         'dns_server': '{be10::7, be10::8}'}}
 
         # Verify that DHCP_Options rows are created for these subnets or not
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+
+        for cidr in ['20.0.0.0/24', 'aef0::/64']:
+            subnet = created_subnets[cidr]
+            # Disable dhcp in subnet and verify DHCP_Options
+            data = {'subnet': {'enable_dhcp': False}}
+            req = self.new_update_request('subnets', data, subnet['id'])
+            req.get_response(self.api)
+            options = expected_dhcp_options_rows.pop(subnet['id'])
+            self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+
+            # Re-enable dhcp in subnet and verify DHCP_Options
+            n_net.get_random_mac = mock.Mock()
+            n_net.get_random_mac.return_value = dhcp_mac[subnet['id']]
+            data = {'subnet': {'enable_dhcp': True}}
+            req = self.new_update_request('subnets', data, subnet['id'])
+            req.get_response(self.api)
+            expected_dhcp_options_rows[subnet['id']] = options
+            self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
         n_net.get_random_mac = self.orig_get_random_mac
 
@@ -228,28 +256,33 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
     def test_port_dhcp_options(self):
+        dhcp_mac = {}
         n1 = self._make_network(self.fmt, 'n1', True)
         res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
         subnet = self.deserialize(self.fmt, res)['subnet']
+        dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
         res = self._create_subnet(self.fmt, n1['network']['id'], 'aef0::/64',
                                   ip_version=6)
         subnet_v6 = self.deserialize(self.fmt, res)['subnet']
+        dhcp_mac[subnet_v6['id']] = self._get_subnet_dhcp_mac(subnet_v6)
 
-        n_net.get_random_mac = self.orig_get_random_mac
         expected_dhcp_options_rows = {
             subnet['id']: {
                 'cidr': '10.0.0.0/24',
                 'external_ids': {'subnet_id': subnet['id']},
                 'options': {'server_id': '10.0.0.1',
-                            'server_mac': '01:02:03:04:05:06',
+                            'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
             subnet_v6['id']: {
                 'cidr': 'aef0::/64',
                 'external_ids': {'subnet_id': subnet_v6['id']},
-                'options': {'server_id': '01:02:03:04:05:06'}}}
-
+                'options': {'server_id': dhcp_mac[subnet_v6['id']]}}}
+        expected_dhcp_v4_options_rows = {
+            subnet['id']: expected_dhcp_options_rows[subnet['id']]}
+        expected_dhcp_v6_options_rows = {
+            subnet_v6['id']: expected_dhcp_options_rows[subnet_v6['id']]}
         data = {
             'port': {'network_id': n1['network']['id'],
                      'tenant_id': self._tenant_id,
@@ -269,12 +302,13 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'external_ids': {'subnet_id': subnet['id'],
                              'port_id': p1['port']['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
                         'ntp_server': '8.8.8.8'}}
-
+        expected_dhcp_v4_options_rows['v4-' + p1['port']['id']] = \
+            expected_dhcp_options_rows['v4-' + p1['port']['id']]
         data = {
             'port': {'network_id': n1['network']['id'],
                      'tenant_id': self._tenant_id,
@@ -299,14 +333,15 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'external_ids': {'subnet_id': subnet['id'],
                              'port_id': p2['port']['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n1['network']['mtu']),
                         'router': subnet['gateway_ip'],
                         'ip_forward_enable': '1',
                         'tftp_server': '10.0.0.100',
                         'dns_server': '20.20.20.20'}}
-
+        expected_dhcp_v4_options_rows['v4-' + p2['port']['id']] = \
+            expected_dhcp_options_rows['v4-' + p2['port']['id']]
         data = {
             'port': {'network_id': n1['network']['id'],
                      'tenant_id': self._tenant_id,
@@ -325,10 +360,11 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'cidr': 'aef0::/64',
             'external_ids': {'subnet_id': subnet_v6['id'],
                              'port_id': p3['port']['id']},
-            'options': {'server_id': '01:02:03:04:05:06',
+            'options': {'server_id': dhcp_mac[subnet_v6['id']],
                         'dns_server': 'aef0::1',
                         'domain_search': 'foo-domain'}}
-
+        expected_dhcp_v6_options_rows['v6-' + p3['port']['id']] = \
+            expected_dhcp_options_rows['v6-' + p3['port']['id']]
         data = {
             'port': {'network_id': n1['network']['id'],
                      'tenant_id': self._tenant_id,
@@ -351,7 +387,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'cidr': 'aef0::/64',
             'external_ids': {'subnet_id': subnet_v6['id'],
                              'port_id': p4['port']['id']},
-            'options': {'server_id': '01:02:03:04:05:06',
+            'options': {'server_id': dhcp_mac[subnet_v6['id']],
                         'dns_server': 'aef0::100',
                         'domain_search': 'bar-domain'}}
         expected_dhcp_options_rows['v4-' + p4['port']['id']] = {
@@ -359,12 +395,15 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'external_ids': {'subnet_id': subnet['id'],
                              'port_id': p4['port']['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n1['network']['mtu']),
                         'router': subnet['gateway_ip'],
                         'tftp_server': '100.0.0.100'}}
-
+        expected_dhcp_v4_options_rows['v4-' + p4['port']['id']] = \
+            expected_dhcp_options_rows['v4-' + p4['port']['id']]
+        expected_dhcp_v6_options_rows['v6-' + p4['port']['id']] = \
+            expected_dhcp_options_rows['v6-' + p4['port']['id']]
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
         self._verify_dhcp_option_row_for_port(
@@ -387,8 +426,6 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # to the DHCP options of the p1. Note that it should not get
         # propagate to DHCP options of port p2 because, it has overridden
         # dns-server in the Extra DHCP options.
-        n_net.get_random_mac = mock.Mock()
-        n_net.get_random_mac.return_value = '01:02:03:04:05:06'
         data = {'subnet': {'dns_nameservers': ['7.7.7.7', '8.8.8.8']}}
         req = self.new_update_request('subnets', data, subnet['id'])
         req.get_response(self.api)
@@ -421,6 +458,39 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
 
         del p2_expected['options']['tftp_server']
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+
+        # Test subnet DHCP disabling and enabling
+        for (subnet_id, expect_subnet_rows_disabled,
+             expect_port_v4_row_disabled, expect_port_v6_row_disabled) in [
+            (subnet['id'], expected_dhcp_v6_options_rows, {},
+             expected_dhcp_options_rows['v6-' + p4['port']['id']]),
+            (subnet_v6['id'], expected_dhcp_v4_options_rows,
+             expected_dhcp_options_rows['v4-' + p4['port']['id']], {})]:
+            # Disable subnet's DHCP and verify DHCP_Options,
+            data = {'subnet': {'enable_dhcp': False}}
+            req = self.new_update_request('subnets', data, subnet_id)
+            req.get_response(self.api)
+            # DHCP_Options belonging to the subnet or it's ports should be all
+            # removed, current DHCP_Options should be equal to
+            # expect_subnet_rows_disabled
+            self._verify_dhcp_option_rows(expect_subnet_rows_disabled)
+            # Verify that the corresponding port DHCP options were cleared
+            # and the others were not affected.
+            self._verify_dhcp_option_row_for_port(
+                p4['port']['id'], expect_port_v4_row_disabled,
+                expect_port_v6_row_disabled)
+            # Re-enable dhcpv4 in subnet and verify DHCP_Options
+            n_net.get_random_mac = mock.Mock()
+            n_net.get_random_mac.return_value = dhcp_mac[subnet_id]
+            data = {'subnet': {'enable_dhcp': True}}
+            req = self.new_update_request('subnets', data, subnet_id)
+            req.get_response(self.api)
+            self._verify_dhcp_option_rows(expected_dhcp_options_rows)
+            self._verify_dhcp_option_row_for_port(
+                p4['port']['id'],
+                expected_dhcp_options_rows['v4-' + p4['port']['id']],
+                expected_dhcp_options_rows['v6-' + p4['port']['id']])
+        n_net.get_random_mac = self.orig_get_random_mac
 
         # Disable dhcp in p2
         data = {'port': {'extra_dhcp_opts': [{'ip_version': 4,
@@ -463,28 +533,28 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         should refer to the subnet DHCP_Options and the DHCP_Options row
         created for this port earlier should be deleted.
         """
+        dhcp_mac = {}
         n1 = self._make_network(self.fmt, 'n1', True)
         res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
         subnet = self.deserialize(self.fmt, res)['subnet']
-
+        dhcp_mac[subnet['id']] = self._get_subnet_dhcp_mac(subnet)
         res = self._create_subnet(self.fmt, n1['network']['id'], 'aef0::/64',
                                   ip_version=6)
         subnet_v6 = self.deserialize(self.fmt, res)['subnet']
-
-        n_net.get_random_mac = self.orig_get_random_mac
+        dhcp_mac[subnet_v6['id']] = self._get_subnet_dhcp_mac(subnet_v6)
         expected_dhcp_options_rows = {
             subnet['id']: {
                 'cidr': '10.0.0.0/24',
                 'external_ids': {'subnet_id': subnet['id']},
                 'options': {'server_id': '10.0.0.1',
-                            'server_mac': '01:02:03:04:05:06',
+                            'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
             subnet_v6['id']: {
                 'cidr': 'aef0::/64',
                 'external_ids': {'subnet_id': subnet_v6['id']},
-                'options': {'server_id': '01:02:03:04:05:06'}}}
+                'options': {'server_id': dhcp_mac[subnet_v6['id']]}}}
 
         data = {
             'port': {'network_id': n1['network']['id'],
@@ -507,7 +577,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'external_ids': {'subnet_id': subnet['id'],
                              'port_id': p1['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
@@ -517,7 +587,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'cidr': 'aef0::/64',
             'external_ids': {'subnet_id': subnet_v6['id'],
                              'port_id': p1['id']},
-            'options': {'server_id': '01:02:03:04:05:06',
+            'options': {'server_id': dhcp_mac[subnet_v6['id']],
                         'dns_server': 'aef0::100'}}
 
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
@@ -563,7 +633,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'external_ids': {'subnet_id': subnet['id'],
                              'port_id': p1['id']},
             'options': {'server_id': '10.0.0.1',
-                        'server_mac': '01:02:03:04:05:06',
+                        'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
                         'mtu': '1200',
                         'router': subnet['gateway_ip'],

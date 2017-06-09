@@ -329,34 +329,55 @@ class TestSetLSwitchPortCommand(TestBaseCommand):
             cmd.run_idl(self.transaction)
             self.assertEqual(new_ext_ids, fake_lsp.external_ids)
 
-    def _test_lswitch_port_update_del_dhcp(self, has_v4_opts, has_v6_opts):
+    def _test_lswitch_port_update_del_dhcp(self, clear_v4_opts,
+                                           clear_v6_opts, set_v4_opts=False,
+                                           set_v6_opts=False):
         ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}
-        new_ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test-new'}
         dhcp_options_tbl = self.ovn_api._tables['DHCP_Options']
-        if has_v4_opts:
-            fake_dhcpv4_opts = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-                attrs={'external_ids': {'port_id': 'fake-lsp'}})
-            dhcp_options_tbl.rows[fake_dhcpv4_opts.uuid] = fake_dhcpv4_opts
-        if has_v6_opts:
-            fake_dhcpv6_opts = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-                attrs={'external_ids': {'port_id': 'fake-lsp'}})
-            dhcp_options_tbl.rows[fake_dhcpv6_opts.uuid] = fake_dhcpv6_opts
+        fake_dhcpv4_opts = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'port_id': 'fake-lsp'}})
+        dhcp_options_tbl.rows[fake_dhcpv4_opts.uuid] = fake_dhcpv4_opts
+        fake_dhcpv6_opts = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'port_id': 'fake-lsp'}})
+        dhcp_options_tbl.rows[fake_dhcpv6_opts.uuid] = fake_dhcpv6_opts
         fake_lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'name': 'fake-lsp',
                    'external_ids': ext_ids,
-                   'dhcpv4_options': has_v4_opts and [fake_dhcpv4_opts] or [],
-                   'dhcpv6_options': has_v6_opts and [fake_dhcpv6_opts] or []})
+                   'dhcpv4_options': [fake_dhcpv4_opts],
+                   'dhcpv6_options': [fake_dhcpv6_opts]})
+
+        columns = {}
+        if clear_v4_opts:
+            columns['dhcpv4_options'] = []
+        elif set_v4_opts:
+            columns['dhcpv4_options'] = [fake_dhcpv4_opts.uuid]
+        if clear_v6_opts:
+            columns['dhcpv6_options'] = []
+        elif set_v6_opts:
+            columns['dhcpv6_options'] = [fake_dhcpv6_opts.uuid]
+
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lsp):
             cmd = commands.SetLSwitchPortCommand(
-                self.ovn_api, fake_lsp.name, if_exists=True,
-                external_ids=new_ext_ids)
+                self.ovn_api, fake_lsp.name, if_exists=True, **columns)
             cmd.run_idl(self.transaction)
-            self.assertEqual(new_ext_ids, fake_lsp.external_ids)
-            if has_v4_opts:
+
+            if clear_v4_opts and clear_v6_opts:
                 fake_dhcpv4_opts.delete.assert_called_once_with()
-            if has_v6_opts:
                 fake_dhcpv6_opts.delete.assert_called_once_with()
+            elif clear_v4_opts:
+                # not clear_v6_opts and set_v6_opts is any
+                fake_dhcpv4_opts.delete.assert_called_once_with()
+                fake_dhcpv6_opts.delete.assert_not_called()
+            elif clear_v6_opts:
+                # not clear_v4_opts and set_v6_opts is any
+                fake_dhcpv4_opts.delete.assert_not_called()
+                fake_dhcpv6_opts.delete.assert_called_once_with()
+            else:
+                # not clear_v4_opts and not clear_v6_opts and
+                # set_v4_opts is any and set_v6_opts is any
+                fake_dhcpv4_opts.delete.assert_not_called()
+                fake_dhcpv6_opts.delete.assert_not_called()
 
     def test_lswitch_port_update_del_port_dhcpv4_options(self):
         self._test_lswitch_port_update_del_dhcp(True, False)
@@ -366,6 +387,19 @@ class TestSetLSwitchPortCommand(TestBaseCommand):
 
     def test_lswitch_port_update_del_all_port_dhcp_options(self):
         self._test_lswitch_port_update_del_dhcp(True, True)
+
+    def test_lswitch_port_update_del_no_port_dhcp_options(self):
+        self._test_lswitch_port_update_del_dhcp(False, False)
+
+    def test_lswitch_port_update_set_port_dhcpv4_options(self):
+        self._test_lswitch_port_update_del_dhcp(False, True, set_v4_opts=True)
+
+    def test_lswitch_port_update_set_port_dhcpv6_options(self):
+        self._test_lswitch_port_update_del_dhcp(True, False, set_v6_opts=True)
+
+    def test_lswitch_port_update_set_all_port_dhcp_options(self):
+        self._test_lswitch_port_update_del_dhcp(False, False, set_v4_opts=True,
+                                                set_v6_opts=True)
 
     def _test_lswitch_port_update_with_dhcp(self, dhcpv4_opts, dhcpv6_opts):
         ext_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: 'test'}

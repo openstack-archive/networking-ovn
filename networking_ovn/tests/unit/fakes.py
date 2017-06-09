@@ -76,6 +76,8 @@ class FakeOvsdbNbOvnIdl(object):
         self.delete_dhcp_options = mock.Mock()
         self.get_subnet_dhcp_options = mock.Mock()
         self.get_subnet_dhcp_options.return_value = {}
+        self.get_subnet_and_ports_dhcp_options = mock.Mock()
+        self.get_subnet_and_ports_dhcp_options.return_value = []
         self.get_subnets_dhcp_options = mock.Mock()
         self.get_subnets_dhcp_options.return_value = []
         self.get_all_dhcp_options = mock.Mock()
@@ -226,6 +228,25 @@ class FakeNetworkContext(object):
     @property
     def network_segments(self):
         return self.fake_segments
+
+
+class FakeSubnetContext(object):
+    def __init__(self, subnet, original_subnet=None, network=None):
+        self.fake_subnet = subnet
+        self.fake_original_subnet = original_subnet
+        self.fake_network = FakeNetworkContext(network, None)
+
+    @property
+    def current(self):
+        return self.fake_subnet
+
+    @property
+    def original(self):
+        return self.fake_original_subnet
+
+    @property
+    def network(self):
+        return self.fake_network
 
 
 class FakeOvsdbRow(FakeResource):

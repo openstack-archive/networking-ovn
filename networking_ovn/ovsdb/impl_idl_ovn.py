@@ -378,6 +378,16 @@ class OvsdbNbOvnIdl(ovn_api.API):
                         'uuid': row.uuid}
         return None
 
+    def get_subnet_and_ports_dhcp_options(self, subnet_id):
+        ret_opts = []
+        for row in self._tables['DHCP_Options'].rows.values():
+            external_ids = getattr(row, 'external_ids', {})
+            if subnet_id == external_ids.get('subnet_id'):
+                ret_opts.append(
+                    {'cidr': row.cidr, 'options': dict(row.options),
+                     'external_ids': dict(external_ids), 'uuid': row.uuid})
+        return ret_opts
+
     def get_subnets_dhcp_options(self, subnet_ids):
         ret_opts = []
         for row in self._tables['DHCP_Options'].rows.values():
