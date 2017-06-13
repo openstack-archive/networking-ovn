@@ -721,9 +721,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                              call_get_dhcp_opts=True,
                                              call_add_dhcp_opts=True):
         subnet['id'] = 'fake_id'
-        with mock.patch.object(self.mech_driver,
-                               'get_ovn_dhcp_options') as get_opts:
-            self.mech_driver.add_subnet_dhcp_options_in_ovn(
+        with mock.patch.object(self.mech_driver._ovn_client,
+                               '_get_ovn_dhcp_options') as get_opts:
+            self.mech_driver._ovn_client._add_subnet_dhcp_options(
                 subnet, mock.ANY, ovn_dhcp_opts)
             self.assertEqual(call_get_dhcp_opts, get_opts.called)
             self.assertEqual(
@@ -767,8 +767,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         cmd = mock.Mock()
         self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
 
-        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
-
+        self.mech_driver._ovn_client._enable_subnet_dhcp_options(subnet,
+                                                                 network)
         # Check adding DHCP_Options rows
         subnet_dhcp_options = {
             'external_ids': {'subnet_id': subnet['id']},
@@ -839,8 +839,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         cmd = mock.Mock()
         self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
 
-        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
-
+        self.mech_driver._ovn_client._enable_subnet_dhcp_options(subnet,
+                                                                 network)
         # Check adding DHCP_Options rows
         subnet_dhcp_options = {
             'external_ids': {'subnet_id': subnet['id']},
@@ -885,7 +885,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'ipv6_address_mode': 'slaac'}
         network = {'id': 'network-id'}
 
-        self.mech_driver.enable_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._ovn_client._enable_subnet_dhcp_options(subnet,
+                                                                 network)
         self.mech_driver._nb_ovn.add_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.set_lswitch_port.assert_not_called()
 
@@ -894,8 +895,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn.get_subnet_and_ports_dhcp_options.\
             return_value = uuids
 
-        self.mech_driver.remove_subnet_dhcp_options_in_ovn(
-            {'id': 'subnet-id', 'ip_version': ip_version})
+        self.mech_driver._ovn_client._remove_subnet_dhcp_options('subnet-id')
 
         # Check deleting DHCP_Options rows
         delete_dhcp_calls = [mock.call(uuid['uuid']) for uuid in uuids]
@@ -927,8 +927,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
             orignal_options
 
-        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
-
+        self.mech_driver._ovn_client._update_subnet_dhcp_options(subnet,
+                                                                 network)
         new_options = {
             'external_ids': {'subnet_id': subnet['id']},
             'cidr': subnet['cidr'], 'options': {
@@ -956,8 +956,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
             orignal_options
 
-        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
-
+        self.mech_driver._ovn_client._update_subnet_dhcp_options(subnet,
+                                                                 network)
         self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
             assert_not_called()
 
@@ -974,7 +974,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'server_id': '01:02:03:04:05:06'}}
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
             orignal_options
-        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._ovn_client._update_subnet_dhcp_options(subnet,
+                                                                 network)
 
         new_options = {
             'external_ids': {'subnet_id': subnet['id']},
@@ -999,7 +1000,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
             orignal_options
 
-        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._ovn_client._update_subnet_dhcp_options(subnet,
+                                                                 network)
 
         self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
             assert_not_called()
@@ -1008,7 +1010,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         subnet = {'id': 'subnet-id', 'ip_version': 6, 'enable_dhcp': True,
                   'ipv6_address_mode': 'slaac'}
         network = {'id': 'network-id'}
-        self.mech_driver.update_subnet_dhcp_options_in_ovn(subnet, network)
+        self.mech_driver._ovn_client._update_subnet_dhcp_options(subnet,
+                                                                 network)
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.assert_not_called()
         self.mech_driver._nb_ovn.compose_dhcp_options_commands.\
             assert_not_called()
@@ -1018,14 +1021,14 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             subnet={'enable_dhcp': False},
             original_subnet={'enable_dhcp': False}, network={})
         with mock.patch.object(
-                self.mech_driver,
-                'enable_subnet_dhcp_options_in_ovn') as esd,\
+                self.mech_driver._ovn_client,
+                '_enable_subnet_dhcp_options') as esd,\
                 mock.patch.object(
-                    self.mech_driver,
-                    'remove_subnet_dhcp_options_in_ovn') as dsd,\
+                    self.mech_driver._ovn_client,
+                    '_remove_subnet_dhcp_options') as dsd,\
                 mock.patch.object(
-                    self.mech_driver,
-                    'update_subnet_dhcp_options_in_ovn') as usd:
+                    self.mech_driver._ovn_client,
+                    '_update_subnet_dhcp_options') as usd:
             self.mech_driver.update_subnet_postcommit(context)
             esd.assert_not_called()
             dsd.assert_not_called()
@@ -1036,29 +1039,29 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             subnet={'enable_dhcp': True},
             original_subnet={'enable_dhcp': False}, network={})
         with mock.patch.object(
-                self.mech_driver,
-                'enable_subnet_dhcp_options_in_ovn') as esd:
+                self.mech_driver._ovn_client,
+                '_enable_subnet_dhcp_options') as esd:
             self.mech_driver.update_subnet_postcommit(context)
             esd.assert_called_once_with(context.current,
                                         context.network.current)
 
     def test_update_subnet_postcommit_disable_dhcp(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': False},
+            subnet={'enable_dhcp': False, 'id': 'fake_id'},
             original_subnet={'enable_dhcp': True}, network={})
         with mock.patch.object(
-                self.mech_driver,
-                'remove_subnet_dhcp_options_in_ovn') as dsd:
+                self.mech_driver._ovn_client,
+                '_remove_subnet_dhcp_options') as dsd:
             self.mech_driver.update_subnet_postcommit(context)
-            dsd.assert_called_once_with(context.current)
+            dsd.assert_called_once_with(context.current['id'])
 
     def test_update_subnet_postcommit_update_dhcp(self):
         context = fakes.FakeSubnetContext(
             subnet={'enable_dhcp': True},
             original_subnet={'enable_dhcp': True}, network={})
         with mock.patch.object(
-                self.mech_driver,
-                'update_subnet_dhcp_options_in_ovn') as usd:
+                self.mech_driver._ovn_client,
+                '_update_subnet_dhcp_options') as usd:
             self.mech_driver.update_subnet_postcommit(context)
             usd.assert_called_once_with(context.current,
                                         context.network.current)
@@ -1286,11 +1289,16 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
 @mock.patch.object(n_net, 'get_random_mac', lambda *_: '01:02:03:04:05:06')
 class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
+    def setUp(self):
+        super(TestOVNMechansimDriverDHCPOptions, self).setUp()
+        self.mech_driver._ovn_client = ovn_client.OVNClient(
+            self.mech_driver._nb_ovn, self.mech_driver._sb_ovn)
+
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
                                           expected_dhcp_options,
                                           service_mac=None):
-        dhcp_options = self.mech_driver.get_ovn_dhcp_options(subnet, network,
-                                                             service_mac)
+        dhcp_options = self.mech_driver._ovn_client._get_ovn_dhcp_options(
+            subnet, network, service_mac)
         self.assertEqual(expected_dhcp_options, dhcp_options)
 
     def test_get_ovn_dhcp_options(self):
