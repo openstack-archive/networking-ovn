@@ -111,9 +111,9 @@ class OVNTrunkDriver(trunk_base.DriverBase):
             return False
 
     @registry.receives(trunk_consts.TRUNK_PLUGIN, [events.AFTER_INIT])
-    def register(self, resource, event, trigger, **kwargs):
+    def register(self, resource, event, trigger, payload=None):
         super(OVNTrunkDriver, self).register(
-            resource, event, trigger, **kwargs)
+            resource, event, trigger, payload=payload)
         self._handler = OVNTrunkHandler(self.plugin_driver)
         for trunk_event in (events.AFTER_CREATE, events.AFTER_DELETE):
             registry.subscribe(self._handler.trunk_event,
