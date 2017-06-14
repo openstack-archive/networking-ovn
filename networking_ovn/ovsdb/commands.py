@@ -752,6 +752,56 @@ class UpdateAddrSetExtIdsCommand(command.BaseCommand):
         addrset.external_ids = addrset_external_ids
 
 
+class UpdateChassisExtIdsCommand(command.BaseCommand):
+    def __init__(self, api, name, external_ids, if_exists):
+        super(UpdateChassisExtIdsCommand, self).__init__(api)
+        self.name = name
+        self.external_ids = external_ids
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            chassis = idlutils.row_by_value(self.api.idl, 'Chassis',
+                                            'name', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Chassis %s does not exist. "
+                    "Can't update external IDs") % self.name
+            raise RuntimeError(msg)
+
+        chassis.verify('external_ids')
+        chassis_external_ids = getattr(chassis, 'external_ids', {})
+        for ext_id_key, ext_id_value in self.external_ids.items():
+            chassis_external_ids[ext_id_key] = ext_id_value
+        chassis.external_ids = chassis_external_ids
+
+
+class UpdatePortBindingExtIdsCommand(command.BaseCommand):
+    def __init__(self, api, name, external_ids, if_exists):
+        super(UpdatePortBindingExtIdsCommand, self).__init__(api)
+        self.name = name
+        self.external_ids = external_ids
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            port = idlutils.row_by_value(self.api.idl, 'Port_Binding',
+                                         'logical_port', self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Port %s does not exist. "
+                    "Can't update external IDs") % self.name
+            raise RuntimeError(msg)
+
+        port.verify('external_ids')
+        port_external_ids = getattr(port, 'external_ids', {})
+        for ext_id_key, ext_id_value in self.external_ids.items():
+            port_external_ids[ext_id_key] = ext_id_value
+        port.external_ids = port_external_ids
+
+
 class AddDHCPOptionsCommand(command.BaseCommand):
     def __init__(self, api, subnet_id, port_id=None, may_exists=True,
                  **columns):

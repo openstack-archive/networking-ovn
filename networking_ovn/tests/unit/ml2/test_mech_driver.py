@@ -35,6 +35,7 @@ from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from networking_ovn.common import acl as ovn_acl
+from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils as ovn_utils
@@ -57,6 +58,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         config.cfg.CONF.set_override('vni_ranges',
                                      ['1:65536'],
                                      group='ml2_type_geneve')
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
+                                         False,
+                                         group='ovn')
         super(TestOVNMechanismDriver, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
@@ -1018,8 +1022,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test_update_subnet_postcommit_ovn_do_nothing(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': False},
-            original_subnet={'enable_dhcp': False}, network={})
+            subnet={'enable_dhcp': False, 'ip_version': 4, 'network_id': 'id'},
+            original_subnet={'enable_dhcp': False, 'ip_version': 4},
+            network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
                 '_enable_subnet_dhcp_options') as esd,\
@@ -1028,43 +1033,81 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     '_remove_subnet_dhcp_options') as dsd,\
                 mock.patch.object(
                     self.mech_driver._ovn_client,
-                    '_update_subnet_dhcp_options') as usd:
+                    '_update_subnet_dhcp_options') as usd,\
+                mock.patch.object(
+                    self.mech_driver._ovn_client,
+                    '_find_metadata_port') as fmd,\
+                mock.patch.object(
+                    self.mech_driver._ovn_client,
+                    'update_metadata_port') as umd:
             self.mech_driver.update_subnet_postcommit(context)
             esd.assert_not_called()
             dsd.assert_not_called()
             usd.assert_not_called()
+            fmd.assert_not_called()
+            umd.assert_not_called()
 
     def test_update_subnet_postcommit_enable_dhcp(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': True},
-            original_subnet={'enable_dhcp': False}, network={})
+            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id'},
+            original_subnet={'enable_dhcp': False, 'ip_version': 4},
+            network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
-                '_enable_subnet_dhcp_options') as esd:
+                '_enable_subnet_dhcp_options') as esd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                '_find_metadata_port') as fmd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                'update_metadata_port') as umd:
             self.mech_driver.update_subnet_postcommit(context)
             esd.assert_called_once_with(context.current,
-                                        context.network.current)
+                                        context.network.current,
+                                        None)
+            umd.assert_called_once_with(mock.ANY, 'id')
+            fmd.assert_called_once_with(mock.ANY, 'id')
 
     def test_update_subnet_postcommit_disable_dhcp(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': False, 'id': 'fake_id'},
-            original_subnet={'enable_dhcp': True}, network={})
+            subnet={'enable_dhcp': False, 'id': 'fake_id', 'ip_version': 4,
+                    'network_id': 'id'},
+            original_subnet={'enable_dhcp': True, 'ip_version': 4},
+            network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
-                '_remove_subnet_dhcp_options') as dsd:
+                '_remove_subnet_dhcp_options') as dsd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                '_find_metadata_port') as fmd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                'update_metadata_port') as umd:
             self.mech_driver.update_subnet_postcommit(context)
             dsd.assert_called_once_with(context.current['id'])
+            umd.assert_called_once_with(mock.ANY, 'id')
+            fmd.assert_called_once_with(mock.ANY, 'id')
 
     def test_update_subnet_postcommit_update_dhcp(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': True},
-            original_subnet={'enable_dhcp': True}, network={})
+            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id'},
+            original_subnet={'enable_dhcp': True, 'ip_version': 4},
+            network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
-                '_update_subnet_dhcp_options') as usd:
+                '_update_subnet_dhcp_options') as usd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                '_find_metadata_port') as fmd,\
+                mock.patch.object(
+                self.mech_driver._ovn_client,
+                'update_metadata_port') as umd:
             self.mech_driver.update_subnet_postcommit(context)
             usd.assert_called_once_with(context.current,
-                                        context.network.current)
+                                        context.network.current,
+                                        None)
+            umd.assert_called_once_with(mock.ANY, 'id')
+            fmd.assert_called_once_with(mock.ANY, 'id')
 
     @mock.patch.object(provisioning_blocks, 'provisioning_complete')
     def test_notify_dhcp_updated(self, mock_prov_complete):
@@ -1146,6 +1189,16 @@ class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
 class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                                       OVNMechanismDriverTestCase):
 
+    def setUp(self):
+        # Disable metadata so that we don't interfere with existing tests
+        # in Neutron tree. Doing this because some of the tests assume that
+        # first IP address in a subnet will be available and this is not true
+        # with metadata since it will book an IP address on each subnet.
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
+                                         False,
+                                         group='ovn')
+        super(TestOVNMechansimDriverSubnetsV2, self).setUp()
+
     # NOTE(rtheis): Mock the OVN port update since it is getting subnet
     # information for ACL processing. This interferes with the update_port
     # mock already done by the test.
@@ -1189,6 +1242,16 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
 
 class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
                                     OVNMechanismDriverTestCase):
+
+    def setUp(self):
+        # Disable metadata so that we don't interfere with existing tests
+        # in Neutron tree. Doing this because some of the tests assume that
+        # first IP address in a subnet will be available and this is not true
+        # with metadata since it will book an IP address on each subnet.
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
+                                         False,
+                                         group='ovn')
+        super(TestOVNMechansimDriverPortsV2, self).setUp()
 
     # NOTE(rtheis): Override this test to verify that updating
     # a port MAC fails when the port is bound.
@@ -1296,9 +1359,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
 
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
                                           expected_dhcp_options,
-                                          service_mac=None):
+                                          service_mac=None,
+                                          metadata_port_ip=None):
         dhcp_options = self.mech_driver._ovn_client._get_ovn_dhcp_options(
-            subnet, network, service_mac)
+            subnet, network, service_mac, metadata_port_ip)
         self.assertEqual(expected_dhcp_options, dhcp_options)
 
     def test_get_ovn_dhcp_options(self):
@@ -1409,6 +1473,33 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options,
                                                service_mac='11:22:33:44:55:66')
+
+    def test_get_ovn_dhcp_options_metadata_route(self):
+        subnet = {'id': 'foo-subnet',
+                  'cidr': '10.0.0.0/24',
+                  'ip_version': 4,
+                  'enable_dhcp': True,
+                  'gateway_ip': '10.0.0.1',
+                  'dns_nameservers': ['7.7.7.7', '8.8.8.8'],
+                  'host_routes': []}
+        network = {'mtu': 1400}
+
+        expected_dhcp_options = {'cidr': '10.0.0.0/24',
+                                 'external_ids': {'subnet_id': 'foo-subnet'}}
+        expected_dhcp_options['options'] = {
+            'server_id': subnet['gateway_ip'],
+            'server_mac': '01:02:03:04:05:06',
+            'lease_time': str(12 * 60 * 60),
+            'mtu': '1400',
+            'router': subnet['gateway_ip'],
+            'dns_server': '{7.7.7.7, 8.8.8.8}',
+            'classless_static_route':
+            '{169.254.169.254/32,10.0.0.2, 0.0.0.0/0,10.0.0.1}'
+        }
+
+        self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                               expected_dhcp_options,
+                                               metadata_port_ip='10.0.0.2')
 
     def _test__get_port_dhcp_options_port_dhcp_opts_set(self, ip_version=4):
         if ip_version == 4:
@@ -1638,3 +1729,58 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_subnet_dhcp_options_for_port_v6_dhcp_disabled(self):
         self._test__get_subnet_dhcp_options_for_port(ip_version=6,
                                                      enable_dhcp=False)
+
+
+class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
+
+    _mechanism_drivers = ['logger', 'ovn']
+
+    def setUp(self):
+        super(TestOVNMechanismDriverMetadataPort, self).setUp()
+        mm = directory.get_plugin().mechanism_manager
+        self.mech_driver = mm.mech_drivers['ovn'].obj
+        self.mech_driver._nb_ovn = fakes.FakeOvsdbNbOvnIdl()
+        self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
+        self.nb_ovn = self.mech_driver._nb_ovn
+        self.sb_ovn = self.mech_driver._sb_ovn
+        self.mech_driver._ovn_client = ovn_client.OVNClient(
+            self.nb_ovn, self.sb_ovn)
+
+    def test_metadata_port_on_network_create(self):
+        """Check metadata port create.
+
+        Check that a localport is created when a neutron network is
+        created.
+        """
+        with self.network():
+            self.assertEqual(1, self.nb_ovn.create_lswitch_port.call_count)
+            args, kwargs = self.nb_ovn.create_lswitch_port.call_args
+            self.assertEqual('localport', kwargs['type'])
+
+    def test_metadata_ip_on_subnet_create(self):
+        """Check metadata port update.
+
+        Check that the metadata port is updated with a new IP address when a
+        subnet is created.
+        """
+        with self.network() as net1:
+            with self.subnet(network=net1, cidr='10.0.0.0/24'):
+                self.assertEqual(1, self.nb_ovn.set_lswitch_port.call_count)
+                args, kwargs = self.nb_ovn.set_lswitch_port.call_args
+                self.assertEqual('localport', kwargs['type'])
+                self.assertEqual('10.0.0.2/24',
+                                 kwargs['external_ids'].get(
+                                     ovn_const.OVN_CIDRS_EXT_ID_KEY, ''))
+
+    def test_metadata_port_on_network_delete(self):
+        """Check metadata port delete.
+
+        Check that the metadata port is deleted when a network is deleted.
+        """
+        net = self._make_network(self.fmt, name="net1", admin_state_up=True)
+        network_id = net['network']['id']
+        req = self.new_delete_request('networks', network_id)
+        res = req.get_response(self.api)
+        self.assertEqual(exc.HTTPNoContent.code,
+                         res.status_int)
+        self.assertEqual(1, self.nb_ovn.delete_lswitch_port.call_count)

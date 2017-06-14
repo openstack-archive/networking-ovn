@@ -97,10 +97,15 @@ OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
+OVN_META_CONF=$NEUTRON_CONF_DIR/metadata_agent.ini
+
 # Set variables for building OVS from source
 OVS_REPO=$OVN_REPO
 OVS_REPO_NAME=$OVN_REPO_NAME
 OVS_BRANCH=$OVN_BRANCH
+
+NETWORKING_OVN_BIN_DIR=$(get_python_exec_prefix)
+NETWORKING_OVN_METADATA_BINARY="networking-ovn-metadata-agent"
 
 # Utility Functions
 # -----------------
@@ -163,6 +168,20 @@ function configure_ovn {
             echo $OVN_UUID > ovn-uuid
         fi
     fi
+
+    # Metadata
+    if is_service_enabled networking-ovn-metadata-agent; then
+        sudo install -d -o $STACK_USER $NEUTRON_CONF_DIR
+
+        (cd $NETWORKING_OVN_DIR && exec ./tools/generate_config_file_samples.sh)
+
+        cp $NETWORKING_OVN_DIR/etc/metadata_agent.ini.sample $OVN_META_CONF
+
+        iniset $OVN_META_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+        iniset $OVN_META_CONF DEFAULT nova_metadata_ip $HOST_IP
+        iniset $OVN_META_CONF DEFAULT metadata_workers $API_WORKERS
+        iniset $OVN_META_CONF ovs ovsdb_connection unix:/usr/local/var/run/openvswitch/db.sock
+    fi
 }
 
 function configure_ovn_plugin {
@@ -196,7 +215,11 @@ function configure_ovn_plugin {
     # NOTE(rtheis): OVN currently lacks support for metadata so enabling
     # config drive is required to provide metadata to instances.
     if is_service_enabled n-cpu ; then
-        iniset $NOVA_CONF DEFAULT force_config_drive True
+        if is_service_enabled networking-ovn-metadata-agent ; then
+            iniset $NOVA_CONF neutron service_metadata_proxy True
+        else
+            iniset $NOVA_CONF DEFAULT force_config_drive True
+        fi
     fi
 }
 
@@ -436,6 +459,10 @@ function start_ovn {
         echo "done."
         sudo ovs-appctl -t ovn-northd vlog/set "PATTERN:CONSOLE:%D{%Y-%m-%dT%H:%M:%S.###Z}|%05N|%c%T|%p|%m"
     fi
+
+    if is_service_enabled networking-ovn-metadata-agent; then
+        run_process networking-ovn-metadata-agent "$NETWORKING_OVN_BIN_DIR/$NETWORKING_OVN_METADATA_BINARY --config-file $NEUTRON_CONF --config-file $Q_PLUGIN_CONF_FILE --config-file $OVN_META_CONF"
+    fi
 }
 
 # stop_ovn() - Stop running processes (non-screen)
@@ -453,6 +480,10 @@ function stop_ovn {
         /usr/local/share/openvswitch/scripts/ovn-ctl stop_northd
     fi
     sudo killall ovsdb-server
+    if is_service_enabled networking-ovn-metadata-agent; then
+        sudo pkill -9 -f haproxy || :
+        stop_process networking-ovn-metadata-agent
+    fi
 }
 
 # stop_ovs_dp() - Stop OVS datapath

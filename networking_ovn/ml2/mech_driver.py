@@ -26,6 +26,7 @@ from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 
+from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
@@ -44,6 +45,11 @@ from networking_ovn.ovsdb import ovsdb_monitor
 
 
 LOG = log.getLogger(__name__)
+METADATA_READY_WAIT_TIMEOUT = 15
+
+
+class MetadataServiceReadyWaitTimeoutException(Exception):
+    pass
 
 
 class OVNMechanismDriver(api.MechanismDriver):
@@ -576,6 +582,27 @@ class OVNMechanismDriver(api.MechanismDriver):
         # port is up. Any provisioning block (possibly added during port
         # creation or when OVN reports that the port is down) must be removed.
         LOG.info("OVN reports status up for port: %s", port_id)
+
+        if config.is_ovn_metadata_enabled() and self._sb_ovn:
+            # Wait until metadata service has been setup for this port in the
+            # chassis it resides.
+            chassis, datapath = (
+                self._sb_ovn.get_logical_port_chassis_and_datapath(port_id))
+            try:
+                n_utils.wait_until_true(
+                    lambda: datapath in
+                    self._sb_ovn.get_chassis_metadata_networks(chassis),
+                    timeout=METADATA_READY_WAIT_TIMEOUT,
+                    exception=MetadataServiceReadyWaitTimeoutException)
+            except MetadataServiceReadyWaitTimeoutException:
+                # If we reach this point it means that metadata agent didn't
+                # provision the datapath for this port on its chassis. Either
+                # the agent is not running or it crashed. We'll complete the
+                # provisioning block though.
+                LOG.warning("Metadata service is not ready for port %s, check"
+                            " networking-ovn-metadata-agent status/logs.",
+                            port_id)
+
         provisioning_blocks.provisioning_complete(
             n_context.get_admin_context(),
             port_id,

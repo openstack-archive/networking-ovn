@@ -26,6 +26,7 @@ from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import acl as acl_utils
+from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn import ovn_db_sync
@@ -71,6 +72,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.dirty_dhcp_options = []
         self.lport_dhcp_ignored = []
         self.match_old_mac_dhcp_subnets = []
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', False,
+                                         group='ovn')
 
     def _api_for_resource(self, resource):
         if resource in ['security-groups']:

@@ -25,6 +25,7 @@ ADMIN_PASSWORD=password
 enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
 enable_service ovn-northd
 enable_service ovn-controller
+enable_service networking-ovn-metadata-agent
 
 # Use Neutron instead of nova-network
 disable_service n-net

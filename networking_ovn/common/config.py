@@ -127,7 +127,10 @@ ovn_opts = [
     cfg.StrOpt("ovsdb_log_level",
                default="INFO",
                choices=list(VLOG_LEVELS.keys()),
-               help=_("The log level used for OVSDB"))
+               help=_("The log level used for OVSDB")),
+    cfg.BoolOpt('ovn_metadata_enabled',
+                default=True,
+                help=_('Whether to use metadata service.'))
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -201,3 +204,7 @@ def get_ovn_dhcp_default_lease_time():
 
 def get_ovn_ovsdb_log_level():
     return VLOG_LEVELS[cfg.CONF.ovn.ovsdb_log_level]
+
+
+def is_ovn_metadata_enabled():
+    return cfg.CONF.ovn.ovn_metadata_enabled

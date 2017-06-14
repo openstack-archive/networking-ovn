@@ -599,3 +599,52 @@ class OvsdbSbOvnIdl(ovn_api.SbAPI):
         return (chassis.external_ids.get('datapath-type', ''),
                 chassis.external_ids.get('iface-types', ''),
                 self._get_chassis_physnets(chassis))
+
+    def get_metadata_port_network(self, network):
+        for port in self.idl.tables['Port_Binding'].rows.values():
+            if str(port.datapath.uuid) == network and port.type == 'localport':
+                return port
+
+    def get_chassis_metadata_networks(self, chassis_name):
+        """Return a list with the metadata networks the chassis is hosting."""
+        try:
+            chassis = idlutils.row_by_value(self.idl, 'Chassis',
+                                            'name', chassis_name)
+        except idlutils.RowNotFound:
+            msg = _('Chassis %s does not exist') % chassis_name
+            raise RuntimeError(msg)
+        proxy_networks = chassis.external_ids.get(
+            'neutron-metadata-proxy-networks', None)
+        return proxy_networks.split(',') if proxy_networks else []
+
+    def set_chassis_metadata_networks(self, chassis, networks):
+        nets = ','.join(networks) if networks else ''
+        return cmd.UpdateChassisExtIdsCommand(
+            self, chassis, {'neutron-metadata-proxy-networks': nets},
+            if_exists=True)
+
+    def get_network_port_bindings_by_ip(self, network, ip_address):
+        port_list = []
+        for port in self.idl.tables['Port_Binding'].rows.values():
+            if (port.mac and str(port.datapath.uuid) == network and
+                    ip_address in port.mac[0].split(' ')):
+                port_list.append(port)
+        return port_list
+
+    def set_port_cidrs(self, name, cidrs):
+        return cmd.UpdatePortBindingExtIdsCommand(
+            self, name, {'neutron-port-cidrs': cidrs}, if_exists=True)
+
+    def get_ports_on_chassis(self, chassis):
+        ports = []
+        for port in self.idl.tables['Port_Binding'].rows.values():
+            if port.chassis and port.chassis[0].name == chassis:
+                ports.append(port)
+        return ports
+
+    def get_logical_port_chassis_and_datapath(self, name):
+        for port in self.idl.tables['Port_Binding'].rows.values():
+            if port.logical_port == name:
+                datapath = str(port.datapath.uuid)
+                chassis = port.chassis[0].name if port.chassis else None
+                return chassis, datapath

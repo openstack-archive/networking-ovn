@@ -18,19 +18,25 @@
 # http://git.openstack.org/cgit/openstack-infra/project-config/tree/jenkins/jobs/networking-ovn.yaml
 #
 
-export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
+OVS_BRANCH=$1
+OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,n-api-meta,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
+# FIXME(dalvarez): Remove this once OVS 2.8 is released. Metadata support depends on it.
+if [[ "${OVS_BRANCH}" != "latest-release" ]] ; then
+    OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},networking-ovn-metadata-agent
+fi
+export OVERRIDE_ENABLED_SERVICES
+
 if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
-    # NOTE(dongj): Set ssh validation to False to skip validation tests until OVN
-    # metadata agent is supported, because VM obtains password from metadata agent
-    # for these validation tests.
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"TEMPEST_RUN_VALIDATION=False"
+    # FIXME(dalvarez): Remove this once OVS 2.8 is released. Metadata support depends on it.
+    if [[ "${OVS_BRANCH}" == "latest-release" ]] ; then
+        export DEVSTACK_LOCAL_CONFIG+=$'\n'"TEMPEST_RUN_VALIDATION=False"
+    fi
 fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 
-OVS_BRANCH=$1
 if [[ "${OVS_BRANCH}" == "latest-release" ]] ; then
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.7"
 elif [[ "${OVS_BRANCH}" == "master" ]] ; then

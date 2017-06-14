@@ -11,6 +11,7 @@
 #    under the License.
 
 from neutron_lib.api.definitions import portbindings
+from neutron_lib import constants as const
 import six
 
 OVN_ML2_MECH_DRIVER_NAME = 'ovn'
@@ -21,6 +22,9 @@ OVN_SG_NAME_EXT_ID_KEY = 'neutron:security_group_name'
 OVN_PHYSNET_EXT_ID_KEY = 'neutron:provnet-physical-network'
 OVN_NETTYPE_EXT_ID_KEY = 'neutron:provnet-network-type'
 OVN_SEGID_EXT_ID_KEY = 'neutron:provnet-segmentation-id'
+OVN_PROJID_EXT_ID_KEY = 'neutron:project_id'
+OVN_DEVID_EXT_ID_KEY = 'neutron:device_id'
+OVN_CIDRS_EXT_ID_KEY = 'neutron:cidrs'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE
 OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},
@@ -30,6 +34,8 @@ OVN_ROUTER_PORT_OPTION_KEYS = ['router-port', 'nat-addresses']
 OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 
 OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
+
+OVN_NEUTRON_OWNER_TO_PORT_TYPE = {const.DEVICE_OWNER_DHCP: 'localport'}
 
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it

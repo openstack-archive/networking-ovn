@@ -304,6 +304,9 @@ class OvnSbIdl(OvnIdl):
         _check_and_set_ssl_files(schema_name)
         helper = idlutils.get_schema_helper(connection_string, schema_name)
         helper.register_table('Chassis')
+        if ovn_config.is_ovn_metadata_enabled():
+            helper.register_table('Port_Binding')
+            helper.register_table('Datapath_Binding')
         _idl = cls(driver, connection_string, helper)
         _idl.set_lock(_idl.event_lock_name)
         return _idl

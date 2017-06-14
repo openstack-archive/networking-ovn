@@ -20,6 +20,7 @@ from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from ovsdbapp.backend.ovs_idl import idlutils
 
+from networking_ovn.common import config as ovn_config
 from networking_ovn.tests.functional import base
 
 
@@ -32,6 +33,9 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self.fake_api._tables = self.monitor_nb_db_idl.tables
         self.orig_get_random_mac = n_net.get_random_mac
         cfg.CONF.set_override('quota_subnet', -1, group='QUOTAS')
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
+                                         False,
+                                         group='ovn')
 
     def tearDown(self):
         super(TestNBDbResources, self).tearDown()
