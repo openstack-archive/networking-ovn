@@ -67,7 +67,6 @@ class JournalThread(object):
 
     def start(self):
         """Start the journal sync thread."""
-        global WAKE_UP_EVENTS
         if self._sync_thread is not None:
             raise exceptions.JournalAlreadyStarted()
 
@@ -79,7 +78,6 @@ class JournalThread(object):
 
     def stop(self):
         """Stop the journal sync thread."""
-        global WAKE_UP_EVENTS
         LOG.debug('Stopping the journal sync thread')
         self._stop_event.set()
         if self.uuid in WAKE_UP_EVENTS:

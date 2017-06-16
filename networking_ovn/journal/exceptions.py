@@ -15,6 +15,8 @@
 
 from neutron_lib import exceptions as n_exc
 
+from networking_ovn._i18n import _
+
 
 class JournalAlreadyStarted(n_exc.NeutronException):
     message = _('Journal thread already started')
