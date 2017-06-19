@@ -582,6 +582,7 @@ class OVNMechanismDriver(api.MechanismDriver):
 
                 context.set_binding(segment_to_bind[api.ID], vif_type,
                                     vif_details)
+                break
 
     def get_workers(self):
         """Get any worker instances that should have their own process
