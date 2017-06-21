@@ -247,10 +247,7 @@ class OvnIdl(BaseOvnIdl):
         # Do not handle the notification if the event lock is requested,
         # but not granted by the ovsdb-server.
         if (self.is_lock_contended and not self.has_lock):
-            LOG.debug("Don't have the event lock to handle the notify"
-                      " events. Ignoring the event : %s", event)
             return
-        LOG.debug("Have the event lock to handle the notify events")
         self.notify_handler.notify(event, row, updates)
 
     def post_connect(self):
