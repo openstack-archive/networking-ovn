@@ -297,6 +297,8 @@ function install_ovn {
     pip_install tox
     source $NEUTRON_DIR/devstack/lib/ovs
     compile_ovs $OVN_BUILD_MODULES
+    sudo mkdir -p /usr/local/var/run/openvswitch
+    sudo mkdir -p /usr/local/var/log/openvswitch
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
 
@@ -457,8 +459,6 @@ function start_ovn {
     fi
 
     if is_ovn_service_enabled ovn-northd ; then
-
-
         run_process ovn-northd "ovn-northd --log-file=$LOGDIR/ovn-northd.log --pidfile"
 
         # This makes sure that the console logs have time stamps to

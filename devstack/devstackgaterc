@@ -20,7 +20,7 @@
 
 # Disabled q-dhcp as a workaround for https://bugs.launchpad.net/networking-ovn/+bug/1639806
 # TODO(numans): Need to renable q-dhcp once the above bug is addressed properly.
-export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,placement-api,g-api,g-reg,c-sch,c-api,c-vol,horizon,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
+export OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
 if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
