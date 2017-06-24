@@ -11,10 +11,14 @@
 #    under the License.
 
 from oslo_config import cfg
+from ovsdbapp.backend.ovs_idl import vlog
 
 from networking_ovn._i18n import _
 from neutron_lib.api.definitions import portbindings
 
+
+VLOG_LEVELS = {'CRITICAL': vlog.CRITICAL, 'ERROR': vlog.ERROR, 'WARNING':
+               vlog.WARN, 'INFO': vlog.INFO, 'DEBUG': vlog.DEBUG}
 
 ovn_opts = [
     cfg.StrOpt('ovn_nb_connection',
@@ -119,7 +123,11 @@ ovn_opts = [
     cfg.IntOpt('dhcp_default_lease_time',
                default=(12 * 60 * 60),
                help=_('Default least time (in seconds) to use with '
-                      'OVN\'s native DHCP service.'))
+                      'OVN\'s native DHCP service.')),
+    cfg.StrOpt("ovsdb_log_level",
+               default="INFO",
+               choices=list(VLOG_LEVELS.keys()),
+               help=_("The log level used for OVSDB"))
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -189,3 +197,7 @@ def get_ovn_vhost_sock_dir():
 
 def get_ovn_dhcp_default_lease_time():
     return cfg.CONF.ovn.dhcp_default_lease_time
+
+
+def get_ovn_ovsdb_log_level():
+    return VLOG_LEVELS[cfg.CONF.ovn.ovsdb_log_level]

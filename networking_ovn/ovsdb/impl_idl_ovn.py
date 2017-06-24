@@ -18,6 +18,7 @@ from neutron_lib.utils import helpers
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
+from ovsdbapp.backend.ovs_idl import vlog
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
@@ -26,7 +27,6 @@ from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
-from networking_ovn.ovsdb import vlog
 
 
 LOG = log.getLogger(__name__)
@@ -50,7 +50,7 @@ def get_ovn_idls(driver, trigger):
                  {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
         return cls(get_connection(cls, trigger, driver))
 
-    vlog.use_oslo_logger()
+    vlog.use_python_logger(max_level=cfg.get_ovn_ovsdb_log_level())
     return tuple(get_ovn_idl_retry(c) for c in (OvsdbNbOvnIdl, OvsdbSbOvnIdl))
 
 
