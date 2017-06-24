@@ -671,7 +671,7 @@ class OVNClient(object):
                 original_router['routes'], routes)
             try:
                 self._update_lrouter_routes(context, router_id, added, removed)
-            except Exception:
+            except Exception as e:
                 with excutils.save_and_reraise_exception():
                     LOG.error('Unable to update static routes in router '
                               '%(router)s. Error: %(error)s',
