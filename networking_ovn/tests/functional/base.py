@@ -16,7 +16,7 @@ import fixtures
 import mock
 import time
 
-from neutron_lib import constants
+from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log

@@ -18,7 +18,7 @@ import os
 
 from oslo_utils import uuidutils
 
-from neutron_lib import constants
+from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from ovs.db import idl as ovs_idl
 from ovs import poller
