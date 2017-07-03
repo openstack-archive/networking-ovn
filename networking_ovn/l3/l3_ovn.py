@@ -18,6 +18,7 @@ from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
 from neutron_lib import exceptions as n_exc
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.services import base as service_base
 from oslo_log import log
@@ -90,7 +91,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return self._plugin_property
 
     def get_plugin_type(self):
-        return n_const.L3
+        return plugin_constants.L3
 
     def get_plugin_description(self):
         """returns string description of the plugin."""
@@ -406,7 +407,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     @staticmethod
     @registry.receives(resources.SUBNET, [events.AFTER_UPDATE])
     def _subnet_update(resource, event, trigger, **kwargs):
-        l3plugin = directory.get_plugin(n_const.L3)
+        l3plugin = directory.get_plugin(plugin_constants.L3)
         if not l3plugin:
             return
         context = kwargs['context']

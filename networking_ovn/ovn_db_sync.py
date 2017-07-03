@@ -19,6 +19,7 @@ from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants
 from neutron_lib import context
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
@@ -62,7 +63,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         super(OvnNbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
         self.mode = mode
-        self.l3_plugin = directory.get_plugin(constants.L3)
+        self.l3_plugin = directory.get_plugin(plugin_constants.L3)
         self._ovn_client = ovn_client.OVNClient(
             ovn_api, self.l3_plugin._sb_ovn)
 
@@ -832,7 +833,7 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
     def __init__(self, core_plugin, ovn_api, ovn_driver):
         super(OvnSbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
-        self.l3_plugin = directory.get_plugin(constants.L3)
+        self.l3_plugin = directory.get_plugin(plugin_constants.L3)
 
     def do_sync(self):
         """Method to sync the OVN_Southbound DB with neutron DB.

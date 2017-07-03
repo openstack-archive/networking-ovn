@@ -25,7 +25,7 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import row_event
 from neutron.common import config
-from neutron_lib import constants
+from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from neutron_lib import worker
