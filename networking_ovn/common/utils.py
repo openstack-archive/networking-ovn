@@ -21,6 +21,7 @@ from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_utils
 
+from networking_ovn._i18n import _
 from networking_ovn.common import constants
 
 
