@@ -659,8 +659,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         # created in DHCP_Options earlier, that port dhcp
                         # options will be deleted in the following
                         # ovn_port_dhcp_options handling.
-                        set_lsp[lsp_dhcp_key[ip_v]] = (
-                            dhcp_opts and [dhcp_opts['uuid']] or [])
+                        set_lsp[lsp_dhcp_key[ip_v]] = [
+                            dhcp_opts['uuid']] if dhcp_opts else []
                     else:
                         # If port has extra port dhcp
                         # options, a command will returned by

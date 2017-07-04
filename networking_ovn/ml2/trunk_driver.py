@@ -94,13 +94,13 @@ class OVNTrunkDriver(trunk_base.DriverBase):
         super(OVNTrunkDriver, self).register(
             resource, event, trigger, **kwargs)
         self._handler = OVNTrunkHandler(self.plugin_driver)
-        for event in (events.AFTER_CREATE, events.AFTER_DELETE):
+        for trunk_event in (events.AFTER_CREATE, events.AFTER_DELETE):
             registry.subscribe(self._handler.trunk_event,
                                trunk_consts.TRUNK,
-                               event)
+                               trunk_event)
             registry.subscribe(self._handler.subport_event,
                                trunk_consts.SUBPORTS,
-                               event)
+                               trunk_event)
 
     @classmethod
     def create(cls, plugin_driver):

@@ -936,7 +936,7 @@ class DeleteNatIpFromLRPortPeerOptionsCommand(command.BaseCommand):
                                           'name', self.lport)
 
         except idlutils.RowNotFound:
-            msg = _("Logical Switch Port %s does not exist") % self.port
+            msg = _("Logical Switch Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
         lport.verify('options')
