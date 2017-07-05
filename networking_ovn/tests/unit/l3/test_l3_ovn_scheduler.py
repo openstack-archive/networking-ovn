@@ -12,9 +12,9 @@
 #    under the License.
 #
 
-import mock
 import random
 
+import mock
 from neutron.tests import base
 
 from networking_ovn.common import constants as ovn_const

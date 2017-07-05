@@ -11,9 +11,9 @@
 #    under the License.
 
 import abc
-import six
 
 from ovsdbapp import api
+import six
 
 
 @six.add_metaclass(abc.ABCMeta)

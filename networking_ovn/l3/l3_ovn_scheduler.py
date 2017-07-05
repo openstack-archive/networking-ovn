@@ -14,9 +14,9 @@
 
 import abc
 import random
-import six
 
 from oslo_log import log
+import six
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
