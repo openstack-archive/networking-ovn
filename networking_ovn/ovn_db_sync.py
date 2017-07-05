@@ -11,10 +11,11 @@
 #    under the License.
 
 import abc
-
 from datetime import datetime
-from eventlet import greenthread
 import itertools
+
+from eventlet import greenthread
+from neutron.services.segments import db as segments_db
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants
@@ -23,15 +24,13 @@ from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_log import log
-
-from neutron.services.segments import db as segments_db
+import six
 
 from networking_ovn.common import acl as acl_utils
 from networking_ovn.common import config
 from networking_ovn.common import constants as const
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
-import six
 
 LOG = log.getLogger(__name__)
 

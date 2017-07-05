@@ -13,8 +13,8 @@
 #
 
 import copy
-import mock
 
+import mock
 from neutron_lib import constants as const
 
 from networking_ovn.common import acl as ovn_acl

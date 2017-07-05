@@ -13,6 +13,7 @@
 #
 
 import copy
+
 import mock
 
 from networking_ovn.common import config

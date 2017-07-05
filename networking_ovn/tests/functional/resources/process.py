@@ -14,13 +14,12 @@
 
 
 from distutils import spawn
+import os
 
 import fixtures
-import os
+from neutron.agent.linux import utils
 import psutil
 import tenacity
-
-from neutron.agent.linux import utils
 
 
 class OvsdbServer(fixtures.Fixture):

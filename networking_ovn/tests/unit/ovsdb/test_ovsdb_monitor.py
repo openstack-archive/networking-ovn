@@ -13,13 +13,12 @@
 #    under the License.
 
 import copy
-import mock
 import os
 
-from oslo_utils import uuidutils
-
+import mock
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
+from oslo_utils import uuidutils
 from ovs.db import idl as ovs_idl
 from ovs import poller
 from ovs.stream import Stream

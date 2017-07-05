@@ -12,10 +12,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import fixtures
-import mock
 import time
 
+import fixtures
+import mock
+from neutron.plugins.ml2 import config
+from neutron.plugins.ml2.drivers import type_geneve  # noqa
+from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from oslo_config import cfg
@@ -24,10 +27,6 @@ from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import transaction
-
-from neutron.plugins.ml2 import config
-from neutron.plugins.ml2.drivers import type_geneve  # noqa
-from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor

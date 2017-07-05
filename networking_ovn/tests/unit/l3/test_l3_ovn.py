@@ -13,18 +13,17 @@
 #
 
 import copy
-import mock
 
+import mock
+from neutron.tests.unit.api import test_extensions
+from neutron.tests.unit.extensions import test_extraroute
+from neutron.tests.unit.extensions import test_l3
+from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
 from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from oslo_config import cfg
-
-from neutron.tests.unit.api import test_extensions
-from neutron.tests.unit.extensions import test_extraroute
-from neutron.tests.unit.extensions import test_l3
-from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
 
 from networking_ovn.tests.unit import fakes
 from networking_ovn.tests.unit.ml2 import test_mech_driver

@@ -15,8 +15,8 @@
 
 import collections
 import copy
-import netaddr
 
+import netaddr
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
 from neutron_lib import constants as const
