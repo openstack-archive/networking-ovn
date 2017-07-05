@@ -33,8 +33,6 @@ from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional.resources import process
 
-PLUGIN_NAME = ('networking_ovn.plugin.OVNPlugin')
-
 LOG = log.getLogger(__name__)
 
 
