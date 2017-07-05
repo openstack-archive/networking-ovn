@@ -88,7 +88,7 @@ class JournalThread(object):
     def validate_dependencies(self, session, entry):
         """Validate resource dependency in journaled operations.
 
-        :returns: Boolean value. True if validation suceed, False
+        :returns: Boolean value. True if validation succeed, False
             otherwise.
         """
 

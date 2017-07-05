@@ -678,7 +678,7 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self.assertEqual(len(dhcp_options['ports_v4']), 2)
 
     def test_compose_dhcp_options_commands(self):
-        # TODO(azbiswas): Implement in seperate patch
+        # TODO(azbiswas): Implement in separate patch
         pass
 
     def test_get_address_sets(self):

@@ -31,7 +31,7 @@ class JournalCleanup(object):
         :param completed_rows_retention: Time (in seconds) to keep rows
             marked as COMPLETED in the database.
         :param processing_timeout: Time (in seconds) to wait before a
-            row maked as PROCESSING is set back to PENDING.
+            row marked as PROCESSING is set back to PENDING.
         """
         self._completed_rows_retention = completed_rows_retention
         self._processing_timeout = processing_timeout

@@ -179,7 +179,7 @@ class SetLSwitchPortCommand(command.BaseCommand):
             msg = _("Logical Switch Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
-        # Delete DHCP_Options records no longer refered by this port.
+        # Delete DHCP_Options records no longer referred by this port.
         # The table rows should be consistent for the same transaction.
         # After we get DHCP_Options rows uuids from port dhcpv4_options
         # and dhcpv6_options references, the rows shouldn't disappear for
@@ -233,7 +233,7 @@ class DelLSwitchPortCommand(command.BaseCommand):
             msg = _("Port %s does not exist") % self.lport
             raise RuntimeError(msg)
 
-        # Delete DHCP_Options records no longer refered by this port.
+        # Delete DHCP_Options records no longer referred by this port.
         cur_port_dhcp_opts = get_lsp_dhcp_options_uuids(
             lport, self.lport)
         for uuid in cur_port_dhcp_opts:
