@@ -3,43 +3,21 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to networking-ovn's documentation!
-========================================================
+.. the main title comes from README.rst
 
-General Information and Other Project References:
+.. include:: ../../README.rst
 
-.. toctree::
-   :maxdepth: 1
-
-   readme
-   features
-   contributing
-   faq
-   refarch/refarch
-   install
-
-Testing and Usage Information:
+Contents
+--------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   testing
-   dpdk
-   containers
-   troubleshooting
+   admin/index
+   install/index
+   contributor/index
 
-Design Notes:
-
-.. toctree::
-   :maxdepth: 1
-
-   design/data_model
-   design/native_dhcp
-   design/ovn_worker
-   design/metadata_api
-
-Indices and tables
-==================
+.. rubric:: Indices and tables
 
 * :ref:`genindex`
 * :ref:`search`

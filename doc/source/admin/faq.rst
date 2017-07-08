@@ -51,4 +51,4 @@ address.  When the HA manager detects a failure of the master, the
 virtual IP would be moved and the passive replica would become the
 new master.
 
-See :doc:`readme` for links to more details on OVN's architecture.
+See :doc:`ovn` for links to more details on OVN's architecture.

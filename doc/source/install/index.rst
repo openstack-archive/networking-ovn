@@ -1,7 +1,7 @@
 .. _installation:
 
-Installation
-============
+Install & Configuration
+=======================
 
 The ``networking-ovn`` repository includes integration with DevStack that
 enables creation of a simple Open Virtual Network (OVN) development and test

@@ -648,9 +648,11 @@ On the compute nodes, enable it as follows:
 Troubleshooting
 ---------------
 
-If you run into any problems, take a look at our :doc:`troubleshooting` page.
+If you run into any problems, take a look at our :doc:`/admin/troubleshooting`
+page.
 
 Additional Resources
 --------------------
 
-See the documentation and other references linked from the :doc:`readme` page.
+See the documentation and other references linked
+from the :doc:`/admin/ovn` page.
