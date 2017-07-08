@@ -46,15 +46,15 @@ creating a router.
 #. The OVN mechanism driver translates the router into a logical
    router object in the OVN northbound database.
 
-  .. code-block:: console
+   .. code-block:: console
 
-     _uuid               : 1c2e340d-dac9-496b-9e86-1065f9dab752
-     default_gw          : []
-     enabled             : []
-     external_ids        : {"neutron:router_name"="router"}
-     name                : "neutron-a24fd760-1a99-4eec-9f02-24bb284ff708"
-     ports               : []
-     static_routes       : []
+      _uuid               : 1c2e340d-dac9-496b-9e86-1065f9dab752
+      default_gw          : []
+      enabled             : []
+      external_ids        : {"neutron:router_name"="router"}
+      name                : "neutron-a24fd760-1a99-4eec-9f02-24bb284ff708"
+      ports               : []
+      static_routes       : []
 
 #. The OVN northbound service translates this object into logical flows
    and datapath bindings in the OVN southbound database.

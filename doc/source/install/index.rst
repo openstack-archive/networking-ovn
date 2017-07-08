@@ -153,14 +153,14 @@ primary node. See the :ref:`faq` for more information.
         extension_drivers = port_security
         overlay_ip_version = 4
 
-    .. note::
+     .. note::
 
-       To enable VLAN self-service networks, add ``vlan`` to the
-       ``tenant_network_types`` option. The first network type
-       in the list becomes the default self-service network type.
+        To enable VLAN self-service networks, add ``vlan`` to the
+        ``tenant_network_types`` option. The first network type
+        in the list becomes the default self-service network type.
 
-       To use IPv6 for all overlay (tunnel) network endpoints,
-       set the ``overlay_ip_version`` option to ``6``.
+        To use IPv6 for all overlay (tunnel) network endpoints,
+        set the ``overlay_ip_version`` option to ``6``.
 
    * Configure the Geneve ID range and maximum header size. The IP version
      overhead (20 bytes for IPv4 (default) or 40 bytes for IPv6) is added
