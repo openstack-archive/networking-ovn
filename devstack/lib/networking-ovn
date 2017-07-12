@@ -35,6 +35,12 @@
 XTRACE=$(set +o | grep xtrace)
 set +o xtrace
 
+# Libraries that could be installed from source
+
+GITREPO["ovsdbapp"]=${OVSDBAPP_REPO:-${GIT_BASE}/openstack/ovsdbapp.git}
+GITBRANCH["ovsdbapp"]=${OVSDBAPP_BRANCH:-master}
+GITDIR["ovsdbapp"]=$DEST/ovsdbapp
+
 # Defaults
 # --------
 
@@ -244,7 +250,6 @@ function install_ovn {
         sudo install -d -o $STACK_USER $NEUTRON_CONF_DIR
     fi
 
-    setup_develop $DEST/networking-ovn
     # Install tox, used to generate the config (see devstack/override-defaults)
     pip_install tox
     source $NEUTRON_DIR/devstack/lib/ovs
@@ -253,6 +258,14 @@ function install_ovn {
     sudo mkdir -p /usr/local/var/log/openvswitch
     sudo chown $(whoami) /usr/local/var/run/openvswitch
     sudo chown $(whoami) /usr/local/var/log/openvswitch
+
+    # Install ovsdbapp from source if requested
+    if use_library_from_git "ovsdbapp"; then
+        git_clone_by_name "ovsdbapp"
+        setup_dev_lib "ovsdbapp"
+    fi
+
+    setup_develop $DEST/networking-ovn
 
     # Install ovs python module from ovs source.
     if [[ "$OVN_INSTALL_OVS_PYTHON_MODULE" == "True" ]]; then
