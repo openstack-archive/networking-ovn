@@ -952,3 +952,38 @@ class OVNClient(object):
 
     def delete_subnet(self, subnet_id):
         self._remove_subnet_dhcp_options(subnet_id)
+
+    def _process_security_group(self, security_group, func, external_ids=True):
+        with self._nb_idl.transaction(check_error=True) as txn:
+            for ip_version in ('ip4', 'ip6'):
+                kwargs = {'name': utils.ovn_addrset_name(security_group['id'],
+                                                         ip_version)}
+                if external_ids:
+                    kwargs['external_ids'] = {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+                                              security_group['name']}
+                txn.add(func(**kwargs))
+
+    def create_security_group(self, security_group):
+        self._process_security_group(
+            security_group, self._nb_idl.create_address_set)
+
+    def delete_security_group(self, security_group):
+        self._process_security_group(
+            security_group, self._nb_idl.delete_address_set,
+            external_ids=False)
+
+    def update_security_group(self, security_group):
+        self._process_security_group(
+            security_group, self._nb_idl.update_address_set_ext_ids)
+
+    def _process_security_group_rule(self, rule, is_add_acl=True):
+        admin_context = n_context.get_admin_context()
+        ovn_acl.update_acls_for_security_group(
+            self._plugin, admin_context, self._nb_idl,
+            rule['security_group_id'], rule, is_add_acl=is_add_acl)
+
+    def create_security_group_rule(self, rule):
+        self._process_security_group_rule(rule)
+
+    def delete_security_group_rule(self, rule):
+        self._process_security_group_rule(rule, is_add_acl=False)
