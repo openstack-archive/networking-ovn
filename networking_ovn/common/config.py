@@ -129,7 +129,7 @@ ovn_opts = [
                choices=list(VLOG_LEVELS.keys()),
                help=_("The log level used for OVSDB")),
     cfg.BoolOpt('ovn_metadata_enabled',
-                default=True,
+                default=False,
                 help=_('Whether to use metadata service.'))
 ]
 
