@@ -97,7 +97,7 @@ OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
-OVN_META_CONF=$NEUTRON_CONF_DIR/metadata_agent.ini
+OVN_META_CONF=$NEUTRON_CONF_DIR/networking_ovn_metadata_agent.ini
 
 # Set variables for building OVS from source
 OVS_REPO=$OVN_REPO
@@ -176,7 +176,7 @@ function configure_ovn {
         mkdir -p $NETWORKING_OVN_DIR/etc/neutron/plugins/ml2
         (cd $NETWORKING_OVN_DIR && exec ./tools/generate_config_file_samples.sh)
 
-        cp $NETWORKING_OVN_DIR/etc/metadata_agent.ini.sample $OVN_META_CONF
+        cp $NETWORKING_OVN_DIR/etc/networking_ovn_metadata_agent.ini.sample $OVN_META_CONF
 
         iniset $OVN_META_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
         iniset $OVN_META_CONF DEFAULT nova_metadata_ip $SERVICE_HOST
