@@ -32,7 +32,8 @@ output/*/index.html
 
 # Documentation
 doc/build
-/etc/**/*.sample
+doc/source/_static/config_samples/*.sample
+etc/**/*.sample
 
 # pbr generates these
 AUTHORS

@@ -15,6 +15,7 @@ Contents
 
    admin/index
    install/index
+   configuration/index
    contributor/index
 
 .. rubric:: Indices and tables
