@@ -30,8 +30,9 @@ nosetests.xml
 output/*.html
 output/*/index.html
 
-# Sphinx
+# Documentation
 doc/build
+/etc/**/*.sample
 
 # pbr generates these
 AUTHORS
@@ -50,7 +51,6 @@ ChangeLog
 !/.pylintrc
 !/.testr.conf
 !/devstack/lib
-etc
 
 # Vagrant directory
 vagrant/.vagrant
