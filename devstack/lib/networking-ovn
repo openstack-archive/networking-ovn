@@ -202,6 +202,12 @@ function configure_ovn_plugin {
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_l3_scheduler="$OVN_L3_SCHEDULER"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE securitygroup enable_security_group="$Q_USE_SECGROUP"
         inicomment /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver
+
+        if is_service_enabled networking-ovn-metadata-agent; then
+            populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_metadata_enabled=True
+        else
+            populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_metadata_enabled=False
+        fi
     fi
 
     if is_service_enabled q-dhcp ; then
