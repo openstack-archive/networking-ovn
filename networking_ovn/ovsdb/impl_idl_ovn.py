@@ -31,6 +31,47 @@ from networking_ovn.ovsdb import ovsdb_monitor
 
 LOG = log.getLogger(__name__)
 
+# NOTE(twilson) This block of code is to support both ovsdbapp 0.4.0 and 1.0
+# and can be removed after ovsdbapp 1.0 is released and becomes a requirement
+try:
+    from ovsdbapp.backend import ovs_idl
+    Backend = ovs_idl.Backend
+except AttributeError:
+    class Backend(object):
+        lookup_table = {}
+
+        def __init__(self, connection):
+            super(Backend, self).__init__()  # pylint: disable=bad-super-call
+            self.start_connection(connection)
+
+        @classmethod
+        def start_connection(cls, connection):
+            try:
+                if cls.ovsdb_connection is None:
+                    cls.ovsdb_connection = connection
+                    cls.ovsdb_connection.start()
+            except Exception as e:
+                connection_exception = OvsdbConnectionUnavailable(
+                    db_schema=cls.schema, error=e)
+                LOG.exception(connection_exception)
+                raise connection_exception
+
+        @property
+        def idl(self):
+            return self.__class__.ovsdb_connection.idl
+
+        @property
+        def tables(self):
+            return self.idl.tables
+
+        _tables = tables
+
+        def create_transaction(self, check_error=False, log_errors=True):
+            return idl_trans.Transaction(
+                self, self.__class__.ovsdb_connection,
+                self.__class__.ovsdb_connection.timeout,
+                check_error, log_errors)
+
 
 class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
     message = _("OVS database connection to %(db_schema)s failed with error: "
@@ -70,40 +111,14 @@ def get_connection(db_class, trigger=None, driver=None):
     return connection.Connection(idl_, timeout=cfg.get_ovn_ovsdb_timeout())
 
 
-class OvsdbNbOvnIdl(ovn_api.API):
-
+class OvsdbNbOvnIdl(Backend, ovn_api.API):
+    schema = 'OVN_Northbound'
     ovsdb_connection = None
 
     def __init__(self, connection):
-        super(OvsdbNbOvnIdl, self).__init__()
-        try:
-            if OvsdbNbOvnIdl.ovsdb_connection is None:
-                OvsdbNbOvnIdl.ovsdb_connection = connection
-            OvsdbNbOvnIdl.ovsdb_connection.start()
-            self.idl = OvsdbNbOvnIdl.ovsdb_connection.idl
-            self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
-
-            # FIXME(lucasagomes): We should not access the _session
-            # private attribute like this, ideally the IDL class would
-            # expose a public method to allow others to tune the probe
-            # interval. This shoule be done in the OVS python library.
-            self.idl._session.reconnect.set_probe_interval(
-                cfg.get_ovn_ovsdb_probe_interval())
-        except Exception as e:
-            connection_exception = OvsdbConnectionUnavailable(
-                db_schema='OVN_Northbound', error=e)
-            LOG.exception(connection_exception)
-            raise connection_exception
-
-    @property
-    def _tables(self):
-        return self.idl.tables
-
-    def create_transaction(self, check_error=False, log_errors=True, **kwargs):
-        return idl_trans.Transaction(self,
-                                     OvsdbNbOvnIdl.ovsdb_connection,
-                                     self.ovsdb_timeout,
-                                     check_error, log_errors)
+        super(OvsdbNbOvnIdl, self).__init__(connection)
+        self.idl._session.reconnect.set_probe_interval(
+            cfg.get_ovn_ovsdb_probe_interval())
 
     def create_lswitch(self, lswitch_name, may_exist=True, **columns):
         return cmd.AddLSwitchCommand(self, lswitch_name,
@@ -532,36 +547,14 @@ class OvsdbNbOvnIdl(ovn_api.API):
             raise RuntimeError(msg)
 
 
-class OvsdbSbOvnIdl(ovn_api.SbAPI):
-
+class OvsdbSbOvnIdl(Backend, ovn_api.SbAPI):
+    schema = 'OVN_Southbound'
     ovsdb_connection = None
 
     def __init__(self, connection):
-        super(OvsdbSbOvnIdl, self).__init__()
-        try:
-            if OvsdbSbOvnIdl.ovsdb_connection is None:
-                OvsdbSbOvnIdl.ovsdb_connection = connection
-            OvsdbSbOvnIdl.ovsdb_connection.start()
-            self.idl = OvsdbSbOvnIdl.ovsdb_connection.idl
-            self.ovsdb_timeout = cfg.get_ovn_ovsdb_timeout()
-
-            # FIXME(lucasagomes): We should not access the _session
-            # private attribute like this, ideally the IDL class would
-            # expose a public method to allow others to tune the probe
-            # interval. This shoule be done in the OVS python library.
-            self.idl._session.reconnect.set_probe_interval(
-                cfg.get_ovn_ovsdb_probe_interval())
-        except Exception as e:
-            connection_exception = OvsdbConnectionUnavailable(
-                db_schema='OVN_Southbound', error=e)
-            LOG.exception(connection_exception)
-            raise connection_exception
-
-    def create_transaction(self, check_error=False, log_errors=True, **kwargs):
-        return idl_trans.Transaction(self,
-                                     OvsdbSbOvnIdl.ovsdb_connection,
-                                     self.ovsdb_timeout,
-                                     check_error, log_errors)
+        super(OvsdbSbOvnIdl, self).__init__(connection)
+        self.idl._session.reconnect.set_probe_interval(
+            cfg.get_ovn_ovsdb_probe_interval())
 
     def _get_chassis_physnets(self, chassis):
         bridge_mappings = chassis.external_ids.get('ovn-bridge-mappings', '')
