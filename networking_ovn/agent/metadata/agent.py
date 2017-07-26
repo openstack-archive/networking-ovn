@@ -21,6 +21,7 @@ from neutron.common import utils
 from neutron_lib import constants as n_const
 from oslo_concurrency import lockutils
 from oslo_log import log
+from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import vlog
 import six
 
@@ -29,7 +30,6 @@ from networking_ovn.agent.metadata import ovsdb
 from networking_ovn.agent.metadata import server as metadata_server
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
-from networking_ovn.ovsdb import row_event
 
 
 LOG = log.getLogger(__name__)

@@ -79,7 +79,6 @@ OVN_SB_SCHEMA = {
 }
 
 
-@mock.patch.object(ovsdb_monitor, 'greenthread', None)
 class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     def setUp(self):
@@ -207,7 +206,6 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertTrue(self.idl.notify_handler.notify.called)
 
 
-@mock.patch.object(ovsdb_monitor, 'greenthread', None)
 class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
 
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
@@ -284,7 +282,7 @@ class TestOvnDbNotifyHandler(base.TestCase):
     def setUp(self):
         super(TestOvnDbNotifyHandler, self).setUp()
         self.handler = ovsdb_monitor.OvnDbNotifyHandler(mock.ANY)
-        self.watched_events = self.handler._OvnDbNotifyHandler__watched_events
+        self.watched_events = self.handler._RowEventHandler__watched_events
 
     def test_watch_and_unwatch_events(self):
         expected_events = set()
