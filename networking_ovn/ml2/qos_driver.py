@@ -17,12 +17,12 @@ from neutron_lib import constants
 from neutron_lib import context as n_context
 from neutron_lib.plugins import directory
 from neutron_lib.services.qos import base
+from neutron_lib.services.qos import constants as qos_consts
 
 from neutron.common import constants as n_consts
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.plugins.ml2 import plugin as ml2_plugin
-from neutron.services.qos import qos_consts
 
 from oslo_config import cfg
 
