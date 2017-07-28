@@ -559,7 +559,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             self.port(subnet=subnet1, set_context=True,
                       tenant_id='test') as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
-                       'provisioning_complete') as pc:
+                       'provisioning_complete') as pc, \
+            mock.patch.object(self.mech_driver,
+                              '_update_subport_host_if_needed') as upd_subport:
                 self.mech_driver.set_port_status_up(port1['port']['id'])
                 pc.assert_called_once_with(
                     mock.ANY,
@@ -567,6 +569,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     resources.PORT,
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
+                upd_subport.assert_called_once_with(port1['port']['id'])
 
     def test_set_port_status_down(self):
         with self.network(set_context=True, tenant_id='test') as net1, \
@@ -605,6 +608,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     resources.PORT,
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
+
+    def test__update_subport_host_if_needed(self):
+        """Check that a subport is updated with parent's host_id."""
+        binding_host_id = {'binding:host_id': 'hostname'}
+        with mock.patch.object(self.mech_driver._ovn_client, 'get_parent_port',
+                               return_value='parent'), \
+            mock.patch.object(self.mech_driver._plugin, 'get_port',
+                              return_value=binding_host_id) as get_port, \
+            mock.patch.object(self.mech_driver._plugin, 'update_port') as upd:
+                self.mech_driver._update_subport_host_if_needed('subport')
+
+        get_port.assert_called_once_with(mock.ANY, 'parent')
+        upd.assert_called_once_with(mock.ANY, 'subport',
+                                    {'port': binding_host_id})
 
     def test_bind_port_unsupported_vnic_type(self):
         fake_port = fakes.FakePort.create_one_port(
