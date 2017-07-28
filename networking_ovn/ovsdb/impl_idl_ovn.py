@@ -512,6 +512,14 @@ class OvsdbNbOvnIdl(ovn_api.API):
     def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
         return cmd.DeleteNatIpFromLRPortPeerOptionsCommand(self, lport, nat_ip)
 
+    def get_parent_port(self, lsp_name):
+        try:
+            lsp = idlutils.row_by_value(self.idl, 'Logical_Switch_Port',
+                                        'name', lsp_name)
+            return lsp.parent_name
+        except idlutils.RowNotFound:
+            return ''
+
     # Check for a column match in the table. If not found do a retry with
     # a stop delay of 10 secs. This function would be useful if the caller
     # wants to verify for the presence of a particular row in the table
