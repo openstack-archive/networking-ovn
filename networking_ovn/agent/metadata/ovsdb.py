@@ -29,7 +29,7 @@ class MetadataAgentOvnSbIdl(ovsdb_monitor.OvnIdl):
     def __init__(self, events=None):
         connection_string = config.get_ovn_sb_connection()
         helper = idlutils.get_schema_helper(connection_string, self.SCHEMA)
-        tables = ('Chassis', 'Port_Binding', 'Datapath_Binding')
+        tables = ('Chassis', 'Encap', 'Port_Binding', 'Datapath_Binding')
         for table in tables:
             helper.register_table(table)
         super(MetadataAgentOvnSbIdl, self).__init__(
