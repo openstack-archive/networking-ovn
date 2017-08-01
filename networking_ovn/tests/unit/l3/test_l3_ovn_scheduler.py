@@ -49,13 +49,19 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
         self.fake_chassis_gateway_mappings = {
             'None': {'Chassis': [],
                      'Gateways': {
-                         'g1': ovn_const.OVN_GATEWAY_INVALID_CHASSIS}},
+                         'g1': [ovn_const.OVN_GATEWAY_INVALID_CHASSIS]}},
             'Multiple1': {'Chassis': ['hv1', 'hv2'],
-                          'Gateways': {'g1': 'hv1', 'g2': 'hv2', 'g3': 'hv1'}},
+                          'Gateways': {'g1': ['hv1'],
+                                       'g2': ['hv2'],
+                                       'g3': ['hv1']}},
             'Multiple2': {'Chassis': ['hv1', 'hv2', 'hv3'],
-                          'Gateways': {'g1': 'hv1', 'g2': 'hv1', 'g3': 'hv1'}},
+                          'Gateways': {'g1': ['hv1'],
+                                       'g2': ['hv1'],
+                                       'g3': ['hv1']}},
             'Multiple3': {'Chassis': ['hv1', 'hv2', 'hv3'],
-                          'Gateways': {'g1': 'hv3', 'g2': 'hv2', 'g3': 'hv2'}}
+                          'Gateways': {'g1': ['hv3'],
+                                       'g2': ['hv2'],
+                                       'g3': ['hv2']}}
             }
 
         # Determine the chassis to gateway list bindings
@@ -64,9 +70,10 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
             details.setdefault('Chassis_Bindings', {})
             for chassis in details['Chassis']:
                 details['Chassis_Bindings'].setdefault(chassis, [])
-            for gateway, chassis in details['Gateways'].items():
-                if chassis in details['Chassis_Bindings']:
-                    details['Chassis_Bindings'][chassis].append(gateway)
+            for gateway, chassis_list in details['Gateways'].items():
+                for chassis in chassis_list:
+                    if chassis in details['Chassis_Bindings']:
+                        details['Chassis_Bindings'][chassis].append(gateway)
 
     def select(self, chassis_gateway_mapping, gateway_name):
         nb_idl = FakeOVNGatewaySchedulerNbOvnIdl(chassis_gateway_mapping,
@@ -85,19 +92,19 @@ class OVNGatewayChanceScheduler(TestOVNGatewayScheduler):
         mapping = self.fake_chassis_gateway_mappings['None']
         gateway_name = random.choice(list(mapping['Gateways'].keys()))
         chassis = self.select(mapping, gateway_name)
-        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
+        self.assertEqual([ovn_const.OVN_GATEWAY_INVALID_CHASSIS], chassis)
 
     def test_no_chassis_available_for_new_gateway(self):
         mapping = self.fake_chassis_gateway_mappings['None']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
+        self.assertEqual([ovn_const.OVN_GATEWAY_INVALID_CHASSIS], chassis)
 
     def test_random_chassis_available_for_new_gateway(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple1']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertIn(chassis, mapping.get('Chassis'))
+        self.assertItemsEqual(chassis, mapping.get('Chassis'))
 
     def test_existing_chassis_available_for_existing_gateway(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple1']
@@ -116,34 +123,36 @@ class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
         mapping = self.fake_chassis_gateway_mappings['None']
         gateway_name = random.choice(list(mapping['Gateways'].keys()))
         chassis = self.select(mapping, gateway_name)
-        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
+        self.assertEqual([ovn_const.OVN_GATEWAY_INVALID_CHASSIS], chassis)
 
     def test_no_chassis_available_for_new_gateway(self):
         mapping = self.fake_chassis_gateway_mappings['None']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertEqual(ovn_const.OVN_GATEWAY_INVALID_CHASSIS, chassis)
+        self.assertEqual([ovn_const.OVN_GATEWAY_INVALID_CHASSIS], chassis)
 
     def test_least_loaded_chassis_available_for_new_gateway1(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple1']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertIn(chassis, mapping.get('Chassis'))
-        self.assertEqual('hv2', chassis)
+        self.assertItemsEqual(chassis, mapping.get('Chassis'))
+        # least loaded will be the first one in the list,
+        # networking-ovn will assign highest priority to this first element
+        self.assertEqual(['hv2', 'hv1'], chassis)
 
     def test_least_loaded_chassis_available_for_new_gateway2(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple2']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertNotEqual(chassis, 'hv1')
-        self.assertIn(chassis, ['hv2', 'hv3'])
+        # hv1 will have least priority
+        self.assertEqual(chassis[2], 'hv1')
 
     def test_least_loaded_chassis_available_for_new_gateway3(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple3']
         gateway_name = self.new_gateway_name
         chassis = self.select(mapping, gateway_name)
-        self.assertIn(chassis, mapping.get('Chassis'))
-        self.assertEqual('hv1', chassis)
+        # least loaded chassis will be in the front of the list
+        self.assertEqual(['hv1', 'hv3', 'hv2'], chassis)
 
     def test_existing_chassis_available_for_existing_gateway(self):
         mapping = self.fake_chassis_gateway_mappings['Multiple1']

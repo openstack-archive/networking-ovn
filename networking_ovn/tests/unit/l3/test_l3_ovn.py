@@ -99,7 +99,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                         'mac': '00:00:00:02:04:06',
                                         'name': 'lrp-gw-port-id',
                                         'networks': ['192.168.1.1/24'],
-                                        'options': {'redirect-chassis': 'hv1'}}
+                                        'gateway_chassis': ['hv1']}
         self.fake_floating_ip = {'id': 'fip-id',
                                  'tenant_id': '',
                                  'floating_ip_address': '192.168.0.10',
@@ -155,7 +155,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self._start_mock(
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayLeastLoadedScheduler._schedule_gateway',
-            return_value='hv1')
+            return_value=['hv1'])
         self._start_mock(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.create_floatingip',
             return_value=self.fake_floating_ip)

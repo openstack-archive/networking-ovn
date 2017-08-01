@@ -327,6 +327,26 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
         return cmd.UpdateAddrSetExtIdsCommand(self, name, external_ids,
                                               if_exists)
 
+    def _get_logical_router_port_gateway_chassis(self, lrp):
+        # Try retrieving gateway_chassis with new schema. If new schema is not
+        # supported or user is using old schema, then use old schema for
+        # getting gateway_chassis
+        chassis = []
+        if self._tables.get('Gateway_Chassis'):
+            for gwc in lrp.gateway_chassis:
+                # TODO(anilvenkata): Add to the list based on priority.
+                # Otherwise, if lrp1 is scheduled on c1 with priority 1 and c2
+                # with priority 2. When new port lrp2 is scheduled, it is also
+                # scheduled on c1 with priority 1 and c2 with priority 2.
+                # If we add to the list based on priority then it will be
+                # scheduled on c1 with priority 2 and on c2 with priority 1.
+                chassis.append(gwc.chassis_name)
+        else:
+            rc = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
+            if rc:
+                chassis.append(rc)
+        return chassis
+
     def get_all_chassis_gateway_bindings(self,
                                          chassis_candidate_list=None):
         chassis_bindings = {}
@@ -335,45 +355,36 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
         for lrp in self._tables['Logical_Router_Port'].rows.values():
             if not lrp.name.startswith('lrp-'):
                 continue
-            chassis_name = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
-            if not chassis_name:
-                continue
-            if (not chassis_candidate_list or
-                    chassis_name in chassis_candidate_list):
-                routers_hosted = chassis_bindings.setdefault(chassis_name, [])
-                routers_hosted.append(lrp.name)
+            chassis = self._get_logical_router_port_gateway_chassis(lrp)
+            for chassis_name in chassis:
+                if (not chassis_candidate_list or
+                        chassis_name in chassis_candidate_list):
+                    routers_hosted = chassis_bindings.setdefault(chassis_name,
+                                                                 [])
+                    routers_hosted.append(lrp.name)
         return chassis_bindings
 
     def get_gateway_chassis_binding(self, gateway_name):
         try:
-            router = idlutils.row_by_value(self.idl,
-                                           'Logical_Router_Port',
-                                           'name',
-                                           gateway_name)
-            chassis_name = router.options.get(
-                ovn_const.OVN_GATEWAY_CHASSIS_KEY)
-            if chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS:
-                return None
-            else:
-                return chassis_name
+            lrp = idlutils.row_by_value(
+                self.idl, 'Logical_Router_Port', 'name', gateway_name)
+            return self._get_logical_router_port_gateway_chassis(lrp)
         except idlutils.RowNotFound:
-            return None
+            return []
 
     def get_unhosted_gateways(self, valid_chassis_list):
         unhosted_gateways = {}
         for lrp in self._tables['Logical_Router_Port'].rows.values():
             if not lrp.name.startswith('lrp-'):
                 continue
-            chassis_name = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
-            if not chassis_name:
-                # Not a gateway router
-                continue
-            # TODO(azbiswas): Handle the case when a chassis is no
-            # longer valid. This may involve moving conntrack states,
-            # so it needs to discussed in the OVN community first.
-            if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
-                    chassis_name not in valid_chassis_list):
-                unhosted_gateways[lrp.name] = lrp.options
+            for chassis_name in self._get_logical_router_port_gateway_chassis(
+                    lrp):
+                # TODO(azbiswas): Handle the case when a chassis is no
+                # longer valid. This may involve moving conntrack states,
+                # so it needs to discussed in the OVN community first.
+                if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
+                        chassis_name not in valid_chassis_list):
+                    unhosted_gateways[lrp.name] = lrp.options
         return unhosted_gateways
 
     def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,

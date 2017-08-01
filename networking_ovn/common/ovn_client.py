@@ -709,8 +709,8 @@ class OVNClient(object):
         if is_gw_port:
             selected_chassis = self._ovn_scheduler.select(
                 self._nb_idl, self._sb_idl, lrouter_port_name)
-            columns['options'] = {
-                ovn_const.OVN_GATEWAY_CHASSIS_KEY: selected_chassis}
+            if selected_chassis:
+                columns['gateway_chassis'] = selected_chassis
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.add_lrouter_port(name=lrouter_port_name,
                                                   lrouter=lrouter,

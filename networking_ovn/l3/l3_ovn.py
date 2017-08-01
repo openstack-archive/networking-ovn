@@ -400,9 +400,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 for g_name, r_options in unhosted_gateways.items():
                     chassis = self.scheduler.select(self._ovn, self._sb_ovn,
                                                     g_name)
-                    r_options['redirect-chassis'] = chassis
-                    txn.add(self._ovn.update_lrouter_port(g_name,
-                                                          options=r_options))
+                    txn.add(self._ovn.update_lrouter_port(
+                        g_name, gateway_chassis=chassis))
 
     @staticmethod
     @registry.receives(resources.SUBNET, [events.AFTER_UPDATE])

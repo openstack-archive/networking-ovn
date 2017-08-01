@@ -553,18 +553,18 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self._load_nb_db()
         chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
             utils.ovn_lrouter_port_name('orp-id-a1'))
-        self.assertEqual(chassis, 'host-1')
+        self.assertEqual(chassis, ['host-1'])
         chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
             utils.ovn_lrouter_port_name('orp-id-b2'))
-        self.assertEqual(chassis, 'host-2')
+        self.assertEqual(chassis, ['host-2'])
         chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
             utils.ovn_lrouter_port_name('orp-id-a3'))
-        self.assertIsNone(chassis)
+        self.assertEqual(chassis, ['neutron-ovn-invalid-chassis'])
         chassis = self.nb_ovn_idl.get_gateway_chassis_binding(
             utils.ovn_lrouter_port_name('orp-id-b3'))
-        self.assertIsNone(chassis)
+        self.assertEqual(chassis, [])
         chassis = self.nb_ovn_idl.get_gateway_chassis_binding('bad')
-        self.assertIsNone(chassis)
+        self.assertEqual(chassis, [])
 
     def test_get_unhosted_gateways(self):
         self._load_nb_db()
