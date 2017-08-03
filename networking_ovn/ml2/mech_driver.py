@@ -369,9 +369,11 @@ class OVNMechanismDriver(api.MechanismDriver):
 
     def _notify_dhcp_updated(self, port_id):
         """Notifies Neutron that the DHCP has been update for port."""
-        provisioning_blocks.provisioning_complete(
-            n_context.get_admin_context(), port_id, resources.PORT,
-            provisioning_blocks.DHCP_ENTITY)
+        if provisioning_blocks.is_object_blocked(
+                n_context.get_admin_context(), port_id, resources.PORT):
+            provisioning_blocks.provisioning_complete(
+                n_context.get_admin_context(), port_id, resources.PORT,
+                provisioning_blocks.DHCP_ENTITY)
 
     def create_port_postcommit(self, context):
         """Create a port.
