@@ -190,7 +190,7 @@ code, basically we need to tidy up the code to do two more things.
 This is important regardless of this spec, having all changes to a
 resource done in a single transaction minimizes the risk of having
 half-changes written to the database in case of an eventual problem. This
-is `should be done already <https://review.openstack.org/#/c/515673>`_
+`should be done already <https://review.openstack.org/#/c/515673>`_
 but it's important to have it here in case we find more examples like
 that as we code.
 
@@ -208,13 +208,13 @@ of the object present in the Neutron DB. The *original* parameter is
 the previous version (current - 1) of that object.
 
 The problem of creating the deltas by comparing these two objects is
-because only the data in the NeutronDB is used for it. We need to stop
+because only the data in the Neutron DB is used for it. We need to stop
 using the *original* object for it and instead we should create the
-delta based on the *current* version of the NeutronDB against the data
+delta based on the *current* version of the Neutron DB against the data
 stored in the OVNDB to be able to detect the real differences between
 the two databases.
 
-So in summary, to guarantee the correctness of the updates this documents
+So in summary, to guarantee the correctness of the updates this document
 proposes to:
 
 #. Create a new OVSDB command is responsible for comparing revision
@@ -222,14 +222,14 @@ proposes to:
 #. Consolidate changes to a resource in a single transaction (should be
    done already)
 #. When doing partial updates, create the deltas based in the current
-   version in the NeutronDB and the OVNDB.
+   version in the Neutron DB and the OVNDB.
 
 
 #3 - Detect and fix out-of-sync resources
 -----------------------------------------
 
 When things are working as expected the above changes should ensure
-that NeutronDB and OVNDB are in sync but, what happens when things go
+that Neutron DB and OVNDB are in sync but, what happens when things go
 bad ? As per `Problem 2 <problem_2_>`_, things like temporarily losing
 connectivity with the OVNDB could cause changes to fail to be committed
 and the databases getting out-of-sync. We need to be able to detect the
@@ -264,7 +264,7 @@ updated_at        DateTime  The time that the entry was updated. For
                             troubleshooting purposes
 ================  ========  ===========
 
-For the different actions: Create, update and delete; these table will be
+For the different actions: Create, update and delete; this table will be
 used as:
 
 
@@ -336,9 +336,9 @@ can run quite frequently to detect and fix the inconsistencies caused
 by random backend failures.
 
 .. note::
-   There's not lock linking both database updates in the postcommit()
+   There's no lock linking both database updates in the postcommit()
    methods. So, it's true that the method bumping the revision_number
-   column in the new table in NeutronDB could still race but, that
+   column in the new table in Neutron DB could still race but, that
    should be fine because this table acts like a cache and the real
    revision_number has been written in OVNDB.
 
@@ -438,4 +438,3 @@ collaboration and code sharing.
   <https://github.com/openstack/browbeat>`_ which is basically orchestrate
   `Openstack Rally <https://github.com/openstack/rally>`_ and monitor the
   machine's usage of resources.
-
