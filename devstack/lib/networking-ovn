@@ -55,10 +55,10 @@ NETWORKING_OVN_DIR=$DEST/networking-ovn
 OVN_BRANCH=${OVN_BRANCH:-master}
 
 # How to connect to ovsdb-server hosting the OVN SB database.
-OVN_SB_REMOTE=${OVN_SB_REMOTE:-tcp:$HOST_IP:6642}
+OVN_SB_REMOTE=${OVN_SB_REMOTE:-tcp:$SERVICE_HOST:6642}
 
 # How to connect to ovsdb-server hosting the OVN NB database
-OVN_NB_REMOTE=${OVN_NB_REMOTE:-tcp:$HOST_IP:6641}
+OVN_NB_REMOTE=${OVN_NB_REMOTE:-tcp:$SERVICE_HOST:6641}
 
 # A UUID to uniquely identify this system.  If one is not specified, a random
 # one will be generated.  A randomly generated UUID will be saved in a file
@@ -179,7 +179,7 @@ function configure_ovn {
         cp $NETWORKING_OVN_DIR/etc/metadata_agent.ini.sample $OVN_META_CONF
 
         iniset $OVN_META_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
-        iniset $OVN_META_CONF DEFAULT nova_metadata_ip $HOST_IP
+        iniset $OVN_META_CONF DEFAULT nova_metadata_ip $SERVICE_HOST
         iniset $OVN_META_CONF DEFAULT metadata_workers $API_WORKERS
         iniset $OVN_META_CONF ovs ovsdb_connection unix:/usr/local/var/run/openvswitch/db.sock
     fi
@@ -221,7 +221,7 @@ function configure_ovn_plugin {
 
     # NOTE(rtheis): OVN currently lacks support for metadata so enabling
     # config drive is required to provide metadata to instances.
-    if is_service_enabled n-cpu ; then
+    if is_service_enabled n-api-meta ; then
         if is_service_enabled networking-ovn-metadata-agent ; then
             iniset $NOVA_CONF neutron service_metadata_proxy True
         else
