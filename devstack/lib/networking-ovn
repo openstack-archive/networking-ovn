@@ -173,6 +173,8 @@ function configure_ovn {
     if is_service_enabled networking-ovn-metadata-agent; then
         sudo install -d -o $STACK_USER $NEUTRON_CONF_DIR
 
+        configure_neutron_rootwrap
+
         mkdir -p $NETWORKING_OVN_DIR/etc/neutron/plugins/ml2
         (cd $NETWORKING_OVN_DIR && exec ./tools/generate_config_file_samples.sh)
 
@@ -181,7 +183,10 @@ function configure_ovn {
         iniset $OVN_META_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
         iniset $OVN_META_CONF DEFAULT nova_metadata_ip $HOST_IP
         iniset $OVN_META_CONF DEFAULT metadata_workers $API_WORKERS
+        iniset $OVN_META_CONF DEFAULT state_path $NEUTRON_STATE_PATH
+        iniset $OVN_META_CONF agent root_helper_daemon "$NEUTRON_ROOTWRAP_DAEMON_CMD"
         iniset $OVN_META_CONF ovs ovsdb_connection unix:/usr/local/var/run/openvswitch/db.sock
+        iniset $OVN_META_CONF ovn ovn_sb_connection $OVN_SB_REMOTE
     fi
 }
 
@@ -468,7 +473,7 @@ function start_ovn {
     fi
 
     if is_service_enabled networking-ovn-metadata-agent; then
-        run_process networking-ovn-metadata-agent "$NETWORKING_OVN_BIN_DIR/$NETWORKING_OVN_METADATA_BINARY --config-file $NEUTRON_CONF --config-file $Q_PLUGIN_CONF_FILE --config-file $OVN_META_CONF"
+        run_process networking-ovn-metadata-agent "$NETWORKING_OVN_BIN_DIR/$NETWORKING_OVN_METADATA_BINARY --config-file $OVN_META_CONF"
     fi
 }
 
