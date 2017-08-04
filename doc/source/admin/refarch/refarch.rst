@@ -41,23 +41,39 @@ The database node contains the following components:
 
 The two compute nodes contain the following components:
 
-* Three network interfaces for management, overlay networks, and provider
-  networks
+* Two or three network interfaces for management, overlay networks, and
+  optionally provider networks
 * Compute management (hypervisor)
 * Hypervisor (KVM)
 * OVN controller service (``ovn-controller``)
 * OVS data plane service (``ovs-vswitchd``)
 * OVS database service (``ovsdb-server``) with OVS local configuration
   (``conf.db``) database
-* Networking DHCP agent
-* Networking metadata agent
+* OVN metadata agent (``ovn-metadata-agent``)
+
+
+The gateway nodes contain the following components:
+
+* Three network interfaces for management, overlay networks and provider
+  networks.
+* OVN controller service (``ovn-controller``)
+* OVS data plane service (``ovs-vswitchd``)
+* OVS database service (``ovsdb-server``) with OVS local configuration
+  (``conf.db``) database
 
 .. note::
 
-   By default, deploying DHCP and metadata agents on two compute nodes
-   provides basic redundancy for these services. For larger environments,
-   consider deploying the agents on a fraction of the compute nodes to
-   minimize control plane traffic.
+   Each OVN metadata agent provides metadata service locally on the compute
+   nodes in a lightweight way. Each network being accessed by the instances of
+   the compute node will have a corresponding metadata ovn-metadata-$net_uuid
+   namespace, and inside an haproxy will funnel the requests to the
+   ovn-metadata-agent over a unix socket.
+
+   Such namespace can be very helpful for debug purposes to access the local
+   instances on the compute node. If you login as root on such compute node
+   you can execute:
+
+   ip netns ovn-metadata-$net_uuid exec ssh user@my.instance.ip.address
 
 .. image:: figures/ovn-hw.png
    :alt: Hardware layout
@@ -71,11 +87,18 @@ Networking service with OVN integration
 ---------------------------------------
 
 The reference architecture deploys the Networking service with OVN
-integration as follows:
+integration as follows, in the case of centralized routing:
 
-.. image:: figures/ovn-architecture1.png
+.. image:: figures/ovn-architecture-centralized-routing1.png
    :alt: Architecture for Networking service with OVN integration
-   :align: center
+
+# TODO(majopela): This depends on patch https://review.openstack.org/#/c/463928/
+# in the case of DVR:
+#
+# .. image:: figures/ovn-architecture1.png
+#   :alt: Architecture for Networking service with OVN integration (DVR)
+#   :align: center
+
 
 Each compute node contains the following network components:
 
@@ -86,7 +109,7 @@ Each compute node contains the following network components:
 .. note::
 
    The Networking service creates a unique network namespace for each
-   virtual subnet that enables the DHCP service.
+   virtual network that enables the metadata service.
 
 .. _refarch_database-access:
 
@@ -106,6 +129,7 @@ output in this section uses these commands with various output filters.
    $ ovn-nbctl list Address_Set
    $ ovn-nbctl list Logical_Router
    $ ovn-nbctl list Logical_Router_Port
+   $ ovn-nbctl list Gateway_Chassis
 
    $ ovn-sbctl list Chassis
    $ ovn-sbctl list Encap
@@ -115,6 +139,7 @@ output in this section uses these commands with various output filters.
    $ ovn-sbctl list Datapath_Binding
    $ ovn-sbctl list Port_Binding
    $ ovn-sbctl list MAC_Binding
+   $ ovn-sbctl list Gateway_Chassis
 
 .. note::
 
@@ -211,11 +236,7 @@ Routers
 
    routers
 
-.. note::
-
-   Currently, OVN lacks support for routing between self-service (private)
-   and provider networks. However, it supports routing between
-   self-service networks.
+.. todo: Explain L3HA modes available starting at OVS 2.8
 
 Instances
 ---------
