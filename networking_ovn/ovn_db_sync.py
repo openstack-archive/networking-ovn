@@ -346,8 +346,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                  'logical_ip': fip['fixed_ip_address'],
                  'type': 'dnat_and_snat'})
         interfaces = self.l3_plugin._get_sync_interfaces(
-            ctx, db_routers.keys(), [constants.DEVICE_OWNER_ROUTER_INTF,
-                                     constants.DEVICE_OWNER_ROUTER_GW])
+            ctx, list(db_routers.keys()), [constants.DEVICE_OWNER_ROUTER_INTF,
+                                           constants.DEVICE_OWNER_ROUTER_GW])
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
             db_router_ports[interface['id']]['networks'] = sorted(

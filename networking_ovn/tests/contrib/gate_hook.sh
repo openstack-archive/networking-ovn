@@ -31,6 +31,15 @@ case $VENV in
     remove_ovs_packages
     # compile_ovs expects "DEST" to be defined
     DEST=$GATE_DEST
+    # Recent OVN DB changes in ACL table has broken the functional tests
+    # job. So shifting to OVS 2.7 branch for now, until we handle the
+    # DB changes properly in networking-ovn since we want to support both
+    # OVS master and the latest OVS branch.
+    # TODO (numans) - Revisit it to either shift to master
+    # or to pick the latest branch instead of hardcoding it.
+    # The other option is to have jobs to run functional tests on both
+    # master (may be as non voting) and latest branch.
+    OVS_BRANCH=branch-2.7
     compile_ovs True /usr/local /var
 
     # Make the workspace owned by GATE_STACK_USER
