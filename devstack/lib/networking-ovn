@@ -173,6 +173,7 @@ function configure_ovn {
     if is_service_enabled networking-ovn-metadata-agent; then
         sudo install -d -o $STACK_USER $NEUTRON_CONF_DIR
 
+        mkdir -p $NETWORKING_OVN_DIR/etc/neutron/plugins/ml2
         (cd $NETWORKING_OVN_DIR && exec ./tools/generate_config_file_samples.sh)
 
         cp $NETWORKING_OVN_DIR/etc/metadata_agent.ini.sample $OVN_META_CONF
