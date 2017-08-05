@@ -390,16 +390,19 @@ class DelLRouterPortCommand(command.BaseCommand):
 
 
 class SetLRouterPortInLSwitchPortCommand(command.BaseCommand):
-    def __init__(self, api, lswitch_port, lrouter_port):
+    def __init__(self, api, lswitch_port, lrouter_port, if_exists):
         super(SetLRouterPortInLSwitchPortCommand, self).__init__(api)
         self.lswitch_port = lswitch_port
         self.lrouter_port = lrouter_port
+        self.if_exists = if_exists
 
     def run_idl(self, txn):
         try:
             port = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
                                          'name', self.lswitch_port)
         except idlutils.RowNotFound:
+            if self.if_exists:
+                return
             msg = _("Logical Switch Port %s does not "
                     "exist") % self.lswitch_port
             raise RuntimeError(msg)
