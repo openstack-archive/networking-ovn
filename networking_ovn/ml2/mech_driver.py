@@ -22,13 +22,13 @@ from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
+from neutron_lib.services.qos import constants as qos_consts
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
-from neutron.services.qos import qos_consts
 from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _
