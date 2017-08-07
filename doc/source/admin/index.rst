@@ -7,6 +7,7 @@ Administration Guide
 
    ovn
    features
+   tutorial
    faq
    refarch/refarch
    dpdk
