@@ -1750,6 +1750,9 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         self.sb_ovn = self.mech_driver._sb_ovn
         self.mech_driver._ovn_client = ovn_client.OVNClient(
             self.nb_ovn, self.sb_ovn)
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
+                                         True,
+                                         group='ovn')
 
     def test_metadata_port_on_network_create(self):
         """Check metadata port create.
