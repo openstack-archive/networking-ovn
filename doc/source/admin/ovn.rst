@@ -40,20 +40,19 @@ about OVN:
 
 Here are some direct links to past OVN presentations:
 
-* OVN talk at OpenStack Summit in Boston, Spring 2017
-   * https://www.youtube.com/watch?v=sgc7myiX6ts
-* OVN talk at OpenStack Summit in Barcelona, Fall 2016
-   * https://www.youtube.com/watch?v=q3cJ6ezPnCU
-* OVN talk at OpenStack Summit in Austin, Spring 2016
-  * https://www.youtube.com/watch?v=okralc7LrZo
-* OVN Project Update at the OpenStack Summit in Tokyo, Fall 2015
-  * http://openvswitch.org/support/slides/OVN_Tokyo.pdf
-  * https://www.youtube.com/watch?v=3IrG2xghJjs
-* OVN at OpenStack Summit in Vancouver, Sping 2015
-  * http://openvswitch.org/support/slides/OVN-Vancouver.pdf
-  * https://www.youtube.com/watch?v=kEzXTq2fPDg
-* OVS Conference 2015
-  * https://www.youtube.com/watch?v=JLGZOYi_Cqc
+* `OVN talk at OpenStack Summit in Boston, Spring 2017
+  <https://www.youtube.com/watch?v=sgc7myiX6ts>`_
+* `OVN talk at OpenStack Summit in Barcelona, Fall 2016
+  <https://www.youtube.com/watch?v=q3cJ6ezPnCU>`_
+* `OVN talk at OpenStack Summit in Austin, Spring 2016
+  <https://www.youtube.com/watch?v=okralc7LrZo>`_
+* OVN Project Update at the OpenStack Summit in Tokyo, Fall 2015 -
+  `Slides <http://openvswitch.org/support/slides/OVN_Tokyo.pdf>`__ -
+  `Video <https://www.youtube.com/watch?v=3IrG2xghJjs>`__
+* OVN at OpenStack Summit in Vancouver, Sping 2015 -
+  `Slides <http://openvswitch.org/support/slides/OVN-Vancouver.pdf>`__ -
+  `Video <https://www.youtube.com/watch?v=kEzXTq2fPDg>`__
+* `OVS Conference 2015 <https://www.youtube.com/watch?v=JLGZOYi_Cqc>`_
 
 These blog resources may also help with testing and understanding OVN:
 
