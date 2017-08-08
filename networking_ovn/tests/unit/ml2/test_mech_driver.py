@@ -1109,13 +1109,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             umd.assert_called_once_with(mock.ANY, 'id')
             fmd.assert_called_once_with(mock.ANY, 'id')
 
+    @mock.patch.object(provisioning_blocks, 'is_object_blocked')
     @mock.patch.object(provisioning_blocks, 'provisioning_complete')
-    def test_notify_dhcp_updated(self, mock_prov_complete):
+    def test_notify_dhcp_updated(self, mock_prov_complete, mock_is_obj_block):
         port_id = 'fake-port-id'
+        mock_is_obj_block.return_value = True
         self.mech_driver._notify_dhcp_updated(port_id)
         mock_prov_complete.assert_called_once_with(
             mock.ANY, port_id, resources.PORT,
             provisioning_blocks.DHCP_ENTITY)
+
+        mock_is_obj_block.return_value = False
+        mock_prov_complete.reset_mock()
+        self.mech_driver._notify_dhcp_updated(port_id)
+        mock_prov_complete.assert_not_called()
 
     @mock.patch.object(mech_driver.OVNMechanismDriver,
                        '_is_port_provisioning_required', lambda *_: True)
@@ -1261,11 +1268,6 @@ class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
             arg_list=(portbindings.HOST_ID,),
             expected_status=exc.HTTPConflict.code,
             expected_error='PortBound')
-
-    # FIXME(dalvarez): Remove this once bug 1707215 is fixed. For now we just
-    # skip the test so that CI passes again.
-    def test_registry_notify_before_after_port_binding(self):
-        self.skipTest("Skip until we handle the port update events properly")
 
 
 class TestOVNMechansimDriverAllowedAddressPairs(
