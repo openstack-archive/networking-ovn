@@ -41,6 +41,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
     def setUp(self):
         super(OVNL3RouterPlugin, self).setUp()
+        network_attrs = {'router:external': True}
+        self.fake_network = \
+            fakes.FakeNetwork.create_one_network(attrs=network_attrs).info()
         self.fake_router_port = {'device_id': '',
                                  'device_owner': 'network:router_interface',
                                  'mac_address': 'aa:aa:aa:aa:aa:aa',
@@ -94,6 +97,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                  'fixed_ips': [{'ip_address': '192.168.1.1',
                                                 'subnet_id': 'ext-subnet-id'}],
                                  'mac_address': '00:00:00:02:04:06',
+                                 'network_id': self.fake_network['id'],
                                  'id': 'gw-port-id'}
         self.fake_ext_gw_port_assert = {'lrouter': 'neutron-router-id',
                                         'mac': '00:00:00:02:04:06',
@@ -132,6 +136,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             new_callable=mock.PropertyMock,
             return_value=fakes.FakeOvsdbSbOvnIdl())
         self._start_mock(
+            'neutron.plugins.ml2.plugin.Ml2Plugin.get_network',
+            return_value=self.fake_network)
+        self._start_mock(
             'neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port',
             return_value=self.fake_router_port)
         self._start_mock(
@@ -152,6 +159,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self._start_mock(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.delete_router',
             return_value={})
+        self._start_mock(
+            'networking_ovn.common.ovn_client.'
+            'OVNClient.get_candidates_for_scheduling',
+            return_value=[])
         self._start_mock(
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayLeastLoadedScheduler._schedule_gateway',
