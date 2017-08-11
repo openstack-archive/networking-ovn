@@ -1,0 +1,32 @@
+- project:
+    name: openstack/networking-ovn
+    check:
+      jobs:
+        - networking-ovn-tempest-dsvm-ovs-master:
+            voting: false
+        - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-rally-dsvm
+        - networking-ovn-dsvm-functional
+        - networking-ovn-dsvm-functional-py35:
+            branches: ^(?!stable/newton).*$
+        - networking-ovn-install-dsvm-kuryr
+        - networking-ovn-tempest-dsvm-neutron-api-ovs-release:
+            voting: false
+    gate:
+      jobs:
+        - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-rally-dsvm
+        - networking-ovn-dsvm-functional
+        - networking-ovn-dsvm-functional-py35:
+            branches: ^(?!stable/newton).*$
+        - networking-ovn-install-dsvm-kuryr
+    experimental:
+      jobs:
+        - networking-ovn-tempest-dsvm-ovs-master-python3:
+            voting: false
+        - networking-ovn-grenade-dsvm:
+            voting: false
+            branches: ^(?!(driverfixes|stable/(mitaka|newton))).*$
+        - networking-ovn-tempest-dsvm-multinode:
+            voting: false
+            branches: ^(?!stable/newton).*$

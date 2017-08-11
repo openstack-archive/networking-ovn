@@ -598,25 +598,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # creation or when OVN reports that the port is down) must be removed.
         LOG.info("OVN reports status up for port: %s", port_id)
 
-        if config.is_ovn_metadata_enabled() and self._sb_ovn:
-            # Wait until metadata service has been setup for this port in the
-            # chassis it resides.
-            chassis, datapath = (
-                self._sb_ovn.get_logical_port_chassis_and_datapath(port_id))
-            try:
-                n_utils.wait_until_true(
-                    lambda: datapath in
-                    self._sb_ovn.get_chassis_metadata_networks(chassis),
-                    timeout=METADATA_READY_WAIT_TIMEOUT,
-                    exception=MetadataServiceReadyWaitTimeoutException)
-            except MetadataServiceReadyWaitTimeoutException:
-                # If we reach this point it means that metadata agent didn't
-                # provision the datapath for this port on its chassis. Either
-                # the agent is not running or it crashed. We'll complete the
-                # provisioning block though.
-                LOG.warning("Metadata service is not ready for port %s, check"
-                            " networking-ovn-metadata-agent status/logs.",
-                            port_id)
+        self._wait_for_metadata_provisioned_if_needed(port_id)
 
         # If this port is a subport, we need to update the host_id and set it
         # to its parent's. Otherwise, Neutron won't even try to bind it and
@@ -673,3 +655,30 @@ class OVNMechanismDriver(api.MechanismDriver):
         hosts = {host for host, phynets in host_phynets_map.items()
                  if phynet in phynets}
         segment_service_db.map_segment_to_hosts(context, segment.id, hosts)
+
+    def _wait_for_metadata_provisioned_if_needed(self, port_id):
+        """Wait for metadata service to be provisioned.
+
+        Wait until metadata service has been setup for this port in the chassis
+        it resides. If metadata is disabled, this function will return right
+        away.
+        """
+        if config.is_ovn_metadata_enabled() and self._sb_ovn:
+            # Wait until metadata service has been setup for this port in the
+            # chassis it resides.
+            chassis, datapath = (
+                self._sb_ovn.get_logical_port_chassis_and_datapath(port_id))
+            try:
+                n_utils.wait_until_true(
+                    lambda: datapath in
+                    self._sb_ovn.get_chassis_metadata_networks(chassis),
+                    timeout=METADATA_READY_WAIT_TIMEOUT,
+                    exception=MetadataServiceReadyWaitTimeoutException)
+            except MetadataServiceReadyWaitTimeoutException:
+                # If we reach this point it means that metadata agent didn't
+                # provision the datapath for this port on its chassis. Either
+                # the agent is not running or it crashed. We'll complete the
+                # provisioning block though.
+                LOG.warning("Metadata service is not ready for port %s, check"
+                            " networking-ovn-metadata-agent status/logs.",
+                            port_id)

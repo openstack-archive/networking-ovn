@@ -782,14 +782,8 @@ class OVNClient(object):
                 tag = int(segid) if segid else None
                 self._create_provnet_port(txn, network, physnet, tag)
 
-        if config.is_ovn_metadata_enabled():
-            # Create a neutron port for DHCP/metadata services
-            port = {'port':
-                    {'network_id': network['id'],
-                     'tenant_id': '',
-                     'device_owner': const.DEVICE_OWNER_DHCP}}
-            p_utils.create_port(self._plugin, n_context.get_admin_context(),
-                                port)
+        self.create_metadata_port(n_context.get_admin_context(), network)
+
         return network
 
     def delete_network(self, network_id):
@@ -1038,6 +1032,9 @@ class OVNClient(object):
         self._process_security_group_rule(rule, is_add_acl=False)
 
     def _find_metadata_port(self, context, network_id):
+        if not config.is_ovn_metadata_enabled():
+            return
+
         ports = self._plugin.get_ports(context, filters=dict(
             network_id=[network_id], device_owner=['network:dhcp']))
         # There should be only one metadata port per network
@@ -1051,6 +1048,15 @@ class OVNClient(object):
             for fixed_ip in metadata_port['fixed_ips']:
                 if fixed_ip['subnet_id'] == subnet['id']:
                     return fixed_ip['ip_address']
+
+    def create_metadata_port(self, context, network):
+        if config.is_ovn_metadata_enabled():
+            # Create a neutron port for DHCP/metadata services
+            port = {'port':
+                    {'network_id': network['id'],
+                     'tenant_id': network['project_id'],
+                     'device_owner': const.DEVICE_OWNER_DHCP}}
+            p_utils.create_port(self._plugin, context, port)
 
     def update_metadata_port(self, context, network_id):
         """Update metadata port.
