@@ -1308,6 +1308,12 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
             network_id=network['id'], physical_network='phys_net1',
             segmentation_id=200, network_type='vlan')['segment']
 
+        # As geneve networks mtu shouldn't be more than 1450, update it
+        data = {'network': {'mtu': 1450}}
+        req = self.new_update_request('networks', data, network['id'])
+        res = self.deserialize(self.fmt, req.get_response(self.api))
+        self.assertEqual(1450, res['network']['mtu'])
+
         self._test_create_segment(
             network_id=network['id'],
             segmentation_id=200,
