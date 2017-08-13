@@ -83,6 +83,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         self.sg_cache = {self.fake_sg['id']: self.fake_sg}
         self.subnet_cache = {self.fake_subnet['id']: self.fake_subnet}
+        mock.patch(
+            "networking_ovn.common.acl._acl_columns_name_severity_supported",
+            return_value=True
+        ).start()
 
     def test__process_sg_notification_create(self):
         self.mech_driver._process_sg_notification(
@@ -157,7 +161,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         acls = ovn_acl.add_acls(self.mech_driver._plugin,
                                 mock.Mock(),
                                 self.fake_port_no_sg,
-                                {}, {})
+                                {}, {}, self.mech_driver._nb_ovn)
         self.assertEqual([], acls)
 
     def _test_add_acls_with_sec_group_helper(self, native_dhcp=True):
@@ -184,7 +188,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                 mock.Mock(),
                                 fake_port_sg,
                                 self.sg_cache,
-                                self.subnet_cache)
+                                self.subnet_cache,
+                                self.mech_driver._nb_ovn)
         self.assertEqual(expected_acls, acls)
 
         # Test without caches
@@ -198,7 +203,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             acls = ovn_acl.add_acls(self.mech_driver._plugin,
                                     mock.Mock(),
                                     fake_port_sg,
-                                    {}, {})
+                                    {}, {}, self.mech_driver._nb_ovn)
             self.assertEqual(expected_acls, acls)
 
         # Test with security groups disabled
@@ -208,7 +213,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                     mock.Mock(),
                                     fake_port_sg,
                                     self.sg_cache,
-                                    self.subnet_cache)
+                                    self.subnet_cache,
+                                    self.mech_driver._nb_ovn)
             self.assertEqual([], acls)
 
         # Test with multiple fixed IPs on the same subnet.
@@ -218,7 +224,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                 mock.Mock(),
                                 fake_port_sg,
                                 self.sg_cache,
-                                self.subnet_cache)
+                                self.subnet_cache,
+                                self.mech_driver._nb_ovn)
         self.assertEqual(expected_acls, acls)
 
     def test_add_acls_with_sec_group_native_dhcp_enabled(self):

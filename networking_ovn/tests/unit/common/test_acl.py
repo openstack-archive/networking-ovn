@@ -48,20 +48,26 @@ class TestACLs(base.TestCase):
             'ovsdbapp.backend.ovs_idl.idlutils.row_by_value',
             lambda *args, **kwargs: mock.MagicMock())
         patcher.start()
+        mock.patch(
+            "networking_ovn.common.acl._acl_columns_name_severity_supported",
+            return_value=True
+        ).start()
 
     def test_drop_all_ip_traffic_for_port(self):
         acls = ovn_acl.drop_all_ip_traffic_for_port(self.fake_port)
         acl_to_lport = {'action': 'drop', 'direction': 'to-lport',
                         'external_ids': {'neutron:lport':
                                          self.fake_port['id']},
-                        'log': False, 'lport': self.fake_port['id'],
+                        'log': False, 'name': [], 'severity': [],
+                        'lport': self.fake_port['id'],
                         'lswitch': 'neutron-network_id1',
                         'match': 'outport == "fake_port_id1" && ip',
                         'priority': 1001}
         acl_from_lport = {'action': 'drop', 'direction': 'from-lport',
                           'external_ids': {'neutron:lport':
                                            self.fake_port['id']},
-                          'log': False, 'lport': self.fake_port['id'],
+                          'log': False, 'name': [], 'severity': [],
+                          'lport': self.fake_port['id'],
                           'lswitch': 'neutron-network_id1',
                           'match': 'inport == "fake_port_id1" && ip',
                           'priority': 1001}
@@ -83,7 +89,8 @@ class TestACLs(base.TestCase):
                                    self.fake_subnet['cidr'])
         acl_to_lport = {'action': 'allow', 'direction': 'to-lport',
                         'external_ids': {'neutron:lport': 'fake_port_id1'},
-                        'log': False, 'lport': 'fake_port_id1',
+                        'log': False, 'name': [], 'severity': [],
+                        'lport': 'fake_port_id1',
                         'lswitch': 'neutron-network_id1',
                         'match': expected_match_to_lport, 'priority': 1002}
         expected_match_from_lport = (
@@ -93,7 +100,8 @@ class TestACLs(base.TestCase):
         ) % (self.fake_port['id'], self.fake_subnet['cidr'])
         acl_from_lport = {'action': 'allow', 'direction': 'from-lport',
                           'external_ids': {'neutron:lport': 'fake_port_id1'},
-                          'log': False, 'lport': 'fake_port_id1',
+                          'log': False, 'name': [], 'severity': [],
+                          'lport': 'fake_port_id1',
                           'lswitch': 'neutron-network_id1',
                           'match': expected_match_from_lport, 'priority': 1002}
         self.assertEqual(1, len(ovn_dhcp_acls))
@@ -113,7 +121,7 @@ class TestACLs(base.TestCase):
                           'lport': 'port-id',
                           'priority': ovn_const.ACL_PRIORITY_ALLOW,
                           'action': ovn_const.ACL_ACTION_ALLOW_RELATED,
-                          'log': False,
+                          'log': False, 'name': [], 'severity': [],
                           'direction': direction,
                           'match': match,
                           'external_ids': {'neutron:lport': 'port-id'}},
@@ -600,7 +608,7 @@ class TestACLs(base.TestCase):
                         return_value=False):
             acl_list = ovn_acl.add_acls(self.plugin,
                                         self.admin_context,
-                                        port, {}, {})
+                                        port, {}, {}, self.driver._ovn)
             self.assertEqual([], acl_list)
 
             ovn_acl.update_acls_for_security_group(self.plugin,

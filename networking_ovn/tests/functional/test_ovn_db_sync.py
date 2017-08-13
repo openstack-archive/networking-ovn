@@ -540,6 +540,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         dhcp_acls = acl_utils.add_acl_dhcp(fake_port, n3_s1['subnet'])
         for dhcp_acl in dhcp_acls:
             self.create_acls.append(dhcp_acl)
+        columns = list(self.monitor_nb_db_idl.tables['ACL'].columns)
+        if not (('name' in columns) and ('severity' in columns)):
+            for acl in self.create_acls:
+                acl.pop('name')
+                acl.pop('severity')
 
     def _modify_resources_in_nb_db(self):
         fake_api = mock.MagicMock()
@@ -876,7 +881,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                       context.get_admin_context(),
                                       db_port,
                                       sg_cache,
-                                      subnet_cache)
+                                      subnet_cache,
+                                      self.mech_driver._nb_ovn)
             for acl in acls:
                 acl.pop('lport')
                 acl.pop('lswitch')
