@@ -190,20 +190,11 @@ resolution.
       | updated_at        | 2016-06-16 00:19:08+00:00            |
       +-------------------+--------------------------------------+
 
-If using DHCP to manage instance IP addresses, adding a subnet causes a series
-of operations in the Networking service and OVN.
-
-* The Networking service schedules the network on appropriate number of DHCP
-  agents. The example environment contains three DHCP agents.
-
-* Each DHCP agent spawns a network namespace with a ``dnsmasq`` process using
-  an IP address from the subnet allocation.
-
-* The OVN mechanism driver creates a logical switch port object in the OVN
-  northbound database for each ``dnsmasq`` process.
 
 OVN operations
 ^^^^^^^^^^^^^^
+
+.. todo: Update this part with the new agentless DHCP details
 
 The OVN mechanism driver and OVN perform the following operations
 during creation of a subnet on a self-service network.

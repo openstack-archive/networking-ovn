@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 553.0748 449.68504" width="553.0748pt" height="449.68504pt" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 553.0748 611.25984" width="553.0748pt" height="611.25984pt" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <metadata> Produced by OmniGraffle 7.4.1 
-    <dc:date>2017-08-04 09:04:47 +0000</dc:date>
+    <dc:date>2017-08-04 09:13:24 +0000</dc:date>
   </metadata>
   <defs>
     <font-face font-family="Helvetica" font-size="12" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="0" x-height="532.22656" cap-height="719.7266" ascent="770.0195" descent="-229.98047" font-weight="bold">
@@ -48,6 +48,7 @@
   </defs>
   <g stroke="none" stroke-opacity="1" stroke-dasharray="none" fill="none" fill-opacity="1">
     <title>Canvas 1</title>
+    <rect fill="white" width="553.0748" height="611.25984"/>
     <g>
       <title>Layer 1</title>
       <path d="M 234.77165 56.69291 L 431.3701 56.69291 C 435.78835 56.69291 439.3701 60.274635 439.3701 64.69291 L 439.3701 323.65354 C 439.3701 328.0718 435.78835 331.65354 431.3701 331.65354 L 234.77165 331.65354 C 230.35337 331.65354 226.77165 328.0718 226.77165 323.65354 L 226.77165 64.69291 C 226.77165 60.274635 230.35337 56.69291 234.77165 56.69291 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
@@ -71,13 +72,13 @@
         <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="35.02472" y="11" textLength="3.3339844"> </tspan>
         <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="38.358706" y="11" textLength="86.69531">Database Node</tspan>
       </text>
-      <text transform="translate(101.08661 16.362204)" fill="#657b83">
-        <tspan font-family="Helvetica" font-size="16" font-weight="500" fill="#657b83" x=".390625" y="15" textLength="335.21875">Networking service with OVN integration (DVR)</tspan>
+      <text transform="translate(52.58661 16.362204)" fill="#657b83">
+        <tspan font-family="Helvetica" font-size="16" font-weight="500" fill="#657b83" x=".41015625" y="15" textLength="432.1797">Networking service with OVN integration (centralized routing)</tspan>
       </text>
-      <text transform="translate(197.7559 404.68504)" fill="#657b83">
+      <text transform="translate(192.08661 566.25984)" fill="#657b83">
         <tspan font-family="Helvetica" font-size="10" font-weight="500" fill="#657b83" x="0" y="10" textLength="72.24609">Overlay network</tspan>
       </text>
-      <circle cx="297.6378" cy="411.0236" r="8.503951" fill="#2aa198"/>
+      <circle cx="291.9685" cy="572.5984" r="8.503951" fill="#2aa198"/>
       <g filter="url(#Shadow)">
         <path d="M 348.15748 85.03937 L 417.19685 85.03937 C 421.61513 85.03937 425.19685 88.62109 425.19685 93.03937 L 425.19685 235.77953 C 425.19685 240.1978 421.61513 243.77953 417.19685 243.77953 L 348.15748 243.77953 C 343.7392 243.77953 340.15748 240.1978 340.15748 235.77953 L 340.15748 93.03937 C 340.15748 88.62109 343.7392 85.03937 348.15748 85.03937 Z" fill="#fdf6e3"/>
         <path d="M 348.15748 85.03937 L 417.19685 85.03937 C 421.61513 85.03937 425.19685 88.62109 425.19685 93.03937 L 425.19685 235.77953 C 425.19685 240.1978 421.61513 243.77953 417.19685 243.77953 L 348.15748 243.77953 C 343.7392 243.77953 340.15748 240.1978 340.15748 235.77953 L 340.15748 93.03937 C 340.15748 88.62109 343.7392 85.03937 348.15748 85.03937 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
@@ -86,7 +87,7 @@
           <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.179841" y="18" textLength="50.67969">ovs-vswitchd</tspan>
         </text>
       </g>
-      <text transform="translate(311.14173 404.68504)" fill="#657b83">
+      <text transform="translate(305.47244 566.25984)" fill="#657b83">
         <tspan font-family="Helvetica" font-size="10" font-weight="500" fill="#657b83" x="0" y="10" textLength="75.0293">Provider network</tspan>
       </text>
       <g filter="url(#Shadow)">
@@ -102,8 +103,8 @@
         <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="33.038393" y="11" textLength="3.3339844"> </tspan>
         <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="36.372377" y="11" textLength="90.66797">Controller Node</tspan>
       </text>
-      <circle cx="42.519685" cy="411.0236" r="8.503951" fill="#dc322f"/>
-      <text transform="translate(55.53543 404.68504)" fill="#657b83">
+      <circle cx="36.850393" cy="572.5984" r="8.503951" fill="#dc322f"/>
+      <text transform="translate(49.86614 566.25984)" fill="#657b83">
         <tspan font-family="Helvetica" font-size="10" font-weight="500" fill="#657b83" x="0" y="10" textLength="96.16211">Management network</tspan>
       </text>
       <g filter="url(#Shadow)">
@@ -117,7 +118,7 @@
       </g>
       <path d="M 113.38583 148.8189 C 113.38583 148.8189 56.14796 171.7614 39.68504 226.77165 C 23.222118 281.7819 55.27559 342.99212 55.27559 342.99212" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
       <path d="M 92.12598 248.0315 C 92.12598 248.0315 108.07026 267.90033 102.04724 294.80315 C 96.02422 321.70597 70.86614 342.99212 70.86614 342.99212" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-      <circle cx="184.25197" cy="411.0236" r="8.503951" fill="#b58900"/>
+      <circle cx="178.58268" cy="572.5984" r="8.503951" fill="#b58900"/>
       <g filter="url(#Shadow)">
         <path d="M 260.28346 172.91338 L 306.64567 172.91338 C 311.06395 172.91338 314.64567 176.4951 314.64567 180.91338 L 314.64567 221.6063 C 314.64567 226.02458 311.06395 229.6063 306.64567 229.6063 L 260.28346 229.6063 C 255.86518 229.6063 252.28346 226.02458 252.28346 221.6063 L 252.28346 180.91338 C 252.28346 176.4951 255.86518 172.91338 260.28346 172.91338 Z" fill="#eee8d5"/>
         <path d="M 260.28346 172.91338 L 306.64567 172.91338 C 311.06395 172.91338 314.64567 176.4951 314.64567 180.91338 L 314.64567 221.6063 C 314.64567 226.02458 311.06395 229.6063 306.64567 229.6063 L 260.28346 229.6063 C 255.86518 229.6063 252.28346 226.02458 252.28346 221.6063 L 252.28346 180.91338 C 252.28346 176.4951 255.86518 172.91338 260.28346 172.91338 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
@@ -192,14 +193,6 @@
         </text>
       </g>
       <line x1="484.7244" y1="155.90551" x2="419.52756" y2="172.48098" stroke="#b58900" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-      <line x1="460.0885" y1="202.15949" x2="419.52756" y2="184.97264" stroke="#2aa198" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-      <g filter="url(#Shadow)">
-        <path d="M 457.4824 214.1209 C 445.57086 212.59842 450.3209 199.78157 469.3224 201.9685 C 471.08534 197.70548 493.1816 198.39742 493.0371 201.9685 C 506.8921 197.40104 524.598 206.50847 512.72186 211.07594 C 526.97265 213.29036 512.54203 225.22138 500.84645 223.22835 C 499.91045 226.55027 479.0023 227.71275 477.1671 223.22835 C 465.32783 228.01748 440.641 220.65392 457.4824 214.1209 Z" fill="#2aa198"/>
-        <path d="M 457.4824 214.1209 C 445.57086 212.59842 450.3209 199.78157 469.3224 201.9685 C 471.08534 197.70548 493.1816 198.39742 493.0371 201.9685 C 506.8921 197.40104 524.598 206.50847 512.72186 211.07594 C 526.97265 213.29036 512.54203 225.22138 500.84645 223.22835 C 499.91045 226.55027 479.0023 227.71275 477.1671 223.22835 C 465.32783 228.01748 440.641 220.65392 457.4824 214.1209 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(463.92913 207.59842)" fill="#fdf6e3">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#fdf6e3" x="6.127307" y="8" textLength="29.335938">Internet</tspan>
-        </text>
-      </g>
       <g filter="url(#Shadow)">
         <path d="M 127.05512 283.46457 L 184.7559 283.46457 C 189.17418 283.46457 192.7559 287.0463 192.7559 291.46457 L 192.7559 369.00787 C 192.7559 373.42615 189.17418 377.00787 184.7559 377.00787 L 127.05512 377.00787 C 122.63684 377.00787 119.05512 373.42615 119.05512 369.00787 L 119.05512 291.46457 C 119.05512 287.0463 122.63684 283.46457 127.05512 283.46457 Z" fill="#fdf6e3"/>
         <path d="M 127.05512 283.46457 L 184.7559 283.46457 C 189.17418 283.46457 192.7559 287.0463 192.7559 291.46457 L 192.7559 369.00787 C 192.7559 373.42615 189.17418 377.00787 184.7559 377.00787 L 127.05512 377.00787 C 122.63684 377.00787 119.05512 373.42615 119.05512 369.00787 L 119.05512 291.46457 C 119.05512 287.0463 122.63684 283.46457 127.05512 283.46457 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
@@ -242,6 +235,96 @@
         <path d="M 254.61417 85.03937 L 312.31496 85.03937 C 316.73323 85.03937 320.31496 88.62109 320.31496 93.03937 L 320.31496 119.55905 C 320.31496 123.97733 316.73323 127.55905 312.31496 127.55905 L 254.61417 127.55905 C 250.1959 127.55905 246.61417 123.97733 246.61417 119.55905 L 246.61417 93.03937 C 246.61417 88.62109 250.1959 85.03937 254.61417 85.03937 Z" fill="#fdf6e3"/>
         <path d="M 254.61417 85.03937 L 312.31496 85.03937 C 316.73323 85.03937 320.31496 88.62109 320.31496 93.03937 L 320.31496 119.55905 C 320.31496 123.97733 316.73323 127.55905 312.31496 127.55905 L 254.61417 127.55905 C 250.1959 127.55905 246.61417 123.97733 246.61417 119.55905 L 246.61417 93.03937 C 246.61417 88.62109 250.1959 85.03937 254.61417 85.03937 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
         <text transform="translate(251.61417 91.29921)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="2.959767" y="8" textLength="57.78125">OVN Controller</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="17.616017" y="18" textLength="28.46875">Service</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="4.959767" y="28" textLength="53.78125">ovn-controller</tspan>
+        </text>
+      </g>
+      <path d="M 234.77165 342.99212 L 431.3701 342.99212 C 435.78835 342.99212 439.3701 346.57385 439.3701 350.99212 L 439.3701 536.25197 C 439.3701 540.67024 435.78835 544.25197 431.3701 544.25197 L 234.77165 544.25197 C 230.35337 544.25197 226.77165 540.67024 226.77165 536.25197 L 226.77165 350.99212 C 226.77165 346.57385 230.35337 342.99212 234.77165 342.99212 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(231.77165 347.99212)" fill="black">
+        <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="54.948626" y="11" textLength="3.3339844"> </tspan>
+        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="58.28261" y="11" textLength="89.36719">Gateway Nodes</tspan>
+      </text>
+      <g filter="url(#Shadow)">
+        <path d="M 254.61417 428.0315 L 312.31496 428.0315 C 316.73323 428.0315 320.31496 431.6132 320.31496 436.0315 L 320.31496 513.5748 C 320.31496 517.9931 316.73323 521.5748 312.31496 521.5748 L 254.61417 521.5748 C 250.1959 521.5748 246.61417 517.9931 246.61417 513.5748 L 246.61417 436.0315 C 246.61417 431.6132 250.1959 428.0315 254.61417 428.0315 Z" fill="#fdf6e3"/>
+        <path d="M 254.61417 428.0315 L 312.31496 428.0315 C 316.73323 428.0315 320.31496 431.6132 320.31496 436.0315 L 320.31496 513.5748 C 320.31496 517.9931 316.73323 521.5748 312.31496 521.5748 L 254.61417 521.5748 C 250.1959 521.5748 246.61417 517.9931 246.61417 513.5748 L 246.61417 436.0315 C 246.61417 431.6132 250.1959 428.0315 254.61417 428.0315 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(251.61417 433.0315)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="4.504689" y="8" textLength="54.691406">OVS Database</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="6.727345" y="18" textLength="50.246094">ovsdb-server</tspan>
+        </text>
+      </g>
+      <line x1="301.88976" y1="392.5984" x2="382.67716" y2="463.46457" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <line x1="361.4173" y1="450.70866" x2="314.64567" y2="478.34645" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <path d="M 283.46456 392.5984 C 283.46456 392.5984 249.44882 438.75823 249.44882 462.04724 C 249.44882 485.33625 283.46456 474.80315 283.46456 474.80315" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <g filter="url(#Shadow)">
+        <path d="M 348.15748 371.3386 L 417.19685 371.3386 C 421.61513 371.3386 425.19685 374.9203 425.19685 379.3386 L 425.19685 522.07874 C 425.19685 526.497 421.61513 530.07874 417.19685 530.07874 L 348.15748 530.07874 C 343.7392 530.07874 340.15748 526.497 340.15748 522.07874 L 340.15748 379.3386 C 340.15748 374.9203 343.7392 371.3386 348.15748 371.3386 Z" fill="#fdf6e3"/>
+        <path d="M 348.15748 371.3386 L 417.19685 371.3386 C 421.61513 371.3386 425.19685 374.9203 425.19685 379.3386 L 425.19685 522.07874 C 425.19685 526.497 421.61513 530.07874 417.19685 530.07874 L 348.15748 530.07874 C 343.7392 530.07874 340.15748 526.497 340.15748 522.07874 L 340.15748 379.3386 C 340.15748 374.9203 343.7392 371.3386 348.15748 371.3386 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(345.15748 376.3386)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="7.507966" y="8" textLength="60.02344">OVS Data Plane</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.179841" y="18" textLength="50.67969">ovs-vswitchd</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 260.28346 459.2126 L 306.64567 459.2126 C 311.06395 459.2126 314.64567 462.7943 314.64567 467.2126 L 314.64567 507.9055 C 314.64567 512.3238 311.06395 515.9055 306.64567 515.9055 L 260.28346 515.9055 C 255.86518 515.9055 252.28346 512.3238 252.28346 507.9055 L 252.28346 467.2126 C 252.28346 462.7943 255.86518 459.2126 260.28346 459.2126 Z" fill="#eee8d5"/>
+        <path d="M 260.28346 459.2126 L 306.64567 459.2126 C 311.06395 459.2126 314.64567 462.7943 314.64567 467.2126 L 314.64567 507.9055 C 314.64567 512.3238 311.06395 515.9055 306.64567 515.9055 L 260.28346 515.9055 C 255.86518 515.9055 252.28346 512.3238 252.28346 507.9055 L 252.28346 467.2126 C 252.28346 462.7943 255.86518 459.2126 260.28346 459.2126 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(257.28346 472.55905)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="6.1752435" y="8" textLength="40.01172">OVS Local</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="8.393993" y="18" textLength="35.57422">Database</tspan>
+          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="11.739697" y="28" textLength="28.882812">conf.db</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 353.82677 402.5197 L 411.52756 402.5197 C 415.94583 402.5197 419.52756 406.1014 419.52756 410.5197 L 419.52756 516.40945 C 419.52756 520.8277 415.94583 524.40945 411.52756 524.40945 L 353.82677 524.40945 C 349.4085 524.40945 345.82677 520.8277 345.82677 516.40945 L 345.82677 410.5197 C 345.82677 406.1014 349.4085 402.5197 353.82677 402.5197 Z" fill="#eee8d5"/>
+        <path d="M 353.82677 402.5197 L 411.52756 402.5197 C 415.94583 402.5197 419.52756 406.1014 419.52756 410.5197 L 419.52756 516.40945 C 419.52756 520.8277 415.94583 524.40945 411.52756 524.40945 L 353.82677 524.40945 C 349.4085 524.40945 345.82677 520.8277 345.82677 516.40945 L 345.82677 410.5197 C 345.82677 406.1014 349.4085 402.5197 353.82677 402.5197 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(350.82677 407.5197)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="12.518361" y="8" textLength="38.664062">OpenFlow</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 359.49606 490.3937 L 405.85827 490.3937 C 410.27654 490.3937 413.85827 493.9754 413.85827 498.3937 L 413.85827 510.74015 C 413.85827 515.15843 410.27654 518.74015 405.85827 518.74015 L 359.49606 518.74015 C 355.0778 518.74015 351.49606 515.15843 351.49606 510.74015 L 351.49606 498.3937 C 351.49606 493.9754 355.0778 490.3937 359.49606 490.3937 Z" fill="#fdf6e3"/>
+        <path d="M 359.49606 490.3937 L 405.85827 490.3937 C 410.27654 490.3937 413.85827 493.9754 413.85827 498.3937 L 413.85827 510.74015 C 413.85827 515.15843 410.27654 518.74015 405.85827 518.74015 L 359.49606 518.74015 C 355.0778 518.74015 351.49606 515.15843 351.49606 510.74015 L 351.49606 498.3937 C 351.49606 493.9754 355.0778 490.3937 359.49606 490.3937 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(356.49606 494.5669)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="12.169384" y="8" textLength="30.246094">Access </tspan>
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="11.962353" y="18" textLength="28.4375">Control</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 359.49606 422.3622 L 405.85827 422.3622 C 410.27654 422.3622 413.85827 425.9439 413.85827 430.3622 L 413.85827 442.70866 C 413.85827 447.12694 410.27654 450.70866 405.85827 450.70866 L 359.49606 450.70866 C 355.0778 450.70866 351.49606 447.12694 351.49606 442.70866 L 351.49606 430.3622 C 351.49606 425.9439 355.0778 422.3622 359.49606 422.3622 Z" fill="#fdf6e3"/>
+        <path d="M 359.49606 422.3622 L 405.85827 422.3622 C 410.27654 422.3622 413.85827 425.9439 413.85827 430.3622 L 413.85827 442.70866 C 413.85827 447.12694 410.27654 450.70866 405.85827 450.70866 L 359.49606 450.70866 C 355.0778 450.70866 351.49606 447.12694 351.49606 442.70866 L 351.49606 430.3622 C 351.49606 425.9439 355.0778 422.3622 359.49606 422.3622 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(356.49606 431.53543)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="7.292431" y="8" textLength="37.777344">Switching</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 359.49606 456.37795 L 405.85827 456.37795 C 410.27654 456.37795 413.85827 459.95967 413.85827 464.37795 L 413.85827 476.7244 C 413.85827 481.1427 410.27654 484.7244 405.85827 484.7244 L 359.49606 484.7244 C 355.0778 484.7244 351.49606 481.1427 351.49606 476.7244 L 351.49606 464.37795 C 351.49606 459.95967 355.0778 456.37795 359.49606 456.37795 Z" fill="#fdf6e3"/>
+        <path d="M 359.49606 456.37795 L 405.85827 456.37795 C 410.27654 456.37795 413.85827 459.95967 413.85827 464.37795 L 413.85827 476.7244 C 413.85827 481.1427 410.27654 484.7244 405.85827 484.7244 L 359.49606 484.7244 C 355.0778 484.7244 351.49606 481.1427 351.49606 476.7244 L 351.49606 464.37795 C 351.49606 459.95967 355.0778 456.37795 359.49606 456.37795 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(356.49606 465.5512)" fill="#657b83">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="11.075634" y="8" textLength="30.210938">Routing</tspan>
+        </text>
+      </g>
+      <line x1="484.7244" y1="442.2047" x2="419.52756" y2="458.7802" stroke="#b58900" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <line x1="460.0885" y1="488.4587" x2="419.52756" y2="471.27185" stroke="#2aa198" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <g filter="url(#Shadow)">
+        <path d="M 457.4824 500.4201 C 445.57086 498.89763 450.3209 486.0808 469.3224 488.2677 C 471.08534 484.0047 493.1816 484.6966 493.0371 488.2677 C 506.8921 483.70025 524.598 492.8077 512.72186 497.37515 C 526.97265 499.5896 512.54203 511.5206 500.84645 509.52756 C 499.91045 512.8495 479.0023 514.01197 477.1671 509.52756 C 465.32783 514.3167 440.641 506.95313 457.4824 500.4201 Z" fill="#2aa198"/>
+        <path d="M 457.4824 500.4201 C 445.57086 498.89763 450.3209 486.0808 469.3224 488.2677 C 471.08534 484.0047 493.1816 484.6966 493.0371 488.2677 C 506.8921 483.70025 524.598 492.8077 512.72186 497.37515 C 526.97265 499.5896 512.54203 511.5206 500.84645 509.52756 C 499.91045 512.8495 479.0023 514.01197 477.1671 509.52756 C 465.32783 514.3167 440.641 506.95313 457.4824 500.4201 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(463.92913 493.89763)" fill="#fdf6e3">
+          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#fdf6e3" x="6.127307" y="8" textLength="29.335938">Internet</tspan>
+        </text>
+      </g>
+      <g filter="url(#Shadow)">
+        <path d="M 457.4824 443.7272 C 445.57086 442.2047 450.3209 429.38787 469.3224 431.5748 C 471.08534 427.3118 493.1816 428.0037 493.0371 431.5748 C 506.8921 427.00734 524.598 436.11477 512.72186 440.68223 C 526.97265 442.89666 512.54203 454.8277 500.84645 452.83464 C 499.91045 456.15656 479.0023 457.31905 477.1671 452.83464 C 465.32783 457.6238 440.641 450.2602 457.4824 443.7272 Z" fill="#b58900"/>
+        <path d="M 457.4824 443.7272 C 445.57086 442.2047 450.3209 429.38787 469.3224 431.5748 C 471.08534 427.3118 493.1816 428.0037 493.0371 431.5748 C 506.8921 427.00734 524.598 436.11477 512.72186 440.68223 C 526.97265 442.89666 512.54203 454.8277 500.84645 452.83464 C 499.91045 456.15656 479.0023 457.31905 477.1671 452.83464 C 465.32783 457.6238 440.641 450.2602 457.4824 443.7272 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(463.92913 434.2047)" fill="#fdf6e3">
+          <tspan font-family="Helvetica" font-size="7" font-weight="bold" fill="#fdf6e3" x="8.148791" y="6" textLength="25.29297">Geneve</tspan>
+          <tspan font-family="Helvetica" font-size="7" font-weight="bold" fill="#fdf6e3" x="7.636096" y="14" textLength="4.275879">T</tspan>
+          <tspan font-family="Helvetica" font-size="7" font-weight="bold" fill="#fdf6e3" x="11.395861" y="14" textLength="22.558594">unnels</tspan>
+        </text>
+      </g>
+      <path d="M 265.03937 392.5984 C 265.03937 392.5984 235.01265 413.73875 204.09449 399.68504 C 190.7901 393.6376 180.01275 382.29707 172.05114 371.3386" stroke="#dc322f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      <g filter="url(#Shadow)">
+        <path d="M 254.61417 371.3386 L 312.31496 371.3386 C 316.73323 371.3386 320.31496 374.9203 320.31496 379.3386 L 320.31496 405.85827 C 320.31496 410.27654 316.73323 413.85827 312.31496 413.85827 L 254.61417 413.85827 C 250.1959 413.85827 246.61417 410.27654 246.61417 405.85827 L 246.61417 379.3386 C 246.61417 374.9203 250.1959 371.3386 254.61417 371.3386 Z" fill="#fdf6e3"/>
+        <path d="M 254.61417 371.3386 L 312.31496 371.3386 C 316.73323 371.3386 320.31496 374.9203 320.31496 379.3386 L 320.31496 405.85827 C 320.31496 410.27654 316.73323 413.85827 312.31496 413.85827 L 254.61417 413.85827 C 250.1959 413.85827 246.61417 410.27654 246.61417 405.85827 L 246.61417 379.3386 C 246.61417 374.9203 250.1959 371.3386 254.61417 371.3386 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(251.61417 377.59842)" fill="#657b83">
           <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="2.959767" y="8" textLength="57.78125">OVN Controller</tspan>
           <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="17.616017" y="18" textLength="28.46875">Service</tspan>
           <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="4.959767" y="28" textLength="53.78125">ovn-controller</tspan>

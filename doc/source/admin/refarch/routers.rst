@@ -5,12 +5,6 @@ Routers
 
 Routers pass traffic between layer-3 networks.
 
-.. note::
-
-   Currently, OVN lacks support for routing between self-service (private)
-   and provider networks. However, it supports routing between
-   self-service networks.
-
 Create a router
 ~~~~~~~~~~~~~~~
 
