@@ -18,7 +18,8 @@ from networking_ovn.tests.functional import base
 from neutron.plugins.common import utils
 from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk import plugin as trunk_plugin
-
+from neutron_lib import context as n_context
+from neutron_lib.plugins import directory
 from oslo_utils import uuidutils
 
 
@@ -66,10 +67,18 @@ class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
     def _verify_trunk_info(self, trunk, has_items):
         ovn_subports_info = self._get_ovn_trunk_info()
         neutron_subports_info = []
+        core_plugin = directory.get_plugin()
+        context = n_context.get_admin_context()
         for subport in trunk.get('sub_ports', []):
             neutron_subports_info.append({'port_id': subport['port_id'],
                                           'parent_port_id': [trunk['port_id']],
                                           'tag': [subport['segmentation_id']]})
+            # Check that the subport has the binding:profile info updated.
+            subport_info = core_plugin.get_port(context, subport['port_id'])
+            expected_binding_prof = {'parent_name': trunk['port_id'],
+                                     'tag': subport['segmentation_id']}
+            self.assertEqual(expected_binding_prof,
+                             subport_info['binding:profile'])
         self.assertItemsEqual(ovn_subports_info, neutron_subports_info)
         self.assertEqual(has_items, len(neutron_subports_info) != 0)
 

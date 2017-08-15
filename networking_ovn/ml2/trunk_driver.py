@@ -12,7 +12,11 @@
 
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
+from neutron_lib import context as n_context
+from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
+from oslo_db import exception as os_db_exc
+from oslo_log import log
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 
@@ -30,15 +34,31 @@ SUPPORTED_SEGMENTATION_TYPES = (
     trunk_consts.VLAN,
 )
 
+LOG = log.getLogger(__name__)
+
 
 class OVNTrunkHandler(object):
     def __init__(self, plugin_driver):
         self.plugin_driver = plugin_driver
 
+    def _set_binding_profile(self, port_id, parent_port, tag=None):
+        context = n_context.get_admin_context()
+        binding_profile = {}
+        if parent_port and tag:
+            binding_profile = {'parent_name': parent_port, 'tag': tag}
+        port = {'port': {'binding:profile': binding_profile}}
+        try:
+            self.plugin_driver._plugin.update_port(context, port_id, port)
+        except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
+            LOG.debug("Port not found trying to set binding_profile: %s",
+                      port_id)
+
     def _set_sub_ports(self, parent_port, subports):
         _nb_ovn = self.plugin_driver._nb_ovn
         with _nb_ovn.transaction(check_error=True) as txn:
             for port in subports:
+                self._set_binding_profile(port.port_id, parent_port,
+                                          port.segmentation_id)
                 txn.add(_nb_ovn.set_lswitch_port(port.port_id,
                                                  parent_name=parent_port,
                                                  tag=port.segmentation_id))
@@ -47,6 +67,7 @@ class OVNTrunkHandler(object):
         _nb_ovn = self.plugin_driver._nb_ovn
         with _nb_ovn.transaction(check_error=True) as txn:
             for port in subports:
+                self._set_binding_profile(port.port_id, None)
                 txn.add(_nb_ovn.set_lswitch_port(port.port_id,
                                                  parent_name=[],
                                                  tag=[]))

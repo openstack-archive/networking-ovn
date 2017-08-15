@@ -68,11 +68,12 @@ class TestTrunkHandler(base.BaseTestCase):
     def test_create_trunk(self):
         self.trunk_1.sub_ports = []
 
-        self.handler.trunk_created(self.trunk_1)
-        self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls([])
+        with mock.patch.object(self.handler, '_set_binding_profile') as sbp:
+            self.handler.trunk_created(self.trunk_1)
+            self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls([])
 
-        self.trunk_1.sub_ports = [self.sub_port_1, self.sub_port_2]
-        self.handler.trunk_created(self.trunk_1)
+            self.trunk_1.sub_ports = [self.sub_port_1, self.sub_port_2]
+            self.handler.trunk_created(self.trunk_1)
 
         calls = [mock.call.set_lswitch_port("sub_port_1",
                                             parent_name="parent_port_1",
@@ -83,13 +84,24 @@ class TestTrunkHandler(base.BaseTestCase):
         self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls(
             calls, any_order=True)
 
+        binding_prof_calls = [
+            mock.call.set_binding_profile("sub_port_1",
+                                          self.trunk_1.port_id,
+                                          40),
+            mock.call.set_binding_profile("sub_port_2",
+                                          self.trunk_1.port_id,
+                                          41)]
+        sbp.assert_has_calls(binding_prof_calls, any_order=True)
+
     def test_delete_trunk(self):
         self.trunk_1.sub_ports = []
-        self.handler.trunk_deleted(self.trunk_1)
-        self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls([])
 
-        self.trunk_1.sub_ports = [self.sub_port_1, self.sub_port_2]
-        self.handler.trunk_deleted(self.trunk_1)
+        with mock.patch.object(self.handler, '_set_binding_profile') as sbp:
+            self.handler.trunk_deleted(self.trunk_1)
+            self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls([])
+
+            self.trunk_1.sub_ports = [self.sub_port_1, self.sub_port_2]
+            self.handler.trunk_deleted(self.trunk_1)
 
         calls = [mock.call.set_lswitch_port("sub_port_1",
                                             parent_name=[],
@@ -99,6 +111,11 @@ class TestTrunkHandler(base.BaseTestCase):
                                             tag=[])]
         self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls(
             calls, any_order=True)
+
+        binding_prof_calls = [
+            mock.call.set_binding_profile("sub_port_1", None),
+            mock.call.set_binding_profile("sub_port_2", None)]
+        sbp.assert_has_calls(binding_prof_calls, any_order=True)
 
     def test_subports_added(self):
         self.handler.subports_added(self.trunk_1,
@@ -139,6 +156,25 @@ class TestTrunkHandler(base.BaseTestCase):
                                             tag=[])]
         self.plugin_driver._nb_ovn.set_lswitch_port.assert_has_calls(
             calls, any_order=True)
+
+    def _get_binding_profile_info(self, parent_name=None, tag=None):
+        binding_profile = {}
+        if parent_name and tag:
+            binding_profile = {'parent_name': 'parent_port', 'tag': 40}
+        return {'port': {'binding_profile': binding_profile}}
+
+    def test__set_binding_profile(self):
+        """Check that subport binding_profile is updated to the plugin."""
+        self.handler._set_binding_profile('sub_port_1', 'parent_port', tag=40)
+        self.handler._set_binding_profile('sub_port_1', None)
+
+        calls = [mock.call.update_port(mock.ANY,
+                                       self._get_binding_profile_info(
+                                           'parent_port', 40)),
+                 mock.call.update_port(mock.ANY,
+                                       self._get_binding_profile_info(
+                                           None, None))]
+        self.plugin_driver._plugin.update_port.has_calls(calls, any_order=True)
 
     def _fake_trunk_event_payload(self):
         payload = mock.Mock()
