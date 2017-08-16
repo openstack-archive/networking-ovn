@@ -26,6 +26,8 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
         cmd.LOG = self.cmd_log
         self.cmd_sync = mock.Mock()
         self.cmd_sync.do_sync = mock.Mock()
+        self.cmd_sb_sync = mock.Mock()
+        self.cmd_sb_sync.do_sync = mock.Mock()
 
     def _setup_default_mock_cfg(self, mock_cfg):
         mock_cfg.ovn.neutron_sync_mode = 'log'
@@ -55,6 +57,18 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
             cmd.main()
         self.cmd_log.error.assert_called_once_with(
             'Invalid --ovn-ovn_nb_connection parameter provided.')
+
+    @mock.patch('oslo_log.log.setup')
+    @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
+    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
+    def test_main_invalid_sb_idl(self, mock_con, mock_conf, mock_log_setup):
+        with mock.patch('oslo_config.cfg.CONF') as mock_cfg, \
+                mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbSbOvnIdl',
+                           side_effect=RuntimeError):
+            self._setup_default_mock_cfg(mock_cfg)
+            cmd.main()
+        self.cmd_log.error.assert_called_once_with(
+            'Invalid --ovn-ovn_sb_connection parameter provided.')
 
     @mock.patch('neutron.manager.init')
     @mock.patch('neutron_lib.plugins.directory.get_plugin')
@@ -103,11 +117,13 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
     def _test_main_sync(self):
         with mock.patch('networking_ovn.ovn_db_sync.OvnNbSynchronizer',
                         return_value=self.cmd_sync), \
-            mock.patch('oslo_config.cfg.CONF') as mock_cfg:
+                mock.patch('networking_ovn.ovn_db_sync.OvnSbSynchronizer',
+                           return_value=self.cmd_sb_sync), \
+                mock.patch('oslo_config.cfg.CONF') as mock_cfg:
             self._setup_default_mock_cfg(mock_cfg)
             self._test_main()
 
     def test_main_sync_success(self):
         self._test_main_sync()
         self.cmd_sync.do_sync.assert_called_once_with()
-        self.cmd_log.info.assert_called_with('Sync completed')
+        self.cmd_sb_sync.do_sync.assert_called_once_with()

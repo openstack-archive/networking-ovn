@@ -110,14 +110,29 @@ def main():
         LOG.error('Invalid --ovn-ovn_nb_connection parameter provided.')
         return
 
+    try:
+        sb_conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbSbOvnIdl)
+        ovn_sb_api = impl_idl_ovn.OvsdbSbOvnIdl(sb_conn)
+    except RuntimeError:
+        LOG.error('Invalid --ovn-ovn_sb_connection parameter provided.')
+        return
+
     manager.init()
     core_plugin = directory.get_plugin()
     ovn_driver = core_plugin.mechanism_manager.mech_drivers['ovn-sync'].obj
     ovn_driver._nb_ovn = ovn_api
+    ovn_driver._sb_ovn = ovn_sb_api
 
     synchronizer = ovn_db_sync.OvnNbSynchronizer(
         core_plugin, ovn_api, mode, ovn_driver)
 
-    LOG.info('Sync started with mode : %s', mode)
+    LOG.info('Sync for Northbound db started with mode : %s', mode)
     synchronizer.do_sync()
-    LOG.info('Sync completed')
+    LOG.info('Sync completed for Northbound db')
+
+    sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
+        core_plugin, ovn_sb_api, ovn_driver)
+
+    LOG.info('Sync for Southbound db started with mode : %s', mode)
+    sb_synchronizer.do_sync()
+    LOG.info('Sync completed for Southbound db')

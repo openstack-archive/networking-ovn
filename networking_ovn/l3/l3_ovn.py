@@ -103,8 +103,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         if get_gw_port:
             return [p.port for p in router_db.attached_ports]
         else:
+            # When the existing deployment is migrated to OVN
+            # we may need to consider other port types - DVR_INTERFACE/HA_INTF.
             return [p.port for p in router_db.attached_ports
-                    if p.port_type == n_const.DEVICE_OWNER_ROUTER_INTF]
+                    if p.port_type in [n_const.DEVICE_OWNER_ROUTER_INTF,
+                                       n_const.DEVICE_OWNER_DVR_INTERFACE,
+                                       n_const.DEVICE_OWNER_ROUTER_HA_INTF]]
 
     def _get_v4_network_of_all_router_ports(self, context, router_id,
                                             ports=None):
