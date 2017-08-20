@@ -329,6 +329,9 @@ class OVNClient(object):
             attached_sg_ids = new_sg_ids - old_sg_ids
             is_fixed_ips_updated = \
                 original_port.get('fixed_ips') != port.get('fixed_ips')
+            is_allowed_ips_updated = \
+                original_port.get('allowed_address_pairs') != \
+                port.get('allowed_address_pairs')
 
             # Refresh ACLs for changed security groups or fixed IPs.
             if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated:
@@ -367,7 +370,7 @@ class OVNClient(object):
                                 addrs_add=None,
                                 addrs_remove=addresses_old[ip_version]))
 
-                if is_fixed_ips_updated:
+                if is_fixed_ips_updated or is_allowed_ips_updated:
                     # We have refreshed address sets for attached and detached
                     # security groups, so now we only need to take care of
                     # unchanged security groups.
