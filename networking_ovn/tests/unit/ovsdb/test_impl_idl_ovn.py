@@ -569,7 +569,8 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
     def test_get_unhosted_gateways(self):
         self._load_nb_db()
         # Test only host-1 in the valid list
-        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1'])
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
+            {}, {'host-1': 'physnet1'})
         expected = {
             utils.ovn_lrouter_port_name('orp-id-b2'): {
                 ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'},
@@ -578,8 +579,8 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                     ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
         self.assertItemsEqual(unhosted_gateways, expected)
         # Test both host-1, host-2 in valid list
-        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1',
-                                                                   'host-2'])
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
+            {}, {'host-1': 'physnet1', 'host-2': 'physnet2'})
         expected = {utils.ovn_lrouter_port_name('orp-id-a3'): {
             ovn_const.OVN_GATEWAY_CHASSIS_KEY:
                 ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
@@ -590,8 +591,8 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                                                    'name', unhosted_gateway)
             setattr(router_row, 'options', {
                 ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'})
-        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(['host-1',
-                                                                  'host-2'])
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
+            {}, {'host-1': 'physnet1', 'host-2': 'physnet2'})
         self.assertItemsEqual(unhosted_gateways, {})
 
     def test_get_subnet_dhcp_options(self):
