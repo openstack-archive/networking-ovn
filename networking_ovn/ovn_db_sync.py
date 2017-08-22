@@ -245,7 +245,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                               ctx,
                                               port,
                                               sg_cache,
-                                              subnet_cache)
+                                              subnet_cache,
+                                              self.l3_plugin._ovn)
                 if port_id in neutron_acls:
                     neutron_acls[port_id].extend(acl_list)
                 else:

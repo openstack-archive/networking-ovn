@@ -254,7 +254,8 @@ class OVNClient(object):
                     dhcpv6_options=dhcpv6_options))
 
             acls_new = ovn_acl.add_acls(self._plugin, admin_context,
-                                        port, sg_cache, subnet_cache)
+                                        port, sg_cache, subnet_cache,
+                                        self._nb_idl)
             for acl in acls_new:
                 txn.add(self._nb_idl.add_acl(**acl))
 
@@ -343,7 +344,8 @@ class OVNClient(object):
                                             admin_context,
                                             port,
                                             sg_cache,
-                                            subnet_cache)
+                                            subnet_cache,
+                                            self._nb_idl)
                 txn.add(self._nb_idl.update_acls([port['network_id']],
                                                  [port],
                                                  {port['id']: acls_new},
