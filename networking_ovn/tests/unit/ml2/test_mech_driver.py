@@ -350,6 +350,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                              port['port']['mac_address'] + ' ' + port_ip
                              + ' ' + '1.1.1.1']),
                         called_args_dict.get('port_security'))
+                    self.assertEqual(
+                        tools.UnorderedList(
+                            ["22:22:22:22:22:22",
+                             port['port']['mac_address'] + ' ' + port_ip]),
+                        called_args_dict.get('addresses'))
 
                     old_mac = port['port']['mac_address']
 
@@ -370,6 +375,12 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                          "00:00:00:00:00:01 " + port_ip,
                          old_mac + " 1.1.1.1"]),
                         called_args_dict.get('port_security'))
+                    self.assertEqual(
+                        tools.UnorderedList(
+                            ["22:22:22:22:22:22",
+                             "00:00:00:00:00:01 " + port_ip,
+                             old_mac]),
+                        called_args_dict.get('addresses'))
 
     def _create_fake_network_context(self,
                                      network_type,

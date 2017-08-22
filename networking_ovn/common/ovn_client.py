@@ -70,12 +70,13 @@ class OVNClient(object):
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
-            return []
+            return [], []
 
         if utils.is_lsp_trusted(port):
-            return []
+            return [], []
 
         allowed_addresses = set()
+        new_macs = set()
         addresses = port['mac_address']
         for ip in port.get('fixed_ips', []):
             addresses += ' ' + ip['ip_address']
@@ -90,10 +91,11 @@ class OVNClient(object):
             else:
                 allowed_addresses.add(allowed_address['mac_address'] + ' ' +
                                       allowed_address['ip_address'])
+                new_macs.add(allowed_address['mac_address'])
 
         allowed_addresses.add(addresses)
 
-        return list(allowed_addresses)
+        return list(allowed_addresses), list(new_macs)
 
     def _get_subnet_dhcp_options_for_port(self, port, ip_version):
         """Returns the subnet dhcp options for the port.
@@ -177,7 +179,7 @@ class OVNClient(object):
             port_type = 'vtep'
             options = {'vtep-physical-switch': vtep_physical_switch,
                        'vtep-logical-switch': vtep_logical_switch}
-            addresses = "unknown"
+            addresses = ["unknown"]
             parent_name = []
             tag = []
             port_security = []
@@ -185,21 +187,24 @@ class OVNClient(object):
             options = qos_options
             parent_name = binding_prof.get('parent_name', [])
             tag = binding_prof.get('tag', [])
-            addresses = port['mac_address']
+            address = port['mac_address']
             for ip in port.get('fixed_ips', []):
-                addresses += ' ' + ip['ip_address']
+                address += ' ' + ip['ip_address']
                 subnet = self._plugin.get_subnet(n_context.get_admin_context(),
                                                  ip['subnet_id'])
                 cidrs += ' {}/{}'.format(ip['ip_address'],
                                          subnet['cidr'].split('/')[1])
-            port_security = self._get_allowed_addresses_from_port(port)
+            port_security, new_macs = \
+                self._get_allowed_addresses_from_port(port)
+            addresses = [address]
+            addresses.extend(new_macs)
             port_type = ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
                 port['device_owner'], '')
 
         dhcpv4_options = self._get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self._get_port_dhcp_options(port, const.IP_VERSION_6)
 
-        return OvnPortInfo(port_type, options, [addresses], port_security,
+        return OvnPortInfo(port_type, options, addresses, port_security,
                            parent_name, tag, dhcpv4_options, dhcpv6_options,
                            cidrs.strip())
 
