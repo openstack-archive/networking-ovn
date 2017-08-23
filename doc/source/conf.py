@@ -87,7 +87,7 @@ latex_documents = [
 
 _config_generator_config_files = [
     'ml2_conf.ini',
-    'metadata_agent.ini',
+    'networking_ovn_metadata_agent.ini',
 ]
 
 def _get_config_generator_config_definition(config_file):
