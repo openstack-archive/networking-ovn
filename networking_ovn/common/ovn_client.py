@@ -1087,3 +1087,6 @@ class OVNClient(object):
                              'fixed_ips': wanted_fixed_ips}}
             self._plugin.update_port(n_context.get_admin_context(),
                                      metadata_port['id'], port)
+
+    def get_parent_port(self, port_id):
+        return self._nb_idl.get_parent_port(port_id)
