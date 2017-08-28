@@ -34,13 +34,11 @@ ML2_SUPPORTED_API_EXTENSIONS_OVN_L3 = [
 ]
 ML2_SUPPORTED_API_EXTENSIONS = [
     'address-scope',
-    'agent',
     'allowed-address-pairs',
     'auto-allocated-topology',
     'availability_zone',
     'binding',
     'default-subnetpools',
-    'dhcp_agent_scheduler',
     'external-net',
     'extra_dhcp_opt',
     'multi-provider',
