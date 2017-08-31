@@ -672,7 +672,8 @@ class OVNClient(object):
         update = {}
         router_name = utils.ovn_name(router_id)
         enabled = delta['router'].get('admin_state_up')
-        if enabled and enabled != original_router['admin_state_up']:
+        if enabled is not None and (
+                enabled != original_router['admin_state_up']):
             update['enabled'] = enabled
 
         # Check for change in name
