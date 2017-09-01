@@ -13,10 +13,10 @@
 #    under the License.
 
 from networking_ovn.tests.functional import base
-from neutron.agent.ovsdb.native import idlutils
 from neutron.api.v2 import attributes as attr
 from neutron.extensions import qos as qos_ext
 from neutron.tests.unit.api import test_extensions
+from ovsdbapp.backend.ovs_idl import idlutils
 
 
 class QoSTestExtensionManager(object):
@@ -103,12 +103,14 @@ class TestOVNQosDriver(base.TestOVNFunctionalBase):
                                     'Logical_Switch_Port', 'name', port_id,
                                     None)
 
+        observed_lsp_qos_options = {}
         if lsp.options:
-            observed_lsp_qos_options = {
-                'qos_burst': lsp.options.get('qos_burst'),
-                'qos_max_rate': lsp.options.get('qos_max_rate')}
-        else:
-            observed_lsp_qos_options = {}
+            if 'qos_burst' in lsp.options:
+                observed_lsp_qos_options['qos_burst'] = lsp.options.get(
+                    'qos_burst')
+            if 'qos_max_rate' in lsp.options:
+                observed_lsp_qos_options['qos_max_rate'] = lsp.options.get(
+                    'qos_max_rate')
 
         self.assertEqual(expected_lsp_qos_options, observed_lsp_qos_options)
 
