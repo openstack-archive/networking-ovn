@@ -1069,7 +1069,9 @@ class OVNClient(object):
         # There should be only one metadata port per network
         if len(ports) == 1:
             return ports[0]
-        LOG.error("Metadata port couldn't be found for network %s", network_id)
+        if config.is_ovn_metadata_enabled():
+            LOG.error("Metadata port couldn't be found for network %s",
+                      network_id)
 
     def _find_metadata_port_ip(self, context, subnet):
         metadata_port = self._find_metadata_port(context, subnet['network_id'])
