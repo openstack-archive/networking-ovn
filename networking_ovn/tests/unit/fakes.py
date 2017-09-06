@@ -121,7 +121,7 @@ class FakePlugin(object):
         self._get_port_security_group_bindings = mock.Mock()
 
 
-class FakeResource(object):
+class FakeResource(dict):
 
     def __init__(self, manager=None, info=None, loaded=False, methods=None):
         """Set attributes and methods for a resource.
@@ -136,6 +136,7 @@ class FakeResource(object):
             A dictionary with all methods
         """
         info = info or {}
+        super(FakeResource, self).__init__(info)
         methods = methods or {}
 
         self.__name__ = type(self).__name__
@@ -521,4 +522,43 @@ class FakeSubnet(object):
         subnet_attrs.update(attrs)
 
         return FakeResource(info=copy.deepcopy(subnet_attrs),
+                            loaded=True)
+
+
+class FakeFloatingIp(object):
+    """Fake one or more floating ips."""
+
+    @staticmethod
+    def create_one_fip(attrs=None):
+        """Create a fake floating ip.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :return:
+            A FakeResource object faking the floating ip
+        """
+        attrs = attrs or {}
+
+        # Set default attributes.
+        fake_uuid = uuidutils.generate_uuid()
+        fip_attrs = {
+            'id': 'fip-id-' + fake_uuid,
+            'tenant_id': '',
+            'fixed_ip_address': '10.0.0.10',
+            'floating_ip_address': '172.21.0.100',
+            'router_id': 'router-id',
+            'port_id': 'port_id',
+            'fixed_port_id': 'port_id',
+            'floating_port_id': 'fip-port-id',
+            'status': 'Active',
+            'floating_network_id': 'fip-net-id',
+            'dns': '',
+            'dns_domain': '',
+            'dns_name': '',
+        }
+
+        # Overwrite default attributes.
+        fip_attrs.update(attrs)
+
+        return FakeResource(info=copy.deepcopy(fip_attrs),
                             loaded=True)

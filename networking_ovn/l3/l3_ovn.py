@@ -27,6 +27,7 @@ from oslo_log import log
 from oslo_utils import excutils
 
 from neutron.db import common_db_mixin
+from neutron.db import dns_db
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.db.models import l3 as l3_models
@@ -47,7 +48,8 @@ LOG = log.getLogger(__name__)
 class OVNL3RouterPlugin(service_base.ServicePluginBase,
                         common_db_mixin.CommonDbMixin,
                         extraroute_db.ExtraRoute_dbonly_mixin,
-                        l3_gwmode_db.L3_NAT_db_mixin):
+                        l3_gwmode_db.L3_NAT_db_mixin,
+                        dns_db.DNSDbMixin):
     """Implementation of the OVN L3 Router Service Plugin.
 
     This class implements a L3 service plugin that provides

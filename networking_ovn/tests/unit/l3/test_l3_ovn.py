@@ -104,28 +104,16 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                         'name': 'lrp-gw-port-id',
                                         'networks': ['192.168.1.1/24'],
                                         'gateway_chassis': ['hv1']}
-        self.fake_floating_ip = {'id': 'fip-id',
-                                 'tenant_id': '',
-                                 'floating_ip_address': '192.168.0.10',
-                                 'floating_network_id': 'fip-net-id',
-                                 'router_id': 'router-id',
-                                 # API level attribute
-                                 'port_id': 'port_id',
-                                 'fixed_port_id': 'port_id',
-                                 'floating_port_id': 'fip-port-id',
-                                 'fixed_ip_address': '10.0.0.10',
-                                 'status': 'Active'}
-        self.fake_floating_ip_new = {'id': 'fip-id',
-                                     'tenant_id': '',
-                                     'floating_ip_address': '192.168.0.10',
-                                     'floating_network_id': 'fip-net-id',
-                                     'router_id': 'new-router-id',
-                                     # API level attribute
-                                     'port_id': 'new-port_id',
-                                     'fixed_port_id': 'new-port_id',
-                                     'floating_port_id': 'fip-port-id',
-                                     'fixed_ip_address': '10.10.10.10',
-                                     'status': 'Active'}
+        self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
+                                       'fixed_ip_address': '10.0.0.10'}
+        self.fake_floating_ip = fakes.FakeFloatingIp.create_one_fip(
+            attrs=self.fake_floating_ip_attrs)
+        self.fake_floating_ip_new_attrs = {
+            'router_id': 'new-router-id',
+            'floating_ip_address': '192.168.0.10',
+            'fixed_ip_address': '10.10.10.10'}
+        self.fake_floating_ip_new = fakes.FakeFloatingIp.create_one_fip(
+            attrs=self.fake_floating_ip_new_attrs)
         self.l3_inst = directory.get_plugin(plugin_constants.L3)
         self._start_mock(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',

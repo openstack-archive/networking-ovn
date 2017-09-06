@@ -46,7 +46,7 @@ from networking_ovn.tests.unit import fakes
 class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     _mechanism_drivers = ['logger', 'ovn']
-    _extension_drivers = ['port_security']
+    _extension_drivers = ['port_security', 'dns']
 
     def setUp(self):
         config.cfg.CONF.set_override('extension_drivers',
