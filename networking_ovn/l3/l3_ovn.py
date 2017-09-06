@@ -29,7 +29,9 @@ from oslo_utils import excutils
 from neutron.db import common_db_mixin
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
+from neutron.db.models import l3 as l3_models
 from neutron.extensions import external_net
+from neutron.quota import resource_registry
 
 from networking_ovn.common import extensions
 from networking_ovn.common import ovn_client
@@ -55,6 +57,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     supported_extension_aliases = \
         extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3
 
+    @resource_registry.tracked_resources(router=l3_models.Router,
+                                         floatingip=l3_models.FloatingIP)
     def __init__(self):
         LOG.info("Starting OVNL3RouterPlugin")
         super(OVNL3RouterPlugin, self).__init__()
