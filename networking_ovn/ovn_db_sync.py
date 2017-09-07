@@ -592,8 +592,11 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     server_mac = ovn_dhcp_opts['options'].get('server_id')
                 else:
                     server_mac = ovn_dhcp_opts['options'].get('server_mac')
+                metadata_port_ip = self._ovn_client._find_metadata_port_ip(
+                    ctx, db_subnets[subnet_id])
                 dhcp_options = self._ovn_client._get_ovn_dhcp_options(
-                    db_subnets[subnet_id], network, server_mac=server_mac)
+                    db_subnets[subnet_id], network, server_mac=server_mac,
+                    metadata_port_ip=metadata_port_ip)
                 # Verify that the cidr and options are also in sync.
                 if dhcp_options['cidr'] == ovn_dhcp_opts['cidr'] and (
                         dhcp_options['options'] == ovn_dhcp_opts['options']):
