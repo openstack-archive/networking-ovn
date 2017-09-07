@@ -20,6 +20,7 @@ import netaddr
 from neutron.plugins.common import utils as p_utils
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
@@ -203,6 +204,9 @@ class OVNClient(object):
 
         dhcpv4_options = self._get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self._get_port_dhcp_options(port, const.IP_VERSION_6)
+
+        options.update({'requested-chassis':
+                        port.get(portbindings.HOST_ID, '')})
 
         return OvnPortInfo(port_type, options, addresses, port_security,
                            parent_name, tag, dhcpv4_options, dhcpv6_options,
