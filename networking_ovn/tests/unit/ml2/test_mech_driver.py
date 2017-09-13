@@ -24,9 +24,9 @@ from neutron_lib import constants as const
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_net
+from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 
-from neutron.conf.plugins.ml2 import config
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
@@ -49,15 +49,15 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
     _extension_drivers = ['port_security', 'dns']
 
     def setUp(self):
-        config.cfg.CONF.set_override('extension_drivers',
-                                     self._extension_drivers,
-                                     group='ml2')
-        config.cfg.CONF.set_override('tenant_network_types',
-                                     ['geneve'],
-                                     group='ml2')
-        config.cfg.CONF.set_override('vni_ranges',
-                                     ['1:65536'],
-                                     group='ml2_type_geneve')
+        cfg.CONF.set_override('extension_drivers',
+                              self._extension_drivers,
+                              group='ml2')
+        cfg.CONF.set_override('tenant_network_types',
+                              ['geneve'],
+                              group='ml2')
+        cfg.CONF.set_override('vni_ranges',
+                              ['1:65536'],
+                              group='ml2_type_geneve')
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          False,
                                          group='ovn')
@@ -1196,12 +1196,12 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['logger', 'ovn']
 
     def setUp(self):
-        config.cfg.CONF.set_override('tenant_network_types',
-                                     ['geneve'],
-                                     group='ml2')
-        config.cfg.CONF.set_override('vni_ranges',
-                                     ['1:65536'],
-                                     group='ml2_type_geneve')
+        cfg.CONF.set_override('tenant_network_types',
+                              ['geneve'],
+                              group='ml2')
+        cfg.CONF.set_override('vni_ranges',
+                              ['1:65536'],
+                              group='ml2_type_geneve')
         super(OVNMechanismDriverTestCase, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
