@@ -16,7 +16,7 @@ import time
 
 import fixtures
 import mock
-from neutron.plugins.ml2 import config
+from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.plugins import constants

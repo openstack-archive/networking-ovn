@@ -50,6 +50,7 @@ ChangeLog
 !/.gitreview
 !/.mailmap
 !/.pylintrc
+!/.stestr.conf
 !/.testr.conf
 !/devstack/lib
 
