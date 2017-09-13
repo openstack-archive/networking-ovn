@@ -107,7 +107,10 @@ def get_connection(db_class, trigger=None, driver=None):
     if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
         idl_ = cls.from_server(*args, driver=driver)
     else:
-        idl_ = ovsdb_monitor.BaseOvnIdl.from_server(*args)
+        if db_class == OvsdbSbOvnIdl:
+            idl_ = ovsdb_monitor.BaseOvnSbIdl.from_server(*args)
+        else:
+            idl_ = ovsdb_monitor.BaseOvnIdl.from_server(*args)
     return connection.Connection(idl_, timeout=cfg.get_ovn_ovsdb_timeout())
 
 
