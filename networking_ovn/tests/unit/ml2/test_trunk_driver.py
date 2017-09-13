@@ -20,7 +20,6 @@ from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn.tests.unit import fakes
 
-from neutron.objects import trunk as trunk_objects
 from neutron.services.trunk import constants as trunk_consts
 from neutron.tests import base
 
@@ -60,8 +59,8 @@ class TestTrunkHandler(base.BaseTestCase):
         self.sub_port_4.trunk_id = "trunk-2"
         self.sub_port_4.port_id = "sub_port_4"
 
-        self.get_trunk_object = mock.patch.object(
-            trunk_objects.Trunk, "get_object").start()
+        self.get_trunk_object = mock.patch(
+            "neutron.objects.trunk.Trunk.get_object").start()
         self.get_trunk_object.side_effect = lambda ctxt, id: \
             self.trunk_1 if id == 'trunk-1' else self.trunk_2
 
