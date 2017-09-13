@@ -21,9 +21,10 @@ import pwd
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from neutron._i18n import _
 from neutron.agent.linux import external_process
 from neutron.common import exceptions
+
+from networking_ovn._i18n import _
 
 LOG = logging.getLogger(__name__)
 
