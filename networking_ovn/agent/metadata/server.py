@@ -16,7 +16,6 @@ import hashlib
 import hmac
 
 import httplib2
-from neutron._i18n import _
 from neutron.agent.linux import utils as agent_utils
 from neutron.conf.agent.metadata import config
 from neutron_lib.callbacks import events
@@ -29,6 +28,7 @@ import six
 import six.moves.urllib.parse as urlparse
 import webob
 
+from networking_ovn._i18n import _
 from networking_ovn.agent.metadata import ovsdb
 from networking_ovn.common import constants as ovn_const
 

@@ -14,10 +14,10 @@
 
 import itertools
 
-from neutron._i18n import _
 from neutron_lib.utils import host
 from oslo_config import cfg
 
+from networking_ovn._i18n import _
 
 DEDUCE_MODE = 'deduce'
 USER_MODE = 'user'
