@@ -12,10 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import atexit
-import threading
-
-from eventlet import greenthread
 from neutron.common import config
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
@@ -24,11 +20,11 @@ from neutron_lib import worker
 from oslo_log import log
 from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import idlutils
-from six.moves import queue
+from ovsdbapp import event
 
 from networking_ovn.common import config as ovn_config
-from networking_ovn.ovsdb import row_event
 
 LOG = log.getLogger(__name__)
 
@@ -137,76 +133,10 @@ class LogicalSwitchPortUpdateDownEvent(row_event.RowEvent):
         self.driver.set_port_status_down(row.name)
 
 
-class OvnDbNotifyHandler(object):
-
-    STOP_EVENT = ("STOP", None, None, None)
-
+class OvnDbNotifyHandler(event.RowEventHandler):
     def __init__(self, driver):
+        super(OvnDbNotifyHandler, self).__init__()
         self.driver = driver
-        self.__watched_events = set()
-        self.__lock = threading.Lock()
-        self.notifications = queue.Queue()
-        self.notify_thread = greenthread.spawn_n(self.notify_loop)
-        atexit.register(self.shutdown)
-
-    def matching_events(self, event, row, updates):
-        with self.__lock:
-            return tuple(t for t in self.__watched_events
-                         if t.matches(event, row, updates))
-
-    def watch_event(self, event):
-        with self.__lock:
-            self.__watched_events.add(event)
-
-    def watch_events(self, events):
-        with self.__lock:
-            for event in events:
-                self.__watched_events.add(event)
-
-    def unwatch_event(self, event):
-        with self.__lock:
-            try:
-                self.__watched_events.remove(event)
-            except KeyError:
-                # For ONETIME events, they should normally clear on their own
-                pass
-
-    def unwatch_events(self, events):
-        with self.__lock:
-            for event in events:
-                try:
-                    self.__watched_events.remove(event)
-                except KeyError:
-                    # For ONETIME events, they should normally clear on
-                    # their own
-                    pass
-
-    def shutdown(self):
-        self.notifications.put(OvnDbNotifyHandler.STOP_EVENT)
-
-    def notify_loop(self):
-        while True:
-            try:
-                match, event, row, updates = self.notifications.get()
-                if (not isinstance(match, row_event.RowEvent) and
-                        (match, event, row, updates) == (
-                            OvnDbNotifyHandler.STOP_EVENT)):
-                    self.notifications.task_done()
-                    break
-                match.run(event, row, updates)
-                if match.ONETIME:
-                    self.unwatch_event(match)
-                self.notifications.task_done()
-            except Exception:
-                # If any unexpected exception happens we don't want the
-                # notify_loop to exit.
-                LOG.exception('Unexpected exception in notify_loop')
-
-    def notify(self, event, row, updates=None):
-        matching = self.matching_events(
-            event, row, updates)
-        for match in matching:
-            self.notifications.put((match, event, row, updates))
 
 
 class BaseOvnIdl(connection.OvsdbIdl):
