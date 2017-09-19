@@ -119,9 +119,9 @@ def acl_protocol_and_ports(r, icmp):
             match += ' && %s.dst == %d' % (protocol, min_port)
         else:
             if min_port is not None:
-                match += ' && %s >= %d' % (protocol, min_port)
+                match += ' && %s.dst >= %d' % (protocol, min_port)
             if max_port is not None:
-                match += ' && %s <= %d' % (protocol, max_port)
+                match += ' && %s.dst <= %d' % (protocol, max_port)
     elif protocol in ICMP_PROTOCOLS:
         protocol = icmp
         match += ' && %s' % protocol

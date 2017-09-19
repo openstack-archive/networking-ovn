@@ -357,6 +357,38 @@ class TestACLs(base.TestCase):
         match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
         self.assertEqual(' && sctp', match)
 
+    def test_acl_protocol_and_ports_for_tcp_udp_and_sctp_number_one(self):
+        sg_rule = {'port_range_min': 22,
+                   'port_range_max': 22}
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_TCP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && tcp && tcp.dst == 22', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && udp && udp.dst == 22', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_SCTP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && sctp && sctp.dst == 22', match)
+
+    def test_acl_protocol_and_ports_for_tcp_udp_and_sctp_number_range(self):
+        sg_rule = {'port_range_min': 21,
+                   'port_range_max': 23}
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_TCP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && tcp && tcp.dst >= 21 && tcp.dst <= 23', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_UDP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && udp && udp.dst >= 21 && udp.dst <= 23', match)
+
+        sg_rule['protocol'] = str(const.PROTO_NUM_SCTP)
+        match = ovn_acl.acl_protocol_and_ports(sg_rule, None)
+        self.assertEqual(' && sctp && sctp.dst >= 21 && sctp.dst <= 23', match)
+
     def test_acl_protocol_and_ports_for_ipv6_icmp_protocol(self):
         sg_rule = {'port_range_min': None,
                    'port_range_max': None}
