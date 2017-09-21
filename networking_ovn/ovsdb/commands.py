@@ -421,10 +421,11 @@ class DelLRouterPortCommand(command.BaseCommand):
 
 
 class SetLRouterPortInLSwitchPortCommand(command.BaseCommand):
-    def __init__(self, api, lswitch_port, lrouter_port, if_exists):
+    def __init__(self, api, lswitch_port, lrouter_port, is_gw_port, if_exists):
         super(SetLRouterPortInLSwitchPortCommand, self).__init__(api)
         self.lswitch_port = lswitch_port
         self.lrouter_port = lrouter_port
+        self.is_gw_port = is_gw_port
         self.if_exists = if_exists
 
     def run_idl(self, txn):
@@ -439,6 +440,8 @@ class SetLRouterPortInLSwitchPortCommand(command.BaseCommand):
             raise RuntimeError(msg)
 
         options = {'router-port': self.lrouter_port}
+        if self.is_gw_port:
+            options[ovn_const.OVN_GATEWAY_NAT_ADDRESSES_KEY] = 'router'
         setattr(port, 'options', options)
         setattr(port, 'type', 'router')
         setattr(port, 'addresses', 'router')
