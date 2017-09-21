@@ -20,26 +20,18 @@
 
 OVN_OPTS=$@
 
-OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,n-api-meta,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc
-# FIXME(dalvarez): Remove this once OVS 2.8 is released. Metadata support depends on it.
-if [[ "${OVN_OPTS}" != *"latest-release"* ]] ; then
-    OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},networking-ovn-metadata-agent
-fi
+OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,n-api-meta,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc,networking-ovn-metadata-agent
 export OVERRIDE_ENABLED_SERVICES
 
 if [ -z "${RALLY_SCENARIO}" ] ; then
     # Only include tempest if this is not a rally job.
     export OVERRIDE_ENABLED_SERVICES=${OVERRIDE_ENABLED_SERVICES},tempest
-    # FIXME(dalvarez): Remove this once OVS 2.8 is released. Metadata support depends on it.
-    if [[ "${OVN_OPTS}" == *"latest-release"* ]] ; then
-        export DEVSTACK_LOCAL_CONFIG+=$'\n'"TEMPEST_RUN_VALIDATION=False"
-    fi
 fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 
 if [[ "${OVN_OPTS}" == *"latest-release"* ]] ; then
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.7"
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.8"
 elif [[ "${OVN_OPTS}" == *"master"* ]] ; then
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
 else
