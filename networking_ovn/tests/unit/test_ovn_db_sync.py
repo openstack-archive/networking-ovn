@@ -637,7 +637,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options.
             call_count)
         add_subnet_dhcp_options_calls = [
-            mock.call(subnet, net, mock.ANY)
+            mock.call(subnet, net, mock.ANY, metadata_port_ip=mock.ANY)
             for (subnet, net) in add_subnet_dhcp_options_list]
         ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options. \
             assert_has_calls(add_subnet_dhcp_options_calls, any_order=True)
