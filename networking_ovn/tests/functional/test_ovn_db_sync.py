@@ -1113,6 +1113,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _sync_resources(self, mode):
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
+        self.addCleanup(nb_synchronizer.stop)
         nb_synchronizer.do_sync()
 
     def _test_ovn_nb_sync_helper(self, mode, modify_resources=True,
@@ -1159,6 +1160,7 @@ class TestOvnSbSync(base.TestOVNFunctionalBase):
         self.segments_plugin = directory.get_plugin('segments')
         self.sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
             self.plugin, self.mech_driver._sb_ovn, self.mech_driver)
+        self.addCleanup(self.sb_synchronizer.stop)
         self.ctx = context.get_admin_context()
 
     def get_additional_service_plugins(self):

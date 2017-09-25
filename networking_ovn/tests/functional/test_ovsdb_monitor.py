@@ -14,8 +14,6 @@
 
 import mock
 
-from ovsdbapp.backend.ovs_idl import connection
-
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
@@ -108,8 +106,9 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         _idl = ovsdb_monitor.OvnNbIdl.from_server(
             self.ovsdb_server_mgr.get_ovsdb_connection_path(),
             'OVN_Northbound', fake_driver)
-        tst_ovn_idl_conn = connection.Connection(_idl, timeout=10)
-        tst_ovn_idl_conn.start()
+        tst_ovn_conn = self.useFixture(
+            base.ConnectionFixture(idl=_idl, timeout=10)).connection
+        tst_ovn_conn.start()
 
         self.mech_driver.set_port_status_up = mock.Mock()
         self.mech_driver.set_port_status_down = mock.Mock()
@@ -128,7 +127,7 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
             # Now restart the mech_driver's IDL connection.
             self.mech_driver._nb_ovn.idl.force_reconnect()
             # Wait till the test_ovn_idl_conn has acquired the lock.
-            n_utils.wait_until_true(lambda: tst_ovn_idl_conn.idl.has_lock)
+            n_utils.wait_until_true(lambda: tst_ovn_conn.idl.has_lock)
 
             self.mech_driver.set_port_status_up.reset_mock()
             self.mech_driver.set_port_status_down.reset_mock()

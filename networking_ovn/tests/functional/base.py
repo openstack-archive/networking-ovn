@@ -28,7 +28,6 @@ from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import transaction
 
-from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional.resources import process
 
@@ -54,6 +53,21 @@ class AddFakeChassisCommand(command.BaseCommand):
         row.name = self.name
         for col, val in self.columns.items():
             setattr(row, col, val)
+
+
+class ConnectionFixture(fixtures.Fixture):
+    def __init__(self, idl=None, constr=None, schema=None, timeout=60):
+        self.idl = idl or ovsdb_monitor.BaseOvnIdl.from_server(
+            constr, schema)
+        self.connection = connection.Connection(
+            idl=self.idl, timeout=timeout)
+
+    def _setUp(self):
+        self.addCleanup(self.stop)
+        self.connection.start()
+
+    def stop(self):
+        self.connection.stop()
 
 
 class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
@@ -85,27 +99,6 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()
 
-    def tearDown(self):
-        # Set Mock() to idl to avoid SSL file access errors.
-        # This is because, destroying temporary directory containing SSL files
-        # is earlier than terminating thread in Connection() object that
-        # the errors are likely to occur in the short period of time.
-        # However, Connection() does not provider a stop method for run(), we
-        # replace idl with Mock() to avoid accessing.
-        if self._ovsdb_protocol == 'ssl':
-            impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection.idl = mock.Mock()
-            impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection.idl = mock.Mock()
-            self.monitor_nb_idl_con.idl = mock.Mock()
-            self.monitor_sb_idl_con.idl = mock.Mock()
-        # Need to set OvsdbNbOvnIdl.ovsdb_connection and
-        # OvsdbSbOvnIdl.ovsdb_connection to None.
-        # This is because, when the test worker runs the next functional test
-        # case, the plugin will try to use the ovsdb_connection from the
-        # previous test case and will cause the test case to fail.
-        impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
-        impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
-        super(TestOVNFunctionalBase, self).tearDown()
-
     @property
     def _ovsdb_protocol(self):
         return self.get_ovsdb_server_protocol()
@@ -118,7 +111,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # Start 2 ovsdb-servers one each for OVN NB DB and OVN SB DB
         # ovsdb-server with OVN SB DB can be used to test the chassis up/down
         # events.
-        self.ovsdb_server_mgr = self.useFixture(
+        mgr = self.ovsdb_server_mgr = self.useFixture(
             process.OvsdbServer(self.temp_dir, self.OVS_INSTALL_SHARE_PATH,
                                 ovn_nb_db=True, ovn_sb_db=True,
                                 protocol=self._ovsdb_protocol))
@@ -151,11 +144,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #     ML2 OVN driver scope to test scenarios like ovn_nb_sync.
         while num_attempts < 3:
             try:
-                _idlnb = ovsdb_monitor.BaseOvnIdl.from_server(
-                    self.ovsdb_server_mgr.get_ovsdb_connection_path(),
-                    'OVN_Northbound')
-                self.monitor_nb_idl_con = connection.Connection(
-                    idl=_idlnb, timeout=60)
+                self.monitor_nb_idl_con = self.useFixture(
+                    ConnectionFixture(constr=mgr.get_ovsdb_connection_path(),
+                                      schema='OVN_Northbound')).connection
                 self.monitor_nb_idl_con.start()
                 self.monitor_nb_db_idl = self.monitor_nb_idl_con.idl
                 break
@@ -172,11 +163,10 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         #  - Update chassis columns etc.
         while num_attempts < 3:
             try:
-                _idlsb = ovsdb_monitor.BaseOvnIdl.from_server(
-                    self.ovsdb_server_mgr.get_ovsdb_connection_path('sb'),
-                    'OVN_Southbound')
-                self.monitor_sb_idl_con = connection.Connection(
-                    idl=_idlsb, timeout=60)
+                self.monitor_sb_idl_con = self.useFixture(
+                    ConnectionFixture(
+                        constr=mgr.get_ovsdb_connection_path('sb'),
+                        schema='OVN_Southbound')).connection
                 self.monitor_sb_idl_con.start()
                 self.monitor_sb_db_idl = self.monitor_sb_idl_con.idl
                 break
@@ -191,6 +181,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
         trigger.im_class.__name__ = 'trigger'
 
+        self.addCleanup(self.stop)
+
         # mech_driver.post_fork_initialize creates the IDL connections
         self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY, trigger)
 
@@ -204,17 +196,25 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         return transaction.Transaction(fake_api, self.monitor_sb_idl_con, 60,
                                        check_error, log_errors)
 
+    def stop(self):
+        if self.ovn_worker:
+            self.mech_driver.nb_synchronizer.stop()
+            self.mech_driver.sb_synchronizer.stop()
+        self.mech_driver._nb_ovn.ovsdb_connection.stop()
+        self.mech_driver._sb_ovn.ovsdb_connection.stop()
+
     def restart(self):
+        self.stop()
+        # The OVN sync test starts its own synchronizers...
+        self.l3_plugin._nb_ovn_idl.ovsdb_connection.stop()
+        self.l3_plugin._sb_ovn_idl.ovsdb_connection.stop()
+        # Stop our monitor connections
+        self.monitor_nb_idl_con.stop()
+        self.monitor_sb_idl_con.stop()
+
         if self.ovsdb_server_mgr:
             self.ovsdb_server_mgr.stop()
 
-        if self._ovsdb_protocol == 'ssl':
-            impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection.idl = mock.Mock()
-            impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection.idl = mock.Mock()
-            self.monitor_nb_idl_con.idl = mock.Mock()
-            self.monitor_sb_idl_con.idl = mock.Mock()
-        impl_idl_ovn.OvsdbNbOvnIdl.ovsdb_connection = None
-        impl_idl_ovn.OvsdbSbOvnIdl.ovsdb_connection = None
         self.mech_driver._nb_ovn = None
         self.mech_driver._sb_ovn = None
         self.l3_plugin._nb_ovn_idl = None
