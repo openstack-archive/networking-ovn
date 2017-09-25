@@ -1066,7 +1066,7 @@ class OVNClient(object):
             return
 
         ports = self._plugin.get_ports(context, filters=dict(
-            network_id=[network_id], device_owner=['network:dhcp']))
+            network_id=[network_id], device_owner=[const.DEVICE_OWNER_DHCP]))
         # There should be only one metadata port per network
         if len(ports) == 1:
             return ports[0]

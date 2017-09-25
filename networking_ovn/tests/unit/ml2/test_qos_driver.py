@@ -11,6 +11,7 @@
 #    under the License.
 
 import mock
+from neutron_lib import constants
 from oslo_utils import uuidutils
 
 from neutron.objects.qos import policy as qos_policy
@@ -91,7 +92,7 @@ class TestOVNQosDriver(base.BaseTestCase):
     def test__is_network_device_port(self):
         self.assertFalse(self.driver._is_network_device_port(self.port))
         port = self._create_fake_port()
-        port['device_owner'] = 'network:dhcp'
+        port['device_owner'] = constants.DEVICE_OWNER_DHCP
         self.assertTrue(self.driver._is_network_device_port(port))
         port['device_owner'] = 'neutron:LOADBALANCERV2'
         self.assertTrue(self.driver._is_network_device_port(port))
@@ -143,7 +144,7 @@ class TestOVNQosDriver(base.BaseTestCase):
 
     def test_get_qos_options_network_port(self):
         port = self._create_fake_port()
-        port['device_owner'] = 'network:dhcp'
+        port['device_owner'] = constants.DEVICE_OWNER_DHCP
         self._get_qos_options(port, False, False)
 
     @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
@@ -175,7 +176,7 @@ class TestOVNQosDriver(base.BaseTestCase):
 
     def test__update_network_ports_network_device(self):
         port = self._create_fake_port()
-        port['device_owner'] = 'network:dhcp'
+        port['device_owner'] = constants.DEVICE_OWNER_DHCP
         self._update_network_ports(port, False)
 
     def test__update_network_ports(self):
