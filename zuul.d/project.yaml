@@ -10,7 +10,7 @@
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
         - networking-ovn-install-dsvm-kuryr
-        - networking-ovn-tempest-dsvm-neutron-api-ovs-release:
+        - networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release:
             voting: false
     gate:
       jobs:
