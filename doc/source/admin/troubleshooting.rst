@@ -32,7 +32,7 @@ support of each tunnel type, see the answer to " Why do tunnels not work when
 using a kernel module other than the one packaged with Open vSwitch?" in the
 OVS FAQ:
 
-https://github.com/openvswitch/ovs/blob/master/FAQ.md
+http://docs.openvswitch.org/en/latest/faq/
 
 2. MTU configuration:
 

@@ -199,7 +199,7 @@ Security Groups
               sg_rule.remote_ip_prefix => "ip4.src/mask, ip4.dst/mask, ipv6.src/mask, ipv6.dst/mask"
 
               (all match options for ACL can be found here:
-               https://github.com/openvswitch/ovs/blob/ovn/ovn/ovn-sb.xml)
+               http://openvswitch.org/support/dist-docs/ovn-nb.5.html)
        action: "allow-related"
        log: true/false
        external_ids: {'neutron:port_id': port.id}
