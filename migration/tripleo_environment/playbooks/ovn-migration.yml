@@ -1,0 +1,25 @@
+# This is the playbook used by ovn-migration.sh.
+# This is the start of the migration
+- import_playbook: pre-migration.yml
+  tags:
+    - pre-migration
+  when: validate_migration|bool
+
+- import_playbook: setup-ovn.yml
+  tags:
+    - setup
+
+- import_playbook: migrate.yml
+  tags:
+    - migrate
+
+- import_playbook: post-migration.yml
+  tags:
+    - post-migration
+  when: validate_migration|bool
+
+- hosts: localhost
+  tasks:
+  - name: Migration successful.
+    debug:
+      msg: Migration from ML2OVS to OVN is now complete.

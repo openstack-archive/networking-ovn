@@ -1,0 +1,21 @@
+---
+
+- name: Sync Neutron and OVN DBs
+  hosts: ovn-dbs
+  roles:
+    - sync-dbs
+
+- name: Activate OVN controller
+  hosts: ovn-controllers
+  roles:
+   - activate-ovn
+
+- name: Delete Neutron resources
+  hosts: localhost
+  roles:
+    - delete-neutron-resources
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/delete_neutron_resources"
+
+
+# TODO: Remove ovs_hybrid_plug='True' from the pre migation ports' binding_vif_details'

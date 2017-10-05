@@ -1,0 +1,6 @@
+---
+
+cleanup_resource_script: cleanup-resources.sh.j2
+ovn_migration_temp_dir: "{{ ovn_migration_temp_dir }}"
+overcloudrc: "{{ overcloudrc }}"
+resource_suffix: "pre"

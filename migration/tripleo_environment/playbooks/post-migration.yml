@@ -1,0 +1,52 @@
+
+- name: Validate pre migration resources after migration
+  hosts: localhost
+  roles:
+    - resources/validate
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"
+      restart_server: true
+
+- name: Delete the pre migration resources
+  hosts: localhost
+  roles:
+    - resources/cleanup
+  tags:
+    - post-migration
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"
+
+- name: Create post-migration resources
+  hosts: localhost
+  roles:
+    - resources/create
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/post_migration_resources"
+      resource_suffix: "post"
+
+- name: Validate post migration resources
+  hosts: localhost
+  roles:
+    - resources/validate
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/post_migration_resources"
+
+- name: Delete the post migration resources
+  hosts: localhost
+  roles:
+    - resources/cleanup
+  tags:
+    - post-migration
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/post_migration_resources"
+      resource_suffix: "post"
+
+# Do we really need to do this ?
+- name: Rerun the stack update to reset the OVNIntegrationBridge to br-int
+  hosts: localhost
+  roles:
+    - tripleo-update
+  vars:
+    ovn_bridge: "br-int"
+  tags:
+    - ovn-setup

@@ -1,0 +1,5 @@
+---
+
+delete_neutron_resources_script: delete-neutron-resources.sh.j2
+ovn_migration_temp_dir: "{{ ovn_migration_temp_dir }}"
+overcloudrc: "{{ overcloudrc }}"

@@ -1,0 +1,10 @@
+---
+
+- name: Set up OVN and configure it using tripleo
+  hosts: localhost
+  roles:
+    - tripleo-update
+  vars:
+      ovn_bridge: br-migration
+  tags:
+    - ovn-setup
