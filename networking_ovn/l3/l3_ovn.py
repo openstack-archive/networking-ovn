@@ -117,6 +117,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             return [p.port for p in router_db.attached_ports
                     if p.port_type in [n_const.DEVICE_OWNER_ROUTER_INTF,
                                        n_const.DEVICE_OWNER_DVR_INTERFACE,
+                                       n_const.DEVICE_OWNER_HA_REPLICATED_INT,
                                        n_const.DEVICE_OWNER_ROUTER_HA_INTF]]
 
     def _get_v4_network_of_all_router_ports(self, context, router_id,

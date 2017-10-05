@@ -351,7 +351,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             [constants.DEVICE_OWNER_ROUTER_INTF,
              constants.DEVICE_OWNER_ROUTER_GW,
              constants.DEVICE_OWNER_DVR_INTERFACE,
-             constants.DEVICE_OWNER_ROUTER_HA_INTF])
+             constants.DEVICE_OWNER_ROUTER_HA_INTF,
+             constants.DEVICE_OWNER_HA_REPLICATED_INT])
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
             db_router_ports[interface['id']]['networks'] = sorted(
