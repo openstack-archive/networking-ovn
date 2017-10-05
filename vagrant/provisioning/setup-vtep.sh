@@ -23,7 +23,6 @@ OVN_NB_REMOTE=tcp:$OVN_DB_IP:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
-SCREEN_LOGDIR=/opt/stack/log/data
 DEVSTACKEOF
 
 devstack/stack.sh

@@ -32,7 +32,6 @@ OVN_NB_REMOTE=tcp:$ovnip:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
-SCREEN_LOGDIR=/opt/stack/log/data
 
 # Disable the ovn-northd service on the controller node because the
 # architecture includes a separate OVN database server.

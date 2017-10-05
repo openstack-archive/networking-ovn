@@ -29,7 +29,6 @@ OVN_NB_REMOTE=tcp:$OVN_DB_IP:6641
 
 # Enable logging to files.
 LOGFILE=/opt/stack/log/stack.sh.log
-SCREEN_LOGDIR=/opt/stack/log/data
 
 # Use provider network for public.
 Q_USE_PROVIDERNET_FOR_PUBLIC=True
