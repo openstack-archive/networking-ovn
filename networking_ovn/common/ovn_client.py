@@ -812,7 +812,7 @@ class OVNClient(object):
                 tag = int(segid) if segid else None
                 self._create_provnet_port(txn, network, physnet, tag)
 
-        self.create_metadata_port(n_context.get_admin_context(), network['id'])
+        self.create_metadata_port(n_context.get_admin_context(), network)
 
         return network
 
@@ -1081,12 +1081,12 @@ class OVNClient(object):
                 if fixed_ip['subnet_id'] == subnet['id']:
                     return fixed_ip['ip_address']
 
-    def create_metadata_port(self, context, network_id):
+    def create_metadata_port(self, context, network):
         if config.is_ovn_metadata_enabled():
             # Create a neutron port for DHCP/metadata services
             port = {'port':
-                    {'network_id': network_id,
-                     'tenant_id': '',
+                    {'network_id': network['id'],
+                     'tenant_id': network['project_id'],
                      'device_owner': const.DEVICE_OWNER_DHCP}}
             p_utils.create_port(self._plugin, context, port)
 
