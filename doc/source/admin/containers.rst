@@ -1,3 +1,9 @@
+.. warning:: The present document has been deprecated and this `guide
+   <https://docs.openstack.org/ocata/networking-guide/config-trunking.html>`_
+   should be followed instead.
+   However, parent port and tag information from a logical switch port can
+   still be retrieved following the example_ shown in this guide below.
+
 Container Integration with OVN
 =================================
 
@@ -89,6 +95,8 @@ container that runs inside of that VM::
     | status                | DOWN                                                                            |
     | tenant_id             | db75dd6671ef4858a7fed450f1f8e995                                                |
     +-----------------------+---------------------------------------------------------------------------------+
+
+.. _example:
 
 Now we can look at the corresponding logical switch ports in OVN to see that
 the parent and tag were set as expected::
