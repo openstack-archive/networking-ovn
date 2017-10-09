@@ -1808,6 +1808,19 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
             args, kwargs = self.nb_ovn.create_lswitch_port.call_args
             self.assertEqual('localport', kwargs['type'])
 
+    def test_metadata_port_not_created_if_exists(self):
+        """Check that metadata port is not created if it already exists.
+
+        In the event of a sync, it might happen that a metadata port exists
+        already. When we are creating the logical switch in OVN we don't want
+        this port to be created again.
+        """
+        with mock.patch.object(
+            self.mech_driver._ovn_client, '_get_metadata_ports',
+                return_value=['metadata_port1']):
+            with self.network():
+                self.assertEqual(0, self.nb_ovn.create_lswitch_port.call_count)
+
     def test_metadata_ip_on_subnet_create(self):
         """Check metadata port update.
 
