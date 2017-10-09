@@ -46,12 +46,6 @@ else
     echo "No ovs branch specified, using the default from the devstack plugin"
 fi
 
-if [[ "${OVN_OPTS}" == *"neutron-api-tests"* ]] ; then
-    export DEVSTACK_GATE_TEMPEST=1
-    export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
-    export DEVSTACK_GATE_TEMPEST_REGEX="^neutron.tests.tempest.api\."
-fi
-
 if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
     # NOTE(rtheis): Multinode does not require creating an OVN L3 public network.
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=False"
@@ -116,8 +110,14 @@ r="$r|(?:tempest\.api\.compute\.volumes*)"
 # End list of exclusions.
 r="$r)"
 
-# only run tempest.api/scenario/thirdparty tests (part of the default for 'full')
-r="$r(tempest\.(api|scenario|thirdparty)).*$"
+if [[ "${OVN_OPTS}" == *"neutron-api-tests"* ]]; then
+    r="$r(^neutron\.tests\.tempest\.api).*$"
+    export DEVSTACK_GATE_TEMPEST=1
+    export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
+else
+    # only run tempest.api/scenario/thirdparty tests (part of the default for 'full')
+    r="$r(tempest\.(api|scenario|thirdparty)).*$"
+fi
 
 if [ -z $DEVSTACK_GATE_GRENADE ]; then
     # Do not run the tempest test cases on grenade jobs. By not setting this,
