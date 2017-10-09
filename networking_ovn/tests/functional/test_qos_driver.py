@@ -99,7 +99,7 @@ class TestOVNQosDriver(base.TestOVNFunctionalBase):
 
     def _verify_qos_option_row_for_port(self, port_id,
                                         expected_lsp_qos_options):
-        lsp = idlutils.row_by_value(self.monitor_nb_db_idl,
+        lsp = idlutils.row_by_value(self.nb_api.idl,
                                     'Logical_Switch_Port', 'name', port_id,
                                     None)
 

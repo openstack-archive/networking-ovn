@@ -14,7 +14,6 @@
 
 import mock
 
-from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
 from neutron.common import utils as n_utils
@@ -24,27 +23,22 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestNBDbMonitor, self).setUp(ovn_worker=True)
-        self.fake_api = mock.MagicMock()
-        self.fake_api.idl = self.monitor_nb_db_idl
-        self.fake_api._tables = self.monitor_nb_db_idl.tables
 
     def _test_port_up_down_helper(self, port, ovn_mech_driver):
         # Set the Logical_Switch_Port.up to True. This is to mock
         # the vif plug. When the Logical_Switch_Port.up changes from
         # False to True, ovsdb_monitor should call
         # mech_driver.set_port_status_up.
-        with self.nb_idl_transaction(self.fake_api, check_error=True) as txn:
-            txn.add(cmd.SetLSwitchPortCommand(self.fake_api, port['id'], True,
-                                              up=True))
+        with self.nb_api.transaction(check_error=True) as txn:
+            txn.add(self.nb_api.set_lswitch_port(port['id'], True, up=True))
 
         ovn_mech_driver.set_port_status_up.assert_called_once_with(port['id'])
         ovn_mech_driver.set_port_status_down.assert_not_called()
 
         # Set the Logical_Switch_Port.up to False. ovsdb_monitor should
         # call mech_driver.set_port_status_down
-        with self.nb_idl_transaction(self.fake_api, check_error=True) as txn:
-            txn.add(cmd.SetLSwitchPortCommand(self.fake_api, port['id'], True,
-                                              up=False))
+        with self.nb_api.transaction(check_error=True) as txn:
+            txn.add(self.nb_api.set_lswitch_port(port['id'], True, up=False))
         ovn_mech_driver.set_port_status_down.assert_called_once_with(
             port['id'])
 
@@ -76,10 +70,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
             # Logical_Switch_Port.up to False first. This is to mock the
             # ovn-controller setting it to False when the logical switch
             # port is created.
-            with self.nb_idl_transaction(self.fake_api,
-                                         check_error=True) as txn:
-                txn.add(cmd.SetLSwitchPortCommand(self.fake_api, p['id'], True,
-                                                  up=False))
+            with self.nb_api.transaction(check_error=True) as txn:
+                txn.add(self.nb_api.set_lswitch_port(p['id'], True, up=False))
 
             self._test_port_up_down_helper(p, self.mech_driver)
 
@@ -115,10 +107,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
         with self.port(name='port') as p:
             p = p['port']
-            with self.nb_idl_transaction(self.fake_api,
-                                         check_error=True) as txn:
-                txn.add(cmd.SetLSwitchPortCommand(self.fake_api, p['id'], True,
-                                                  up=False))
+            with self.nb_api.transaction(check_error=True) as txn:
+                txn.add(self.nb_api.set_lswitch_port(p['id'], True, up=False))
 
             self._test_port_up_down_helper(p, self.mech_driver)
             fake_driver.set_port_status_up.assert_not_called()

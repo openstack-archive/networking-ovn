@@ -56,7 +56,7 @@ class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
 
     def _get_ovn_trunk_info(self):
         ovn_trunk_info = []
-        for row in self.monitor_nb_db_idl.tables[
+        for row in self.nb_api.tables[
                 'Logical_Switch_Port'].rows.values():
             if row.parent_name and row.tag:
                 ovn_trunk_info.append({'port_id': row.name,

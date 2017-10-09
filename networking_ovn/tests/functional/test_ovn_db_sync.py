@@ -12,8 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
-
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
@@ -30,7 +28,6 @@ from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn import ovn_db_sync
-from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.tests.functional import base
 
 
@@ -555,117 +552,110 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         dhcp_acls = acl_utils.add_acl_dhcp(fake_port, n3_s1['subnet'])
         for dhcp_acl in dhcp_acls:
             self.create_acls.append(dhcp_acl)
-        columns = list(self.monitor_nb_db_idl.tables['ACL'].columns)
+        columns = list(self.nb_api.tables['ACL'].columns)
         if not (('name' in columns) and ('severity' in columns)):
             for acl in self.create_acls:
                 acl.pop('name')
                 acl.pop('severity')
 
     def _modify_resources_in_nb_db(self):
-        fake_api = mock.MagicMock()
-        fake_api.idl = self.monitor_nb_db_idl
-        fake_api._tables = self.monitor_nb_db_idl.tables
+        self._delete_metadata_ports()
 
-        self._delete_metadata_ports(fake_api)
-
-        with self.nb_idl_transaction(fake_api, check_error=True) as txn:
+        with self.nb_api.transaction(check_error=True) as txn:
             for lswitch_name in self.create_lswitches:
                 external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
                                 lswitch_name}
-                txn.add(cmd.AddLSwitchCommand(fake_api, lswitch_name, True,
-                                              external_ids=external_ids))
+                txn.add(self.nb_api.create_lswitch(lswitch_name, True,
+                                                   external_ids=external_ids))
 
             for lswitch_name in self.delete_lswitches:
-                txn.add(cmd.DelLSwitchCommand(fake_api, lswitch_name, True))
+                txn.add(self.nb_api.delete_lswitch(lswitch_name, True))
 
             for lport_name, lswitch_name in self.create_lswitch_ports:
                 external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY:
                                 lport_name}
-                txn.add(cmd.AddLSwitchPortCommand(fake_api, lport_name,
-                                                  lswitch_name, True,
-                                                  external_ids=external_ids))
+                txn.add(self.nb_api.create_lswitch_port(
+                    lport_name, lswitch_name, True, external_ids=external_ids))
 
             for lport_name, lswitch_name in self.delete_lswitch_ports:
-                txn.add(cmd.DelLSwitchPortCommand(fake_api, lport_name,
-                                                  lswitch_name, True))
+                txn.add(self.nb_api.delete_lswitch_port(lport_name,
+                                                        lswitch_name, True))
 
             for lrouter_name in self.create_lrouters:
                 external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
                                 lrouter_name}
-                txn.add(cmd.AddLRouterCommand(fake_api, lrouter_name, True,
-                                              external_ids=external_ids))
+                txn.add(self.nb_api.create_lrouter(lrouter_name, True,
+                                                   external_ids=external_ids))
 
             for lrouter_name in self.delete_lrouters:
-                txn.add(cmd.DelLRouterCommand(fake_api, lrouter_name, True))
+                txn.add(self.nb_api.delete_lrouter(lrouter_name, True))
 
             for lrport, lrouter_name in self.create_lrouter_ports:
-                txn.add(cmd.AddLRouterPortCommand(fake_api, lrport,
-                                                  lrouter_name))
+                txn.add(self.nb_api.add_lrouter_port(lrport, lrouter_name))
 
             for lrport, lrouter_name, networks in self.update_lrouter_ports:
-                txn.add(cmd.UpdateLRouterPortCommand(
-                    fake_api, lrport, True,
-                    **{'networks': [networks]}))
+                txn.add(self.nb_api.update_lrouter_port(
+                    lrport, True, **{'networks': [networks]}))
 
             for lrport, lrouter_name in self.delete_lrouter_ports:
-                txn.add(cmd.DelLRouterPortCommand(fake_api, lrport,
-                                                  lrouter_name, True))
+                txn.add(self.nb_api.delete_lrouter_port(lrport,
+                                                        lrouter_name, True))
 
             for lrouter_name, ip_prefix, nexthop in self.create_lrouter_routes:
-                txn.add(cmd.AddStaticRouteCommand(fake_api, lrouter_name,
-                                                  ip_prefix=ip_prefix,
-                                                  nexthop=nexthop))
+                txn.add(self.nb_api.add_static_route(lrouter_name,
+                                                     ip_prefix=ip_prefix,
+                                                     nexthop=nexthop))
 
             for lrouter_name, ip_prefix, nexthop in self.delete_lrouter_routes:
-                txn.add(cmd.DelStaticRouteCommand(fake_api, lrouter_name,
-                                                  ip_prefix, nexthop, True))
+                txn.add(self.nb_api.delete_static_route(lrouter_name,
+                                                        ip_prefix, nexthop,
+                                                        True))
 
             for lrouter_name, external_ip, logical_ip, nat_type in(
                     self.create_lrouter_nats):
-                txn.add(cmd.AddNATRuleInLRouterCommand(
-                    fake_api, lrouter_name, external_ip=external_ip,
+                txn.add(self.nb_api.add_nat_rule_in_lrouter(
+                    lrouter_name, external_ip=external_ip,
                     logical_ip=logical_ip, type=nat_type))
 
             for lrouter_name, external_ip, logical_ip, nat_type in(
                     self.delete_lrouter_nats):
-                txn.add(cmd.DeleteNATRuleInLRouterCommand(
-                    fake_api, lrouter_name, external_ip=external_ip,
+                txn.add(self.nb_api.delete_nat_rule_in_lrouter(
+                    lrouter_name, external_ip=external_ip,
                     logical_ip=logical_ip, type=nat_type, if_exists=True))
 
             for acl in self.create_acls:
-                txn.add(cmd.AddACLCommand(fake_api, **acl))
+                txn.add(self.nb_api.add_acl(**acl))
 
             for lport_name, lswitch_name in self.delete_acls:
-                txn.add(cmd.DelACLCommand(fake_api, lswitch_name,
-                                          lport_name, True))
+                txn.add(self.nb_api.delete_acl(lswitch_name,
+                                               lport_name, True))
 
             for name, ip_version in self.create_address_sets:
                 ovn_name = utils.ovn_addrset_name(name, ip_version)
                 external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: name}
-                txn.add(cmd.AddAddrSetCommand(fake_api, ovn_name, True,
-                                              external_ids=external_ids))
+                txn.add(self.nb_api.create_address_set(
+                    ovn_name, True, external_ids=external_ids))
 
             for name, ip_version in self.delete_address_sets:
                 ovn_name = utils.ovn_addrset_name(name, ip_version)
-                txn.add(cmd.DelAddrSetCommand(fake_api, ovn_name,
-                                              True))
+                txn.add(self.nb_api.delete_address_set(ovn_name, True))
 
             for name, ip_version, ip_adds, ip_dels in self.update_address_sets:
                 ovn_name = utils.ovn_addrset_name(name, ip_version)
-                txn.add(cmd.UpdateAddrSetCommand(fake_api, ovn_name,
-                                                 ip_adds, ip_dels, True))
+                txn.add(self.nb_api.update_address_set(ovn_name,
+                                                       ip_adds, ip_dels, True))
 
             for lport_name in self.reset_lport_dhcpv4_options:
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv4_options=[]))
+                txn.add(self.nb_api.set_lswitch_port(lport_name, True,
+                                                     dhcpv4_options=[]))
 
             for lport_name in self.reset_lport_dhcpv6_options:
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv6_options=[]))
+                txn.add(self.nb_api.set_lswitch_port(lport_name, True,
+                                                     dhcpv6_options=[]))
 
             for dhcp_opts in self.stale_lport_dhcpv4_options:
-                dhcpv4_opts = txn.add(cmd.AddDHCPOptionsCommand(
-                    fake_api, dhcp_opts['subnet_id'],
+                dhcpv4_opts = txn.add(self.nb_api.add_dhcp_options(
+                    dhcp_opts['subnet_id'],
                     port_id=dhcp_opts['port_id'],
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
@@ -673,12 +663,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     may_exists=False))
                 if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
                     continue
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv4_options=dhcpv4_opts))
+                txn.add(self.nb_api.set_lswitch_port(
+                    lport_name, True, dhcpv4_options=dhcpv4_opts))
 
             for dhcp_opts in self.stale_lport_dhcpv6_options:
-                dhcpv6_opts = txn.add(cmd.AddDHCPOptionsCommand(
-                    fake_api, dhcp_opts['subnet_id'],
+                dhcpv6_opts = txn.add(self.nb_api.add_dhcp_options(
+                    dhcp_opts['subnet_id'],
                     port_id=dhcp_opts['port_id'],
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
@@ -686,30 +676,30 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     may_exists=False))
                 if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
                     continue
-                txn.add(cmd.SetLSwitchPortCommand(fake_api, lport_name, True,
-                                                  dhcpv6_options=dhcpv6_opts))
+                txn.add(self.nb_api.set_lswitch_port(
+                    lport_name, True, dhcpv6_options=dhcpv6_opts))
 
             for row_uuid in self.missed_dhcp_options:
-                txn.add(cmd.DelDHCPOptionsCommand(fake_api, row_uuid))
+                txn.add(self.nb_api.delete_dhcp_options(row_uuid))
 
             for dhcp_opts in self.dirty_dhcp_options:
                 external_ids = {'subnet_id': dhcp_opts['subnet_id']}
                 if dhcp_opts.get('port_id'):
                     external_ids['port_id'] = dhcp_opts['port_id']
-                txn.add(cmd.AddDHCPOptionsCommand(
-                    fake_api, dhcp_opts['subnet_id'],
+                txn.add(self.nb_api.add_dhcp_options(
+                    dhcp_opts['subnet_id'],
                     port_id=dhcp_opts.get('port_id'),
                     external_ids=external_ids,
                     options={'foo': 'bar'}))
 
             for port_id in self.lport_dhcpv4_disabled:
-                txn.add(cmd.SetLSwitchPortCommand(
-                    fake_api, port_id, True,
+                txn.add(self.nb_api.set_lswitch_port(
+                    port_id, True,
                     dhcpv4_options=[self.lport_dhcpv4_disabled[port_id]]))
 
             for port_id in self.lport_dhcpv6_disabled:
-                txn.add(cmd.SetLSwitchPortCommand(
-                    fake_api, port_id, True,
+                txn.add(self.nb_api.set_lswitch_port(
+                    port_id, True,
                     dhcpv6_options=[self.lport_dhcpv6_disabled[port_id]]))
 
     def _validate_networks(self, should_match=True):
@@ -728,7 +718,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         # Get the list of lswitch ids stored in the monitor IDL connection
         monitor_lswitch_ids = [
             row.name.replace('neutron-', '') for row in (
-                self.monitor_nb_db_idl.tables['Logical_Switch'].rows.values())]
+                self.nb_api.tables['Logical_Switch'].rows.values())]
 
         # Get the list of provnet ports stored in the OVN plugin IDL
         plugin_provnet_ports = [row.name for row in (
@@ -737,7 +727,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         # Get the list of provnet ports stored in the monitor IDL connection
         monitor_provnet_ports = [row.name for row in (
-            self.monitor_nb_db_idl.tables['Logical_Switch_Port'].rows.values())
+            self.nb_api.tables['Logical_Switch_Port'].rows.values())
             if row.name.startswith(ovn_const.OVN_PROVNET_PORT_NAME_PREFIX)]
 
         if should_match:
@@ -823,7 +813,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         monitor_lport_ids = [
             row.name for row in (
-                self.monitor_nb_db_idl.tables['Logical_Switch_Port'].
+                self.nb_api.tables['Logical_Switch_Port'].
                 rows.values())
             if ovn_const.OVN_PORT_NAME_EXT_ID_KEY in row.external_ids]
         monitor_lport_ids_dhcpv4_enabled = [
@@ -887,7 +877,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 'options': opts})
 
         observed_monitor_dhcp_options_rows = []
-        for row in self.monitor_nb_db_idl.tables['DHCP_Options'].rows.values():
+        for row in self.nb_api.tables['DHCP_Options'].rows.values():
             opts = dict(row.options)
             ids = dict(row.external_ids)
             if ids.get('subnet_id') not in self.match_old_mac_dhcp_subnets:
@@ -949,9 +939,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 plugin_acls.append(self._build_acl_to_compare(acl))
 
         # Get the list of ACLs stored in the OVN monitor IDL.
-        monitor_nb_ovn = self.monitor_nb_db_idl
         monitor_acls = []
-        for row in monitor_nb_ovn.tables['Logical_Switch'].rows.values():
+        for row in self.nb_api.tables['Logical_Switch'].rows.values():
             for acl in getattr(row, 'acls', []):
                 monitor_acls.append(self._build_acl_to_compare(acl))
 
@@ -1003,7 +992,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         monitor_lrouter_ids = [
             row.name.replace('neutron-', '') for row in (
-                self.monitor_nb_db_idl.tables['Logical_Router'].rows.values())]
+                self.nb_api.tables['Logical_Router'].rows.values())]
 
         if should_match:
             self.assertItemsEqual(db_router_ids, plugin_lrouter_ids)
@@ -1052,7 +1041,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
             try:
                 lrouter = idlutils.row_by_value(
-                    self.monitor_nb_db_idl, 'Logical_Router', 'name',
+                    self.nb_api.idl, 'Logical_Router', 'name',
                     'neutron-' + router_id, None)
                 lports = getattr(lrouter, 'ports', [])
                 monitor_lrouter_port_ids = [lport.name.replace('lrp-', '')
@@ -1143,7 +1132,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         for nb_sgid, nb_values in nb_address_sets.items():
             nb_sgs[nb_sgid] = nb_values['addresses']
         mn_sgs = {}
-        for row in self.monitor_nb_db_idl.tables['Address_Set'].rows.values():
+        for row in self.nb_api.tables['Address_Set'].rows.values():
             mn_sgs[getattr(row, 'name')] = getattr(row, 'addresses')
 
         if should_match:
@@ -1155,7 +1144,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(AssertionError, self.assertItemsEqual,
                               mn_sgs, db_sgs)
 
-    def _delete_metadata_ports(self, api):
+    def _delete_metadata_ports(self):
         """Delete some metadata ports.
 
         This method will delete one half of the metadata ports from Neutron and
@@ -1181,10 +1170,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             if row.type == ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
                 constants.DEVICE_OWNER_DHCP)]
 
-        with self.nb_idl_transaction(api, check_error=True) as txn:
+        with self.nb_api.transaction(check_error=True) as txn:
             for port in plugin_metadata_ports:
-                txn.add(cmd.DelLSwitchPortCommand(api, port, lswitches[port],
-                                                  True))
+                txn.add(self.nb_api.delete_lswitch_port(port, lswitches[port],
+                                                        True))
 
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)

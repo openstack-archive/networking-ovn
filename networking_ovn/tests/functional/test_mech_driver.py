@@ -12,8 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
-
 from networking_ovn.common import utils
 from networking_ovn.tests.functional import base
 from oslo_config import cfg
@@ -24,8 +22,6 @@ class TestPortBinding(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestPortBinding, self).setUp()
-        self.fake_api = mock.MagicMock()
-        self.fake_api.idl = self.monitor_sb_db_idl
         self.ovs_host = 'ovs-host'
         self.dpdk_host = 'dpdk-host'
         self.invalid_dpdk_host = 'invalid-host'

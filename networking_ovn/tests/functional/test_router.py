@@ -55,7 +55,7 @@ class TestRouter(base.TestOVNFunctionalBase):
 
     def _set_redirect_chassis_to_invalid_chassis(self, ovn_client):
         with ovn_client._nb_idl.transaction(check_error=True) as txn:
-            for lrp in self.monitor_nb_db_idl.tables[
+            for lrp in self.nb_api.tables[
                     'Logical_Router_Port'].rows.values():
                 txn.add(ovn_client._nb_idl.update_lrouter_port(
                     lrp.name,
@@ -67,10 +67,10 @@ class TestRouter(base.TestOVNFunctionalBase):
         gw_info = {'network_id': ext2['network']['id']}
         self._create_router('router1', gw_info=gw_info)
         expected = [row.name for row in
-                    self.monitor_sb_db_idl.tables['Chassis'].rows.values()]
-        for row in self.monitor_nb_db_idl.tables[
+                    self.sb_api.tables['Chassis'].rows.values()]
+        for row in self.nb_api.tables[
                 'Logical_Router_Port'].rows.values():
-            if self.monitor_nb_db_idl.tables.get('Gateway_Chassis'):
+            if self.nb_api.tables.get('Gateway_Chassis'):
                 chassis = [gwc.chassis_name for gwc in row.gateway_chassis]
                 self.assertItemsEqual(expected, chassis)
             else:

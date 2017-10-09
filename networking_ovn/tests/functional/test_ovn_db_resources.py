@@ -28,9 +28,6 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestNBDbResources, self).setUp()
-        self.fake_api = mock.MagicMock()
-        self.fake_api.idl = self.monitor_nb_db_idl
-        self.fake_api._tables = self.monitor_nb_db_idl.tables
         self.orig_get_random_mac = n_net.get_random_mac
         cfg.CONF.set_override('quota_subnet', -1, group='QUOTAS')
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
@@ -43,7 +40,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
     def _verify_dhcp_option_rows(self, expected_dhcp_options_rows):
         expected_dhcp_options_rows = list(expected_dhcp_options_rows.values())
         observed_dhcp_options_rows = []
-        for row in self.monitor_nb_db_idl.tables['DHCP_Options'].rows.values():
+        for row in self.nb_api.tables['DHCP_Options'].rows.values():
             observed_dhcp_options_rows.append({
                 'cidr': row.cidr, 'external_ids': row.external_ids,
                 'options': row.options})
@@ -54,7 +51,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
     def _verify_dhcp_option_row_for_port(self, port_id,
                                          expected_lsp_dhcpv4_options,
                                          expected_lsp_dhcpv6_options=None):
-        lsp = idlutils.row_by_value(self.monitor_nb_db_idl,
+        lsp = idlutils.row_by_value(self.nb_api.idl,
                                     'Logical_Switch_Port', 'name', port_id,
                                     None)
 
