@@ -15,11 +15,11 @@ from oslo_log import log as logging
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
 from neutron_lib import context as n_context
+from neutron_lib.db import constants as db_consts
 from neutron_lib.plugins import directory
 from neutron_lib.services.qos import base
 from neutron_lib.services.qos import constants as qos_consts
 
-from neutron.common import constants as n_consts
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.plugins.ml2 import plugin as ml2_plugin
@@ -32,11 +32,11 @@ OVN_QOS = 'qos'
 SUPPORTED_RULES = {
     qos_consts.RULE_TYPE_BANDWIDTH_LIMIT: {
         qos_consts.MAX_KBPS: {
-            'type:range': [0, n_consts.DB_INTEGER_MAX_VALUE]},
+            'type:range': [0, db_consts.DB_INTEGER_MAX_VALUE]},
         qos_consts.MAX_BURST: {
-            'type:range': [0, n_consts.DB_INTEGER_MAX_VALUE]},
+            'type:range': [0, db_consts.DB_INTEGER_MAX_VALUE]},
         qos_consts.DIRECTION: {
-            'type:values': [n_consts.EGRESS_DIRECTION]}
+            'type:values': [constants.EGRESS_DIRECTION]}
     },
 }
 
