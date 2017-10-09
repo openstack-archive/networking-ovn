@@ -48,11 +48,18 @@ class OvnDbSynchronizer(object):
         self.core_plugin = core_plugin
 
     def sync(self, delay_seconds=10):
-        greenthread.spawn_after_local(delay_seconds, self.do_sync)
+        self._gt = greenthread.spawn_after_local(delay_seconds, self.do_sync)
 
     @abc.abstractmethod
     def do_sync(self):
         """Method to sync the OVN DB."""
+
+    def stop(self):
+        try:
+            self._gt.kill()
+        except AttributeError:
+            # Haven't started syncing
+            pass
 
 
 class OvnNbSynchronizer(OvnDbSynchronizer):
@@ -65,6 +72,11 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         self.l3_plugin = directory.get_plugin(plugin_constants.L3)
         self._ovn_client = ovn_client.OVNClient(
             ovn_api, self.l3_plugin._sb_ovn)
+
+    def stop(self):
+        self.l3_plugin._ovn.ovsdb_connection.stop()
+        self.l3_plugin._sb_ovn.ovsdb_connection.stop()
+        super(OvnNbSynchronizer, self).stop()
 
     def do_sync(self):
         if self.mode == SYNC_MODE_OFF:

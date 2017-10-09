@@ -31,46 +31,41 @@ from networking_ovn.ovsdb import ovsdb_monitor
 
 LOG = log.getLogger(__name__)
 
-# NOTE(twilson) This block of code is to support both ovsdbapp 0.4.0 and 1.0
-# and can be removed after ovsdbapp 1.0 is released and becomes a requirement
-try:
-    from ovsdbapp.backend import ovs_idl
-    Backend = ovs_idl.Backend
-except AttributeError:
-    class Backend(object):
-        lookup_table = {}
+from ovsdbapp.backend import ovs_idl
 
-        def __init__(self, connection):
-            super(Backend, self).__init__()  # pylint: disable=bad-super-call
-            self.start_connection(connection)
 
-        @classmethod
-        def start_connection(cls, connection):
-            try:
-                if cls.ovsdb_connection is None:
-                    cls.ovsdb_connection = connection
-                    cls.ovsdb_connection.start()
-            except Exception as e:
-                connection_exception = OvsdbConnectionUnavailable(
-                    db_schema=cls.schema, error=e)
-                LOG.exception(connection_exception)
-                raise connection_exception
+# This version of Backend doesn't use a class variable for ovsdb_connection
+# and therefor allows networking-ovn to manage connection scope on its own
+class Backend(ovs_idl.Backend):
+    lookup_table = {}
 
-        @property
-        def idl(self):
-            return self.__class__.ovsdb_connection.idl
+    def __init__(self, connection):
+        self.ovsdb_connection = connection
+        super(Backend, self).__init__(connection)
 
-        @property
-        def tables(self):
-            return self.idl.tables
+    def start_connection(self, connection):
+        try:
+            self.ovsdb_connection.start()
+        except Exception as e:
+            connection_exception = OvsdbConnectionUnavailable(
+                db_schema=self.schema, error=e)
+            LOG.exception(connection_exception)
+            raise connection_exception
 
-        _tables = tables
+    @property
+    def idl(self):
+        return self.ovsdb_connection.idl
 
-        def create_transaction(self, check_error=False, log_errors=True):
-            return idl_trans.Transaction(
-                self, self.__class__.ovsdb_connection,
-                self.__class__.ovsdb_connection.timeout,
-                check_error, log_errors)
+    @property
+    def tables(self):
+        return self.idl.tables
+
+    _tables = tables
+
+    def create_transaction(self, check_error=False, log_errors=True):
+        return idl_trans.Transaction(
+            self, self.ovsdb_connection, self.ovsdb_connection.timeout,
+            check_error, log_errors)
 
 
 class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
