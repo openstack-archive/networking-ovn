@@ -76,7 +76,6 @@ r="$r(?:.*\[.*\bslow\b.*\])"
 r="$r|(?:tempest\.scenario\.test_network_v6.*)"
 
 # exclude things that just aren't enabled with OVN
-r="$r|(?:tempest\.api\.network\.admin\.test_l3_agent_scheduler.*)"
 r="$r|(?:tempest\.api\.network\.admin\.test_quotas\.QuotasTest\.test_lbaas_quotas.*)"
 r="$r|(?:tempest\.api\.network\.test_load_balancer.*)"
 r="$r|(?:tempest\.scenario\.test_load_balancer.*)"
@@ -86,14 +85,8 @@ r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
 r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
 r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
 
-# exclude dhcp agent tests
-r="$r|(?:tempest\.api\.network\.admin\.test_dhcp_agent_scheduler.*)"
-
 # exclude this test case because this expects dhcp interface to be present
 r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
-
-# exclude this test because there are no agents used by OVN
-r="$r|(?:tempest\.api\.network\.admin\.test_agent_management.*)"
 
 # exclude some unrelated stuff to make networking-ovn targeted runs go faster
 r="$r|(?:tempest\.api\.identity*)"
