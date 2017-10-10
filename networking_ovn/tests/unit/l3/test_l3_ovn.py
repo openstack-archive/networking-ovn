@@ -172,7 +172,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_router_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id')
+            assert_called_once_with('router-port-id', 'lrp-router-port-id',
+                                    False)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
@@ -206,7 +207,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertItemsEqual(fake_rtr_intf_networks,
                               called_args_dict.get('networks', []))
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id')
+            assert_called_once_with('router-port-id', 'lrp-router-port-id',
+                                    False)
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     def test_remove_router_interface(self, getp):

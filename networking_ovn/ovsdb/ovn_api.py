@@ -194,13 +194,18 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port):
+    def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port,
+                                         is_gw_port=False, if_exists=True):
         """Create a command to set lswitch_port as lrouter_port
 
         :param lswitch_port: The name of logical switch port
         :type lswitch_port:  string
         :param lrouter_port: The name of logical router port
         :type lrouter_port:  string
+        :param is_gw_port:   True if logical router port is gw port
+        :type is_gw_port:    bool
+        :param if_exists:    Do not fail if the lswitch port does not exist
+        :type if_exists:     bool
         :returns:            :class:`Command` with no result
         """
 

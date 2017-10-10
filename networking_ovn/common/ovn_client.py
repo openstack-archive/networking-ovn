@@ -749,7 +749,7 @@ class OVNClient(object):
                                                   networks=networks,
                                                   **columns))
             txn.add(self._nb_idl.set_lrouter_port_in_lswitch_port(
-                port['id'], lrouter_port_name))
+                port['id'], lrouter_port_name, is_gw_port))
 
     def update_router_port(self, router_id, port, networks=None):
         """Update a logical router port."""
@@ -758,12 +758,14 @@ class OVNClient(object):
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks}
+        is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
+            'device_owner')
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.update_lrouter_port(name=lrouter_port_name,
                                                      if_exists=False,
                                                      **update))
             txn.add(self._nb_idl.set_lrouter_port_in_lswitch_port(
-                    port['id'], lrouter_port_name))
+                    port['id'], lrouter_port_name, is_gw_port))
 
     def delete_router_port(self, port_id, router_id):
         """Delete a logical router port."""

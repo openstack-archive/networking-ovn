@@ -286,9 +286,10 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
                                          if_exists)
 
     def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port,
-                                         if_exists=True):
+                                         is_gw_port=False, if_exists=True):
         return cmd.SetLRouterPortInLSwitchPortCommand(self, lswitch_port,
-                                                      lrouter_port, if_exists)
+                                                      lrouter_port, is_gw_port,
+                                                      if_exists)
 
     def add_acl(self, lswitch, lport, **columns):
         return cmd.AddACLCommand(self, lswitch, lport, **columns)
