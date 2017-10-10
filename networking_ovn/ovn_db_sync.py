@@ -20,6 +20,7 @@ from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants
 from neutron_lib import context
+from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
@@ -626,11 +627,14 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.debug('Adding/Updating DHCP options for subnet %s in '
                               ' OVN NB DB', subnet_id)
                     network = db_networks[utils.ovn_name(subnet['network_id'])]
+                    metadata_port_ip = self._ovn_client._find_metadata_port_ip(
+                        ctx, db_subnets[subnet_id])
                     # _ovn_client._add_subnet_dhcp_options doesn't create
                     # a new row in DHCP_Options if the row already exists.
                     # See commands.AddDHCPOptionsCommand.
                     self._ovn_client._add_subnet_dhcp_options(
-                        subnet, network, subnet.get('ovn_dhcp_options'))
+                        subnet, network, subnet.get('ovn_dhcp_options'),
+                        metadata_port_ip=metadata_port_ip)
                 except RuntimeError:
                     LOG.warning('Adding/Updating DHCP options for subnet '
                                 '%s failed in OVN NB DB', subnet_id)
@@ -716,6 +720,50 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug('OVN-NB Sync DHCP options for Neutron ports with extra '
                   'dhcp options assigned finished')
 
+    def _sync_metadata_ports(self, ctx):
+        """Ensure metadata ports in all Neutron networks.
+
+        This method will ensure that all networks have one and only one
+        metadata port in Neutron. Later on, when syncing Neutron and OVN ports,
+        the corresponding localport in OVN will be created for each of these.
+        """
+        if not config.is_ovn_metadata_enabled():
+            return
+        LOG.debug('OVN sync metadata ports started')
+        for net in self.core_plugin.get_networks(ctx):
+            dhcp_ports = self.core_plugin.get_ports(ctx, filters=dict(
+                network_id=[net['id']],
+                device_owner=[constants.DEVICE_OWNER_DHCP]))
+            if not dhcp_ports:
+                LOG.warning('Missing metadata port found in Neutron for '
+                            'network %s', net['id'])
+                if self.mode == SYNC_MODE_REPAIR:
+                    try:
+                        # Create the missing port in Neutron. Later it will be
+                        # created in OVN when sync_network_ports_and_dhcp_opts
+                        # is called.
+                        LOG.warning('Creating missing metadadata port in '
+                                    'Neutron for network %s', net['id'])
+                        self._ovn_client.create_metadata_port(ctx, net)
+                    except n_exc.IpAddressGenerationFailure:
+                        LOG.error('Could not allocate IP addresses for '
+                                  'metadata port in network %s', net['id'])
+                        continue
+            else:
+                # Delete all but one DHCP ports. Only one is needed for
+                # metadata.
+                for port in dhcp_ports[1:]:
+                    LOG.warning('Unnecessary DHCP port %s for network %s '
+                                'found in Neutron', port['id'], net['id'])
+                    if self.mode == SYNC_MODE_REPAIR:
+                        LOG.warning('Deleting unnecessary DHCP port %s for '
+                                    'network %s', port['id'], net['id'])
+                        self.core_plugin.delete_port(ctx, port['id'])
+            if self.mode == SYNC_MODE_REPAIR:
+                # Make sure that this port has an IP address in all the subnets
+                self._ovn_client.update_metadata_port(ctx, net['id'])
+        LOG.debug('OVN sync metadata ports finished')
+
     def sync_networks_ports_and_dhcp_opts(self, ctx):
         LOG.debug('OVN-NB Sync networks, ports and DHCP options started')
         db_networks = {}
@@ -769,6 +817,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 except RuntimeError:
                     LOG.warning("Create network in OVN NB failed for "
                                 "network %s", network['id'])
+
+        self._sync_metadata_ports(ctx)
 
         self._sync_subnet_dhcp_options(
             ctx, db_network_cache, ovn_all_dhcp_options['subnets'])

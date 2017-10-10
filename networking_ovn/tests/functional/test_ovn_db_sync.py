@@ -72,7 +72,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.dirty_dhcp_options = []
         self.lport_dhcp_ignored = []
         self.match_old_mac_dhcp_subnets = []
-        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', False,
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
                                          group='ovn')
 
     def _api_for_resource(self, resource):
@@ -98,7 +98,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.expected_dhcp_options_rows.append({
             'cidr': '10.0.0.0/24',
             'external_ids': {'subnet_id': n1_s1['subnet']['id']},
-            'options': {'server_id': '10.0.0.1',
+            'options': {'classless_static_route':
+                        '{169.254.169.254/32,10.0.0.2, 0.0.0.0/0,10.0.0.1}',
+                        'server_id': '10.0.0.1',
                         'server_mac': '01:02:03:04:05:06',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n1['network']['mtu']),
@@ -134,13 +136,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     'cidr': '10.0.0.0/24',
                     'external_ids': {'subnet_id': n1_s1['subnet']['id'],
                                      'port_id': port['port']['id']},
-                    'options': {'server_id': '10.0.0.1',
-                                'server_mac': '01:02:03:04:05:06',
-                                'lease_time': str(12 * 60 * 60),
-                                'mtu': str(n1['network']['mtu']),
-                                'router': n1_s1['subnet']['gateway_ip'],
-                                'tftp_server': '20.0.0.20',
-                                'dns_server': '8.8.8.8'}})
+                    'options': {
+                        'classless_static_route':
+                        '{169.254.169.254/32,10.0.0.2, 0.0.0.0/0,10.0.0.1}',
+                        'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n1['network']['mtu']),
+                        'router': n1_s1['subnet']['gateway_ip'],
+                        'tftp_server': '20.0.0.20',
+                        'dns_server': '8.8.8.8'}})
                 self.expected_dhcp_options_rows.append({
                     'cidr': '2001:dba::/64',
                     'external_ids': {'subnet_id': n1_s2['subnet']['id'],
@@ -198,13 +203,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     'cidr': '10.0.0.0/24',
                     'external_ids': {'subnet_id': n1_s1['subnet']['id'],
                                      'port_id': port['port']['id']},
-                    'options': {'server_id': '10.0.0.1',
-                                'server_mac': '01:02:03:04:05:06',
-                                'lease_time': str(12 * 60 * 60),
-                                'mtu': str(n1['network']['mtu']),
-                                'router': n1_s1['subnet']['gateway_ip'],
-                                'tftp_server': '20.0.0.20',
-                                'dns_server': '8.8.8.8'}})
+                    'options': {
+                        'classless_static_route':
+                        '{169.254.169.254/32,10.0.0.2, 0.0.0.0/0,10.0.0.1}',
+                        'server_id': '10.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n1['network']['mtu']),
+                        'router': n1_s1['subnet']['gateway_ip'],
+                        'tftp_server': '20.0.0.20',
+                        'dns_server': '8.8.8.8'}})
                 self.expected_dhcp_options_rows.append({
                     'cidr': '2001:dba::/64',
                     'external_ids': {'subnet_id': n1_s2['subnet']['id'],
@@ -226,7 +234,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.expected_dhcp_options_rows.append({
             'cidr': '20.0.0.0/24',
             'external_ids': {'subnet_id': n2_s1['subnet']['id']},
-            'options': {'server_id': '20.0.0.1',
+            'options': {'classless_static_route':
+                        '{169.254.169.254/32,20.0.0.2, 0.0.0.0/0,20.0.0.1}',
+                        'server_id': '20.0.0.1',
                         'server_mac': '01:02:03:04:05:06',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n2['network']['mtu']),
@@ -246,13 +256,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     'cidr': '20.0.0.0/24',
                     'external_ids': {'subnet_id': n2_s1['subnet']['id'],
                                      'port_id': port['port']['id']},
-                    'options': {'server_id': '20.0.0.1',
-                                'server_mac': '01:02:03:04:05:06',
-                                'lease_time': str(12 * 60 * 60),
-                                'mtu': str(n1['network']['mtu']),
-                                'router': n2_s1['subnet']['gateway_ip'],
-                                'tftp_server': '20.0.0.20',
-                                'dns_server': '8.8.8.8'}})
+                    'options': {
+                        'classless_static_route':
+                        '{169.254.169.254/32,20.0.0.2, 0.0.0.0/0,20.0.0.1}',
+                        'server_id': '20.0.0.1',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': str(n1['network']['mtu']),
+                        'router': n2_s1['subnet']['gateway_ip'],
+                        'tftp_server': '20.0.0.20',
+                        'dns_server': '8.8.8.8'}})
         self.missed_dhcp_options.extend([
             opts['uuid']
             for opts in self.mech_driver._nb_ovn.get_subnets_dhcp_options(
@@ -483,7 +496,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.expected_dhcp_options_rows.append({
             'cidr': '30.0.0.0/24',
             'external_ids': {'subnet_id': n3_s1['subnet']['id']},
-            'options': {'server_id': '30.0.0.1',
+            'options': {'classless_static_route':
+                        '{169.254.169.254/32,30.0.0.2, 0.0.0.0/0,30.0.0.1}',
+                        'server_id': '30.0.0.1',
                         'server_mac': dhcp_mac_v4,
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n3['network']['mtu']),
@@ -550,6 +565,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         fake_api = mock.MagicMock()
         fake_api.idl = self.monitor_nb_db_idl
         fake_api._tables = self.monitor_nb_db_idl.tables
+
+        self._delete_metadata_ports(fake_api)
 
         with self.nb_idl_transaction(fake_api, check_error=True) as txn:
             for lswitch_name in self.create_lswitches:
@@ -742,6 +759,41 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_provnet_ports,
                 monitor_provnet_ports)
+
+    def _validate_metadata_ports(self, should_match=True):
+        """Validate metadata ports.
+
+        This method will check that all networks have one and only one metadata
+        port and that every metadata port in Neutron also exists in OVN.
+        """
+        db_ports = self._list('ports')
+        db_metadata_ports_ids = []
+        db_metadata_ports_nets = []
+        for port in db_ports['ports']:
+            if port['device_owner'] == constants.DEVICE_OWNER_DHCP:
+                db_metadata_ports_ids.append(port['id'])
+                db_metadata_ports_nets.append(port['network_id'])
+        db_networks = self._list('networks')
+        db_net_ids = [net['id'] for net in db_networks['networks']]
+
+        # Retrieve all localports in OVN
+        _plugin_nb_ovn = self.mech_driver._nb_ovn
+        plugin_metadata_ports = [row.name for row in (
+            _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if row.type == ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
+                constants.DEVICE_OWNER_DHCP)]
+
+        if should_match:
+            # Check that metadata ports exist in both Neutron and OVN dbs.
+            self.assertItemsEqual(db_metadata_ports_ids, plugin_metadata_ports)
+            # Check that all networks have one and only one metadata port.
+            self.assertItemsEqual(db_metadata_ports_nets, db_net_ids)
+        else:
+            metadata_sync = (sorted(db_metadata_ports_ids) ==
+                             sorted(plugin_metadata_ports))
+            metadata_unique = (sorted(db_net_ids) ==
+                               sorted(db_metadata_ports_nets))
+            self.assertFalse(metadata_sync and metadata_unique)
 
     def _validate_ports(self, should_match=True):
         db_ports = self._list('ports')
@@ -1102,8 +1154,40 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.assertRaises(AssertionError, self.assertItemsEqual,
                               mn_sgs, db_sgs)
 
+    def _delete_metadata_ports(self, api):
+        """Delete some metadata ports.
+
+        This method will delete one half of the metadata ports from Neutron and
+        the remaining ones only from OVN. This way we can exercise the metadata
+        sync completely: ie., that metadata ports are recreated in Neutron when
+        missing and that the corresponding OVN localports are also created.
+        """
+        db_ports = self._list('ports')
+        db_metadata_ports = [port for port in db_ports['ports'] if
+                             port['device_owner'] ==
+                             constants.DEVICE_OWNER_DHCP]
+        lswitches = {}
+        ports_to_delete = len(db_metadata_ports) / 2
+        for port in db_metadata_ports:
+            lswitches[port['id']] = 'neutron-' + port['network_id']
+            if ports_to_delete:
+                self._delete('ports', port['id'])
+                ports_to_delete -= 1
+
+        _plugin_nb_ovn = self.mech_driver._nb_ovn
+        plugin_metadata_ports = [row.name for row in (
+            _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
+            if row.type == ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
+                constants.DEVICE_OWNER_DHCP)]
+
+        with self.nb_idl_transaction(api, check_error=True) as txn:
+            for port in plugin_metadata_ports:
+                txn.add(cmd.DelLSwitchPortCommand(api, port, lswitches[port],
+                                                  True))
+
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
+        self._validate_metadata_ports(should_match=should_match)
         self._validate_ports(should_match=should_match)
         self._validate_dhcp_opts(should_match=should_match)
         self._validate_acls(should_match=should_match)
