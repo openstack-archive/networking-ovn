@@ -107,30 +107,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return ("L3 Router Service Plugin for basic L3 forwarding"
                 " using OVN")
 
-    def _get_router_ports(self, context, router_id, get_gw_port=False):
-        router_db = self._get_router(context.elevated(), router_id)
-        if get_gw_port:
-            return [p.port for p in router_db.attached_ports]
-        else:
-            # When the existing deployment is migrated to OVN
-            # we may need to consider other port types - DVR_INTERFACE/HA_INTF.
-            return [p.port for p in router_db.attached_ports
-                    if p.port_type in [n_const.DEVICE_OWNER_ROUTER_INTF,
-                                       n_const.DEVICE_OWNER_DVR_INTERFACE,
-                                       n_const.DEVICE_OWNER_HA_REPLICATED_INT,
-                                       n_const.DEVICE_OWNER_ROUTER_HA_INTF]]
-
-    def _get_v4_network_of_all_router_ports(self, context, router_id,
-                                            ports=None):
-        networks = []
-        ports = ports or self._get_router_ports(context, router_id)
-        for port in ports:
-            network = self._get_v4_network_for_router_port(context, port)
-            if network:
-                networks.append(network)
-
-        return networks
-
     def get_external_router_and_gateway_ip(self, context, router):
         ext_gw_info = router.get(l3.EXTERNAL_GW_INFO, {})
         ext_fixed_ips = ext_gw_info.get('external_fixed_ips', [])
@@ -146,22 +122,10 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             context, router)
         return router_ip
 
-    def _get_v4_network_for_router_port(self, context, port):
-        cidr = None
-        for fixed_ip in port['fixed_ips']:
-            subnet_id = fixed_ip['subnet_id']
-            subnet = self._plugin.get_subnet(context, subnet_id)
-            if subnet['ip_version'] != 4:
-                continue
-            cidr = subnet['cidr']
-        return cidr
-
     def create_router(self, context, router):
         router = super(OVNL3RouterPlugin, self).create_router(context, router)
-        networks = self._get_v4_network_of_all_router_ports(
-            context, router['id'])
         try:
-            self._ovn_client.create_router(router, networks=networks)
+            self._ovn_client.create_router(router)
         except Exception:
             with excutils.save_and_reraise_exception():
                 # Delete the logical router
@@ -174,10 +138,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         original_router = self.get_router(context, id)
         result = super(OVNL3RouterPlugin, self).update_router(context, id,
                                                               router)
-        networks = self._get_v4_network_of_all_router_ports(context, id)
         try:
-            self._ovn_client.update_router(
-                result, original_router, router, networks)
+            self._ovn_client.update_router(result, original_router)
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.exception('Unable to update lrouter for %s', id)

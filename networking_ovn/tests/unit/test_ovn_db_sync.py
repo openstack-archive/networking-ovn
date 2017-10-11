@@ -368,15 +368,14 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin.get_external_router_and_gateway_ip = mock.Mock()
         l3_plugin.get_external_router_and_gateway_ip.side_effect = \
             self._fake_get_external_router_and_gateway_ip
-        l3_plugin._get_v4_network_of_all_router_ports = mock.Mock()
-        l3_plugin._get_v4_network_of_all_router_ports.side_effect = \
-            self._fake_get_v4_network_of_all_router_ports
         l3_plugin._get_sync_interfaces = mock.Mock()
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
         ovn_nb_synchronizer._ovn_client = mock.Mock()
         ovn_nb_synchronizer._ovn_client._get_networks_for_router_port. \
             return_value = self.lrport_networks
+        ovn_nb_synchronizer._ovn_client._get_v4_network_of_all_router_ports. \
+            side_effect = self._fake_get_v4_network_of_all_router_ports
         # end of router-sync block
         l3_plugin.get_floatingips = mock.Mock()
         l3_plugin.get_floatingips.return_value = self.floating_ips
@@ -565,7 +564,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertEqual(len(del_nat_list),
                          ovn_api.delete_nat_rule_in_lrouter.call_count)
 
-        create_router_calls = [mock.call(r)
+        create_router_calls = [mock.call(r, add_external_gateway=False)
                                for r in create_router_list]
         self.assertEqual(
             len(create_router_list),
