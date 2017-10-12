@@ -693,11 +693,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(cmd.DelDHCPOptionsCommand(fake_api, row_uuid))
 
             for dhcp_opts in self.dirty_dhcp_options:
+                external_ids = {'subnet_id': dhcp_opts['subnet_id']}
+                if dhcp_opts.get('port_id'):
+                    external_ids['port_id'] = dhcp_opts['port_id']
                 txn.add(cmd.AddDHCPOptionsCommand(
                     fake_api, dhcp_opts['subnet_id'],
                     port_id=dhcp_opts.get('port_id'),
-                    external_ids={'subnet_id': dhcp_opts['subnet_id'],
-                                  'port_id': dhcp_opts.get('port_id')},
+                    external_ids=external_ids,
                     options={'foo': 'bar'}))
 
             for port_id in self.lport_dhcpv4_disabled:
