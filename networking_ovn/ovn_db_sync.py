@@ -790,7 +790,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             if lswitch['name'] in db_networks:
                 for lport in lswitch['ports']:
                     if lport in db_ports:
-                        ports_need_sync_dhcp_opts.append(db_ports.pop(lport))
+                        port = db_ports.pop(lport)
+                        if not utils.is_network_device_port(port):
+                            ports_need_sync_dhcp_opts.append(port)
                     else:
                         del_lports_list.append({'port': lport,
                                                 'lswitch': lswitch['name']})
