@@ -802,8 +802,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                        constants.DEVICE_OWNER_FLOATINGIP]
         db_port_ids_dhcp_valid = set(
             port['id'] for port in db_ports['ports']
-            if not port['device_owner'].startswith(
-                constants.DEVICE_OWNER_PREFIXES) and
+            if not utils.is_network_device_port(port) and
             port['id'] not in self.lport_dhcp_ignored)
 
         _plugin_nb_ovn = self.mech_driver._nb_ovn

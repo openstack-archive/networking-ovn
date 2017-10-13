@@ -940,8 +940,7 @@ class OVNClient(object):
         filters = {'fixed_ips': {'subnet_id': [subnet['id']]}}
         all_ports = self._plugin.get_ports(n_context.get_admin_context(),
                                            filters=filters)
-        ports = [p for p in all_ports if not p['device_owner'].startswith(
-            const.DEVICE_OWNER_PREFIXES)]
+        ports = [p for p in all_ports if not utils.is_network_device_port(p)]
 
         subnet_dhcp_options = self._get_ovn_dhcp_options(
             subnet, network, metadata_port_ip=metadata_port_ip)

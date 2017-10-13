@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_config import cfg
 from oslo_log import log as logging
 
 from neutron_lib.api.definitions import portbindings
@@ -24,7 +25,7 @@ from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.plugins.ml2 import plugin as ml2_plugin
 
-from oslo_config import cfg
+from networking_ovn.common import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -102,13 +103,6 @@ class OVNQosDriver(object):
             self._plugin_property = directory.get_plugin()
         return self._plugin_property
 
-    def _is_network_device_port(self, port):
-        device_owner = port.get('device_owner')
-        if (device_owner and
-                device_owner.startswith(constants.DEVICE_OWNER_PREFIXES)):
-            return True
-        return False
-
     def _generate_port_options(self, context, policy_id):
         if policy_id is None:
             return {}
@@ -128,7 +122,7 @@ class OVNQosDriver(object):
         if 'qos_policy_id' not in port:
             return {}
         # Don't apply qos rules to network devices
-        if self._is_network_device_port(port):
+        if utils.is_network_device_port(port):
             return {}
 
         # Determine if port or network policy should be used
@@ -154,7 +148,7 @@ class OVNQosDriver(object):
             if port_policy_id:
                 continue
             # Don't apply qos rules to network devices
-            if self._is_network_device_port(port):
+            if utils.is_network_device_port(port):
                 continue
             # Call into mech driver to update port
             self._driver.update_port(port, port, options)

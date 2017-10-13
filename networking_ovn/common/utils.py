@@ -70,12 +70,17 @@ def ovn_addrset_name(sg_id, ip_version):
     return ('as-%s-%s' % (ip_version, sg_id)).replace('-', '_')
 
 
+def is_network_device_port(port):
+    return port.get('device_owner', '').startswith(
+        const.DEVICE_OWNER_PREFIXES)
+
+
 def get_lsp_dhcp_opts(port, ip_version):
     # Get dhcp options from Neutron port, for setting DHCP_Options row
     # in OVN.
     lsp_dhcp_disabled = False
     lsp_dhcp_opts = {}
-    if port['device_owner'].startswith(const.DEVICE_OWNER_PREFIXES):
+    if is_network_device_port(port):
         lsp_dhcp_disabled = True
     else:
         for edo in port.get(edo_ext.EXTRADHCPOPTS, []):
