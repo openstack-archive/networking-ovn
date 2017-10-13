@@ -53,7 +53,7 @@ class MetadataProxyHandler(object):
                            resources.PROCESS,
                            events.AFTER_INIT)
 
-    def post_fork_initialize(self, resource, event, trigger, **kwargs):
+    def post_fork_initialize(self, resource, event, trigger, payload=None):
         # We need to open a connection to OVN SouthBound database for
         # each worker so that we can process the metadata requests.
         self.sb_idl = ovsdb.MetadataAgentOvnSbIdl().start()

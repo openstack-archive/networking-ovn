@@ -149,7 +149,7 @@ class OVNMechanismDriver(api.MechanismDriver):
                                resources.SECURITY_GROUP_RULE,
                                events.BEFORE_DELETE)
 
-    def post_fork_initialize(self, resource, event, trigger, **kwargs):
+    def post_fork_initialize(self, resource, event, trigger, payload=None):
         # NOTE(rtheis): This will initialize all workers (API, RPC,
         # plugin service and OVN) with OVN IDL connections.
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
