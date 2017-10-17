@@ -435,7 +435,8 @@ class OVNMechanismDriver(api.MechanismDriver):
     # relying on a method called update_port(), delete it after QOS driver
     # is updated
     def update_port(self, port, original_port, qos_options=None):
-        self._ovn_client.update_port(port, original_port)
+        self._ovn_client.update_port(port, original_port,
+                                     qos_options=qos_options)
 
     def delete_port_postcommit(self, context):
         """Delete a port.
