@@ -14,6 +14,7 @@
 
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
@@ -348,6 +349,14 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             port_physnet_dict[port['id']] = net_physnet_dict.get(
                 port['network_id'])
         return port_physnet_dict
+
+    def update_router_gateway_port_bindings(self, router, host):
+        context = n_context.get_admin_context()
+        filters = {'device_id': [router],
+                   'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW]}
+        for port in self._plugin.get_ports(context, filters=filters):
+            self._plugin.update_port(
+                context, port['id'], {'port': {portbindings.HOST_ID: host}})
 
     def schedule_unhosted_gateways(self):
         port_physnet_dict = self._get_gateway_port_physnet_mapping()
