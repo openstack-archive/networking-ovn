@@ -18,10 +18,13 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
 from networking_ovn.tests.functional import base
 
+from neutron.common import utils as n_utils
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3 as l3_apidef
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as n_consts
+from neutron_lib.plugins import directory
 from ovsdbapp.backend.ovs_idl import idlutils
 
 
@@ -136,6 +139,27 @@ class TestRouter(base.TestOVNFunctionalBase):
             # Check self.l3_plugin.scheduler.select called for
             # schedule_unhosted_gateways
             self.assertEqual(3, plugin_select.call_count)
+
+    def test_router_gateway_port_binding_host_id(self):
+        host_id = 'fake_host'
+        ext = self._create_ext_network(
+            'ext1', 'vlan', 'physnet1', 1, "10.0.0.1", "10.0.0.0/24")
+        gw_info = {'network_id': ext['network']['id']}
+        router = self._create_router('router1', gw_info=gw_info)
+        core_plugin = directory.get_plugin()
+        gw_port_id = router.get('gw_port_id')
+
+        self.l3_plugin.update_router_gateway_port_bindings(router['id'],
+                                                           host_id)
+
+        def check_port_binding_host_id(port_id):
+            port = core_plugin.get_ports(
+                self.context, filters={'id': [port_id]})[0]
+            return port[portbindings.HOST_ID] == host_id
+
+        # Test if router gateway port updated with this host_id
+        n_utils.wait_until_true(lambda: check_port_binding_host_id(
+            gw_port_id))
 
     def _validate_router_ipv6_ra_configs(self, lrp_name, expected_ra_confs):
         lrp = idlutils.row_by_value(self.nb_api.idl,
