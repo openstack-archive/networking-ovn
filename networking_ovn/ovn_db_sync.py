@@ -725,8 +725,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         """Ensure metadata ports in all Neutron networks.
 
         This method will ensure that all networks have one and only one
-        metadata port in Neutron. Later on, when syncing Neutron and OVN ports,
-        the corresponding localport in OVN will be created for each of these.
+        metadata port.
         """
         if not config.is_ovn_metadata_enabled():
             return
@@ -740,11 +739,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                             'network %s', net['id'])
                 if self.mode == SYNC_MODE_REPAIR:
                     try:
-                        # Create the missing port in Neutron. Later it will be
-                        # created in OVN when sync_network_ports_and_dhcp_opts
-                        # is called.
+                        # Create the missing port in both Neutron and OVN.
                         LOG.warning('Creating missing metadadata port in '
-                                    'Neutron for network %s', net['id'])
+                                    'Neutron and OVN for network %s',
+                                    net['id'])
                         self._ovn_client.create_metadata_port(ctx, net)
                     except n_exc.IpAddressGenerationFailure:
                         LOG.error('Could not allocate IP addresses for '
