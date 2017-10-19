@@ -868,8 +868,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 if self.mode == SYNC_MODE_REPAIR:
                     LOG.debug('Deleting the network %s from OVN NB DB',
                               lswitch['name'])
-                    txn.add(self.ovn_api.delete_lswitch(
-                        lswitch_name=lswitch['name']))
+                    txn.add(self.ovn_api.ls_del(lswitch['name']))
 
             for provnet_port_info in add_provnet_ports_list:
                 network = provnet_port_info['network']

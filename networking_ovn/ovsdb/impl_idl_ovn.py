@@ -118,17 +118,6 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         self.idl._session.reconnect.set_probe_interval(
             cfg.get_ovn_ovsdb_probe_interval())
 
-    def create_lswitch(self, lswitch_name, may_exist=True, **columns):
-        return cmd.AddLSwitchCommand(self, lswitch_name,
-                                     may_exist, **columns)
-
-    def delete_lswitch(self, lswitch_name=None, ext_id=None, if_exists=True):
-        if lswitch_name is not None:
-            return cmd.DelLSwitchCommand(self, lswitch_name, if_exists)
-        else:
-            raise RuntimeError(_("Currently only supports delete "
-                                 "by lswitch-name"))
-
     def set_lswitch_ext_id(self, lswitch_id, ext_id, if_exists=True):
         return cmd.LSwitchSetExternalIdCommand(self, lswitch_id,
                                                ext_id[0], ext_id[1],

@@ -856,9 +856,7 @@ class OVNClient(object):
 
         lswitch_name = utils.ovn_name(network['id'])
         with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(self._nb_idl.create_lswitch(
-                lswitch_name=lswitch_name,
-                external_ids=ext_ids))
+            txn.add(self._nb_idl.ls_add(lswitch_name, external_ids=ext_ids))
             if physnet is not None:
                 tag = int(segid) if segid else None
                 self._create_provnet_port(txn, network, physnet, tag)
@@ -868,9 +866,8 @@ class OVNClient(object):
         return network
 
     def delete_network(self, network_id):
-        self._nb_idl.delete_lswitch(
-            utils.ovn_name(network_id), if_exists=True).execute(
-                check_error=True)
+        self._nb_idl.ls_del(utils.ovn_name(network_id),
+                            if_exists=True).execute(check_error=True)
 
     def update_network(self, network, original_network):
         if network['name'] != original_network['name']:

@@ -395,7 +395,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_nb_synchronizer._ovn_client.create_port = mock.Mock()
         ovn_nb_synchronizer._ovn_client.create_port.return_value = mock.ANY
         ovn_nb_synchronizer._ovn_client._create_provnet_port = mock.Mock()
-        ovn_api.delete_lswitch = mock.Mock()
+        ovn_api.ls_del = mock.Mock()
         ovn_api.delete_lswitch_port = mock.Mock()
 
         ovn_api.delete_lrouter = mock.Mock()
@@ -521,11 +521,11 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             create_provnet_port_calls, any_order=True)
 
         self.assertEqual(len(del_network_list),
-                         ovn_api.delete_lswitch.call_count)
-        delete_lswitch_calls = [mock.call(lswitch_name=net_name)
-                                for net_name in del_network_list]
-        ovn_api.delete_lswitch.assert_has_calls(
-            delete_lswitch_calls, any_order=True)
+                         ovn_api.ls_del.call_count)
+        ls_del_calls = [mock.call(net_name)
+                        for net_name in del_network_list]
+        ovn_api.ls_del.assert_has_calls(
+            ls_del_calls, any_order=True)
 
         self.assertEqual(len(del_port_list),
                          ovn_api.delete_lswitch_port.call_count)

@@ -568,11 +568,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             for lswitch_name in self.create_lswitches:
                 external_ids = {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
                                 lswitch_name}
-                txn.add(self.nb_api.create_lswitch(lswitch_name, True,
-                                                   external_ids=external_ids))
+                txn.add(self.nb_api.ls_add(lswitch_name, True,
+                                           external_ids=external_ids))
 
             for lswitch_name in self.delete_lswitches:
-                txn.add(self.nb_api.delete_lswitch(lswitch_name, True))
+                txn.add(self.nb_api.ls_del(lswitch_name, True))
 
             for lport_name, lswitch_name in self.create_lswitch_ports:
                 external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY:

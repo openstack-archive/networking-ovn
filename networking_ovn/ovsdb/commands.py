@@ -75,48 +75,6 @@ def _add_gateway_chassis(api, txn, lrp_name, val):
         return 'options', chassis
 
 
-class AddLSwitchCommand(command.BaseCommand):
-    def __init__(self, api, name, may_exist, **columns):
-        super(AddLSwitchCommand, self).__init__(api)
-        self.name = name
-        self.columns = columns
-        self.may_exist = may_exist
-
-    def run_idl(self, txn):
-        if self.may_exist:
-            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
-                                            'name', self.name, None)
-            if lswitch:
-                return
-        row = txn.insert(self.api._tables['Logical_Switch'])
-        row.name = self.name
-        for col, val in self.columns.items():
-            setattr(row, col, val)
-        self.result = row.uuid
-
-    def post_commit(self, txn):
-        self.result = txn.get_insert_uuid(self.result)
-
-
-class DelLSwitchCommand(command.BaseCommand):
-    def __init__(self, api, name, if_exists):
-        super(DelLSwitchCommand, self).__init__(api)
-        self.name = name
-        self.if_exists = if_exists
-
-    def run_idl(self, txn):
-        try:
-            lswitch = idlutils.row_by_value(self.api.idl, 'Logical_Switch',
-                                            'name', self.name)
-        except idlutils.RowNotFound:
-            if self.if_exists:
-                return
-            msg = _("Logical Switch %s does not exist") % self.name
-            raise RuntimeError(msg)
-
-        self.api._tables['Logical_Switch'].rows[lswitch.uuid].delete()
-
-
 class LSwitchSetExternalIdCommand(command.BaseCommand):
     def __init__(self, api, name, field, value, if_exists):
         super(LSwitchSetExternalIdCommand, self).__init__(api)
