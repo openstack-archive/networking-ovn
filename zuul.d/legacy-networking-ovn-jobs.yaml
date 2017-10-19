@@ -1,0 +1,145 @@
+- job:
+    name: legacy-networking-ovn-dsvm-base
+    parent: legacy-dsvm-base
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+      - ^vagrant/.*$
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/neutron
+      - openstack/networking-ovn
+      - openstack/tempest
+
+- job:
+    name: legacy-networking-ovn-dsvm-base-multinode
+    parent: legacy-dsvm-base-multinode
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+      - ^vagrant/.*$
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/neutron
+      - openstack/networking-ovn
+      - openstack/tempest
+
+- job:
+    name: networking-ovn-grenade-dsvm
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/grenade-dsvm-networking-ovn/run
+    post-run: playbooks/legacy/grenade-dsvm-networking-ovn/post
+    timeout: 9000
+    required-projects:
+      - openstack-dev/grenade
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+
+- job:
+    name: networking-ovn-install-dsvm-kuryr
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/install-dsvm-networking-ovn-kuryr/run
+    post-run: playbooks/legacy/install-dsvm-networking-ovn-kuryr/post
+    timeout: 7500
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/kuryr
+      - openstack/networking-ovn
+
+- job:
+    name: networking-ovn-dsvm-functional
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/networking-ovn-dsvm-functional/run
+    post-run: playbooks/legacy/networking-ovn-dsvm-functional/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+
+- job:
+    name: networking-ovn-dsvm-functional-py35
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/networking-ovn-dsvm-functional-py35/run
+    post-run: playbooks/legacy/networking-ovn-dsvm-functional-py35/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+
+- job:
+    name: networking-ovn-rally-dsvm
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/rally-dsvm-networking-ovn/run
+    post-run: playbooks/legacy/rally-dsvm-networking-ovn/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/rally
+
+- job:
+    name: networking-ovn-tempest-dsvm-multinode
+    parent: legacy-networking-ovn-dsvm-base-multinode
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-multinode/run
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-multinode/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/tempest
+    nodeset: legacy-ubuntu-xenial-2-node
+
+- job:
+    name: networking-ovn-tempest-dsvm-neutron-api-ovs-release
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-neutron-api-ovs-release/run
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-neutron-api-ovs-release/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/neutron
+      - openstack/tempest
+
+- job:
+    name: networking-ovn-tempest-dsvm-ovs-master
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master/run
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/tempest
+
+- job:
+    name: networking-ovn-tempest-dsvm-ovs-master-python3
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master-python3/run
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master-python3/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/tempest
+
+- job:
+    name: networking-ovn-tempest-dsvm-ovs-release
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/run
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/post
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/tempest
