@@ -179,12 +179,12 @@ function configure_ovn {
         (cd $NETWORKING_OVN_DIR && exec ./tools/generate_config_file_samples.sh)
 
         cp $NETWORKING_OVN_DIR/etc/networking_ovn_metadata_agent.ini.sample $OVN_META_CONF
+        configure_root_helper_options $OVN_META_CONF
 
         iniset $OVN_META_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
         iniset $OVN_META_CONF DEFAULT nova_metadata_ip $SERVICE_HOST
         iniset $OVN_META_CONF DEFAULT metadata_workers $API_WORKERS
         iniset $OVN_META_CONF DEFAULT state_path $NEUTRON_STATE_PATH
-        iniset $OVN_META_CONF agent root_helper_daemon "$NEUTRON_ROOTWRAP_DAEMON_CMD"
         iniset $OVN_META_CONF ovs ovsdb_connection unix:/usr/local/var/run/openvswitch/db.sock
         iniset $OVN_META_CONF ovn ovn_sb_connection $OVN_SB_REMOTE
     fi
