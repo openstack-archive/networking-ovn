@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import uuid
+
 from neutron_lib import exceptions as n_exc
 from oslo_log import log
 import tenacity
@@ -19,13 +21,14 @@ from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 from ovsdbapp.backend.ovs_idl import vlog
+from ovsdbapp.schema.ovn_northbound import impl_idl as nb_impl_idl
+from ovsdbapp.schema.ovn_southbound import impl_idl as sb_impl_idl
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
-from networking_ovn.ovsdb import ovn_api
 from networking_ovn.ovsdb import ovsdb_monitor
 
 
@@ -109,10 +112,7 @@ def get_connection(db_class, trigger=None, driver=None):
     return connection.Connection(idl_, timeout=cfg.get_ovn_ovsdb_timeout())
 
 
-class OvsdbNbOvnIdl(Backend, ovn_api.API):
-    schema = 'OVN_Northbound'
-    ovsdb_connection = None
-
+class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def __init__(self, connection):
         super(OvsdbNbOvnIdl, self).__init__(connection)
         self.idl._session.reconnect.set_probe_interval(
@@ -569,12 +569,11 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
             raise RuntimeError(msg)
 
 
-class OvsdbSbOvnIdl(Backend, ovn_api.SbAPI):
-    schema = 'OVN_Southbound'
-    ovsdb_connection = None
-
+class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):
         super(OvsdbSbOvnIdl, self).__init__(connection)
+        # TODO(twilson) This direct access of the idl should be removed in
+        # favor of a backend-agnostic method
         self.idl._session.reconnect.set_probe_interval(
             cfg.get_ovn_ovsdb_probe_interval())
 
@@ -585,37 +584,31 @@ class OvsdbSbOvnIdl(Backend, ovn_api.SbAPI):
         return list(mapping_dict.keys())
 
     def chassis_exists(self, hostname):
-        try:
-            idlutils.row_by_value(self.idl, 'Chassis', 'hostname', hostname)
-        except idlutils.RowNotFound:
-            return False
-        return True
+        cmd = self.db_find('Chassis', ('hostname', '=', hostname))
+        return bool(cmd.execute(check_error=True))
 
     def get_chassis_hostname_and_physnets(self):
         chassis_info_dict = {}
-        for ch in self.idl.tables['Chassis'].rows.values():
+        for ch in self.chassis_list().execute(check_error=True):
             chassis_info_dict[ch.hostname] = self._get_chassis_physnets(ch)
         return chassis_info_dict
 
     def get_chassis_and_physnets(self):
         chassis_info_dict = {}
-        for ch in self.idl.tables['Chassis'].rows.values():
+        for ch in self.chassis_list().execute(check_error=True):
             chassis_info_dict[ch.name] = self._get_chassis_physnets(ch)
         return chassis_info_dict
 
     def get_all_chassis(self, chassis_type=None):
         # TODO(azbiswas): Use chassis_type as input once the compute type
         # preference patch (as part of external ids) merges.
-        chassis_list = []
-        for ch in self.idl.tables['Chassis'].rows.values():
-            chassis_list.append(ch.name)
-        return chassis_list
+        return [c.name for c in self.chassis_list().execute(check_error=True)]
 
     def get_chassis_data_for_ml2_bind_port(self, hostname):
         try:
-            chassis = idlutils.row_by_value(self.idl, 'Chassis',
-                                            'hostname', hostname)
-        except idlutils.RowNotFound:
+            cmd = self.db_find_rows('Chassis', ('hostname', '=', hostname))
+            chassis = next(c for c in cmd.execute(check_error=True))
+        except StopIteration:
             msg = _('Chassis with hostname %s does not exist') % hostname
             raise RuntimeError(msg)
         return (chassis.external_ids.get('datapath-type', ''),
@@ -623,49 +616,51 @@ class OvsdbSbOvnIdl(Backend, ovn_api.SbAPI):
                 self._get_chassis_physnets(chassis))
 
     def get_metadata_port_network(self, network):
-        for port in self.idl.tables['Port_Binding'].rows.values():
-            if str(port.datapath.uuid) == network and port.type == 'localport':
-                return port
+        # TODO(twilson) This function should really just take a Row/RowView
+        try:
+            dp = self.lookup('Datapath_Binding', uuid.UUID(network))
+        except idlutils.RowNotFound:
+            return None
+        cmd = self.db_find_rows('Port_Binding', ('datapath', '=', dp),
+                                ('type', '=', 'localport'))
+        return next(iter(cmd.execute(check_error=True)), None)
 
     def get_chassis_metadata_networks(self, chassis_name):
         """Return a list with the metadata networks the chassis is hosting."""
-        try:
-            chassis = idlutils.row_by_value(self.idl, 'Chassis',
-                                            'name', chassis_name)
-        except idlutils.RowNotFound:
-            msg = _('Chassis %s does not exist') % chassis_name
-            raise RuntimeError(msg)
+        chassis = self.lookup('Chassis', chassis_name)
         proxy_networks = chassis.external_ids.get(
             'neutron-metadata-proxy-networks', None)
         return proxy_networks.split(',') if proxy_networks else []
 
     def set_chassis_metadata_networks(self, chassis, networks):
         nets = ','.join(networks) if networks else ''
+        # TODO(twilson) This could just use DbSetCommand
         return cmd.UpdateChassisExtIdsCommand(
             self, chassis, {'neutron-metadata-proxy-networks': nets},
             if_exists=True)
 
     def get_network_port_bindings_by_ip(self, network, ip_address):
-        port_list = []
-        for port in self.idl.tables['Port_Binding'].rows.values():
-            if (port.mac and str(port.datapath.uuid) == network and
-                    ip_address in port.mac[0].split(' ')):
-                port_list.append(port)
-        return port_list
+        rows = self.db_list_rows('Port_Binding').execute(check_error=True)
+        # TODO(twilson) It would be useful to have a db_find that takes a
+        # comparison function
+        return [r for r in rows
+                if (r.mac and str(r.datapath.uuid) == network) and
+                ip_address in r.mac[0].split(' ')]
 
     def set_port_cidrs(self, name, cidrs):
-        return cmd.UpdatePortBindingExtIdsCommand(
-            self, name, {'neutron-port-cidrs': cidrs}, if_exists=True)
+        # TODO(twilson) add if_exists to db commands
+        return self.db_set('Port_Binding', name, 'external_ids',
+                           {'neutron-port-cidrs': cidrs}, if_exists=True)
 
     def get_ports_on_chassis(self, chassis):
-        ports = []
-        for port in self.idl.tables['Port_Binding'].rows.values():
-            if port.chassis and port.chassis[0].name == chassis:
-                ports.append(port)
-        return ports
+        # TODO(twilson) Some day it would be nice to stop passing names around
+        # and just start using chassis objects so db_find_rows could be used
+        rows = self.db_list_rows('Port_Binding').execute(check_error=True)
+        return [r for r in rows if r.chassis and r.chassis[0].name == chassis]
 
     def get_logical_port_chassis_and_datapath(self, name):
-        for port in self.idl.tables['Port_Binding'].rows.values():
+        rows = self.db_list_rows('Port_Binding').execute(check_error=True)
+        for port in rows:
             if port.logical_port == name:
                 datapath = str(port.datapath.uuid)
                 chassis = port.chassis[0].name if port.chassis else None

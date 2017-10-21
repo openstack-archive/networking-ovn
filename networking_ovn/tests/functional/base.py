@@ -218,9 +218,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         bridge_mapping = ",".join(["%s:br-provider%s" % (phys_net, i)
                                   for i, phys_net in enumerate(physical_nets)])
         name = uuidutils.generate_uuid()
-        with self.sb_api.transaction(check_error=True) as txn:
-            external_ids['ovn-bridge-mappings'] = bridge_mapping
-            txn.add(AddFakeChassisCommand(self.sb_api, name, "172.24.4.10",
-                                          external_ids=external_ids,
-                                          hostname=host))
+        external_ids['ovn-bridge-mappings'] = bridge_mapping
+        self.sb_api.chassis_add(
+            name, ['geneve'], '172.24.4.10', external_ids=external_ids,
+            hostname=host).execute(check_error=True)
         return name

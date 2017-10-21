@@ -736,18 +736,3 @@ class TestSBImplIdlOvn(TestDBImplIdlOvn):
         mock_get_probe_interval.return_value = 5000
         inst = impl_idl_ovn.OvsdbSbOvnIdl(mock.Mock())
         inst.idl._session.reconnect.set_probe_interval.assert_called_with(5000)
-
-    def test_get_chassis_hostname_and_physnets(self):
-        self._load_sb_db()
-        mapping = self.sb_ovn_idl.get_chassis_hostname_and_physnets()
-        self.assertEqual(len(mapping), 3)
-        self.assertItemsEqual(mapping.keys(), ['host-1.localdomain.com',
-                                               'host-2.localdomain.com',
-                                               'host-3.localdomain.com'])
-
-    def test_get_all_chassis(self):
-        self._load_sb_db()
-        chassis_list = self.sb_ovn_idl.get_all_chassis()
-        self.assertItemsEqual(chassis_list, ['host-1', 'host-2', 'host-3'])
-        # TODO(azbiswas): Unit test get_all_chassis with specific chassis
-        # type
