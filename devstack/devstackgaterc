@@ -103,8 +103,8 @@ r="$r|(?:tempest\.api\.compute\.volumes*)"
 # End list of exclusions.
 r="$r)"
 
-if [[ "${OVN_OPTS}" == *"neutron-api-tests"* ]]; then
-    r="$r(^neutron\.tests\.tempest\.api).*$"
+if [[ "${OVN_OPTS}" == *"neutron-api-scenario-tests"* ]] ; then
+    r="$r((^neutron\.tests\.tempest\.api)|(^neutron\.tests\.tempest\.scenario)).*$"
     export DEVSTACK_GATE_TEMPEST=1
     export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
 else
