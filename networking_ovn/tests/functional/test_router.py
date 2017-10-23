@@ -15,8 +15,8 @@
 import mock
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.tests.functional import base
-from neutron.extensions import external_net
 from neutron.extensions import l3
+from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import provider_net as pnet
 
 

@@ -12,6 +12,7 @@
 #    under the License.
 #
 
+from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -31,7 +32,6 @@ from neutron.db import dns_db
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.db.models import l3 as l3_models
-from neutron.extensions import external_net
 from neutron.quota import resource_registry
 
 from networking_ovn.common import extensions
