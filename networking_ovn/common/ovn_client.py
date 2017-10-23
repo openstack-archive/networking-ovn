@@ -24,6 +24,7 @@ from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from neutron_lib.utils import net as n_net
@@ -58,6 +59,7 @@ class OVNClient(object):
         self._sb_idl = sb_idl
 
         self._plugin_property = None
+        self._l3_plugin_property = None
 
         qos_driver.OVNQosNotificationDriver.create()
         self._qos_driver = qos_driver.OVNQosDriver(self)
@@ -68,6 +70,13 @@ class OVNClient(object):
         if self._plugin_property is None:
             self._plugin_property = directory.get_plugin()
         return self._plugin_property
+
+    @property
+    def _l3_plugin(self):
+        if self._l3_plugin_property is None:
+            self._l3_plugin_property = directory.get_plugin(
+                plugin_constants.L3)
+        return self._l3_plugin_property
 
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
@@ -622,7 +631,41 @@ class OVNClient(object):
                     lrouter_name, ip_prefix=route['destination'],
                     nexthop=route['nexthop']))
 
-    def create_router(self, router, networks=None):
+    def _get_router_ports(self, context, router_id, get_gw_port=False):
+        router_db = self._l3_plugin._get_router(context, router_id)
+        if get_gw_port:
+            return [p.port for p in router_db.attached_ports]
+        else:
+            # When the existing deployment is migrated to OVN
+            # we may need to consider other port types - DVR_INTERFACE/HA_INTF.
+            return [p.port for p in router_db.attached_ports
+                    if p.port_type in [const.DEVICE_OWNER_ROUTER_INTF,
+                                       const.DEVICE_OWNER_DVR_INTERFACE,
+                                       const.DEVICE_OWNER_HA_REPLICATED_INT,
+                                       const.DEVICE_OWNER_ROUTER_HA_INTF]]
+
+    def _get_v4_network_for_router_port(self, context, port):
+        cidr = None
+        for fixed_ip in port['fixed_ips']:
+            subnet_id = fixed_ip['subnet_id']
+            subnet = self._plugin.get_subnet(context, subnet_id)
+            if subnet['ip_version'] != 4:
+                continue
+            cidr = subnet['cidr']
+        return cidr
+
+    def _get_v4_network_of_all_router_ports(self, context, router_id,
+                                            ports=None):
+        networks = []
+        ports = ports or self._get_router_ports(context, router_id)
+        for port in ports:
+            network = self._get_v4_network_for_router_port(context, port)
+            if network:
+                networks.append(network)
+
+        return networks
+
+    def create_router(self, router, add_external_gateway=True):
         """Create a logical router."""
         context = n_context.get_admin_context()
         external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
@@ -634,16 +677,22 @@ class OVNClient(object):
                                                 external_ids=external_ids,
                                                 enabled=enabled,
                                                 options={}))
+        # TODO(lucasagomes): add_external_gateway is being only used
+        # by the ovn_db_sync.py script, remove it after the database
+        # synchronization work
+        if add_external_gateway:
+            networks = self._get_v4_network_of_all_router_ports(
+                context, router['id'])
+            if router.get(l3.EXTERNAL_GW_INFO) and networks is not None:
+                self._add_router_ext_gw(context, router, networks)
 
-        if router.get(l3.EXTERNAL_GW_INFO) and networks is not None:
-            self._add_router_ext_gw(context, router, networks)
-
-    def update_router(self, new_router, original_router, delta, networks):
+    def update_router(self, new_router, original_router):
         """Update a logical router."""
         context = n_context.get_admin_context()
         router_id = new_router['id']
         gateway_new = new_router.get(l3.EXTERNAL_GW_INFO)
         gateway_old = original_router.get(l3.EXTERNAL_GW_INFO)
+        networks = self._get_v4_network_of_all_router_ports(context, router_id)
         try:
             if gateway_new and not gateway_old:
                 # Route gateway is set
@@ -675,14 +724,14 @@ class OVNClient(object):
         # Check for change in admin_state_up
         update = {}
         router_name = utils.ovn_name(router_id)
-        enabled = delta['router'].get('admin_state_up')
-        if enabled is not None and (
-                enabled != original_router['admin_state_up']):
+        enabled = new_router.get('admin_state_up')
+        if (enabled is not None and
+                enabled != original_router.get('admin_state_up')):
             update['enabled'] = enabled
 
         # Check for change in name
-        name = delta['router'].get('name')
-        if name and name != original_router['name']:
+        name = new_router.get('name')
+        if name and name != original_router.get('name'):
             external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: name}
             update['external_ids'] = external_ids
 
@@ -696,7 +745,7 @@ class OVNClient(object):
                               'Error: %(error)s', {'router': router_id,
                                                    'error': e})
         # Check for route updates
-        routes = delta['router'].get('routes')
+        routes = new_router.get('routes')
         if routes:
             added, removed = helpers.diff_list_of_dict(
                 original_router['routes'], routes)

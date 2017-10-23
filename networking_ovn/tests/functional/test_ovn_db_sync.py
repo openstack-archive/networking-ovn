@@ -973,7 +973,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 if gw_ip:
                     db_routes[db_router['id']].append('0.0.0.0/0' + gw_ip)
                 if r_ip and utils.is_snat_enabled(db_router):
-                    networks = self.l3_plugin.\
+                    networks = self.l3_plugin._ovn_client.\
                         _get_v4_network_of_all_router_ports(self.context,
                                                             db_router['id'])
                     db_nats[db_router['id']].extend([r_ip + network + 'snat'

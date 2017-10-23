@@ -344,8 +344,9 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 db_extends[router['id']]['routes'].append(
                     {'destination': '0.0.0.0/0', 'nexthop': gw_ip})
             if r_ip and utils.is_snat_enabled(router):
-                networks = self.l3_plugin._get_v4_network_of_all_router_ports(
-                    ctx, router['id'])
+                networks = (
+                    self._ovn_client._get_v4_network_of_all_router_ports(
+                        ctx, router['id']))
                 for network in networks:
                     db_extends[router['id']]['snats'].append({
                         'logical_ip': network,
@@ -429,7 +430,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 try:
                     LOG.warning("Creating the router %s in OVN NB DB",
                                 router['id'])
-                    self._ovn_client.create_router(router)
+                    self._ovn_client.create_router(
+                        router, add_external_gateway=False)
                     if 'routes' in router:
                         update_sroutes_list.append(
                             {'id': router['id'], 'add': router['routes'],
