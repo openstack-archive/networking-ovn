@@ -24,6 +24,7 @@ from neutron import opts as neutron_options
 from neutron.plugins.ml2 import plugin as ml2_plugin
 
 from networking_ovn.common import config as ovn_config
+from networking_ovn.common import ovn_client
 from networking_ovn.ml2 import mech_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -50,6 +51,12 @@ class OVNMechanismDriver(mech_driver.OVNMechanismDriver):
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
         pass
 
+    @property
+    def ovn_client(self):
+        if not self._ovn_client:
+            self._ovn_client = ovn_client.OVNClient(self._nb_ovn, self._sb_ovn)
+        return self._ovn_client
+
     # Since we are not using the networking_ovn mechanism driver while syncing,
     # we override the post and pre commit methods so that original ones are
     # not called.
@@ -57,19 +64,23 @@ class OVNMechanismDriver(mech_driver.OVNMechanismDriver):
         pass
 
     def create_port_postcommit(self, context):
-        pass
+        port = context.current
+        self.ovn_client.create_port(port)
 
     def update_port_precommit(self, context):
         pass
 
     def update_port_postcommit(self, context):
-        pass
+        port = context.current
+        original_port = context.original
+        self.ovn_client.update_port(port, original_port)
 
     def delete_port_precommit(self, context):
         pass
 
     def delete_port_postcommit(self, context):
-        pass
+        port = context.current
+        self.ovn_client.delete_port(port)
 
 
 class AgentNotifierApi(object):
