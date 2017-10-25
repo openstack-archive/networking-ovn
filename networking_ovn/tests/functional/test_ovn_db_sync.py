@@ -110,6 +110,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         n1_s1_dhcp_options_uuid = (
             self.mech_driver._nb_ovn.get_subnet_dhcp_options(
                 n1_s1['subnet']['id'])['uuid'])
+        n1_s2_dhcpv6_options_uuid = (
+            self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n1_s2['subnet']['id'])['uuid'])
         update_port_ids_v4 = []
         update_port_ids_v6 = []
         n1_port_dict = {}
@@ -159,7 +162,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 self.delete_acls.append((lport_name, lswitch_name))
                 self.reset_lport_dhcpv4_options.append(lport_name)
                 self.lport_dhcpv6_disabled.update({
-                    lport_name: n1_s1_dhcp_options_uuid})
+                    lport_name: n1_s2_dhcpv6_options_uuid})
                 data = {'port': {
                     'extra_dhcp_opts': [{'ip_version': 6,
                                          'opt_name': 'dhcp_disabled',
