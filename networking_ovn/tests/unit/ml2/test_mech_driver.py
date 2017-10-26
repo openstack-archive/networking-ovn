@@ -685,6 +685,21 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             portbindings.VIF_TYPE_OVS,
             self.mech_driver.vif_details[portbindings.VIF_TYPE_OVS])
 
+    def _test_bind_port_sriov(self, fake_segments):
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={'binding:vnic_type': 'direct',
+                   'binding:profile': {'capabilities': ['switchdev']}}).info()
+        fake_host = 'host'
+        fake_port_context = fakes.FakePortContext(
+            fake_port, fake_host, fake_segments)
+        self.mech_driver.bind_port(fake_port_context)
+        self.sb_ovn.get_chassis_data_for_ml2_bind_port.assert_called_once_with(
+            fake_host)
+        fake_port_context.set_binding.assert_called_once_with(
+            fake_segments[0]['id'],
+            portbindings.VIF_TYPE_OVS,
+            self.mech_driver.vif_details[portbindings.VIF_TYPE_OVS])
+
     def test_bind_port_geneve(self):
         segment_attrs = {'network_type': 'geneve',
                          'physical_network': None,
@@ -692,6 +707,15 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         fake_segments = \
             [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
         self._test_bind_port(fake_segments)
+
+    def test_bind_sriov_port_geneve(self):
+        """Test binding a SR-IOV port to a geneve segment."""
+        segment_attrs = {'network_type': 'geneve',
+                         'physical_network': None,
+                         'segmentation_id': 1023}
+        fake_segments = \
+            [fakes.FakeSegment.create_one_segment(attrs=segment_attrs).info()]
+        self._test_bind_port_sriov(fake_segments)
 
     def test_bind_port_vlan(self):
         segment_attrs = {'network_type': 'vlan',

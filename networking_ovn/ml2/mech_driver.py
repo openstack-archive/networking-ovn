@@ -123,7 +123,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         return res
 
     def _setup_vif_port_bindings(self):
-        self.supported_vnic_types = [portbindings.VNIC_NORMAL]
+        self.supported_vnic_types = [portbindings.VNIC_NORMAL,
+                                     portbindings.VNIC_DIRECT]
         self.vif_details = {
             portbindings.VIF_TYPE_OVS: {
                 portbindings.CAP_PORT_FILTER: self.sg_enabled
@@ -516,6 +517,16 @@ class OVNMechanismDriver(api.MechanismDriver):
             LOG.debug('Refusing to bind port %(port_id)s due to unsupported '
                       'vnic_type: %(vnic_type)s' %
                       {'port_id': port['id'], 'vnic_type': vnic_type})
+            return
+
+        profile = port.get(portbindings.PROFILE)
+        capabilities = []
+        if profile:
+            capabilities = profile.get('capabilities', [])
+        if (vnic_type == portbindings.VNIC_DIRECT and
+           'switchdev' not in capabilities):
+            LOG.debug("Refusing to bind port due to unsupported vnic_type: %s"
+                      "with no switchdev capability", portbindings.VNIC_DIRECT)
             return
 
         # OVN chassis information is needed to ensure a valid port bind.
