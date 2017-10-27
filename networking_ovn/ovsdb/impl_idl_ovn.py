@@ -275,8 +275,9 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def delete_lrouter(self, name, if_exists=True):
         return cmd.DelLRouterCommand(self, name, if_exists)
 
-    def add_lrouter_port(self, name, lrouter, **columns):
-        return cmd.AddLRouterPortCommand(self, name, lrouter, **columns)
+    def add_lrouter_port(self, name, lrouter, may_exist=False, **columns):
+        return cmd.AddLRouterPortCommand(self, name, lrouter,
+                                         may_exist, **columns)
 
     def update_lrouter_port(self, name, if_exists=True, **columns):
         return cmd.UpdateLRouterPortCommand(self, name, if_exists, **columns)

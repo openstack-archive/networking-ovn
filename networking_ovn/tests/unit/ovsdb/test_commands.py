@@ -646,7 +646,7 @@ class TestAddLRouterPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=idlutils.RowNotFound):
             cmd = commands.AddLRouterPortCommand(
-                self.ovn_api, 'fake-lrp', 'fake-lrouter')
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', may_exist=False)
             self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
             self.transaction.insert.assert_not_called()
 
@@ -654,8 +654,16 @@ class TestAddLRouterPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=mock.ANY):
             cmd = commands.AddLRouterPortCommand(
-                self.ovn_api, 'fake-lrp', 'fake-lrouter')
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', may_exist=False)
             self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+            self.transaction.insert.assert_not_called()
+
+    def test_lrouter_port_may_exist(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=mock.ANY):
+            cmd = commands.AddLRouterPortCommand(
+                self.ovn_api, 'fake-lrp', 'fake-lrouter', may_exist=True)
+            cmd.run_idl(self.transaction)
             self.transaction.insert.assert_not_called()
 
     def test_lrouter_port_add(self):
@@ -667,7 +675,8 @@ class TestAddLRouterPortCommand(TestBaseCommand):
                 attrs={'foo': None})
             self.transaction.insert.return_value = fake_lrp
             cmd = commands.AddLRouterPortCommand(
-                self.ovn_api, 'fake-lrp', fake_lrouter.name, foo='bar')
+                self.ovn_api, 'fake-lrp', fake_lrouter.name, may_exist=False,
+                foo='bar')
             cmd.run_idl(self.transaction)
             self.transaction.insert.assert_called_once_with(
                 self.ovn_api._tables['Logical_Router_Port'])
