@@ -667,8 +667,16 @@ class OVNMechanismDriver(api.MechanismDriver):
         if config.is_ovn_metadata_enabled() and self._sb_ovn:
             # Wait until metadata service has been setup for this port in the
             # chassis it resides.
-            chassis, datapath = (
+            result = (
                 self._sb_ovn.get_logical_port_chassis_and_datapath(port_id))
+            if not result:
+                LOG.warning("Logical port %s doesn't exist in OVN", port_id)
+                return
+            chassis, datapath = result
+            if not chassis:
+                LOG.warning("Logical port %s is not bound to a "
+                            "chassis", port_id)
+                return
             try:
                 n_utils.wait_until_true(
                     lambda: datapath in
