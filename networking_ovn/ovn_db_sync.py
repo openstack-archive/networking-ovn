@@ -723,7 +723,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug('OVN-NB Sync DHCP options for Neutron ports with extra '
                   'dhcp options assigned finished')
 
-    def _sync_metadata_ports(self, ctx):
+    def _sync_metadata_ports(self, ctx, db_ports):
         """Ensure metadata ports in all Neutron networks.
 
         This method will ensure that all networks have one and only one
@@ -760,6 +760,19 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         LOG.warning('Deleting unnecessary DHCP port %s for '
                                     'network %s', port['id'], net['id'])
                         self.core_plugin.delete_port(ctx, port['id'])
+                    db_ports.pop(port['id'], None)
+                port = dhcp_ports[0]
+                if port['id'] in db_ports.keys():
+                    LOG.warning('Metadata port %s for network %s found in '
+                                'Neutron but not in OVN',
+                                port['id'], net['id'])
+                    if self.mode == SYNC_MODE_REPAIR:
+                        LOG.warning('Creating metadata port %s for network '
+                                    '%s in OVN',
+                                    port['id'], net['id'])
+                        self._create_port_in_ovn(ctx, port)
+                    db_ports.pop(port['id'])
+
             if self.mode == SYNC_MODE_REPAIR:
                 # Make sure that this port has an IP address in all the subnets
                 self._ovn_client.update_metadata_port(ctx, net['id'])
@@ -821,7 +834,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning("Create network in OVN NB failed for "
                                 "network %s", network['id'])
 
-        self._sync_metadata_ports(ctx)
+        self._sync_metadata_ports(ctx, db_ports)
 
         self._sync_subnet_dhcp_options(
             ctx, db_network_cache, ovn_all_dhcp_options['subnets'])
