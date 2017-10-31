@@ -364,7 +364,7 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
+    def add_dhcp_options(self, subnet_id, port_id=None, may_exist=True,
                          **columns):
         """Adds the DHCP options specified in the @columns in DHCP_Options
 
@@ -378,11 +378,11 @@ class API(api.API):
         :param port_id:        The port id to which the DHCP options belong to
                                if specified
         :type port_id:         string
-        :param may_exists:     If true, checks if the DHCP options for
+        :param may_exist:      If true, checks if the DHCP options for
                                subnet_id exists or not. If it already exists,
                                it updates the row with the columns specified.
                                Else creates a new row.
-        :type may_exists:      bool
+        :type may_exist:       bool
         :type columns:         Dictionary of DHCP_Options columns
                                Supported columns: see DHCP_Options table in
                                OVN_Northbound

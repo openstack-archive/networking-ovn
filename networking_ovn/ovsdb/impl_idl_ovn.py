@@ -390,10 +390,10 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                     unhosted_gateways.append(lrp.name)
         return unhosted_gateways
 
-    def add_dhcp_options(self, subnet_id, port_id=None, may_exists=True,
+    def add_dhcp_options(self, subnet_id, port_id=None, may_exist=True,
                          **columns):
         return cmd.AddDHCPOptionsCommand(self, subnet_id, port_id=port_id,
-                                         may_exists=may_exists, **columns)
+                                         may_exist=may_exist, **columns)
 
     def delete_dhcp_options(self, row_uuid, if_exists=True):
         return cmd.DelDHCPOptionsCommand(self, row_uuid, if_exists=if_exists)

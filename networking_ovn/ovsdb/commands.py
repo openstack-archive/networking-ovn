@@ -840,11 +840,11 @@ class UpdatePortBindingExtIdsCommand(command.BaseCommand):
 
 
 class AddDHCPOptionsCommand(command.BaseCommand):
-    def __init__(self, api, subnet_id, port_id=None, may_exists=True,
+    def __init__(self, api, subnet_id, port_id=None, may_exist=True,
                  **columns):
         super(AddDHCPOptionsCommand, self).__init__(api)
         self.columns = columns
-        self.may_exists = may_exists
+        self.may_exist = may_exist
         self.subnet_id = subnet_id
         self.port_id = port_id
         self.new_insert = False
@@ -859,7 +859,7 @@ class AddDHCPOptionsCommand(command.BaseCommand):
 
     def run_idl(self, txn):
         row = None
-        if self.may_exists:
+        if self.may_exist:
             row = self._get_dhcp_options_row()
 
         if not row:

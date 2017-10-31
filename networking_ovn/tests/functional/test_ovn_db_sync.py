@@ -663,7 +663,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
                     external_ids=dhcp_opts['external_ids'],
-                    may_exists=False))
+                    may_exist=False))
                 if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
                     continue
                 txn.add(self.nb_api.set_lswitch_port(
@@ -676,7 +676,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     cidr=dhcp_opts['cidr'],
                     options=dhcp_opts['options'],
                     external_ids=dhcp_opts['external_ids'],
-                    may_exists=False))
+                    may_exist=False))
                 if dhcp_opts['port_id'] in self.orphaned_lport_dhcp_options:
                     continue
                 txn.add(self.nb_api.set_lswitch_port(
