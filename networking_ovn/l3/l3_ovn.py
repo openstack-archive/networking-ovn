@@ -148,18 +148,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                                                              revert_router)
         return result
 
-    def _update_lrouter_routes(self, context, router_id, add, remove):
-        lrouter_name = utils.ovn_name(router_id)
-        with self._ovn.transaction(check_error=True) as txn:
-            for route in add:
-                txn.add(self._ovn.add_static_route(
-                    lrouter_name, ip_prefix=route['destination'],
-                    nexthop=route['nexthop']))
-            for route in remove:
-                txn.add(self._ovn.delete_static_route(
-                    lrouter_name, ip_prefix=route['destination'],
-                    nexthop=route['nexthop']))
-
     def delete_router(self, context, id):
         original_router = self.get_router(context, id)
         super(OVNL3RouterPlugin, self).delete_router(context, id)
@@ -427,4 +415,5 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         add = [{'destination': '0.0.0.0/0', 'nexthop': current_gw_ip}
                ] if current_gw_ip else []
         for router_id in router_ids:
-            l3plugin._update_lrouter_routes(context, router_id, add, remove)
+            l3plugin._ovn_client.update_router_routes(
+                context, router_id, add, remove)
