@@ -77,7 +77,7 @@ r="$r|(?:tempest\.api\.network\.test_fwaas_extensions.*)"
 r="$r|(?:tempest\.api\.network\.test_metering_extensions.*)"
 r="$r|(?:tempest\.thirdparty\.boto\.test_s3.*)"
 
-# exclude this test case because this expects dhcp interface to be present
+# TODO(dalvarez): remove this exclusion when https://bugs.launchpad.net/tempest/+bug/1728886 is fixed
 r="$r|(?:tempest\.scenario\.test_network_basic_ops\.TestNetworkBasicOps\.test_port_security_macspoofing_port)"
 
 # exclude some unrelated stuff to make networking-ovn targeted runs go faster
