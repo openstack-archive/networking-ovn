@@ -108,6 +108,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()
 
+    def get_additional_service_plugins(self):
+        p = super(TestOVNFunctionalBase, self).get_additional_service_plugins()
+        p.update({'revision_plugin_name': 'revisions'})
+        return p
+
     @property
     def _ovsdb_protocol(self):
         return self.get_ovsdb_server_protocol()

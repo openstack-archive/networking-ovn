@@ -935,14 +935,26 @@ class OVNClient(object):
             tag=tag if tag else [],
             options={'network_name': physnet}))
 
+    def _gen_network_external_ids(self, network):
+        ext_ids = {
+            ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(
+                utils.get_revision_number(network, ovn_const.TYPE_NETWORKS))}
+
+        # NOTE(lucasagomes): There's a difference between the
+        # "qos_policy_id" key existing and it being None, the latter is a
+        # valid value. Since we can't save None in OVSDB, we are converting
+        # it to "null" as a placeholder.
+        if 'qos_policy_id' in network:
+            ext_ids[ovn_const.OVN_QOS_POLICY_EXT_ID_KEY] = (
+                network['qos_policy_id'] or 'null')
+        return ext_ids
+
     def create_network(self, network):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
-        ext_ids = {
-            ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name']
-        }
-
+        ext_ids = self._gen_network_external_ids(network)
         lswitch_name = utils.ovn_name(network['id'])
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.ls_add(lswitch_name, external_ids=ext_ids))
@@ -950,9 +962,7 @@ class OVNClient(object):
             if physnet:
                 self._create_provnet_port(txn, network, physnet,
                                           network.get(pnet.SEGMENTATION_ID))
-
         self.create_metadata_port(n_context.get_admin_context(), network)
-
         return network
 
     def delete_network(self, network_id):
@@ -965,13 +975,35 @@ class OVNClient(object):
             if ls_dns_record:
                 txn.add(self._nb_idl.dns_del(ls_dns_record.uuid))
 
-    def update_network(self, network, original_network):
-        if network['name'] != original_network['name']:
-            ext_id = [ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, network['name']]
-            self._nb_idl.set_lswitch_ext_id(
-                utils.ovn_name(network['id']), ext_id).execute(
-                    check_error=True)
-        self._qos_driver.update_network(network, original_network)
+    def _is_qos_update_required(self, network):
+        # Is qos service enabled
+        if 'qos_policy_id' not in network:
+            return False
+
+        # Check if qos service wasn't enabled before
+        ovn_net = self._nb_idl.get_lswitch(utils.ovn_name(network['id']))
+        if ovn_const.OVN_QOS_POLICY_EXT_ID_KEY not in ovn_net.external_ids:
+            return True
+
+        # Check if the policy_id has changed
+        new_qos_id = network['qos_policy_id'] or 'null'
+        return new_qos_id != ovn_net.external_ids[
+            ovn_const.OVN_QOS_POLICY_EXT_ID_KEY]
+
+    def update_network(self, network):
+        lswitch_name = utils.ovn_name(network['id'])
+        # Check if QoS needs to be update, before updating OVNDB
+        qos_update_required = self._is_qos_update_required(network)
+        check_rev_cmd = self._nb_idl.check_revision_number(
+            lswitch_name, network, ovn_const.TYPE_NETWORKS)
+        with self._nb_idl.transaction(check_error=True) as txn:
+            txn.add(check_rev_cmd)
+            ext_ids = self._gen_network_external_ids(network)
+            txn.add(self._nb_idl.set_lswitch_ext_ids(lswitch_name, ext_ids))
+
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+            if qos_update_required:
+                self._qos_driver.update_network(network)
 
     def _add_subnet_dhcp_options(self, subnet, network,
                                  ovn_dhcp_options=None):

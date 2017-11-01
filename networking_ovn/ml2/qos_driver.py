@@ -143,19 +143,15 @@ class OVNQosDriver(object):
             # Call into OVN client to update port
             self._driver.update_port(port, port, qos_options=options)
 
-    def update_network(self, network, original_network):
+    def update_network(self, network):
         # Is qos service enabled
         if 'qos_policy_id' not in network:
-            return
-        # Was network qos policy changed
-        network_policy_id = network.get('qos_policy_id')
-        old_network_policy_id = original_network.get('qos_policy_id')
-        if network_policy_id == old_network_policy_id:
             return
 
         # Update the qos options on each network port
         context = n_context.get_admin_context()
-        options = self._generate_port_options(context, network_policy_id)
+        options = self._generate_port_options(
+            context, network['qos_policy_id'])
         self._update_network_ports(context, network.get('id'), options)
 
     def update_policy(self, context, policy):

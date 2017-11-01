@@ -15,7 +15,12 @@ from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils
+
+RESOURCE_TYPE_MAP = {
+    ovn_const.TYPE_NETWORKS: 'Logical_Switch',
+}
 
 
 def _addvalue_to_list(row, column, new_value):
@@ -75,12 +80,11 @@ def _add_gateway_chassis(api, txn, lrp_name, val):
         return 'options', chassis
 
 
-class LSwitchSetExternalIdCommand(command.BaseCommand):
-    def __init__(self, api, name, field, value, if_exists):
-        super(LSwitchSetExternalIdCommand, self).__init__(api)
+class LSwitchSetExternalIdsCommand(command.BaseCommand):
+    def __init__(self, api, name, ext_ids, if_exists):
+        super(LSwitchSetExternalIdsCommand, self).__init__(api)
         self.name = name
-        self.field = field
-        self.value = value
+        self.ext_ids = ext_ids
         self.if_exists = if_exists
 
     def run_idl(self, txn):
@@ -95,9 +99,9 @@ class LSwitchSetExternalIdCommand(command.BaseCommand):
             raise RuntimeError(msg)
 
         lswitch.verify('external_ids')
-
         external_ids = getattr(lswitch, 'external_ids', {})
-        external_ids[self.field] = self.value
+        for key, value in self.ext_ids.items():
+            external_ids[key] = value
         lswitch.external_ids = external_ids
 
 
@@ -1002,3 +1006,46 @@ class DeleteNatIpFromLRPortPeerOptionsCommand(command.BaseCommand):
         else:
             options['nat-addresses'] = nat_ips
         lport.options = options
+
+
+class CheckRevisionNumberCommand(command.BaseCommand):
+
+    def __init__(self, api, name, resource, resource_type, if_exists):
+        super(CheckRevisionNumberCommand, self).__init__(api)
+        self.name = name
+        self.resource = resource
+        self.resource_type = resource_type
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            ovn_table = RESOURCE_TYPE_MAP[self.resource_type]
+            ovn_resource = self.api.lookup(ovn_table, self.name)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = (_('Failed to check the revision number for %s: Resource '
+                     'does not exist') % self.name)
+            raise RuntimeError(msg)
+
+        # TODO(lucasagomes): After OVS 2.8.2 is released all tables should
+        # have the external_ids column. We can remove this conditional
+        # here by then.
+        if not self.api.is_col_present(ovn_table, 'external_ids'):
+            return
+
+        external_ids = getattr(ovn_resource, 'external_ids', {})
+        ovn_revision = int(external_ids.get(
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
+        neutron_revision = utils.get_revision_number(self.resource,
+                                                     self.resource_type)
+        if ovn_revision > neutron_revision:
+            raise ovn_exc.RevisionConflict(
+                resource_id=self.name, resource_type=self.resource_type)
+
+        ovn_resource.verify('external_ids')
+        ovn_resource.setkey('external_ids', ovn_const.OVN_REV_NUM_EXT_ID_KEY,
+                            str(neutron_revision))
+
+    def post_commit(self, txn):
+        self.result = ovn_const.TXN_COMMITTED

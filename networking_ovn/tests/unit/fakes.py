@@ -44,7 +44,7 @@ class FakeOvsdbNbOvnIdl(object):
         self._tables['NAT'] = self.nat_table
         self.transaction = mock.MagicMock()
         self.ls_add = mock.Mock()
-        self.set_lswitch_ext_id = mock.Mock()
+        self.set_lswitch_ext_ids = mock.Mock()
         self.ls_del = mock.Mock()
         self.create_lswitch_port = mock.Mock()
         self.set_lswitch_port = mock.Mock()
@@ -91,12 +91,15 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_parent_port = mock.Mock()
         self.get_parent_port.return_value = []
         self.dns_add = mock.Mock()
+        self.get_lswitch = mock.Mock()
+        fake_ovs_row = FakeOvsdbRow.create_one_ovsdb_row()
+        self.get_lswitch.return_value = fake_ovs_row
         self.get_ls_and_dns_record = mock.Mock()
-        self.get_ls_and_dns_record.return_value = (
-            FakeOvsdbRow.create_one_ovsdb_row(), None)
+        self.get_ls_and_dns_record.return_value = (fake_ovs_row, None)
         self.ls_set_dns_records = mock.Mock()
         self.get_floatingip = mock.Mock()
         self.get_floatingip.return_value = None
+        self.check_revision_number = mock.Mock()
         # TODO(lucasagomes): The get_floatingip_by_ips() method is part
         # of a backwards compatibility layer for the Pike -> Queens release,
         # remove it in the Rocky release.
@@ -291,7 +294,8 @@ class FakeOvsdbRow(FakeResource):
         fake_uuid = uuidutils.generate_uuid()
         ovsdb_row_attrs = {
             'uuid': fake_uuid,
-            'name': 'name-' + fake_uuid
+            'name': 'name-' + fake_uuid,
+            'external_ids': {},
         }
 
         # Set default methods.

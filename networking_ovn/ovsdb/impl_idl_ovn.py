@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import contextlib
 import uuid
 
 from neutron_lib import exceptions as n_exc
@@ -27,6 +28,7 @@ from ovsdbapp.schema.ovn_southbound import impl_idl as sb_impl_idl
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
@@ -125,10 +127,22 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         self.idl._session.reconnect.set_probe_interval(
             cfg.get_ovn_ovsdb_probe_interval())
 
-    def set_lswitch_ext_id(self, lswitch_id, ext_id, if_exists=True):
-        return cmd.LSwitchSetExternalIdCommand(self, lswitch_id,
-                                               ext_id[0], ext_id[1],
-                                               if_exists)
+    @contextlib.contextmanager
+    def transaction(self, *args, **kwargs):
+        """A wrapper on the ovsdbapp transaction to work with revisions.
+
+        This method is just a wrapper around the ovsdbapp transaction
+        to handle revision conflicts correctly.
+        """
+        try:
+            with super(OvsdbNbOvnIdl, self).transaction(*args, **kwargs) as t:
+                yield t
+        except ovn_exc.RevisionConflict as e:
+            LOG.info('Transaction aborted. Reason: %s', e)
+
+    def set_lswitch_ext_ids(self, lswitch_id, ext_ids, if_exists=True):
+        return cmd.LSwitchSetExternalIdsCommand(self, lswitch_id, ext_ids,
+                                                if_exists)
 
     def create_lswitch_port(self, lport_name, lswitch_name, may_exist=True,
                             **columns):
@@ -523,11 +537,16 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         except idlutils.RowNotFound:
             return ''
 
-    def get_ls_and_dns_record(self, lswitch_name):
+    def get_lswitch(self, lswitch_name):
         try:
-            ls = idlutils.row_by_value(self.idl, 'Logical_Switch',
-                                       'name', lswitch_name)
+            return idlutils.row_by_value(self.idl, 'Logical_Switch',
+                                         'name', lswitch_name)
         except idlutils.RowNotFound:
+            return None
+
+    def get_ls_and_dns_record(self, lswitch_name):
+        ls = self.get_lswitch(lswitch_name)
+        if not ls:
             return (None, None)
 
         if not hasattr(ls, 'dns_records'):
@@ -572,6 +591,11 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                nat['logical_ip'] == logical_ip and
                nat['external_ip'] == external_ip):
                 return nat
+
+    def check_revision_number(self, name, resource, resource_type,
+                              if_exists=True):
+        return cmd.CheckRevisionNumberCommand(
+            self, name, resource, resource_type, if_exists)
 
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):

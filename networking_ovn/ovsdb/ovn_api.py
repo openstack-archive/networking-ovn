@@ -20,13 +20,13 @@ import six
 class API(api.API):
 
     @abc.abstractmethod
-    def set_lswitch_ext_id(self, name, ext_id, if_exists=True):
-        """Create a command to set OVN lswitch external id
+    def set_lswitch_ext_ids(self, name, ext_ids, if_exists=True):
+        """Create a command to set OVN lswitch external ids
 
         :param name:      The name of the lswitch
         :type name:       string
-        :param ext_id:    The external id to set for the lswitch
-        :type ext_id:     pair of <ext_id_key ,ext_id_value>
+        :param ext_ids    The external ids to set for the lswitch
+        :type ext_ids:    dictionary
         :param if_exists: Do not fail if lswitch does not exist
         :type if_exists:  bool
         :returns:        :class:`Command` with no result
@@ -489,6 +489,16 @@ class API(api.API):
         :type columns:       dictionary
         :returns:            :class:`Command` with no result
         """
+
+    @abc.abstractmethod
+    def get_lswitch(self, lswitch_name):
+        """Returns the logical switch
+
+        :param lswitch_name: The unique name of the logical switch
+        :type lswitch_name: string
+        :returns: Returns logical switch or None
+        """
+
     @abc.abstractmethod
     def get_ls_and_dns_record(self, lswitch_name):
         """Returns the logical switch and 'dns' records
@@ -522,6 +532,27 @@ class API(api.API):
         :param external_ip: The FIP's external IP address
         :type external_ip: string
         :returns: The NAT rule row or None
+        """
+
+    def check_revision_number(self, name, resource, resource_type,
+                              if_exists=True):
+        """Compare the revision number from Neutron and OVN.
+
+        Check if the revision number in OVN is lower than the one from
+        the Neutron resource, otherwise raise RevisionConflict and abort
+        the transaction.
+
+        :param name:          The unique name of the resource
+        :type name:           string
+        :param resource:      The neutron resource object
+        :type resource:       dictionary
+        :param resource_type: The resource object type
+        :type resource_type:  dictionary
+        :param if_exists:     Do not fail if resource does not exist
+        :type if_exists:      bool
+        :returns:             :class:`Command` with no result
+        :raise:               RevisionConflict if the revision number in
+                              OVN is equal or higher than the neutron object
         """
 
 

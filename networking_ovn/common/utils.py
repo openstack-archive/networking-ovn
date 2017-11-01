@@ -23,6 +23,7 @@ from neutron_lib.utils import net as n_utils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants
+from networking_ovn.common import exceptions as ovn_exc
 
 
 def ovn_name(id):
@@ -195,3 +196,11 @@ def is_dhcp_options_ignored(subnet):
 
 def get_ovn_ipv6_address_mode(address_mode):
     return constants.OVN_IPV6_ADDRESS_MODES[address_mode]
+
+
+def get_revision_number(resource, resource_type):
+    """Get the resource's revision number based on its type."""
+    if resource_type in (constants.TYPE_NETWORKS,):
+        return resource['revision_number']
+    else:
+        raise ovn_exc.UnknownResourceType(resource_type=resource_type)

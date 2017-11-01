@@ -1387,7 +1387,9 @@ class TestOvnSbSync(base.TestOVNFunctionalBase):
         self.ctx = context.get_admin_context()
 
     def get_additional_service_plugins(self):
-        return {'segments': 'neutron.services.segments.plugin.Plugin'}
+        p = super(TestOvnSbSync, self).get_additional_service_plugins()
+        p.update({'segments': 'neutron.services.segments.plugin.Plugin'})
+        return p
 
     def _sync_resources(self):
         self.sb_synchronizer.sync_hostname_and_physical_networks(self.ctx)

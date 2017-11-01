@@ -288,9 +288,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         network state.  It is up to the mechanism driver to ignore
         state or state changes that it does not know or care about.
         """
-        network = context.current
-        original_network = context.original
-        self._ovn_client.update_network(network, original_network)
+        self._ovn_client.update_network(context.current)
 
     def delete_network_postcommit(self, context):
         """Delete a network.

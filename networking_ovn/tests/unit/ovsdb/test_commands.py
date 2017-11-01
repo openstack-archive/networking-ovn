@@ -86,14 +86,14 @@ class TestBaseCommand(base.TestCase):
         self.ovn_api.transaction = self.transaction
 
 
-class TestLSwitchSetExternalIdCommand(TestBaseCommand):
+class TestLSwitchSetExternalIdsCommand(TestBaseCommand):
 
     def _test_lswitch_extid_update_no_exist(self, if_exists=True):
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=idlutils.RowNotFound):
-            cmd = commands.LSwitchSetExternalIdCommand(
+            cmd = commands.LSwitchSetExternalIdsCommand(
                 self.ovn_api, 'fake-lswitch',
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY, 'neutron-network',
+                {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'neutron-network'},
                 if_exists=if_exists)
             if if_exists:
                 cmd.run_idl(self.transaction)
@@ -115,10 +115,9 @@ class TestLSwitchSetExternalIdCommand(TestBaseCommand):
             attrs={'external_ids': ext_ids})
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lswitch):
-            cmd = commands.LSwitchSetExternalIdCommand(
+            cmd = commands.LSwitchSetExternalIdsCommand(
                 self.ovn_api, fake_lswitch.name,
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY,
-                new_network_name,
+                {ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: new_network_name},
                 if_exists=True)
             cmd.run_idl(self.transaction)
             self.assertEqual(new_ext_ids, fake_lswitch.external_ids)

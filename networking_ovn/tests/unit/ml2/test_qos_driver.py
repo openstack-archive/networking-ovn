@@ -187,12 +187,12 @@ class TestOVNQosDriver(base.BaseTestCase):
         port['qos_policy_id'] = None
         self._update_network_ports(port, True)
 
-    def _update_network(self, network, original_network, called):
+    def _update_network(self, network, called):
         with mock.patch.object(self.driver, '_generate_port_options',
                                return_value={}) as generate_port_options:
             with mock.patch.object(self.driver, '_update_network_ports'
                                    ) as update_network_ports:
-                self.driver.update_network(network, original_network)
+                self.driver.update_network(network)
                 if called:
                     generate_port_options.assert_called_once_with(
                         context, self.network_policy_id)
@@ -206,22 +206,12 @@ class TestOVNQosDriver(base.BaseTestCase):
     def test_update_network_no_qos(self, *mocks):
         network = self._create_fake_network()
         network.pop('qos_policy_id')
-        original_network = self._create_fake_network()
-        original_network.pop('qos_policy_id')
-        self._update_network(network, original_network, False)
-
-    @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
-    def test_update_network_no_change(self, *mocks):
-        network = self._create_fake_network()
-        original_network = self._create_fake_network()
-        self._update_network(network, original_network, False)
+        self._update_network(network, False)
 
     @mock.patch('neutron_lib.context.get_admin_context', return_value=context)
     def test_update_network_policy_change(self, *mocks):
         network = self._create_fake_network()
-        original_network = self._create_fake_network()
-        original_network['qos_policy_id'] = uuidutils.generate_uuid()
-        self._update_network(network, original_network, True)
+        self._update_network(network, True)
 
     def test_update_policy(self):
         with mock.patch.object(self.driver, '_generate_port_options',

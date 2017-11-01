@@ -15,6 +15,7 @@
 import mock
 from webob import exc
 
+from neutron.services.revisions import revision_plugin
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -87,6 +88,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             "networking_ovn.common.acl._acl_columns_name_severity_supported",
             return_value=True
         ).start()
+        revision_plugin.RevisionPlugin()
 
     def test__create_security_group(self):
         self.mech_driver._create_security_group(
@@ -1276,6 +1278,9 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
         self.mech_driver._insert_port_provisioning_block = mock.Mock()
+        p = mock.patch.object(ovn_utils, 'get_revision_number', return_value=1)
+        p.start()
+        self.addCleanup(p.stop)
 
 
 class TestOVNMechansimDriverBasicGet(test_plugin.TestMl2BasicGet,
@@ -1393,6 +1398,9 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
+        p = mock.patch.object(ovn_utils, 'get_revision_number', return_value=1)
+        p.start()
+        self.addCleanup(p.stop)
 
     def _test_segment_host_mapping(self):
         # Disable the callback to update SegmentHostMapping by default, so
@@ -1857,6 +1865,7 @@ class TestOVNMechanismDriverSecurityGroup(
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
         self.ctx = context.get_admin_context()
+        revision_plugin.RevisionPlugin()
 
     def _delete_default_sg_rules(self, security_group_id):
         res = self._list(
@@ -2155,6 +2164,9 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          True,
                                          group='ovn')
+        p = mock.patch.object(ovn_utils, 'get_revision_number', return_value=1)
+        p.start()
+        self.addCleanup(p.stop)
 
     def test_metadata_port_on_network_create(self):
         """Check metadata port create.

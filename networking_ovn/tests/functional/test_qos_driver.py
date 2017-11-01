@@ -39,7 +39,9 @@ class TestOVNQosDriver(base.TestOVNFunctionalBase):
         self.qos_api = test_extensions.setup_extensions_middleware(qos_mgr)
 
     def get_additional_service_plugins(self):
-        return {'qos_plugin_name': 'qos'}
+        p = super(TestOVNQosDriver, self).get_additional_service_plugins()
+        p.update({'qos_plugin_name': 'qos'})
+        return p
 
     def _test_qos_policy_create(self):
         data = {'policy': {'name': 'test-policy',
