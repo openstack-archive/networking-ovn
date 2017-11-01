@@ -192,14 +192,12 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertFalse(self.driver.set_port_status_down.called)
 
     def test_notify_no_ovsdb_lock(self):
-        self.idl.has_lock = False
         self.idl.is_lock_contended = True
         self.idl.notify_handler.notify = mock.Mock()
         self.idl.notify("create", mock.ANY)
         self.assertFalse(self.idl.notify_handler.notify.called)
 
     def test_notify_ovsdb_lock_not_yet_contended(self):
-        self.idl.has_lock = False
         self.idl.is_lock_contended = False
         self.idl.notify_handler.notify = mock.Mock()
         self.idl.notify("create", mock.ANY)

@@ -189,7 +189,7 @@ class OvnIdl(BaseOvnIdl):
     def notify(self, event, row, updates=None):
         # Do not handle the notification if the event lock is requested,
         # but not granted by the ovsdb-server.
-        if (self.is_lock_contended and not self.has_lock):
+        if self.is_lock_contended:
             return
         self.notify_handler.notify(event, row, updates)
 
