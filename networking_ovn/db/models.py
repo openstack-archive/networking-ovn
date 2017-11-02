@@ -13,6 +13,28 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# FIXME(lucasagomes): Leaving this import to avoid:
-# H104  File contains nothing but comments
-import sqlalchemy as sa  # noqa
+from neutron_lib.db import model_base
+import sqlalchemy as sa
+from sqlalchemy.dialects import sqlite
+
+
+class OVNRevisionNumbers(model_base.BASEV2):
+    __tablename__ = 'ovn_revision_numbers'
+    __table_args__ = (
+        model_base.BASEV2.__table_args__
+    )
+    standard_attr_id = sa.Column(
+        sa.BigInteger().with_variant(sa.Integer(), 'sqlite'),
+        sa.ForeignKey('standardattributes.id', ondelete='SET NULL'),
+        nullable=True)
+    resource_uuid = sa.Column(sa.String(36), nullable=False, primary_key=True)
+    resource_type = sa.Column(sa.String(36), nullable=False)
+    revision_number = sa.Column(
+        sa.BigInteger().with_variant(sa.Integer(), 'sqlite'),
+        server_default='0', nullable=False)
+    created_at = sa.Column(
+        sa.DateTime().with_variant(
+            sqlite.DATETIME(truncate_microseconds=True), 'sqlite'),
+        default=sa.func.now())
+    updated_at = sa.Column(sa.TIMESTAMP, server_default=sa.func.now(),
+                           onupdate=sa.func.now())

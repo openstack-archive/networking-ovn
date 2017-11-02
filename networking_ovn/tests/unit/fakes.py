@@ -240,6 +240,7 @@ class FakeNetworkContext(object):
     def __init__(self, network, segments):
         self.fake_network = network
         self.fake_segments = segments
+        self._plugin_context = mock.MagicMock()
 
     @property
     def current(self):

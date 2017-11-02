@@ -37,6 +37,7 @@ from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
+from networking_ovn.db import revision as db_rev
 from networking_ovn.l3 import l3_ovn_scheduler
 from networking_ovn.ml2 import qos_driver
 
@@ -962,6 +963,7 @@ class OVNClient(object):
             if physnet:
                 self._create_provnet_port(txn, network, physnet,
                                           network.get(pnet.SEGMENTATION_ID))
+        db_rev.bump_revision(network, ovn_const.TYPE_NETWORKS)
         self.create_metadata_port(n_context.get_admin_context(), network)
         return network
 
@@ -974,6 +976,7 @@ class OVNClient(object):
                     if_exists=True))
             if ls_dns_record:
                 txn.add(self._nb_idl.dns_del(ls_dns_record.uuid))
+        db_rev.delete_revision(network_id)
 
     def _is_qos_update_required(self, network):
         # Is qos service enabled
@@ -1004,6 +1007,7 @@ class OVNClient(object):
         if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             if qos_update_required:
                 self._qos_driver.update_network(network)
+            db_rev.bump_revision(network, ovn_const.TYPE_NETWORKS)
 
     def _add_subnet_dhcp_options(self, subnet, network,
                                  ovn_dhcp_options=None):

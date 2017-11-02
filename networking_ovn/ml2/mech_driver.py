@@ -38,6 +38,7 @@ from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
+from networking_ovn.db import revision as db_rev
 from networking_ovn.ml2 import qos_driver
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
@@ -239,6 +240,9 @@ class OVNMechanismDriver(api.MechanismDriver):
         of the current transaction.
         """
         self._validate_network_segments(context.network_segments)
+        db_rev.create_initial_revision(
+            context.current['id'], ovn_const.TYPE_NETWORKS,
+            context._plugin_context.session)
 
     def create_network_postcommit(self, context):
         """Create a network.
@@ -288,6 +292,10 @@ class OVNMechanismDriver(api.MechanismDriver):
         network state.  It is up to the mechanism driver to ignore
         state or state changes that it does not know or care about.
         """
+        # FIXME(lucasagomes): We can delete this conditional after
+        # https://bugs.launchpad.net/neutron/+bug/1739798 is fixed.
+        if context._plugin_context.session.is_active:
+            return
         self._ovn_client.update_network(context.current)
 
     def delete_network_postcommit(self, context):
