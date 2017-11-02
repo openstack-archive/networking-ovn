@@ -45,9 +45,9 @@ class FakeOvsdbNbOvnIdl(object):
         self._tables['DHCP_Options'] = self.dhcp_options_table
         self._tables['NAT'] = self.nat_table
         self.transaction = _fake
-        self.create_lswitch = mock.Mock()
+        self.ls_add = mock.Mock()
         self.set_lswitch_ext_id = mock.Mock()
-        self.delete_lswitch = mock.Mock()
+        self.ls_del = mock.Mock()
         self.create_lswitch_port = mock.Mock()
         self.set_lswitch_port = mock.Mock()
         self.delete_lswitch_port = mock.Mock()
