@@ -15,8 +15,8 @@
 import mock
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.tests.functional import base
-from neutron.extensions import l3
 from neutron_lib.api.definitions import external_net
+from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import provider_net as pnet
 
 
@@ -113,7 +113,7 @@ class TestRouter(base.TestOVNFunctionalBase):
             gw_info = {'network_id': ext2['network']['id']}
             self.l3_plugin.update_router(
                 self.context, router1['id'],
-                {'router': {l3.EXTERNAL_GW_INFO: gw_info}})
+                {'router': {l3_apidef.EXTERNAL_GW_INFO: gw_info}})
             self._set_redirect_chassis_to_invalid_chassis(ovn_client)
             self.l3_plugin.schedule_unhosted_gateways()
 
@@ -121,7 +121,7 @@ class TestRouter(base.TestOVNFunctionalBase):
             gw_info = {'network_id': ext3['network']['id']}
             self.l3_plugin.update_router(
                 self.context, router1['id'],
-                {'router': {l3.EXTERNAL_GW_INFO: gw_info}})
+                {'router': {l3_apidef.EXTERNAL_GW_INFO: gw_info}})
             self._set_redirect_chassis_to_invalid_chassis(ovn_client)
             self.l3_plugin.schedule_unhosted_gateways()
 
