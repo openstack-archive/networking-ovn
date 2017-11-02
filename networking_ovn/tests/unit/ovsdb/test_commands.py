@@ -1205,14 +1205,14 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
             fake_dhcp_options
         cmd = commands.AddDHCPOptionsCommand(
             self.ovn_api, fake_ext_ids['subnet_id'], fake_ext_ids['port_id'],
-            may_exists=True, external_ids=fake_ext_ids)
+            may_exist=True, external_ids=fake_ext_ids)
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_not_called()
         self.assertEqual(fake_ext_ids, fake_dhcp_options.external_ids)
 
-    def _test_dhcp_options_add(self, may_exists=True):
-        fake_subnet_id = 'fake-subnet-id-' + str(may_exists)
-        fake_port_id = 'fake-port-id-' + str(may_exists)
+    def _test_dhcp_options_add(self, may_exist=True):
+        fake_subnet_id = 'fake-subnet-id-' + str(may_exist)
+        fake_port_id = 'fake-port-id-' + str(may_exist)
         fake_ext_ids1 = {'subnet_id': fake_subnet_id, 'port_id': fake_port_id}
         fake_dhcp_options1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'external_ids': fake_ext_ids1})
@@ -1227,7 +1227,7 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
             fake_dhcp_options3
         self.transaction.insert.return_value = fake_dhcp_options2
         cmd = commands.AddDHCPOptionsCommand(
-            self.ovn_api, fake_ext_ids2['subnet_id'], may_exists=may_exists,
+            self.ovn_api, fake_ext_ids2['subnet_id'], may_exist=may_exist,
             external_ids=fake_ext_ids2)
         cmd.run_idl(self.transaction)
         self.transaction.insert.assert_called_once_with(
@@ -1235,10 +1235,10 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
         self.assertEqual(fake_ext_ids2, fake_dhcp_options2.external_ids)
 
     def test_dhcp_options_add_may_exist(self):
-        self._test_dhcp_options_add(may_exists=True)
+        self._test_dhcp_options_add(may_exist=True)
 
     def test_dhcp_options_add_ignore_exists(self):
-        self._test_dhcp_options_add(may_exists=False)
+        self._test_dhcp_options_add(may_exist=False)
 
     def _test_dhcp_options_update_result(self, new_insert=False):
         fake_ext_ids = {'subnet_id': 'fake_subnet', 'port_id': 'fake_port'}
@@ -1256,7 +1256,7 @@ class TestAddDHCPOptionsCommand(TestBaseCommand):
 
         cmd = commands.AddDHCPOptionsCommand(
             self.ovn_api, fake_ext_ids['subnet_id'],
-            port_id=fake_ext_ids['port_id'], may_exists=True,
+            port_id=fake_ext_ids['port_id'], may_exist=True,
             external_ids=fake_ext_ids)
         cmd.run_idl(self.transaction)
         cmd.post_commit(self.transaction)
