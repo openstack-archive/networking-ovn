@@ -36,6 +36,7 @@ from networking_ovn._i18n import _
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import maintenance
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
 from networking_ovn.db import revision as db_rev
@@ -93,6 +94,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._sb_ovn = None
         self._plugin_property = None
         self._ovn_client_inst = None
+        self._maintenance_thread = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
         self._post_fork_event = threading.Event()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
@@ -186,6 +188,12 @@ class OVNMechanismDriver(api.MechanismDriver):
                 self
             )
             self.sb_synchronizer.sync()
+
+        if trigger.im_class == maintenance.MaintenanceWorker:
+            self._maintenance_thread = maintenance.MaintenanceThread()
+            self._maintenance_thread.add_periodics(
+                maintenance.DBInconsistenciesPeriodics(self._ovn_client))
+            self._maintenance_thread.start()
 
     def _create_security_group(self, resource, event, trigger,
                                security_group, **kwargs):
@@ -612,7 +620,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         workers, can return a sequence of worker instances.
         """
         # See doc/source/design/ovn_worker.rst for more details.
-        return [ovsdb_monitor.OvnWorker()]
+        return [ovsdb_monitor.OvnWorker(), maintenance.MaintenanceWorker()]
 
     def _update_subport_host_if_needed(self, port_id):
         parent_port = self._ovn_client.get_parent_port(port_id)
