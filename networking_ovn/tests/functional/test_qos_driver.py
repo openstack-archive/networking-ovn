@@ -13,7 +13,6 @@
 #    under the License.
 
 from networking_ovn.tests.functional import base
-from neutron.api.v2 import attributes as attr
 from neutron.extensions import qos as qos_ext
 from neutron.tests.unit.api import test_extensions
 from ovsdbapp.backend.ovs_idl import idlutils
@@ -21,11 +20,6 @@ from ovsdbapp.backend.ovs_idl import idlutils
 
 class QoSTestExtensionManager(object):
     def get_resources(self):
-        # Add the resources to the global attribute map
-        # This is done here as the setup process won't
-        # initialize the main API QoS which extends
-        # the global attribute map
-        attr.RESOURCE_ATTRIBUTE_MAP.update(qos_ext.RESOURCE_ATTRIBUTE_MAP)
         return qos_ext.Qos.get_resources()
 
     def get_actions(self):
