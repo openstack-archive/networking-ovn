@@ -283,8 +283,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         """
         network = context.current
         original_network = context.original
-        if network['name'] != original_network['name']:
-            self._ovn_client.update_network(network, original_network)
+        self._ovn_client.update_network(network, original_network)
 
     def delete_network_postcommit(self, context):
         """Delete a network.
