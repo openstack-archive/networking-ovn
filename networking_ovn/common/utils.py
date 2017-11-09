@@ -12,6 +12,7 @@
 
 import os
 
+import netaddr
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib.api import validators
@@ -20,6 +21,7 @@ from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_utils
+from oslo_utils import netutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants
@@ -200,7 +202,74 @@ def get_ovn_ipv6_address_mode(address_mode):
 
 def get_revision_number(resource, resource_type):
     """Get the resource's revision number based on its type."""
-    if resource_type in (constants.TYPE_NETWORKS,):
+    if resource_type in (constants.TYPE_NETWORKS, constants.TYPE_PORTS):
         return resource['revision_number']
     else:
         raise ovn_exc.UnknownResourceType(resource_type=resource_type)
+
+
+def remove_macs_from_lsp_addresses(addresses):
+    """Remove the mac addreses from the Logical_Switch_Port addresses column.
+
+    :param addresses: The list of addresses from the Logical_Switch_Port.
+        Example: ["80:fa:5b:06:72:b7 158.36.44.22",
+                  "ff:ff:ff:ff:ff:ff 10.0.0.2"]
+    :returns: A list of IP addesses (v4 and v6)
+    """
+    ip_list = []
+    for addr in addresses:
+        ip_list.extend([x for x in addr.split() if
+                       (netutils.is_valid_ipv4(x) or
+                        netutils.is_valid_ipv6(x))])
+    return ip_list
+
+
+def get_allowed_address_pairs_ip_addresses(port):
+    """Return a list of IP addresses from port's allowed_address_pairs.
+
+    :param port: A neutron port
+    :returns: A list of IP addesses (v4 and v6)
+    """
+    return [x['ip_address'] for x in port.get('allowed_address_pairs', [])
+            if 'ip_address' in x]
+
+
+def get_allowed_address_pairs_ip_addresses_from_ovn_port(ovn_port):
+    """Return a list of IP addresses from ovn port.
+
+    Return a list of IP addresses equivalent of Neutron's port
+    allowed_address_pairs column using the data in the OVN port.
+
+    :param ovn_port: A OVN port
+    :returns: A list of IP addesses (v4 and v6)
+    """
+    addresses = remove_macs_from_lsp_addresses(ovn_port.addresses)
+    port_security = remove_macs_from_lsp_addresses(ovn_port.port_security)
+    return [x for x in port_security if x not in addresses]
+
+
+def get_ovn_port_security_groups(ovn_port, skip_trusted_port=True):
+    info = {'security_groups': ovn_port.external_ids.get(
+            constants.OVN_SG_IDS_EXT_ID_KEY, '').split(),
+            'device_owner': ovn_port.external_ids.get(
+            constants.OVN_DEVICE_OWNER_EXT_ID_KEY, '')}
+    return get_lsp_security_groups(info, skip_trusted_port=skip_trusted_port)
+
+
+def get_ovn_port_addresses(ovn_port):
+    addresses = remove_macs_from_lsp_addresses(ovn_port.addresses)
+    port_security = remove_macs_from_lsp_addresses(ovn_port.port_security)
+    return list(set(addresses + port_security))
+
+
+def sort_ips_by_version(addresses):
+    ip_map = {'ip4': [], 'ip6': []}
+    for addr in addresses:
+        ip_version = netaddr.IPNetwork(addr).version
+        ip_map['ip%d' % ip_version].append(addr)
+    return ip_map
+
+
+def is_lsp_router_port(port):
+    return port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
+                                        const.DEVICE_OWNER_ROUTER_GW]

@@ -555,6 +555,15 @@ class API(api.API):
                               OVN is equal or higher than the neutron object
         """
 
+    @abc.abstractmethod
+    def get_lswitch_port(self, lsp_name):
+        """Get a Logical Switch Port by its name.
+
+        :param lsp_name: The Logical Switch Port name
+        :type lsp_name: string
+        :returns: The Logical Switch Port row or None
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(api.API):

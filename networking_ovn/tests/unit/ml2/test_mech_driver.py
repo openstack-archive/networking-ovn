@@ -537,6 +537,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 with self.port(subnet=subnet1,
                                set_context=True, tenant_id='test') as port1:
                     sg_id = port1['port']['security_groups'][0]
+                    fake_lsp = (
+                        fakes.FakeOVNPort.from_neutron_port(
+                            port1['port']))
+                    self.nb_ovn.lookup.return_value = fake_lsp
 
                     # Remove the default security group.
                     self.nb_ovn.set_lswitch_port.reset_mock()
@@ -555,6 +559,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self.nb_ovn.set_lswitch_port.reset_mock()
                     self.nb_ovn.update_acls.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
+                    fake_lsp.external_ids.pop(ovn_const.OVN_SG_IDS_EXT_ID_KEY)
                     data = {'port': {'security_groups': [sg_id]}}
                     self._update('ports', port1['port']['id'], data)
                     self.assertEqual(
@@ -569,6 +574,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
                                set_context=True, tenant_id='test') as port1:
+                    fake_lsp = (
+                        fakes.FakeOVNPort.from_neutron_port(
+                            port1['port']))
+                    self.nb_ovn.lookup.return_value = fake_lsp
+
                     # Update the port name.
                     self.nb_ovn.set_lswitch_port.reset_mock()
                     self.nb_ovn.update_acls.reset_mock()
@@ -601,6 +611,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                arg_list=('security_groups',),
                                set_context=True, tenant_id='test',
                                **kwargs) as port1:
+                    fake_lsp = (
+                        fakes.FakeOVNPort.from_neutron_port(
+                            port1['port']))
+                    self.nb_ovn.lookup.return_value = fake_lsp
                     self.nb_ovn.delete_lswitch_port.reset_mock()
                     self.nb_ovn.delete_acl.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
@@ -616,6 +630,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
                                set_context=True, tenant_id='test') as port1:
+                    fake_lsp = (
+                        fakes.FakeOVNPort.from_neutron_port(
+                            port1['port']))
+                    self.nb_ovn.lookup.return_value = fake_lsp
                     self.nb_ovn.delete_lswitch_port.reset_mock()
                     self.nb_ovn.delete_acl.reset_mock()
                     self.nb_ovn.update_address_set.reset_mock()
@@ -1249,14 +1267,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                     mock_notify_dhcp):
         fake_port = fakes.FakePort.create_one_port(
             attrs={'status': const.PORT_STATUS_ACTIVE}).info()
-        fake_original_port = fakes.FakePort.create_one_port(
-            attrs={'status': const.PORT_STATUS_DOWN}).info()
-        fake_ctx = mock.Mock(current=fake_port, original=fake_original_port)
-
+        fake_ctx = mock.Mock(current=fake_port)
         self.mech_driver.update_port_postcommit(fake_ctx)
-
         mock_update_port.assert_called_once_with(
-            fake_port, fake_original_port)
+            fake_port, port_object=fake_ctx.original)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
 

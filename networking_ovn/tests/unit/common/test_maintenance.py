@@ -34,6 +34,8 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         super(TestDBInconsistenciesPeriodics, self).setUp()
         self.net = self._make_network(
             self.fmt, name='net1', admin_state_up=True)['network']
+        self.port = self._make_port(
+            self.fmt, self.net['id'], name='port1')['port']
         self.fake_ovn_client = mock.Mock()
         self.periodic = maintenance.DBInconsistenciesPeriodics(
             self.fake_ovn_client)
@@ -87,3 +89,44 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
 
     def test_fix_network_update(self):
         self._test_fix_create_update_network(ovn_rev=5, neutron_rev=7)
+
+    def _test_fix_create_update_port(self, ovn_rev, neutron_rev):
+        self.port['revision_number'] = neutron_rev
+
+        # Create an entry to the revision_numbers table and assert the
+        # initial revision_number for our test object is the expected
+        db_rev.create_initial_revision(
+            self.port['id'], constants.TYPE_PORTS, self.session,
+            revision_number=ovn_rev)
+        row = self.get_revision_row(self.port['id'])
+        self.assertEqual(ovn_rev, row.revision_number)
+
+        if ovn_rev < 0:
+            self.fake_ovn_client._nb_idl.get_lswitch_port.return_value = None
+        else:
+            fake_lsp = mock.Mock(external_ids={
+                constants.OVN_REV_NUM_EXT_ID_KEY: ovn_rev})
+            self.fake_ovn_client._nb_idl.get_lswitch_port.return_value = (
+                fake_lsp)
+
+        self.fake_ovn_client._plugin.get_port.return_value = self.port
+        self.periodic._fix_create_update_port(row)
+
+        # Since the revision number was < 0, make sure create_port()
+        # is invoked with the latest version of the object in the neutron
+        # database
+        if ovn_rev < 0:
+            self.fake_ovn_client.create_port.assert_called_once_with(
+                self.port)
+        # If the revision number is > 0 it means that the object already
+        # exist and we just need to update to match the latest in the
+        # neutron database so, update_port() should be called.
+        else:
+            self.fake_ovn_client.update_port.assert_called_once_with(
+                self.port)
+
+    def test_fix_port_create(self):
+        self._test_fix_create_update_port(ovn_rev=-1, neutron_rev=2)
+
+    def test_fix_port_update(self):
+        self._test_fix_create_update_port(ovn_rev=5, neutron_rev=7)

@@ -31,6 +31,7 @@ from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import excutils
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.agent.metadata import agent as metadata_agent
 from networking_ovn.common import acl as ovn_acl
@@ -44,13 +45,10 @@ from networking_ovn.ml2 import qos_driver
 LOG = log.getLogger(__name__)
 
 
-OvnPortInfo = collections.namedtuple('OvnPortInfo', ['type', 'options',
-                                                     'addresses',
-                                                     'port_security',
-                                                     'parent_name', 'tag',
-                                                     'dhcpv4_options',
-                                                     'dhcpv6_options',
-                                                     'cidrs'])
+OvnPortInfo = collections.namedtuple(
+    'OvnPortInfo', ['type', 'options', 'addresses', 'port_security',
+                    'parent_name', 'tag', 'dhcpv4_options', 'dhcpv6_options',
+                    'cidrs', 'device_owner', 'security_group_ids'])
 
 
 class OVNClient(object):
@@ -226,10 +224,11 @@ class OVNClient(object):
 
         options.update({'requested-chassis':
                         port.get(portbindings.HOST_ID, '')})
-
+        device_owner = port.get('device_owner', '')
+        sg_ids = ' '.join(utils.get_lsp_security_groups(port))
         return OvnPortInfo(port_type, options, addresses, port_security,
                            parent_name, tag, dhcpv4_options, dhcpv6_options,
-                           cidrs.strip())
+                           cidrs.strip(), device_owner, sg_ids)
 
     def create_port(self, port):
         if utils.is_lsp_ignored(port):
@@ -239,7 +238,16 @@ class OVNClient(object):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name'],
                         ovn_const.OVN_DEVID_EXT_ID_KEY: port['device_id'],
                         ovn_const.OVN_PROJID_EXT_ID_KEY: port['project_id'],
-                        ovn_const.OVN_CIDRS_EXT_ID_KEY: port_info.cidrs}
+                        ovn_const.OVN_CIDRS_EXT_ID_KEY: port_info.cidrs,
+                        ovn_const.OVN_DEVICE_OWNER_EXT_ID_KEY:
+                            port_info.device_owner,
+                        ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                            utils.ovn_name(port['network_id']),
+                        ovn_const.OVN_SG_IDS_EXT_ID_KEY:
+                            port_info.security_group_ids,
+                        ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(
+                            utils.get_revision_number(
+                                port, ovn_const.TYPE_PORTS))}
         lswitch_name = utils.ovn_name(port['network_id'])
         admin_context = n_context.get_admin_context()
         sg_cache = {}
@@ -309,7 +317,23 @@ class OVNClient(object):
             if self.is_dns_required_for_port(port):
                 self.add_txns_to_sync_port_dns_records(txn, port)
 
-    def update_port(self, port, original_port, qos_options=None):
+        if not utils.is_lsp_router_port(port):
+            db_rev.bump_revision(port, ovn_const.TYPE_PORTS)
+
+    # TODO(lucasagomes): Remove this helper method in the Rocky release
+    def _get_lsp_backward_compat_sgs(self, ovn_port, port_object=None,
+                                     skip_trusted_port=True):
+        if ovn_const.OVN_SG_IDS_EXT_ID_KEY in ovn_port.external_ids:
+            return utils.get_ovn_port_security_groups(
+                ovn_port, skip_trusted_port=skip_trusted_port)
+        elif port_object is not None:
+            return utils.get_lsp_security_groups(
+                port_object, skip_trusted_port=skip_trusted_port)
+        return []
+
+    # TODO(lucasagomes): The ``port_object`` parameter was added to
+    # keep things backward compatible. Remove it in the Rocky release.
+    def update_port(self, port, qos_options=None, port_object=None):
         if utils.is_lsp_ignored(port):
             return
 
@@ -317,15 +341,26 @@ class OVNClient(object):
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name'],
                         ovn_const.OVN_DEVID_EXT_ID_KEY: port['device_id'],
                         ovn_const.OVN_PROJID_EXT_ID_KEY: port['project_id'],
-                        ovn_const.OVN_CIDRS_EXT_ID_KEY: port_info.cidrs}
+                        ovn_const.OVN_CIDRS_EXT_ID_KEY: port_info.cidrs,
+                        ovn_const.OVN_DEVICE_OWNER_EXT_ID_KEY:
+                            port_info.device_owner,
+                        ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                            utils.ovn_name(port['network_id']),
+                        ovn_const.OVN_SG_IDS_EXT_ID_KEY:
+                            port_info.security_group_ids,
+                        ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(
+                            utils.get_revision_number(
+                                port, ovn_const.TYPE_PORTS))}
         admin_context = n_context.get_admin_context()
         sg_cache = {}
         subnet_cache = {}
 
+        check_rev_cmd = self._nb_idl.check_revision_number(
+            port['id'], port, ovn_const.TYPE_PORTS)
         with self._nb_idl.transaction(check_error=True) as txn:
+            txn.add(check_rev_cmd)
             columns_dict = {}
-            if port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
-                                            const.DEVICE_OWNER_ROUTER_GW]:
+            if utils.is_lsp_router_port(port):
                 port_info.options.update(
                     self._nb_idl.get_router_port_options(port['id']))
             else:
@@ -361,16 +396,26 @@ class OVNClient(object):
                     if_exists=False,
                     **columns_dict))
 
+            ovn_port = self._nb_idl.lookup('Logical_Switch_Port', port['id'])
             # Determine if security groups or fixed IPs are updated.
-            old_sg_ids = set(utils.get_lsp_security_groups(original_port))
+            old_sg_ids = set(self._get_lsp_backward_compat_sgs(
+                ovn_port, port_object=port_object))
             new_sg_ids = set(utils.get_lsp_security_groups(port))
             detached_sg_ids = old_sg_ids - new_sg_ids
             attached_sg_ids = new_sg_ids - old_sg_ids
-            is_fixed_ips_updated = \
-                original_port.get('fixed_ips') != port.get('fixed_ips')
-            is_allowed_ips_updated = \
-                original_port.get('allowed_address_pairs') != \
-                port.get('allowed_address_pairs')
+            old_fixed_ips = utils.remove_macs_from_lsp_addresses(
+                ovn_port.addresses)
+            new_fixed_ips = [x['ip_address'] for x in
+                             port.get('fixed_ips', [])]
+            old_allowed_address_pairs = (
+                utils.get_allowed_address_pairs_ip_addresses_from_ovn_port(
+                    ovn_port))
+            new_allowed_address_pairs = (
+                utils.get_allowed_address_pairs_ip_addresses(port))
+            is_fixed_ips_updated = (
+                sorted(old_fixed_ips) != sorted(new_fixed_ips))
+            is_allowed_ips_updated = (sorted(old_allowed_address_pairs) !=
+                                      sorted(new_allowed_address_pairs))
 
             # Refresh ACLs for changed security groups or fixed IPs.
             if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated:
@@ -389,10 +434,10 @@ class OVNClient(object):
                                                  need_compare=True))
 
             # Refresh address sets for changed security groups or fixed IPs.
-            if (len(port.get('fixed_ips')) != 0 or
-                    len(original_port.get('fixed_ips')) != 0):
+            if len(old_fixed_ips) != 0 or len(new_fixed_ips) != 0:
                 addresses = ovn_acl.acl_port_ips(port)
-                addresses_old = ovn_acl.acl_port_ips(original_port)
+                addresses_old = utils.sort_ips_by_version(
+                    utils.get_ovn_port_addresses(ovn_port))
                 # Add current addresses to attached security groups.
                 for sg_id in attached_sg_ids:
                     for ip_version in addresses:
@@ -431,31 +476,54 @@ class OVNClient(object):
 
             if self.is_dns_required_for_port(port):
                 self.add_txns_to_sync_port_dns_records(
-                    txn, port, original_port=original_port)
-            elif self.is_dns_required_for_port(original_port):
+                    txn, port, original_port=port_object)
+            elif port_object and self.is_dns_required_for_port(port_object):
                 # We need to remove the old entries
-                self.add_txns_to_remove_port_dns_records(txn, original_port)
+                self.add_txns_to_remove_port_dns_records(txn, port_object)
 
-    def delete_port(self, port):
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+            if not utils.is_lsp_router_port(port):
+                db_rev.bump_revision(port, ovn_const.TYPE_PORTS)
+
+    def _delete_port(self, port_id, port_object=None):
+        ovn_port = self._nb_idl.lookup('Logical_Switch_Port', port_id)
+        network_id = ovn_port.external_ids.get(
+            ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY)
+
+        # TODO(lucasagomes): For backward compatibility, if network_id
+        # is not in the OVNDB, look at the port_object
+        if not network_id and port_object:
+            network_id = port_object['network_id']
+
         with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(self._nb_idl.delete_lswitch_port(port['id'],
-                    utils.ovn_name(port['network_id'])))
-            txn.add(self._nb_idl.delete_acl(
-                    utils.ovn_name(port['network_id']), port['id']))
+            txn.add(self._nb_idl.delete_lswitch_port(
+                port_id, network_id))
+            txn.add(self._nb_idl.delete_acl(network_id, port_id))
 
-            if port.get('fixed_ips'):
-                addresses = ovn_acl.acl_port_ips(port)
-                # Set skip_trusted_port False for deleting port
-                for sg_id in utils.get_lsp_security_groups(port, False):
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_idl.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=None,
-                                addrs_remove=addresses[ip_version]))
+            addresses = utils.sort_ips_by_version(
+                utils.get_ovn_port_addresses(ovn_port))
+            sec_groups = self._get_lsp_backward_compat_sgs(
+                ovn_port, port_object=port_object, skip_trusted_port=False)
+            for sg_id in sec_groups:
+                for ip_version, addr_list in addresses.items():
+                    if not addr_list:
+                        continue
+                    txn.add(self._nb_idl.update_address_set(
+                        name=utils.ovn_addrset_name(sg_id, ip_version),
+                        addrs_add=None,
+                        addrs_remove=addr_list))
 
-            if self.is_dns_required_for_port(port):
-                self.add_txns_to_remove_port_dns_records(txn, port)
+            if port_object and self.is_dns_required_for_port(port_object):
+                self.add_txns_to_remove_port_dns_records(txn, port_object)
+
+    # TODO(lucasagomes): The ``port_object`` parameter was added to
+    # keep things backward compatible. Remove it in the Rocky release.
+    def delete_port(self, port_id, port_object=None):
+        try:
+            self._delete_port(port_id, port_object=port_object)
+        except idlutils.RowNotFound:
+            pass
+        db_rev.delete_revision(port_id)
 
     def _create_or_update_floatingip(self, floatingip, txn=None):
         router_id = floatingip.get('router_id')

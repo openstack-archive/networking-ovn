@@ -17,6 +17,9 @@ import copy
 import mock
 from oslo_utils import uuidutils
 
+from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils
+
 
 class FakeOvsdbNbOvnIdl(object):
 
@@ -100,6 +103,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_floatingip = mock.Mock()
         self.get_floatingip.return_value = None
         self.check_revision_number = mock.Mock()
+        self.lookup = mock.MagicMock()
         # TODO(lucasagomes): The get_floatingip_by_ips() method is part
         # of a backwards compatibility layer for the Pike -> Queens release,
         # remove it in the Rocky release.
@@ -586,3 +590,59 @@ class FakeFloatingIp(object):
 
         return FakeResource(info=copy.deepcopy(fip_attrs),
                             loaded=True)
+
+
+class FakeOVNPort(object):
+    """Fake one or more ports."""
+
+    @staticmethod
+    def create_one_port(attrs=None):
+        """Create a fake ovn port.
+
+        :param Dictionary attrs:
+            A dictionary with all attributes
+        :return:
+            A FakeResource object faking the port
+        """
+        attrs = attrs or {}
+
+        # Set default attributes.
+        fake_uuid = uuidutils.generate_uuid()
+        port_attrs = {
+            'addresses': [],
+            'dhcpv4_options': '',
+            'dhcpv6_options': [],
+            'enabled': True,
+            'external_ids': {},
+            'name': fake_uuid,
+            'options': {},
+            'parent_name': [],
+            'port_security': [],
+            'tag': [],
+            'tag_request': [],
+            'type': '',
+            'up': False,
+        }
+
+        # Overwrite default attributes.
+        port_attrs.update(attrs)
+        return type('Logical_Switch_Port', (object, ), port_attrs)
+
+    @staticmethod
+    def from_neutron_port(port):
+        """Create a fake ovn port based on a neutron port."""
+        external_ids = {
+            ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                utils.ovn_name(port['network_id']),
+            ovn_const.OVN_SG_IDS_EXT_ID_KEY:
+                ' '.join(port['security_groups']),
+            ovn_const.OVN_DEVICE_OWNER_EXT_ID_KEY:
+                port.get('device_owner', '')}
+        addresses = [port['mac_address'], ]
+        addresses += [x['ip_address'] for x in port.get('fixed_ips', [])]
+        port_security = (
+            addresses + [x['ip_address'] for x in
+                         port.get('allowed_address_pairs', [])])
+        return FakeOVNPort.create_one_port(
+            {'external_ids': external_ids, 'addresses': addresses,
+             'port_security': port_security})

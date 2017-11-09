@@ -529,13 +529,18 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
         return cmd.DeleteNatIpFromLRPortPeerOptionsCommand(self, lport, nat_ip)
 
-    def get_parent_port(self, lsp_name):
+    def get_lswitch_port(self, lsp_name):
         try:
-            lsp = idlutils.row_by_value(self.idl, 'Logical_Switch_Port',
-                                        'name', lsp_name)
-            return lsp.parent_name
+            return idlutils.row_by_value(self.idl, 'Logical_Switch_Port',
+                                         'name', lsp_name)
         except idlutils.RowNotFound:
+            return None
+
+    def get_parent_port(self, lsp_name):
+        lsp = self.get_lswitch_port(lsp_name)
+        if not lsp:
             return ''
+        return lsp.parent_name
 
     def get_lswitch(self, lswitch_name):
         try:

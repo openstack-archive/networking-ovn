@@ -20,6 +20,7 @@ from networking_ovn.common import utils
 
 RESOURCE_TYPE_MAP = {
     ovn_const.TYPE_NETWORKS: 'Logical_Switch',
+    ovn_const.TYPE_PORTS: 'Logical_Switch_Port',
 }
 
 
