@@ -54,6 +54,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.fake_router_port_assert = {'lrouter': 'neutron-router-id',
                                         'mac': 'aa:aa:aa:aa:aa:aa',
                                         'name': 'lrp-router-port-id',
+                                        'may_exist': True,
                                         'networks': ['10.0.0.100/24']}
         self.fake_router_ports = [self.fake_router_port]
         self.fake_subnet = {'id': 'subnet-id',
@@ -104,6 +105,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                         'mac': '00:00:00:02:04:06',
                                         'name': 'lrp-gw-port-id',
                                         'networks': ['192.168.1.1/24'],
+                                        'may_exist': True,
                                         'gateway_chassis': ['hv1']}
         self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
                                        'fixed_ip_address': '10.0.0.10'}

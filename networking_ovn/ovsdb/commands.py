@@ -289,10 +289,11 @@ class DelLRouterCommand(command.BaseCommand):
 
 
 class AddLRouterPortCommand(command.BaseCommand):
-    def __init__(self, api, name, lrouter, **columns):
+    def __init__(self, api, name, lrouter, may_exist, **columns):
         super(AddLRouterPortCommand, self).__init__(api)
         self.name = name
         self.lrouter = lrouter
+        self.may_exist = may_exist
         self.columns = columns
 
     def run_idl(self, txn):
@@ -306,6 +307,8 @@ class AddLRouterPortCommand(command.BaseCommand):
         try:
             idlutils.row_by_value(self.api.idl, 'Logical_Router_Port',
                                   'name', self.name)
+            if self.may_exist:
+                return
             # The LRP entry with certain name has already exist, raise an
             # exception to notice caller. It's caller's responsibility to
             # call UpdateLRouterPortCommand to get LRP entry processed
