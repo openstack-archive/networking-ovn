@@ -520,18 +520,6 @@ class OVNClient(object):
                 return ext_fixed_ip['ip_address'], subnet.get('gateway_ip')
         return '', ''
 
-    def _update_router_routes(self, context, router_id, add, remove):
-        lrouter_name = utils.ovn_name(router_id)
-        with self._nb_idl.transaction(check_error=True) as txn:
-            for route in add:
-                txn.add(self._nb_idl.add_static_route(
-                    lrouter_name, ip_prefix=route['destination'],
-                    nexthop=route['nexthop']))
-            for route in remove:
-                txn.add(self._nb_idl.delete_static_route(
-                    lrouter_name, ip_prefix=route['destination'],
-                    nexthop=route['nexthop']))
-
     def _delete_router_ext_gw(self, context, router, networks):
         if not networks:
             networks = []
@@ -585,7 +573,7 @@ class OVNClient(object):
         # 2. Add default route with nexthop as ext_gw_ip
         route = [{'destination': '0.0.0.0/0', 'nexthop': ext_gw_ip}]
         try:
-            self._update_router_routes(context, router_id, route, [])
+            self.update_router_routes(context, router_id, route, [])
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._delete_router_ext_gw(context, router, networks)
@@ -621,7 +609,7 @@ class OVNClient(object):
             return True
         return False
 
-    def _update_lrouter_routes(self, context, router_id, add, remove):
+    def update_router_routes(self, context, router_id, add, remove):
         if not any([add, remove]):
             return
         lrouter_name = utils.ovn_name(router_id)
@@ -754,7 +742,7 @@ class OVNClient(object):
             added, removed = helpers.diff_list_of_dict(
                 original_router['routes'], routes)
             try:
-                self._update_lrouter_routes(context, router_id, added, removed)
+                self.update_router_routes(context, router_id, added, removed)
             except Exception as e:
                 with excutils.save_and_reraise_exception():
                     LOG.error('Unable to update static routes in router '
