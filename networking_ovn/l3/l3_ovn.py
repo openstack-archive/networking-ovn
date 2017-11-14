@@ -276,6 +276,10 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             update_fip['fip_net_id'] = fip['floating_network_id']
             update_fip['logical_ip'] = fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
+            update_fip['logical_port'] = fip['port_id']
+            port = self._plugin.get_port(context.elevated(),
+                                         fip_db['floating_port_id'])
+            update_fip['fip_port_mac'] = port['mac_address']
             self._ovn_client.create_floatingip(update_fip, router_id)
 
             # NOTE(lucasagomes): Revise the expected status
@@ -333,6 +337,10 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             update_fip['fip_net_id'] = fip['floating_network_id']
             update_fip['logical_ip'] = fip['fixed_ip_address']
             update_fip['external_ip'] = fip['floating_ip_address']
+            update_fip['logical_port'] = fip['port_id']
+            port = self._plugin.get_port(context.elevated(),
+                                         fip_db['floating_port_id'])
+            update_fip['fip_port_mac'] = port['mac_address']
             try:
                 self._ovn_client.update_floatingip(
                     update_fip, fip['router_id'], associate=True)

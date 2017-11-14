@@ -104,6 +104,14 @@ ovn_opts = [
                       'leastloaded - chassis with fewest gateway ports '
                       'selected \n'
                       'chance - chassis randomly selected')),
+    cfg.BoolOpt('enable_distributed_floating_ip',
+                default=False,
+                help=_('Enable distributed floating IP support.\n'
+                       'If True, the NAT action for floating IPs will be done '
+                       'locally and not in the centralized gateway. This '
+                       'saves the path to the external network. This requires '
+                       'the user to configure the physical network map '
+                       '(i.e. ovn-bridge-mappings) on each compute node.')),
     cfg.StrOpt("vif_type",
                deprecated_for_removal=True,
                deprecated_reason="The port VIF type is now determined based "
@@ -192,6 +200,10 @@ def is_ovn_l3():
 
 def get_ovn_l3_scheduler():
     return cfg.CONF.ovn.ovn_l3_scheduler
+
+
+def is_ovn_distributed_floating_ip():
+    return cfg.CONF.ovn.enable_distributed_floating_ip
 
 
 def get_ovn_vhost_sock_dir():

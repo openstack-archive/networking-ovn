@@ -237,15 +237,18 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
              'device_id': 'r4',
              'mac_address': 'fa:16:3e:12:34:56'}]
 
-        self.floating_ips = [{'router_id': 'r1',
+        self.floating_ips = [{'id': 'fip1', 'router_id': 'r1',
                               'floating_ip_address': '90.0.0.10',
                               'fixed_ip_address': '172.16.0.10'},
-                             {'router_id': 'r1',
+                             {'id': 'fip2', 'router_id': 'r1',
                               'floating_ip_address': '90.0.0.12',
                               'fixed_ip_address': '172.16.2.12'},
-                             {'router_id': 'r2',
+                             {'id': 'fip3', 'router_id': 'r2',
                               'floating_ip_address': '100.0.0.10',
-                              'fixed_ip_address': '192.168.2.10'}]
+                              'fixed_ip_address': '192.168.2.10'},
+                             {'id': 'fip4', 'router_id': 'r2',
+                              'floating_ip_address': '100.0.0.11',
+                              'fixed_ip_address': '192.168.2.11'}]
 
         self.lrouters_with_rports = [{'name': 'r3',
                                       'ports': {'p1r3': ['fake']},
@@ -279,7 +282,12 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                         'type': 'dnat_and_snat'},
                                        {'logical_ip': '172.16.1.11',
                                         'external_ip': '90.0.0.11',
-                                        'type': 'dnat_and_snat'}]}]
+                                        'type': 'dnat_and_snat'},
+                                       {'logical_ip': '192.168.2.11',
+                                        'external_ip': '100.0.0.11',
+                                        'type': 'dnat_and_snat',
+                                        'external_mac': '01:02:03:04:05:06',
+                                        'logical_port': 'vm1'}]}]
 
         self.lswitches_with_ports = [{'name': 'neutron-n1',
                                       'ports': ['p1n1', 'p3n1'],
@@ -698,14 +706,23 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_snat_list = [{'logical_ip': '172.16.1.0/24',
                           'external_ip': '90.0.0.2',
                           'type': 'snat'}]
+        # fip 100.0.0.11 exists in OVN with distributed type and in Neutron
+        # with centralized type. This fip is used to test
+        # enable_distributed_floating_ip switch and migration
         add_floating_ip_list = [{'logical_ip': '172.16.2.12',
                                  'external_ip': '90.0.0.12',
                                  'type': 'dnat_and_snat'},
                                 {'logical_ip': '192.168.2.10',
                                  'external_ip': '100.0.0.10',
+                                 'type': 'dnat_and_snat'},
+                                {'logical_ip': '192.168.2.11',
+                                 'external_ip': '100.0.0.11',
                                  'type': 'dnat_and_snat'}]
         del_floating_ip_list = [{'logical_ip': '172.16.1.11',
                                  'external_ip': '90.0.0.11',
+                                 'type': 'dnat_and_snat'},
+                                {'logical_ip': '192.168.2.11',
+                                 'external_ip': '100.0.0.11',
                                  'type': 'dnat_and_snat'}]
 
         del_router_list = [{'router': 'neutron-r3'}]

@@ -186,16 +186,17 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             dnat_and_snats = []
             snat = []
             for nat in getattr(lrouter, 'nat', []):
+                columns = {'logical_ip': nat.logical_ip,
+                           'external_ip': nat.external_ip,
+                           'type': nat.type}
                 if nat.type == 'dnat_and_snat':
-                    dnat_and_snats.append({
-                        'logical_ip': nat.logical_ip,
-                        'external_ip': nat.external_ip,
-                        'type': nat.type})
+                    if nat.external_mac:
+                        columns['external_mac'] = nat.external_mac[0]
+                    if nat.logical_port:
+                        columns['logical_port'] = nat.logical_port[0]
+                    dnat_and_snats.append(columns)
                 elif nat.type == 'snat':
-                    snat.append({
-                        'logical_ip': nat.logical_ip,
-                        'external_ip': nat.external_ip,
-                        'type': nat.type})
+                    snat.append(columns)
 
             result.append({'name': lrouter.name.replace('neutron-', ''),
                            'static_routes': sroutes,

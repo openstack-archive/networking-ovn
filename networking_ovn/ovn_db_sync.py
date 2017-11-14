@@ -355,11 +355,20 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         fips = self.l3_plugin.get_floatingips(
             ctx, {'router_id': list(db_routers.keys())})
+        fip_macs = {}
+        if config.is_ovn_distributed_floating_ip():
+            fip_ports = self.core_plugin.get_ports(ctx, filters={
+                'device_owner': [constants.DEVICE_OWNER_FLOATINGIP]})
+            fip_macs = {p['device_id']: p['mac_address'] for p in
+                        fip_ports if p['device_id']}
         for fip in fips:
-            db_extends[fip['router_id']]['fips'].append(
-                {'external_ip': fip['floating_ip_address'],
-                 'logical_ip': fip['fixed_ip_address'],
-                 'type': 'dnat_and_snat'})
+            columns = {'external_ip': fip['floating_ip_address'],
+                       'logical_ip': fip['fixed_ip_address'],
+                       'type': 'dnat_and_snat'}
+            if fip['id'] in fip_macs:
+                columns['external_mac'] = fip_macs[fip['id']]
+                columns['logical_port'] = fip['port_id']
+            db_extends[fip['router_id']]['fips'].append(columns)
         interfaces = self.l3_plugin._get_sync_interfaces(
             ctx, list(db_routers.keys()),
             [constants.DEVICE_OWNER_ROUTER_INTF,
@@ -551,11 +560,14 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         LOG.warning("Add floating ips %s to OVN NB DB",
                                     fip['add'])
                         for nat in fip['add']:
+                            columns = {'type': 'dnat_and_snat',
+                                       'logical_ip': nat['logical_ip'],
+                                       'external_ip': nat['external_ip']}
+                            if nat.get('external_mac'):
+                                columns['external_mac'] = nat['external_mac']
+                                columns['logical_port'] = nat['logical_port']
                             txn.add(self.ovn_api.add_nat_rule_in_lrouter(
-                                utils.ovn_name(fip['id']),
-                                logical_ip=nat['logical_ip'],
-                                external_ip=nat['external_ip'],
-                                type='dnat_and_snat'))
+                                utils.ovn_name(fip['id']), **columns))
             for snat in update_snats_list:
                 if snat['del']:
                     LOG.warning("Router %(id)s snat %(snat)s "
