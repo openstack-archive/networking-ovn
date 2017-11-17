@@ -12,6 +12,8 @@
 #    under the License.
 #
 
+import threading
+
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -86,8 +88,9 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._nb_ovn = None
         self._sb_ovn = None
         self._plugin_property = None
-        self._ovn_client = None
+        self._ovn_client_inst = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
+        self._post_fork_event = threading.Event()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
             LOG.warning('Firewall driver configuration is ignored')
         self._setup_vif_port_bindings()
@@ -101,6 +104,17 @@ class OVNMechanismDriver(api.MechanismDriver):
         if self._plugin_property is None:
             self._plugin_property = directory.get_plugin()
         return self._plugin_property
+
+    @property
+    def _ovn_client(self):
+        if self._ovn_client_inst is None:
+            if not(self._nb_ovn and self._sb_ovn):
+                # Wait until the post_fork_initialize method has finished and
+                # IDLs have been correctly setup.
+                self._post_fork_event.wait()
+            self._ovn_client_inst = ovn_client.OVNClient(self._nb_ovn,
+                                                         self._sb_ovn)
+        return self._ovn_client_inst
 
     def _get_attribute(self, obj, attribute):
         res = obj.get(attribute)
@@ -152,9 +166,9 @@ class OVNMechanismDriver(api.MechanismDriver):
     def post_fork_initialize(self, resource, event, trigger, payload=None):
         # NOTE(rtheis): This will initialize all workers (API, RPC,
         # plugin service and OVN) with OVN IDL connections.
+        self._post_fork_event.clear()
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
                                                                trigger)
-        self._ovn_client = ovn_client.OVNClient(self._nb_ovn, self._sb_ovn)
 
         if trigger.im_class == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker
@@ -174,6 +188,8 @@ class OVNMechanismDriver(api.MechanismDriver):
                 self
             )
             self.sb_synchronizer.sync()
+
+        self._post_fork_event.set()
 
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg = {'name': kwargs['security_group']['name'],
