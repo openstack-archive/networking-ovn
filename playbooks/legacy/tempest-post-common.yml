@@ -13,8 +13,8 @@
     dest: '{{ ansible_user_dir }}/workspace/logs/ovs_dbs/{{ item }}.txt'
   with_items:
     - conf
-    - ovnnb
-    - ovnsb
+    - ovnnb_db
+    - ovnsb_db
 
 - name: Compress OVN databases in individual files
   shell: gzip -9 {{ ansible_user_dir }}/workspace/logs/ovs_dbs/*
