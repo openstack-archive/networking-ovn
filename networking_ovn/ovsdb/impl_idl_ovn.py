@@ -65,6 +65,9 @@ class Backend(ovs_idl.Backend):
 
     _tables = tables
 
+    def is_table_present(self, table_name):
+        return table_name in self._tables
+
     def create_transaction(self, check_error=False, log_errors=True):
         return idl_trans.Transaction(
             self, self.ovsdb_connection, self.ovsdb_connection.timeout,
@@ -505,6 +508,22 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             return lsp.parent_name
         except idlutils.RowNotFound:
             return ''
+
+    def get_ls_and_dns_record(self, lswitch_name):
+        try:
+            ls = idlutils.row_by_value(self.idl, 'Logical_Switch',
+                                       'name', lswitch_name)
+        except idlutils.RowNotFound:
+            return (None, None)
+
+        if not hasattr(ls, 'dns_records'):
+            return (ls, None)
+
+        for dns_row in ls.dns_records:
+            if dns_row.external_ids.get('ls_name') == lswitch_name:
+                return (ls, dns_row)
+
+        return (ls, None)
 
     # Check for a column match in the table. If not found do a retry with
     # a stop delay of 10 secs. This function would be useful if the caller

@@ -489,6 +489,14 @@ class API(api.API):
         :type columns:       dictionary
         :returns:            :class:`Command` with no result
         """
+    @abc.abstractmethod
+    def get_ls_and_dns_record(self, lswitch_name):
+        """Returns the logical switch and 'dns' records
+
+        :param lswitch_name: The unique name of the logical switch
+        :type lswitch_name: string
+        :returns: Returns logical switch and dns records as a tuple
+        """
 
 
 @six.add_metaclass(abc.ABCMeta)

@@ -305,6 +305,9 @@ class OVNClient(object):
                                 addrs_remove=None,
                                 if_exists=False))
 
+            if self.is_dns_required_for_port(port):
+                self.add_txns_to_sync_port_dns_records(txn, port)
+
     def update_port(self, port, original_port, qos_options=None):
         if utils.is_lsp_ignored(port):
             return
@@ -425,6 +428,13 @@ class OVNClient(object):
                                         addrs_add=addr_add,
                                         addrs_remove=addr_remove))
 
+            if self.is_dns_required_for_port(port):
+                self.add_txns_to_sync_port_dns_records(
+                    txn, port, original_port=original_port)
+            elif self.is_dns_required_for_port(original_port):
+                # We need to remove the old entries
+                self.add_txns_to_remove_port_dns_records(txn, original_port)
+
     def delete_port(self, port):
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.delete_lswitch_port(port['id'],
@@ -442,6 +452,9 @@ class OVNClient(object):
                                 name=utils.ovn_addrset_name(sg_id, ip_version),
                                 addrs_add=None,
                                 addrs_remove=addresses[ip_version]))
+
+            if self.is_dns_required_for_port(port):
+                self.add_txns_to_remove_port_dns_records(txn, port)
 
     def _update_floatingip(self, floatingip, router_id, associate=True):
         fip_apis = {}
@@ -852,8 +865,14 @@ class OVNClient(object):
         return network
 
     def delete_network(self, network_id):
-        self._nb_idl.ls_del(utils.ovn_name(network_id),
-                            if_exists=True).execute(check_error=True)
+        with self._nb_idl.transaction(check_error=True) as txn:
+            ls, ls_dns_record = self._nb_idl.get_ls_and_dns_record(
+                utils.ovn_name(network_id))
+
+            txn.add(self._nb_idl.ls_del(utils.ovn_name(network_id),
+                    if_exists=True))
+            if ls_dns_record:
+                txn.add(self._nb_idl.dns_del(ls_dns_record.uuid))
 
     def update_network(self, network, original_network):
         if network['name'] != original_network['name']:
@@ -1179,3 +1198,88 @@ class OVNClient(object):
 
     def get_parent_port(self, port_id):
         return self._nb_idl.get_parent_port(port_id)
+
+    def is_dns_required_for_port(self, port):
+        try:
+            if not all([port['dns_name'], port['dns_assignment'],
+                       port['device_id']]):
+                return False
+        except KeyError:
+            # Possible that dns extension is not enabled.
+            return False
+
+        if not self._nb_idl.is_table_present('DNS'):
+            return False
+
+        return True
+
+    def get_port_dns_records(self, port):
+        port_dns_records = {}
+        for dns_assignment in port.get('dns_assignment', []):
+            hostname = dns_assignment['hostname']
+            fqdn = dns_assignment['fqdn']
+            if hostname not in port_dns_records:
+                port_dns_records[hostname] = dns_assignment['ip_address']
+            else:
+                port_dns_records[hostname] += " " + (
+                    dns_assignment['ip_address'])
+
+            if fqdn not in port_dns_records:
+                port_dns_records[fqdn] = dns_assignment['ip_address']
+            else:
+                port_dns_records[fqdn] += " " + dns_assignment['ip_address']
+
+        return port_dns_records
+
+    def add_txns_to_sync_port_dns_records(self, txn, port, original_port=None):
+        # NOTE(numans): - This implementation has certain known limitations
+        # and that will be addressed in the future patches
+        # https://bugs.launchpad.net/networking-ovn/+bug/1739257.
+        # Please see the bug report for more information, but just to sum up
+        # here
+        #  - We will have issues if two ports have same dns name
+        #  - If a port is deleted with dns name 'd1' and a new port is
+        #    added with the same dns name 'd1'.
+        records_to_add = self.get_port_dns_records(port)
+        lswitch_name = utils.ovn_name(port['network_id'])
+        ls, ls_dns_record = self._nb_idl.get_ls_and_dns_record(lswitch_name)
+
+        # If ls_dns_record is None, then we need to create a DNS row for the
+        # logical switch.
+        if ls_dns_record is None:
+            dns_add_txn = txn.add(self._nb_idl.dns_add(
+                external_ids={'ls_name': ls.name}, records=records_to_add))
+            txn.add(self._nb_idl.ls_set_dns_records(ls.uuid, dns_add_txn))
+            return
+
+        if original_port:
+            old_records = self.get_port_dns_records(original_port)
+
+            for old_hostname, old_ips in old_records.items():
+                if records_to_add.get(old_hostname) != old_ips:
+                    txn.add(self._nb_idl.dns_remove_record(
+                        ls_dns_record.uuid, old_hostname))
+
+        for hostname, ips in records_to_add.items():
+            if ls_dns_record.records.get(hostname) != ips:
+                txn.add(self._nb_idl.dns_add_record(
+                        ls_dns_record.uuid, hostname, ips))
+
+    def add_txns_to_remove_port_dns_records(self, txn, port):
+        lswitch_name = utils.ovn_name(port['network_id'])
+        ls, ls_dns_record = self._nb_idl.get_ls_and_dns_record(lswitch_name)
+
+        if ls_dns_record is None:
+            return
+
+        hostnames = []
+        for dns_assignment in port['dns_assignment']:
+            if dns_assignment['hostname'] not in hostnames:
+                hostnames.append(dns_assignment['hostname'])
+            if dns_assignment['fqdn'] not in hostnames:
+                hostnames.append(dns_assignment['fqdn'])
+
+        for hostname in hostnames:
+            if ls_dns_record.records.get(hostname):
+                txn.add(self._nb_idl.dns_remove_record(
+                        ls_dns_record.uuid, hostname))

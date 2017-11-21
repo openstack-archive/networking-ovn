@@ -16,11 +16,13 @@
 import mock
 import netaddr
 
+from neutron_lib.api.definitions import dns as dns_apidef
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import config as ovn_config
+from networking_ovn.common import utils
 from networking_ovn.tests.functional import base
 
 
@@ -695,6 +697,146 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # The Logical_Switch_Port.dhcpv4_options for this port should be
         # empty.
         self._verify_dhcp_option_row_for_port(p1['id'], {})
+
+
+class TestDNSRecords(base.TestOVNFunctionalBase):
+    _extension_drivers = ['port_security', 'dns']
+
+    def _validate_dns_records(self, expected_dns_records):
+        observed_dns_records = []
+        for dns_row in self.nb_api.tables['DNS'].rows.values():
+            observed_dns_records.append(
+                {'external_ids': dns_row.external_ids,
+                 'records': dns_row.records})
+        self.assertItemsEqual(expected_dns_records, observed_dns_records)
+
+    def _validate_ls_dns_records(self, lswitch_name, expected_dns_records):
+        ls = idlutils.row_by_value(self.nb_api.idl,
+                                   'Logical_Switch', 'name', lswitch_name)
+        observed_dns_records = []
+        for dns_row in ls.dns_records:
+            observed_dns_records.append(
+                {'external_ids': dns_row.external_ids,
+                 'records': dns_row.records})
+        self.assertItemsEqual(expected_dns_records, observed_dns_records)
+
+    def setUp(self):
+        ovn_config.cfg.CONF.set_override('dns_domain', 'ovn.test')
+        super(TestDNSRecords, self).setUp()
+
+    def test_dns_records(self):
+        expected_dns_records = []
+        nets = []
+        for n, cidr in [('n1', '10.0.0.0/24'), ('n2', '20.0.0.0/24')]:
+            net_kwargs = {dns_apidef.DNSDOMAIN: 'ovn.test.'}
+            net_kwargs['arg_list'] = (dns_apidef.DNSDOMAIN,)
+            res = self._create_network(self.fmt, n, True, **net_kwargs)
+            net = self.deserialize(self.fmt, res)
+            nets.append(net)
+            res = self._create_subnet(self.fmt, net['network']['id'], cidr)
+            self.deserialize(self.fmt, res)
+
+        # At this point no dns records should be created
+        n1_lswitch_name = utils.ovn_name(nets[0]['network']['id'])
+        n2_lswitch_name = utils.ovn_name(nets[1]['network']['id'])
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name, expected_dns_records)
+        self._validate_ls_dns_records(n2_lswitch_name, expected_dns_records)
+
+        port_kwargs = {'arg_list': (dns_apidef.DNSNAME,),
+                       dns_apidef.DNSNAME: 'n1p1'}
+        res = self._create_port(self.fmt, nets[0]['network']['id'],
+                                device_id='n1p1', **port_kwargs)
+        n1p1 = self.deserialize(self.fmt, res)
+        port_ips = " ".join([f['ip_address']
+                             for f in n1p1['port']['fixed_ips']])
+        expected_dns_records = [
+            {'external_ids': {'ls_name': n1_lswitch_name},
+             'records': {'n1p1': port_ips, 'n1p1.ovn.test.': port_ips}}
+        ]
+
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+        self._validate_ls_dns_records(n2_lswitch_name, [])
+
+        # Create another port, but don't set dns_name. dns record should not
+        # be updated.
+        res = self._create_port(self.fmt, nets[1]['network']['id'],
+                                device_id='n2p1')
+        n2p1 = self.deserialize(self.fmt, res)
+        self._validate_dns_records(expected_dns_records)
+
+        # Update port p2 with dns_name. The dns record should be updated.
+        body = {'dns_name': 'n2p1'}
+        data = {'port': body}
+        req = self.new_update_request('ports', data, n2p1['port']['id'])
+        res = req.get_response(self.api)
+        self.assertEqual(200, res.status_int)
+
+        port_ips = " ".join([f['ip_address']
+                             for f in n2p1['port']['fixed_ips']])
+        expected_dns_records.append(
+            {'external_ids': {'ls_name': n2_lswitch_name},
+             'records': {'n2p1': port_ips, 'n2p1.ovn.test.': port_ips}})
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+        self._validate_ls_dns_records(n2_lswitch_name,
+                                      [expected_dns_records[1]])
+
+        # Create n1p2
+        port_kwargs = {'arg_list': (dns_apidef.DNSNAME,),
+                       dns_apidef.DNSNAME: 'n1p2'}
+        res = self._create_port(self.fmt, nets[0]['network']['id'],
+                                device_id='n1p1', **port_kwargs)
+        n1p2 = self.deserialize(self.fmt, res)
+        port_ips = " ".join([f['ip_address']
+                             for f in n1p2['port']['fixed_ips']])
+        expected_dns_records[0]['records']['n1p2'] = port_ips
+        expected_dns_records[0]['records']['n1p2.ovn.test.'] = port_ips
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+        self._validate_ls_dns_records(n2_lswitch_name,
+                                      [expected_dns_records[1]])
+
+        # Remove device_id from n1p1
+        body = {'device_id': ''}
+        data = {'port': body}
+        req = self.new_update_request('ports', data, n1p1['port']['id'])
+        res = req.get_response(self.api)
+        self.assertEqual(200, res.status_int)
+
+        expected_dns_records[0]['records'].pop('n1p1')
+        expected_dns_records[0]['records'].pop('n1p1.ovn.test.')
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+        self._validate_ls_dns_records(n2_lswitch_name,
+                                      [expected_dns_records[1]])
+
+        # Delete n2p1
+        self._delete('ports', n2p1['port']['id'])
+        expected_dns_records[1]['records'] = {}
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+        self._validate_ls_dns_records(n2_lswitch_name,
+                                      [expected_dns_records[1]])
+
+        # Delete n2
+        self._delete('networks', nets[1]['network']['id'])
+        del expected_dns_records[1]
+        self._validate_dns_records(expected_dns_records)
+        self._validate_ls_dns_records(n1_lswitch_name,
+                                      [expected_dns_records[0]])
+
+        # Delete n1p1 and n1p2 and n1
+        self._delete('ports', n1p1['port']['id'])
+        self._delete('ports', n1p2['port']['id'])
+        self._delete('networks', nets[0]['network']['id'])
+        self._validate_dns_records([])
 
 
 class TestNBDbResourcesOverTcp(TestNBDbResources):

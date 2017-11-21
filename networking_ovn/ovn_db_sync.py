@@ -88,6 +88,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         ctx = context.get_admin_context()
         self.sync_address_sets(ctx)
         self.sync_networks_ports_and_dhcp_opts(ctx)
+        self.sync_port_dns_records(ctx)
         self.sync_acls(ctx)
         self.sync_routers_and_rports(ctx)
 
@@ -901,6 +902,40 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                      ovn_all_dhcp_options['ports_v4'],
                                      ovn_all_dhcp_options['ports_v6'])
         LOG.debug('OVN-NB Sync networks, ports and DHCP options finished')
+
+    def sync_port_dns_records(self, ctx):
+        if self.mode != SYNC_MODE_REPAIR:
+            return
+        LOG.debug('OVN-NB Sync port dns records')
+        # Ignore the floating ip ports with device_owner set to
+        # constants.DEVICE_OWNER_FLOATINGIP
+        db_ports = [port for port in
+                    self.core_plugin.get_ports(ctx) if not
+                    port.get('device_owner', '').startswith(
+                        constants.DEVICE_OWNER_FLOATINGIP)]
+        dns_records = {}
+        for port in db_ports:
+            if self._ovn_client.is_dns_required_for_port(port):
+                port_dns_records = self._ovn_client.get_port_dns_records(port)
+                if port['network_id'] not in dns_records:
+                    dns_records[port['network_id']] = {}
+                dns_records[port['network_id']].update(port_dns_records)
+
+        for network_id, port_dns_records in dns_records.items():
+            self._set_dns_records(network_id, port_dns_records)
+
+    def _set_dns_records(self, network_id, dns_records):
+        lswitch_name = utils.ovn_name(network_id)
+        ls, ls_dns_record = self.ovn_api.get_ls_and_dns_record(lswitch_name)
+
+        with self.ovn_api.transaction(check_error=True) as txn:
+            if not ls_dns_record:
+                dns_add_txn = txn.add(self.ovn_api.dns_add(
+                    external_ids={'ls_name': ls.name}, records=dns_records))
+                txn.add(self.ovn_api.ls_set_dns_records(ls.uuid, dns_add_txn))
+            else:
+                txn.add(self.ovn_api.dns_set_records(ls_dns_record.uuid,
+                                                     **dns_records))
 
 
 class OvnSbSynchronizer(OvnDbSynchronizer):
