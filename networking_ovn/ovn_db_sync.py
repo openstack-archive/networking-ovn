@@ -620,11 +620,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     server_mac = ovn_dhcp_opts['options'].get('server_id')
                 else:
                     server_mac = ovn_dhcp_opts['options'].get('server_mac')
-                metadata_port_ip = self._ovn_client._find_metadata_port_ip(
-                    ctx, db_subnets[subnet_id])
                 dhcp_options = self._ovn_client._get_ovn_dhcp_options(
-                    db_subnets[subnet_id], network, server_mac=server_mac,
-                    metadata_port_ip=metadata_port_ip)
+                    db_subnets[subnet_id], network, server_mac=server_mac)
                 # Verify that the cidr and options are also in sync.
                 if dhcp_options['cidr'] == ovn_dhcp_opts['cidr'] and (
                         dhcp_options['options'] == ovn_dhcp_opts['options']):
@@ -642,14 +639,11 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.debug('Adding/Updating DHCP options for subnet %s in '
                               ' OVN NB DB', subnet_id)
                     network = db_networks[utils.ovn_name(subnet['network_id'])]
-                    metadata_port_ip = self._ovn_client._find_metadata_port_ip(
-                        ctx, db_subnets[subnet_id])
                     # _ovn_client._add_subnet_dhcp_options doesn't create
                     # a new row in DHCP_Options if the row already exists.
                     # See commands.AddDHCPOptionsCommand.
                     self._ovn_client._add_subnet_dhcp_options(
-                        subnet, network, subnet.get('ovn_dhcp_options'),
-                        metadata_port_ip=metadata_port_ip)
+                        subnet, network, subnet.get('ovn_dhcp_options'))
                 except RuntimeError:
                     LOG.warning('Adding/Updating DHCP options for subnet '
                                 '%s failed in OVN NB DB', subnet_id)

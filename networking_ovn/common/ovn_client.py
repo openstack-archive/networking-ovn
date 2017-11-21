@@ -879,21 +879,19 @@ class OVNClient(object):
                     check_error=True)
         self._qos_driver.update_network(network, original_network)
 
-    def _add_subnet_dhcp_options(self, subnet, network, ovn_dhcp_options=None,
-                                 metadata_port_ip=None):
+    def _add_subnet_dhcp_options(self, subnet, network,
+                                 ovn_dhcp_options=None):
         if utils.is_dhcp_options_ignored(subnet):
             return
 
         if not ovn_dhcp_options:
-            ovn_dhcp_options = self._get_ovn_dhcp_options(
-                subnet, network, metadata_port_ip=metadata_port_ip)
+            ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
 
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.add_dhcp_options(
                 subnet['id'], **ovn_dhcp_options))
 
-    def _get_ovn_dhcp_options(self, subnet, network, server_mac=None,
-                              metadata_port_ip=None):
+    def _get_ovn_dhcp_options(self, subnet, network, server_mac=None):
         external_ids = {'subnet_id': subnet['id']}
         dhcp_options = {'cidr': subnet['cidr'], 'options': {},
                         'external_ids': external_ids}
@@ -901,16 +899,14 @@ class OVNClient(object):
         if subnet['enable_dhcp']:
             if subnet['ip_version'] == const.IP_VERSION_4:
                 dhcp_options['options'] = self._get_ovn_dhcpv4_opts(
-                    subnet, network, server_mac=server_mac,
-                    metadata_port_ip=metadata_port_ip)
+                    subnet, network, server_mac=server_mac)
             else:
                 dhcp_options['options'] = self._get_ovn_dhcpv6_opts(
                     subnet, server_id=server_mac)
 
         return dhcp_options
 
-    def _get_ovn_dhcpv4_opts(self, subnet, network, server_mac=None,
-                             metadata_port_ip=None):
+    def _get_ovn_dhcpv4_opts(self, subnet, network, server_mac=None):
         if not subnet['gateway_ip']:
             return {}
 
@@ -936,6 +932,8 @@ class OVNClient(object):
         # If subnet hostroutes are defined, add them in the
         # 'classless_static_route' dhcp option
         classless_static_routes = "{"
+        metadata_port_ip = self._find_metadata_port_ip(
+            n_context.get_admin_context(), subnet)
         if metadata_port_ip:
             classless_static_routes += ("%s/32,%s, ") % (
                 metadata_agent.METADATA_DEFAULT_IP, metadata_port_ip)
@@ -980,8 +978,7 @@ class OVNClient(object):
             for dhcp_option in dhcp_options:
                 txn.add(self._nb_idl.delete_dhcp_options(dhcp_option['uuid']))
 
-    def _enable_subnet_dhcp_options(self, subnet, network,
-                                    metadata_port_ip=None):
+    def _enable_subnet_dhcp_options(self, subnet, network):
         if utils.is_dhcp_options_ignored(subnet):
             return
 
@@ -990,8 +987,7 @@ class OVNClient(object):
                                            filters=filters)
         ports = [p for p in all_ports if not utils.is_network_device_port(p)]
 
-        subnet_dhcp_options = self._get_ovn_dhcp_options(
-            subnet, network, metadata_port_ip=metadata_port_ip)
+        subnet_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
         subnet_dhcp_cmd = self._nb_idl.add_dhcp_options(subnet['id'],
                                                         **subnet_dhcp_options)
         with self._nb_idl.transaction(check_error=True) as txn:
@@ -1022,8 +1018,7 @@ class OVNClient(object):
                         lport_name=port['id'],
                         **columns))
 
-    def _update_subnet_dhcp_options(self, subnet, network,
-                                    metadata_port_ip=None):
+    def _update_subnet_dhcp_options(self, subnet, network):
         if utils.is_dhcp_options_ignored(subnet):
             return
         original_options = self._nb_idl.get_subnet_dhcp_options(subnet['id'])
@@ -1033,8 +1028,7 @@ class OVNClient(object):
                 mac = original_options['options'].get('server_id')
             else:
                 mac = original_options['options'].get('server_mac')
-        new_options = self._get_ovn_dhcp_options(
-            subnet, network, mac, metadata_port_ip=metadata_port_ip)
+        new_options = self._get_ovn_dhcp_options(subnet, network, mac)
         # Check whether DHCP changed
         if (original_options and
                 original_options['cidr'] == new_options['cidr'] and
@@ -1049,14 +1043,11 @@ class OVNClient(object):
 
     def create_subnet(self, subnet, network):
         if subnet['enable_dhcp']:
-            metadata_port_ip = None
             if subnet['ip_version'] == 4:
                 context = n_context.get_admin_context()
                 self.update_metadata_port(context, network['id'])
-                metadata_port_ip = self._find_metadata_port_ip(context, subnet)
 
-            self._add_subnet_dhcp_options(subnet, network,
-                                          metadata_port_ip=metadata_port_ip)
+            self._add_subnet_dhcp_options(subnet, network)
 
     def update_subnet(self, subnet, original_subnet, network):
         if not subnet['enable_dhcp'] and not original_subnet['enable_dhcp']:
@@ -1064,13 +1055,12 @@ class OVNClient(object):
 
         context = n_context.get_admin_context()
         self.update_metadata_port(context, network['id'])
-        metadata_port_ip = self._find_metadata_port_ip(context, subnet)
         if not original_subnet['enable_dhcp']:
-            self._enable_subnet_dhcp_options(subnet, network, metadata_port_ip)
+            self._enable_subnet_dhcp_options(subnet, network)
         elif not subnet['enable_dhcp']:
             self._remove_subnet_dhcp_options(subnet['id'])
         else:
-            self._update_subnet_dhcp_options(subnet, network, metadata_port_ip)
+            self._update_subnet_dhcp_options(subnet, network)
 
     def delete_subnet(self, subnet_id):
         self._remove_subnet_dhcp_options(subnet_id)
