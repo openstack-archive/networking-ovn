@@ -12,7 +12,30 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
+
+from oslo_utils import fileutils
 from oslotest import base
+
+from networking_ovn.common import config
+
+
+def setup_test_logging(config_opts, log_dir, log_file_path_template):
+    # Have each test log into its own log file
+    config_opts.set_override('debug', True)
+    fileutils.ensure_tree(log_dir, mode=0o755)
+    log_file = sanitize_log_path(
+        os.path.join(log_dir, log_file_path_template))
+    config_opts.set_override('log_file', log_file)
+    config.setup_logging()
+
+
+def sanitize_log_path(path):
+    # Sanitize the string so that its log path is shell friendly
+    replace_map = {' ': '-', '(': '_', ')': '_'}
+    for s, r in replace_map.items():
+        path = path.replace(s, r)
+    return path
 
 
 class TestCase(base.BaseTestCase):
