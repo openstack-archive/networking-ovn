@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
 import time
 
 import fixtures
@@ -29,9 +30,14 @@ from ovsdbapp.backend.ovs_idl import connection
 
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.tests import base
 from networking_ovn.tests.functional.resources import process
 
 LOG = log.getLogger(__name__)
+
+# This is the directory from which infra fetches log files for functional tests
+DEFAULT_LOG_DIR = os.path.join(os.environ.get('OS_LOG_PATH', '/tmp'),
+                               'dsvm-functional-logs')
 
 
 class AddFakeChassisCommand(command.BaseCommand):
@@ -92,6 +98,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                      group='ml2_type_geneve')
 
         super(TestOVNFunctionalBase, self).setUp()
+        base.setup_test_logging(
+            cfg.CONF, DEFAULT_LOG_DIR, "%s.txt" % self.id())
+
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.l3_plugin = directory.get_plugin(constants.L3)

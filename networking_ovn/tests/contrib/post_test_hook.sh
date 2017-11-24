@@ -21,6 +21,33 @@ function generate_testr_results {
     fi
 }
 
+function generate_log_index {
+    local xtrace
+    xtrace=$(set +o | grep xtrace)
+    set +o xtrace
+
+    # honor job flavors like -python35
+    case $venv in
+    *"dsvm-functional"*)
+        venv="dsvm-functional"
+        ;;
+    *)
+        echo "Unrecognized environment $venv".
+        exit 1
+    esac
+
+    virtualenv /tmp/os-log-merger
+    /tmp/os-log-merger/bin/pip install -U os-log-merger==1.1.0
+    files=$(find /opt/stack/logs/$venv-logs -name '*.txt' -o -name '*.log')
+    # -a3 to truncate common path prefix
+    # || true to avoid the whole run failure because of os-log-merger crashes and such
+    # TODO(ihrachys) remove || true when we have more trust in os-log-merger
+    contents=$(/tmp/os-log-merger/bin/os-log-merger -a3 $files || true)
+    echo "$contents" | sudo tee /opt/stack/logs/$venv-index.txt > /dev/null
+
+    $xtrace
+}
+
 if [[ "$venv" == dsvm-functional* ]]
 then
     owner=$GATE_STACK_USER
@@ -39,5 +66,6 @@ then
 
     # Collect and parse results
     generate_testr_results
+    generate_log_index
     exit $testr_exit_code
 fi
