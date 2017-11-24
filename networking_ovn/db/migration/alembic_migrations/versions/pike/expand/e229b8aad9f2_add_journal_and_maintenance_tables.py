@@ -29,8 +29,6 @@ from alembic import op
 from oslo_utils import uuidutils
 import sqlalchemy as sa
 
-from networking_ovn.journal import constants as journal_const
-
 
 def upgrade():
     op.create_table(
@@ -41,10 +39,8 @@ def upgrade():
         sa.Column('object_uuid', sa.String(36), nullable=False),
         sa.Column('operation', sa.String(36), nullable=False),
         sa.Column('data', sa.PickleType, nullable=True),
-        sa.Column('state', sa.Enum(journal_const.PENDING,
-                                   journal_const.PROCESSING,
-                                   journal_const.FAILED,
-                                   journal_const.COMPLETED,
+        sa.Column('state', sa.Enum('pending', 'processing',
+                                   'failed', 'completed',
                                    name='state'),
                   nullable=False, default='pending'),
         sa.Column('retry_count', sa.Integer, default=0),
@@ -56,8 +52,7 @@ def upgrade():
     maint_table = op.create_table(
         'ovn_maintenance',
         sa.Column('id', sa.String(36), primary_key=True),
-        sa.Column('state', sa.Enum(journal_const.PENDING,
-                                   journal_const.PROCESSING,
+        sa.Column('state', sa.Enum('pending', 'processing',
                                    name='state'),
                   nullable=False),
         sa.Column('processing_operation', sa.String(70)),
@@ -70,4 +65,4 @@ def upgrade():
     # different Neutron processes.
     op.bulk_insert(maint_table,
                    [{'id': uuidutils.generate_uuid(),
-                     'state': journal_const.PENDING}])
+                     'state': 'pending'}])

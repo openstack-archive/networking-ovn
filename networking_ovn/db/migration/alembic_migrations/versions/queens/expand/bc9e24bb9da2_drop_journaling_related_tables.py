@@ -1,5 +1,4 @@
 # Copyright 2017 Red Hat, Inc.
-# All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -12,16 +11,23 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
 
-from neutron_lib import exceptions as n_exc
+"""Drop journaling related tables
 
-from networking_ovn._i18n import _
+Revision ID: bc9e24bb9da2
+Revises: e229b8aad9f2
+Create Date: 2017-08-10 11:00:25.428857
+
+"""
+
+# revision identifiers, used by Alembic.
+revision = 'bc9e24bb9da2'
+down_revision = 'e229b8aad9f2'
+
+from alembic import op
 
 
-class JournalAlreadyStarted(n_exc.NeutronException):
-    message = _('Journal thread already started')
-
-
-class NonRetryableError(n_exc.NeutronException):
-    """A generic non-retryable exception."""
-    pass
+def upgrade():
+    op.drop_table('ovn_journal')
+    op.drop_table('ovn_maintenance')
