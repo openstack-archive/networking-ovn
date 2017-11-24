@@ -332,22 +332,15 @@ function start_ovs {
 
         # TODO (regXboi): change ovn-ctl so that we can use something
         # other than --db-nb-port for port and ip address
-        DB_NB_PORT="6641"
-        DB_NB_INSECURE_REMOTE="yes"
         DB_NB_FILE="$DATA_DIR/ovs/ovnnb.db"
         OVN_NB_LOGFILE="$LOGDIR/ovsdb-server-nb.log"
 
         # TODO (regXboi): change ovn-ctl so that we can use something
         # other than --db-sb-port for port and ip address
-        DB_SB_PORT="6642"
-        DB_SB_INSECURE_REMOTE="yes"
         DB_SB_FILE="$DATA_DIR/ovs/ovnsb.db"
         OVN_SB_LOGFILE="$LOGDIR/ovsdb-server-sb.log"
 
         /usr/local/share/openvswitch/scripts/ovn-ctl start_ovsdb \
-              --db-nb-create-insecure-remote=$DB_NB_INSECURE_REMOTE \
-              --db-sb-create-insecure-remote=$DB_SB_INSECURE_REMOTE \
-              --db-nb-port=$DB_NB_PORT --db-sb-port=$DB_SB_PORT \
               --db-nb-file=$DB_NB_FILE --ovn-nb-logfile=$OVN_NB_LOGFILE \
               --db-sb-file=$DB_SB_FILE --ovn-sb-logfile=$OVN_SB_LOGFILE
 
@@ -356,6 +349,9 @@ function start_ovs {
         DB_SB_SOCK="/usr/local/var/run/openvswitch/ovnsb_db.sock"
         local testcmd="test -e $DB_NB_SOCK -a -e $DB_SB_SOCK"
         test_with_retry "$testcmd" "nb ovsdb-server did not start" $SERVICE_TIMEOUT 1
+
+        ovn-nbctl --db=unix:/usr/local/var/run/openvswitch/ovnnb_db.sock set-connection ptcp:6641:0.0.0.0 -- set connection . inactivity_probe=60000
+        ovn-sbctl --db=unix:/usr/local/var/run/openvswitch/ovnsb_db.sock set-connection ptcp:6642:0.0.0.0 -- set connection . inactivity_probe=60000
         echo "done."
     fi
 

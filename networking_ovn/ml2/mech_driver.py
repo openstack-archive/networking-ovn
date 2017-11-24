@@ -167,8 +167,11 @@ class OVNMechanismDriver(api.MechanismDriver):
         # NOTE(rtheis): This will initialize all workers (API, RPC,
         # plugin service and OVN) with OVN IDL connections.
         self._post_fork_event.clear()
+        self._ovn_client_inst = None
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
                                                                trigger)
+        # Now IDL connections can be safely used.
+        self._post_fork_event.set()
 
         if trigger.im_class == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker
@@ -188,8 +191,6 @@ class OVNMechanismDriver(api.MechanismDriver):
                 self
             )
             self.sb_synchronizer.sync()
-
-        self._post_fork_event.set()
 
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
         sg = {'name': kwargs['security_group']['name'],
