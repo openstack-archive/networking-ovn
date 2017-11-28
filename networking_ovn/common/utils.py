@@ -105,6 +105,13 @@ def is_lsp_trusted(port):
     return n_utils.is_port_trusted(port) if port.get('device_owner') else False
 
 
+def is_lsp_ignored(port):
+    # Since the floating IP port is not bound to any chassis, packets from vm
+    # destined to floating IP will be dropped. To overcome this, we do not
+    # create/update floating IP port in OVN.
+    return port.get('device_owner') in [const.DEVICE_OWNER_FLOATINGIP]
+
+
 def get_lsp_security_groups(port, skip_trusted_port=True):
     # In other agent link OVS, skipping trusted port is processed in security
     # groups RPC.  We haven't that step, so we do it here.

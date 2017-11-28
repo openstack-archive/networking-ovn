@@ -204,6 +204,9 @@ class OVNClient(object):
                            cidrs.strip())
 
     def create_port(self, port):
+        if utils.is_lsp_ignored(port):
+            return
+
         port_info = self._get_port_options(port)
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name'],
                         ovn_const.OVN_DEVID_EXT_ID_KEY: port['device_id'],
@@ -275,6 +278,9 @@ class OVNClient(object):
                                 if_exists=False))
 
     def update_port(self, port, original_port, qos_options=None):
+        if utils.is_lsp_ignored(port):
+            return
+
         port_info = self._get_port_options(port, qos_options)
         external_ids = {ovn_const.OVN_PORT_NAME_EXT_ID_KEY: port['name'],
                         ovn_const.OVN_DEVID_EXT_ID_KEY: port['device_id'],

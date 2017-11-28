@@ -52,6 +52,10 @@ class MetadataServiceReadyWaitTimeoutException(Exception):
     pass
 
 
+class OVNPortUpdateError(n_exc.BadRequest):
+    pass
+
+
 class OVNMechanismDriver(api.MechanismDriver):
     """OVN ML2 mechanism driver
 
@@ -375,6 +379,23 @@ class OVNMechanismDriver(api.MechanismDriver):
                 n_context.get_admin_context(), port_id, resources.PORT,
                 provisioning_blocks.DHCP_ENTITY)
 
+    def _validate_ignored_port(self, port, original_port):
+        if utils.is_lsp_ignored(port):
+            if not utils.is_lsp_ignored(original_port):
+                # From not ignored port to ignored port
+                msg = (_('Updating device_owner to %(device_owner)s for port '
+                         '%(port_id)s is not supported') %
+                       {'device_owner': port['device_owner'],
+                        'port_id': port['id']})
+                raise OVNPortUpdateError(resource='port', msg=msg)
+        elif utils.is_lsp_ignored(original_port):
+            # From ignored port to not ignored port
+            msg = (_('Updating device_owner for port %(port_id)s owned by '
+                     '%(device_owner)s is not supported') %
+                   {'port_id': port['id'],
+                    'device_owner': original_port['device_owner']})
+            raise OVNPortUpdateError(resource='port', msg=msg)
+
     def create_port_postcommit(self, context):
         """Create a port.
 
@@ -405,6 +426,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         state changes that it does not know or care about.
         """
         port = context.current
+        original_port = context.original
+        self._validate_ignored_port(port, original_port)
         utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host,
                                                context.original_host):

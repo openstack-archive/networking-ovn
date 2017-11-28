@@ -25,6 +25,7 @@ from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_net
 from oslo_db import exception as os_db_exc
+from oslo_serialization import jsonutils
 
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2 import config
@@ -264,6 +265,74 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                             pass
                     except exc.HTTPClientError:
                         pass
+
+    def test__validate_ignored_port_update_from_fip_port(self):
+        p = {'id': 'id', 'device_owner': 'test'}
+        ori_p = {'id': 'id', 'device_owner': const.DEVICE_OWNER_FLOATINGIP}
+        self.assertRaises(mech_driver.OVNPortUpdateError,
+                          self.mech_driver._validate_ignored_port,
+                          p, ori_p)
+
+    def test__validate_ignored_port_update_to_fip_port(self):
+        p = {'id': 'id', 'device_owner': const.DEVICE_OWNER_FLOATINGIP}
+        ori_p = {'id': 'port-id', 'device_owner': 'test'}
+        self.assertRaises(mech_driver.OVNPortUpdateError,
+                          self.mech_driver._validate_ignored_port,
+                          p, ori_p)
+
+    def test_create_and_update_ignored_fip_port(self):
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               device_owner=const.DEVICE_OWNER_FLOATINGIP,
+                               set_context=True, tenant_id='test') as port:
+                    self.nb_ovn.create_lswitch_port.assert_not_called()
+                    data = {'port': {'name': 'new'}}
+                    req = self.new_update_request('ports', data,
+                                                  port['port']['id'])
+                    res = req.get_response(self.api)
+                    self.assertEqual(exc.HTTPOk.code, res.status_int)
+                    self.nb_ovn.set_lswitch_port.assert_not_called()
+
+    def test_update_ignored_port_from_fip_device_owner(self):
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               device_owner=const.DEVICE_OWNER_FLOATINGIP,
+                               set_context=True, tenant_id='test') as port:
+                    self.nb_ovn.create_lswitch_port.assert_not_called()
+                    data = {'port': {'device_owner': 'test'}}
+                    req = self.new_update_request('ports', data,
+                                                  port['port']['id'])
+                    res = req.get_response(self.api)
+                    self.assertEqual(exc.HTTPBadRequest.code, res.status_int)
+                    msg = jsonutils.loads(res.body)['NeutronError']['message']
+                    expect_msg = ('Bad port request: Updating device_owner for'
+                                  ' port %s owned by network:floatingip is'
+                                  ' not supported.' % port['port']['id'])
+                    self.assertEqual(msg, expect_msg)
+                    self.nb_ovn.set_lswitch_port.assert_not_called()
+
+    def test_update_ignored_port_to_fip_device_owner(self):
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               device_owner='test',
+                               set_context=True, tenant_id='test') as port:
+                    self.assertEqual(
+                        1, self.nb_ovn.create_lswitch_port.call_count)
+                    data = {'port': {'device_owner':
+                                     const.DEVICE_OWNER_FLOATINGIP}}
+                    req = self.new_update_request('ports', data,
+                                                  port['port']['id'])
+                    res = req.get_response(self.api)
+                    self.assertEqual(exc.HTTPBadRequest.code, res.status_int)
+                    msg = jsonutils.loads(res.body)['NeutronError']['message']
+                    expect_msg = ('Bad port request: Updating device_owner to'
+                                  ' network:floatingip for port %s is'
+                                  ' not supported.' % port['port']['id'])
+                    self.assertEqual(msg, expect_msg)
+                    self.nb_ovn.set_lswitch_port.assert_not_called()
 
     def test_create_port_security(self):
         kwargs = {'mac_address': '00:00:00:00:00:01',
