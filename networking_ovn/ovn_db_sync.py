@@ -800,8 +800,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         # constants.DEVICE_OWNER_FLOATINGIP
         db_ports = {port['id']: port for port in
                     self.core_plugin.get_ports(ctx) if not
-                    port.get('device_owner', '').startswith(
-                    constants.DEVICE_OWNER_FLOATINGIP)}
+                    utils.is_lsp_ignored(port)}
 
         ovn_all_dhcp_options = self.ovn_api.get_all_dhcp_options()
         db_network_cache = dict(db_networks)

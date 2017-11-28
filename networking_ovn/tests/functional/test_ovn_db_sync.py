@@ -803,8 +803,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
     def _validate_ports(self, should_match=True):
         db_ports = self._list('ports')
         db_port_ids = [port['id'] for port in db_ports['ports'] if
-                       port['device_owner'] !=
-                       constants.DEVICE_OWNER_FLOATINGIP]
+                       not utils.is_lsp_ignored(port)]
         db_port_ids_dhcp_valid = set(
             port['id'] for port in db_ports['ports']
             if not utils.is_network_device_port(port) and
