@@ -12,6 +12,16 @@
         - networking-ovn-install-dsvm-kuryr
         - networking-ovn-tempest-dsvm-neutron-api-ovs-release:
             voting: false
+        # TripleO jobs that deploy OVN.
+        # Note we don't use a project-template here, so it's easier
+        # to disable voting on one specific job if things go wrong.
+        # tripleo-ci-centos-7-scenario007-multinode-oooq will only
+        # run on stable/pike while the -container will run in Queens
+        # and beyond.
+        # If you need any support to debug these jobs in case of
+        # failures, please reach us on #tripleo IRC channel.
+        - tripleo-ci-centos-7-scenario007-multinode-oooq
+        - tripleo-ci-centos-7-scenario007-multinode-oooq-container
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -20,6 +30,8 @@
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
         - networking-ovn-install-dsvm-kuryr
+        - tripleo-ci-centos-7-scenario007-multinode-oooq
+        - tripleo-ci-centos-7-scenario007-multinode-oooq-container
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master-python3:
