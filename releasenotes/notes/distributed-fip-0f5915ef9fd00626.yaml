@@ -1,0 +1,8 @@
+---
+prelude: >
+    Support distributed floating IP.
+features:
+  - |
+    Now distributed floating IP is supported and a new configuration option
+    ``enable_distributed_floating_ip`` is added to ovn group to control
+    the feature.
