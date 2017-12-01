@@ -1,0 +1,12 @@
+---
+prelude: >
+    support for binding a SR-IOV port in a networking-ovn
+    deployment.
+features:
+    - networking-ovn ML2 mechanism driver now supports binding
+      of direct(SR-IOV) ports. Traffic Control(TC) hardware
+      offload framework for SR-IOV VFs was introduced in Linux
+      kernel 4.8. Open vSwitch(OVS) 2.8 supports offloading OVS
+      datapath rules using the TC framework. By using OVS version
+      2.8 and Linux kernel >= 4.8, a SR-IOV VF can be controlled
+      via Openflow control plane.
