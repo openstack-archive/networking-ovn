@@ -1,0 +1,250 @@
+# Andi Chandler <andi@gowling.com>, 2017. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: Networking OVN Release Notes\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-11-30 15:55+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2017-10-17 07:17+0000\n"
+"Last-Translator: Andi Chandler <andi@gowling.com>\n"
+"Language-Team: English (United Kingdom)\n"
+"Language: en-GB\n"
+"X-Generator: Zanata 3.9.6\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgid "(\\*) Only applicable if using the conventional layer-3 agent."
+msgstr "(\\*) Only applicable if using the conventional layer-3 agent."
+
+msgid "(\\*\\*) Only applicable if using the conventional DHCP agent."
+msgstr "(\\*\\*) Only applicable if using the conventional DHCP agent."
+
+msgid "1.0.0"
+msgstr "1.0.0"
+
+msgid "2.0.0"
+msgstr "2.0.0"
+
+msgid "3.0.0"
+msgstr "3.0.0"
+
+msgid "Current Series Release Notes"
+msgstr "Current Series Release Notes"
+
+msgid ""
+"DHCP (native OVN implementation or conventional DHCP agent) The native "
+"implementation supports distributed DHCP. However, it currently lacks "
+"support for IPv6, internal DNS, and metadata proxy."
+msgstr ""
+"DHCP (native OVN implementation or conventional DHCP agent) The native "
+"implementation supports distributed DHCP. However, it currently lacks "
+"support for IPv6, internal DNS, and metadata proxy."
+
+msgid ""
+"DPDK - Usable with OVS via either the Linux kernel datapath or the DPDK "
+"datapath."
+msgstr ""
+"DPDK - Usable with OVS via either the Linux kernel datapath or the DPDK "
+"datapath."
+
+msgid "Deprecation Notes"
+msgstr "Deprecation Notes"
+
+msgid ""
+"Initial release of the OpenStack Networking service (neutron) integration "
+"with Open Virtual Network (OVN), a component of the the `Open vSwitch "
+"<http://openvswitch.org/>`_ project. OVN provides the following features "
+"either via native implementation or conventional agents:"
+msgstr ""
+"Initial release of the OpenStack Networking service (neutron) integration "
+"with Open Virtual Network (OVN), a component of the the `Open vSwitch "
+"<http://openvswitch.org/>`_ project. OVN provides the following features "
+"either via native implementation or conventional agents:"
+
+msgid "Layer-2 (native OVN implementation)"
+msgstr "Layer-2 (native OVN implementation)"
+
+msgid ""
+"Layer-3 (native OVN implementation or conventional layer-3 agent) The native "
+"OVN implementation supports distributed routing. However, it currently lacks "
+"support for floating IP addresses, NAT, and the metadata proxy."
+msgstr ""
+"Layer-3 (native OVN implementation or conventional layer-3 agent) The native "
+"OVN implementation supports distributed routing. However, it currently lacks "
+"support for floating IP addresses, NAT, and the metadata proxy."
+
+msgid "Metadata (conventional metadata agent)"
+msgstr "Metadata (conventional metadata agent)"
+
+msgid "Networking OVN Release Notes"
+msgstr "Networking OVN Release Notes"
+
+msgid "New Features"
+msgstr "New Features"
+
+msgid "Newton Series Release Notes"
+msgstr "Newton Series Release Notes"
+
+msgid ""
+"OVN native DHCPv6 implementation. The native implementation supports "
+"distributed DHCPv6. Support Neutron IPv6 subnet whose \"ipv6_address_mode\" "
+"attribute is None, \"dhcpv6_stateless\", or \"dhcpv6_stateful\"."
+msgstr ""
+"OVN native DHCPv6 implementation. The native implementation supports "
+"distributed DHCPv6. Support Neutron IPv6 subnet whose \"ipv6_address_mode\" "
+"attribute is None, \"dhcpv6_stateless\", or \"dhcpv6_stateful\"."
+
+msgid ""
+"OVN native L3 implementation. The native implementation supports distributed "
+"routing for east-west traffic and centralized routing for north-south "
+"(floatingip and snat) traffic. Also supported is the Neutron L3 Configurable "
+"external gateway mode."
+msgstr ""
+"OVN native L3 implementation. The native implementation supports distributed "
+"routing for east-west traffic and centralised routing for north-south "
+"(floatingip and snat) traffic. Also supported is the Neutron L3 Configurable "
+"external gateway mode."
+
+msgid "Ocata Series Release Notes"
+msgstr "Ocata Series Release Notes"
+
+msgid "Pike Series Release Notes"
+msgstr "Pike Series Release Notes"
+
+msgid "Prelude"
+msgstr "Prelude"
+
+msgid ""
+"The ``ovn`` group ``ovsdb_connection`` configuration option was deprecated "
+"in the ``Newton`` release and has now been removed."
+msgstr ""
+"The ``ovn`` group ``ovsdb_connection`` configuration option was deprecated "
+"in the ``Newton`` release and has now been removed."
+
+msgid ""
+"The ``ovn`` group ``vif_type`` configuration option is deprecated and will "
+"be removed in the next release. The port VIF type is now determined based on "
+"the OVN chassis information when the port is bound to a host. [Bug `1606458 "
+"<https://bugs.launchpad.net/bugs/1606458>`_]"
+msgstr ""
+"The ``ovn`` group ``vif_type`` configuration option is deprecated and will "
+"be removed in the next release. The port VIF type is now determined based on "
+"the OVN chassis information when the port is bound to a host. [Bug `1606458 "
+"<https://bugs.launchpad.net/bugs/1606458>`_]"
+
+msgid ""
+"The initial release also supports the following Networking service API "
+"extensions:"
+msgstr ""
+"The initial release also supports the following Networking service API "
+"extensions:"
+
+msgid "Trunk driver - Driver to back the neutron's 'trunk' service plugin"
+msgstr "Trunk driver - Driver to back the neutron's 'trunk' service plugin"
+
+msgid "``Address Scopes`` \\*"
+msgstr "``Address Scopes`` \\*"
+
+msgid "``Allowed Address Pairs``"
+msgstr "``Allowed Address Pairs``"
+
+msgid "``Auto Allocated Topology Services``"
+msgstr "``Auto Allocated Topology Services``"
+
+msgid "``Availability Zone``"
+msgstr "``Availability Zone``"
+
+msgid "``DHCP Agent Scheduler`` \\*\\*"
+msgstr "``DHCP Agent Scheduler`` \\*\\*"
+
+msgid "``DNS Integration`` \\*"
+msgstr "``DNS Integration`` \\*"
+
+msgid "``Default Subnetpools``"
+msgstr "``Default Subnetpools``"
+
+msgid "``Distributed Virtual Router`` \\*"
+msgstr "``Distributed Virtual Router`` \\*"
+
+msgid "``HA Router extension`` \\*"
+msgstr "``HA Router extension`` \\*"
+
+msgid "``L3 Agent Scheduler`` \\*"
+msgstr "``L3 Agent Scheduler`` \\*"
+
+msgid "``Multi Provider Network``"
+msgstr "``Multi Provider Network``"
+
+msgid "``Network Availability Zone`` \\*\\*"
+msgstr "``Network Availability Zone`` \\*\\*"
+
+msgid "``Network IP Availability``"
+msgstr "``Network IP Availability``"
+
+msgid "``Network MTU``"
+msgstr "``Network MTU``"
+
+msgid "``Neutron Extra DHCP opts``"
+msgstr "``Neutron Extra DHCP opts``"
+
+msgid "``Neutron Extra Route``"
+msgstr "``Neutron Extra Route``"
+
+msgid "``Neutron L3 Configurable external gateway mode`` \\*"
+msgstr "``Neutron L3 Configurable external gateway mode`` \\*"
+
+msgid "``Neutron L3 Router``"
+msgstr "``Neutron L3 Router``"
+
+msgid "``Neutron external network``"
+msgstr "``Neutron external network``"
+
+msgid "``Port Binding``"
+msgstr "``Port Binding``"
+
+msgid "``Port Security``"
+msgstr "``Port Security``"
+
+msgid "``Provider Network``"
+msgstr "``Provider Network``"
+
+msgid "``Quality of Service``"
+msgstr "``Quality of Service``"
+
+msgid "``Quota management support``"
+msgstr "``Quota management support``"
+
+msgid "``RBAC Policies``"
+msgstr "``RBAC Policies``"
+
+msgid "``Resource revision numbers``"
+msgstr "``Resource revision numbers``"
+
+msgid "``Router Availability Zone`` \\*"
+msgstr "``Router Availability Zone`` \\*"
+
+msgid "``Subnet Allocation``"
+msgstr "``Subnet Allocation``"
+
+msgid "``Tag support``"
+msgstr "``Tag support``"
+
+msgid "``Time Stamp Fields``"
+msgstr "``Time Stamp Fields``"
+
+msgid "``agent``"
+msgstr "``agent``"
+
+msgid "``security-group``"
+msgstr "``security-group``"
+
+msgid "``standard-attr-description``"
+msgstr "``standard-attr-description``"
+
+msgid ""
+"networking-ovn now supports the use of SSL for its OVSDB connections to the "
+"OVN databases."
+msgstr ""
+"networking-ovn now supports the use of SSL for its OVSDB connections to the "
+"OVN databases."
