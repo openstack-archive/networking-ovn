@@ -562,42 +562,20 @@ class OVNClient(object):
 
     def _add_router_ext_gw(self, context, router, networks, txn):
         router_id = router['id']
-        lrouter_name = utils.ovn_name(router['id'])
-
         # 1. Add the external gateway router port.
         _, ext_gw_ip = self._get_external_router_and_gateway_ip(context,
                                                                 router)
         gw_port_id = router['gw_port_id']
         port = self._plugin.get_port(context, gw_port_id)
-        try:
-            self.create_router_port(router_id, port, txn=txn)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router, networks, txn)
-                LOG.error('Unable to add external router port %(id)s to '
-                          'lrouter %(name)s',
-                          {'id': port['id'], 'name': lrouter_name})
+        self.create_router_port(router_id, port, txn=txn)
 
         # 2. Add default route with nexthop as ext_gw_ip
         route = [{'destination': '0.0.0.0/0', 'nexthop': ext_gw_ip}]
-        try:
-            self.update_router_routes(context, router_id, route, [], txn=txn)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                self._delete_router_ext_gw(context, router, networks, txn)
-                LOG.error('Error updating routes %(route)s in lrouter '
-                          '%(name)s', {'route': route, 'name': lrouter_name})
+        self.update_router_routes(context, router_id, route, [], txn=txn)
 
         # 3. Add snat rules for tenant networks in lrouter if snat is enabled
         if utils.is_snat_enabled(router) and networks:
-            try:
-                self.update_nat_rules(
-                    router, networks, enable_snat=True, txn=txn)
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    self._delete_router_ext_gw(context, router, networks, txn)
-                    LOG.error('Error in updating SNAT for lrouter %s',
-                              lrouter_name)
+            self.update_nat_rules(router, networks, enable_snat=True, txn=txn)
 
     def _check_external_ips_changed(self, gateway_old, gateway_new):
         if gateway_old['network_id'] != gateway_new['network_id']:
