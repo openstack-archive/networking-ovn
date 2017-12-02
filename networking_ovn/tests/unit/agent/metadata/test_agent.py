@@ -181,9 +181,9 @@ class TestMetadataAgent(base.BaseTestCase):
             self.agent.teardown_datapath('1')
 
             destroy_mdp.assert_called_once()
-            del_veth.assert_called_once_with('veth_0')
             self.agent.ovs_idl.del_port.assert_called_once_with(
-                'br-int', 'veth_0')
+                'veth_0', bridge='br-int')
+            del_veth.assert_called_once_with('veth_0')
             garbage_collect.assert_called_once()
 
     def test_provision_datapath(self):

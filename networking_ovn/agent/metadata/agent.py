@@ -207,11 +207,11 @@ class MetadataAgent(object):
             self._process_monitor, datapath, self.conf, namespace)
 
         veth_name = self._get_veth_name(datapath)
+        self.ovs_idl.del_port(
+            veth_name[0], bridge=self.conf.ovs_integration_bridge).execute()
         if ip_lib.device_exists(veth_name[0]):
             ip_lib.IPWrapper().del_veth(veth_name[0])
 
-        self.ovs_idl.del_port(self.conf.ovs_integration_bridge,
-                              veth_name[0]).execute()
         ip.garbage_collect_namespace()
 
     def update_datapath(self, datapath):
