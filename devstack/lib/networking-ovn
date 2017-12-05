@@ -511,6 +511,7 @@ function stop_ovn {
 function stop_ovs_dp {
     sudo ovs-dpctl dump-dps | sudo xargs -n1 ovs-dpctl del-dp
     sudo rmmod vport_geneve
+    sudo rmmod vport_vxlan
     sudo rmmod openvswitch
 }
 
