@@ -411,10 +411,10 @@ function start_ovs {
     fi
 
     if is_ovn_service_enabled ovn-controller-vtep ; then
-        ovn_base_setup_bridge br-vtep
-        vtep-ctl add-ps br-vtep
-        vtep-ctl set Physical_Switch br-vtep tunnel_ips=$HOST_IP
-        sudo /usr/local/share/openvswitch/scripts/ovs-vtep --log-file=$LOGDIR/ovs-vtep.log --pidfile --detach br-vtep
+        ovn_base_setup_bridge br-v
+        vtep-ctl add-ps br-v
+        vtep-ctl set Physical_Switch br-v tunnel_ips=$HOST_IP
+        sudo /usr/local/share/openvswitch/scripts/ovs-vtep --log-file=$LOGDIR/ovs-vtep.log --pidfile --detach br-v
         vtep-ctl set-manager tcp:$HOST_IP:6640
     fi
 
