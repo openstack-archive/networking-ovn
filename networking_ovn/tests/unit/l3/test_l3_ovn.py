@@ -917,6 +917,7 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
         super(OVNL3ExtrarouteTests, self).\
             test_floatingip_update_subnet_gateway_disabled(expected_status)
 
+    # Test function _subnet_update of L3 OVN plugin.
     def test_update_subnet_gateway_for_external_net(self):
         super(OVNL3ExtrarouteTests, self). \
             test_update_subnet_gateway_for_external_net()
