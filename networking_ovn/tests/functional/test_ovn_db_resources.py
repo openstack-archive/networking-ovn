@@ -80,10 +80,9 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                          observed_lsp_dhcpv6_options)
 
     def _get_subnet_dhcp_mac(self, subnet):
-
         mac_key = 'server_id' if subnet['ip_version'] == 6 else 'server_mac'
         dhcp_options = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
-            subnet['id'])
+            subnet['id'])['subnet']
         return dhcp_options.get('options', {}).get(
             mac_key) if dhcp_options else None
 

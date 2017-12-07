@@ -375,13 +375,15 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def get_subnet_dhcp_options(self, subnet_id):
+    def get_subnet_dhcp_options(self, subnet_id, with_ports=False):
         """Returns the Subnet DHCP options as a dictionary
 
         :param subnet_id:      The subnet id whose DHCP options are returned
         :type subnet_id:       string
-        :returns:              Returns the columns of the DHCP_Options as a
-                               dictionary. None is returned if no DHCP options.
+        :param with_ports:     If True, also returns the ports DHCP options.
+        :type with_ports:      bool
+        :returns:              Returns a dictionary containing two keys:
+                               subnet and ports.
         """
 
     @abc.abstractmethod
@@ -393,21 +395,6 @@ class API(api.API):
         :returns:              Returns the columns of the DHCP_Options as list
                                of dictionary. Empty list is returned if no
                                DHCP_Options matched found.
-        """
-
-    @abc.abstractmethod
-    def compose_dhcp_options_commands(self, subnet_id, **columns):
-        """Returns a list of 'Command' objects to add the DHCP options in NB DB
-
-        Checks if there are DHCP_Options rows for the logical switch ports
-        belonging to the @subnet_id and if found adds into the `Command` list.
-
-        @param subnet_id:     The subnet id to which DHCP Options are to be
-                              added
-        @type subnet_id:      string
-        @type columns:        Dictionary of DHCP_Options columns
-        @returns:             List of 'Command' objects returned by
-                              'add_dhcp_options'
         """
 
     @abc.abstractmethod

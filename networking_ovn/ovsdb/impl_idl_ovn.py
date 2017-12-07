@@ -389,25 +389,25 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def delete_dhcp_options(self, row_uuid, if_exists=True):
         return cmd.DelDHCPOptionsCommand(self, row_uuid, if_exists=if_exists)
 
-    def get_subnet_dhcp_options(self, subnet_id):
-        for row in self._tables['DHCP_Options'].rows.values():
-            external_ids = getattr(row, 'external_ids', {})
-            port_id = external_ids.get('port_id')
-            if subnet_id == external_ids.get('subnet_id') and not port_id:
-                return {'cidr': row.cidr, 'options': dict(row.options),
-                        'external_ids': dict(external_ids),
-                        'uuid': row.uuid}
-        return None
+    def _format_dhcp_row(self, row):
+        ext_ids = dict(getattr(row, 'external_ids', {}))
+        return {'cidr': row.cidr, 'options': dict(row.options),
+                'external_ids': ext_ids, 'uuid': row.uuid}
 
-    def get_subnet_and_ports_dhcp_options(self, subnet_id):
-        ret_opts = []
+    def get_subnet_dhcp_options(self, subnet_id, with_ports=False):
+        subnet = None
+        ports = []
         for row in self._tables['DHCP_Options'].rows.values():
             external_ids = getattr(row, 'external_ids', {})
             if subnet_id == external_ids.get('subnet_id'):
-                ret_opts.append(
-                    {'cidr': row.cidr, 'options': dict(row.options),
-                     'external_ids': dict(external_ids), 'uuid': row.uuid})
-        return ret_opts
+                port_id = external_ids.get('port_id')
+                if with_ports and port_id:
+                    ports.append(self._format_dhcp_row(row))
+                elif not port_id:
+                    subnet = self._format_dhcp_row(row)
+                    if not with_ports:
+                        break
+        return {'subnet': subnet, 'ports': ports}
 
     def get_subnets_dhcp_options(self, subnet_ids):
         ret_opts = []
@@ -415,10 +415,7 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             external_ids = getattr(row, 'external_ids', {})
             if (external_ids.get('subnet_id') in subnet_ids
                     and not external_ids.get('port_id')):
-                ret_opts.append({
-                    'cidr': row.cidr, 'options': dict(row.options),
-                    'external_ids': dict(external_ids),
-                    'uuid': row.uuid})
+                ret_opts.append(self._format_dhcp_row(row))
                 if len(ret_opts) == len(subnet_ids):
                     break
         return ret_opts
@@ -433,46 +430,14 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                 continue
 
             if not external_ids.get('port_id'):
-                dhcp_options['subnets'][external_ids['subnet_id']] = {
-                    'cidr': row.cidr, 'options': dict(row.options),
-                    'external_ids': dict(external_ids),
-                    'uuid': row.uuid}
+                dhcp_options['subnets'][external_ids['subnet_id']] = (
+                    self._format_dhcp_row(row))
             else:
                 port_dict = 'ports_v6' if ':' in row.cidr else 'ports_v4'
-                dhcp_options[port_dict][external_ids['port_id']] = {
-                    'cidr': row.cidr, 'options': dict(row.options),
-                    'external_ids': dict(external_ids),
-                    'uuid': row.uuid}
+                dhcp_options[port_dict][external_ids['port_id']] = (
+                    self._format_dhcp_row(row))
 
         return dhcp_options
-
-    def compose_dhcp_options_commands(self, subnet_id, **columns):
-        # First add the subnet DHCP options.
-        commands = [self.add_dhcp_options(subnet_id, **columns)]
-
-        # Check if there are any port DHCP options which
-        # belongs to this 'subnet_id' and frame the commands to update them.
-        port_dhcp_options = []
-        for row in self._tables['DHCP_Options'].rows.values():
-            external_ids = getattr(row, 'external_ids', {})
-            port_id = external_ids.get('port_id')
-            if subnet_id == external_ids.get('subnet_id'):
-                if port_id:
-                    port_dhcp_options.append({'port_id': port_id,
-                                             'port_dhcp_opts': row.options})
-
-        for port_dhcp_opt in port_dhcp_options:
-            if columns.get('options'):
-                updated_opts = dict(columns['options'])
-                updated_opts.update(port_dhcp_opt['port_dhcp_opts'])
-            else:
-                updated_opts = {}
-            commands.append(
-                self.add_dhcp_options(subnet_id,
-                                      port_id=port_dhcp_opt['port_id'],
-                                      options=updated_opts))
-
-        return commands
 
     def get_address_sets(self):
         address_sets = {}
