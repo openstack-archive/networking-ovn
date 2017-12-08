@@ -54,23 +54,13 @@ class OVNTrunkHandler(object):
                       port_id)
 
     def _set_sub_ports(self, parent_port, subports):
-        _nb_ovn = self.plugin_driver._nb_ovn
-        with _nb_ovn.transaction(check_error=True) as txn:
-            for port in subports:
-                self._set_binding_profile(port.port_id, parent_port,
-                                          port.segmentation_id)
-                txn.add(_nb_ovn.set_lswitch_port(port.port_id,
-                                                 parent_name=parent_port,
-                                                 tag=port.segmentation_id))
+        for port in subports:
+            self._set_binding_profile(port.port_id, parent_port,
+                                      tag=port.segmentation_id)
 
     def _unset_sub_ports(self, subports):
-        _nb_ovn = self.plugin_driver._nb_ovn
-        with _nb_ovn.transaction(check_error=True) as txn:
-            for port in subports:
-                self._set_binding_profile(port.port_id, None)
-                txn.add(_nb_ovn.set_lswitch_port(port.port_id,
-                                                 parent_name=[],
-                                                 tag=[]))
+        for port in subports:
+            self._set_binding_profile(port.port_id, None)
 
     def trunk_created(self, trunk):
         self._set_sub_ports(trunk.port_id, trunk.sub_ports)
