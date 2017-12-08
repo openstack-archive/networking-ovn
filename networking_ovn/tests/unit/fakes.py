@@ -146,6 +146,10 @@ class FakeResource(dict):
         self._add_methods(methods)
         self._loaded = loaded
 
+    @property
+    def db_obj(self):
+        return self
+
     def _add_details(self, info):
         for (k, v) in info.items():
             setattr(self, k, v)
@@ -173,6 +177,10 @@ class FakeResource(dict):
 
     def info(self):
         return self._info
+
+    def update(self, info):
+        super(FakeResource, self).update(info)
+        self._add_details(info)
 
 
 class FakeNetwork(object):
@@ -555,6 +563,7 @@ class FakeFloatingIp(object):
             'dns': '',
             'dns_domain': '',
             'dns_name': '',
+            'project_id': '',
         }
 
         # Overwrite default attributes.
