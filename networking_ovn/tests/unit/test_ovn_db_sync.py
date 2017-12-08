@@ -504,7 +504,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertEqual(
             len(create_network_list),
             ovn_nb_synchronizer._ovn_client.create_network.call_count)
-        create_network_calls = [mock.call(net['net'], None, None)
+        create_network_calls = [mock.call(net['net'])
                                 for net in create_network_list]
         ovn_nb_synchronizer._ovn_client.create_network.assert_has_calls(
             create_network_calls, any_order=True)
