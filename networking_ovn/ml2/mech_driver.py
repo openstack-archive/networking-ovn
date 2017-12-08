@@ -99,8 +99,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             LOG.warning('Firewall driver configuration is ignored')
         self._setup_vif_port_bindings()
         self.subscribe()
-        qos_driver.OVNQosNotificationDriver.create()
-        self.qos_driver = qos_driver.OVNQosDriver(self)
+        self.qos_driver = qos_driver.OVNQosNotificationDriver.create(self)
         self.trunk_driver = trunk_driver.OVNTrunkDriver.create(self)
 
     @property
@@ -470,13 +469,6 @@ class OVNMechanismDriver(api.MechanismDriver):
         original_port = context.original
         self._ovn_client.update_port(port, original_port)
         self._notify_dhcp_updated(port['id'])
-
-    # TODO(lucasagomes): We need this because the QOS driver is still
-    # relying on a method called update_port(), delete it after QOS driver
-    # is updated
-    def update_port(self, port, original_port, qos_options=None):
-        self._ovn_client.update_port(port, original_port,
-                                     qos_options=qos_options)
 
     def delete_port_postcommit(self, context):
         """Delete a port.

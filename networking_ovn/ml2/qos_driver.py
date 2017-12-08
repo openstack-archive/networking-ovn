@@ -23,7 +23,6 @@ from neutron_lib.services.qos import constants as qos_consts
 
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
-from neutron.plugins.ml2 import plugin as ml2_plugin
 
 from networking_ovn.common import utils
 
@@ -56,32 +55,23 @@ class OVNQosNotificationDriver(base.DriverBase):
         super(OVNQosNotificationDriver, self).__init__(
             name, vif_types, vnic_types, supported_rules,
             requires_rpc_notifications)
-        self._driver_property = None
 
-    @staticmethod
-    def create():
-        return OVNQosNotificationDriver()
+    @classmethod
+    def create(cls, plugin_driver):
+        cls._driver = plugin_driver
+        return cls()
 
     @property
     def is_loaded(self):
         return OVN_QOS in cfg.CONF.ml2.extension_drivers
-
-    @property
-    def _driver(self):
-        if self._driver_property is None:
-            plugin = directory.get_plugin()
-            if isinstance(plugin, ml2_plugin.Ml2Plugin):
-                self._driver_property = \
-                    plugin.mechanism_manager.mech_drivers['ovn'].obj
-        return self._driver_property
 
     def create_policy(self, context, policy):
         # No need to update OVN on create
         pass
 
     def update_policy(self, context, policy):
-        # Call into qos_driver to update the policy
-        self._driver.qos_driver.update_policy(context, policy)
+        # Call into OVN client to update the policy
+        self._driver._ovn_client._qos_driver.update_policy(context, policy)
 
     def delete_policy(self, context, policy):
         # No need to update OVN on delete
@@ -150,8 +140,8 @@ class OVNQosDriver(object):
             # Don't apply qos rules to network devices
             if utils.is_network_device_port(port):
                 continue
-            # Call into mech driver to update port
-            self._driver.update_port(port, port, options)
+            # Call into OVN client to update port
+            self._driver.update_port(port, port, qos_options=options)
 
     def update_network(self, network, original_network):
         # Is qos service enabled
@@ -180,4 +170,4 @@ class OVNQosDriver(object):
         port_bindings = policy.get_bound_ports()
         for port_id in port_bindings:
             port = self._plugin.get_port(context, port_id)
-            self._driver.update_port(port, port, options)
+            self._driver.update_port(port, port, qos_options=options)

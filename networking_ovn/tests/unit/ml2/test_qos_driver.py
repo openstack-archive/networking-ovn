@@ -28,25 +28,27 @@ class TestOVNQosNotificationDriver(base.BaseTestCase):
 
     def setUp(self):
         super(TestOVNQosNotificationDriver, self).setUp()
-        self.driver = qos_driver.OVNQosNotificationDriver()
         self.mech_driver = mock.Mock()
-        self.qos_driver = mock.Mock()
-        self.driver._driver_property = self.mech_driver
-        self.mech_driver.qos_driver = self.qos_driver
+        self.mech_driver._ovn_client = mock.Mock()
+        self.mech_driver._ovn_client._qos_driver = mock.Mock()
+        self.driver = qos_driver.OVNQosNotificationDriver.create(
+            self.mech_driver)
         self.policy = "policy"
 
     def test_create_policy(self):
         self.driver.create_policy(context, self.policy)
-        self.qos_driver.create_policy.assert_not_called()
+        self.driver._driver._ovn_client._qos_driver.create_policy.\
+            assert_not_called()
 
     def test_update_policy(self):
         self.driver.update_policy(context, self.policy)
-        self.qos_driver.update_policy.assert_called_once_with(context,
-                                                              self.policy)
+        self.driver._driver._ovn_client._qos_driver.update_policy.\
+            assert_called_once_with(context, self.policy)
 
     def test_delete_policy(self):
         self.driver.delete_policy(context, self.policy)
-        self.qos_driver.delete_policy.assert_not_called()
+        self.driver._driver._ovn_client._qos_driver.delete_policy.\
+            assert_not_called()
 
 
 class TestOVNQosDriver(base.BaseTestCase):
@@ -54,8 +56,8 @@ class TestOVNQosDriver(base.BaseTestCase):
     def setUp(self):
         super(TestOVNQosDriver, self).setUp()
         self.plugin = mock.Mock()
-        self.mech_driver = mock.Mock()
-        self.driver = qos_driver.OVNQosDriver(self.mech_driver)
+        self.ovn_client = mock.Mock()
+        self.driver = qos_driver.OVNQosDriver(self.ovn_client)
         self.driver._plugin_property = self.plugin
         self.port_id = uuidutils.generate_uuid()
         self.policy_id = uuidutils.generate_uuid()
@@ -161,7 +163,7 @@ class TestOVNQosDriver(base.BaseTestCase):
     def _update_network_ports(self, port, called):
         with mock.patch.object(self.plugin, 'get_ports',
                                return_value=[port]) as get_ports:
-            with mock.patch.object(self.mech_driver,
+            with mock.patch.object(self.ovn_client,
                                    'update_port') as update_port:
                 self.driver._update_network_ports(
                     context, self.network_id, {})
@@ -234,7 +236,7 @@ class TestOVNQosDriver(base.BaseTestCase):
                               ) as get_bound_ports, \
             mock.patch.object(self.plugin, 'get_port',
                               return_value=self.port) as get_port, \
-            mock.patch.object(self.mech_driver, 'update_port',
+            mock.patch.object(self.ovn_client, 'update_port',
                               ) as update_port:
 
             self.driver.update_policy(context, self.policy)
@@ -246,4 +248,5 @@ class TestOVNQosDriver(base.BaseTestCase):
                 context, self.network_id, {})
             get_bound_ports.assert_called_once()
             get_port.assert_called_once_with(context, self.port_id)
-            update_port.assert_called_once_with(self.port, self.port, {})
+            update_port.assert_called_once_with(self.port, self.port,
+                                                qos_options={})
