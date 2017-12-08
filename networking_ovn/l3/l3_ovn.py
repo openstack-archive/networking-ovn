@@ -256,90 +256,27 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                           initial_status=n_const.FLOATINGIP_STATUS_DOWN):
         fip = super(OVNL3RouterPlugin, self).create_floatingip(
             context, floatingip, initial_status)
-        router_id = fip.get('router_id')
-        if router_id:
-            update_fip = {}
-            fip_db = self._get_floatingip(context, fip['id'])
-            update_fip['fip_port_id'] = fip_db['floating_port_id']
-            update_fip['fip_net_id'] = fip['floating_network_id']
-            update_fip['logical_ip'] = fip['fixed_ip_address']
-            update_fip['external_ip'] = fip['floating_ip_address']
-            update_fip['logical_port'] = fip['port_id']
-            port = self._plugin.get_port(context.elevated(),
-                                         fip_db['floating_port_id'])
-            update_fip['fip_port_mac'] = port['mac_address']
-            self._ovn_client.create_floatingip(update_fip, router_id)
-
-            # NOTE(lucasagomes): Revise the expected status
-            # of floating ips, setting it to ACTIVE here doesn't
-            # see consistent with other drivers (ODL here), see:
-            # https://bugs.launchpad.net/networking-ovn/+bug/1657693
-            self.update_floatingip_status(context, fip['id'],
-                                          n_const.FLOATINGIP_STATUS_ACTIVE)
+        self._ovn_client.create_floatingip(fip)
         return fip
 
     def delete_floatingip(self, context, id):
+        # TODO(lucasagomes): Passing ``original_fip`` object as a
+        # parameter to the OVNClient's delete_floatingip() method is done
+        # for backward-compatible reasons. Remove it in the Rocky release
+        # of OpenStack.
         original_fip = self.get_floatingip(context, id)
-        router_id = original_fip.get('router_id')
         super(OVNL3RouterPlugin, self).delete_floatingip(context, id)
-
-        if router_id and original_fip.get('fixed_ip_address'):
-            update_fip = {}
-            update_fip['logical_ip'] = original_fip['fixed_ip_address']
-            update_fip['external_ip'] = original_fip['floating_ip_address']
-            try:
-                self._ovn_client.delete_floatingip(update_fip, router_id)
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    LOG.error('Error in disassociating floatingip: %s', id)
+        self._ovn_client.delete_floatingip(id, fip_object=original_fip)
 
     def update_floatingip(self, context, id, floatingip):
-        fip_db = self._get_floatingip(context, id)
-        previous_fip = self._make_floatingip_dict(fip_db)
-        previous_port_id = previous_fip.get('port_id')
-
+        # TODO(lucasagomes): Passing ``original_fip`` object as a
+        # parameter to the OVNClient's update_floatingip() method is done
+        # for backward-compatible reasons. Remove it in the Rocky release
+        # of OpenStack.
+        original_fip = self.get_floatingip(context, id)
         fip = super(OVNL3RouterPlugin, self).update_floatingip(context, id,
                                                                floatingip)
-        new_port_id = fip.get('port_id')
-        fip_status = None
-        if previous_port_id and (
-            previous_port_id != new_port_id or (
-                previous_fip['fixed_ip_address'] != fip['fixed_ip_address'])):
-            # 1. Floating IP dissociated
-            # 2. Floating IP re-associated to a new port
-            # 3. Floating IP re-associated to a new fixed_ip (same port)
-            update_fip = {}
-            update_fip['logical_ip'] = previous_fip['fixed_ip_address']
-            update_fip['external_ip'] = fip['floating_ip_address']
-            try:
-                self._ovn_client.update_floatingip(
-                    update_fip, previous_fip['router_id'], associate=False)
-                fip_status = n_const.FLOATINGIP_STATUS_DOWN
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    LOG.error('Unable to update floating ip in gateway router')
-
-        if new_port_id:
-            update_fip = {}
-            update_fip['fip_port_id'] = fip_db['floating_port_id']
-            update_fip['fip_net_id'] = fip['floating_network_id']
-            update_fip['logical_ip'] = fip['fixed_ip_address']
-            update_fip['external_ip'] = fip['floating_ip_address']
-            update_fip['logical_port'] = fip['port_id']
-            port = self._plugin.get_port(context.elevated(),
-                                         fip_db['floating_port_id'])
-            update_fip['fip_port_mac'] = port['mac_address']
-            try:
-                self._ovn_client.update_floatingip(
-                    update_fip, fip['router_id'], associate=True)
-                fip_status = n_const.FLOATINGIP_STATUS_ACTIVE
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    LOG.error('Unable to update floating ip in gateway router')
-
-        if fip_status:
-            self.update_floatingip_status(context, id, fip_status)
-
+        self._ovn_client.update_floatingip(fip, fip_object=original_fip)
         return fip
 
     def disassociate_floatingips(self, context, port_id, do_notify=True):

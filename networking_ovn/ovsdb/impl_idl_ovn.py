@@ -485,10 +485,12 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
 
         nat_rules = []
         for nat_rule in getattr(lrouter, 'nat', []):
+            ext_ids = dict(getattr(nat_rule, 'external_ids', {}))
             nat_rules.append({'external_ip': nat_rule.external_ip,
                               'logical_ip': nat_rule.logical_ip,
                               'type': nat_rule.type,
-                              'uuid': nat_rule.uuid})
+                              'uuid': nat_rule.uuid,
+                              'external_ids': ext_ids})
         return nat_rules
 
     def set_nat_rule_in_lrouter(self, lrouter, nat_rule_uuid, **columns):
@@ -542,6 +544,22 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             msg = (_("%(match)s does not exist in %(column)s of %(table)s")
                    % {'match': match, 'column': column, 'table': table})
             raise RuntimeError(msg)
+
+    def get_floatingip(self, fip_id):
+        fip = self.db_find('NAT', ('external_ids', '=',
+                                   {ovn_const.OVN_FIP_EXT_ID_KEY: fip_id}))
+        result = fip.execute(check_error=True)
+        return result[0] if result else None
+
+    def get_floatingip_by_ips(self, router_id, logical_ip, external_ip):
+        if not all([router_id, logical_ip, external_ip]):
+            return
+
+        for nat in self.get_lrouter_nat_rules(utils.ovn_name(router_id)):
+            if (nat['type'] == 'dnat_and_snat' and
+               nat['logical_ip'] == logical_ip and
+               nat['external_ip'] == external_ip):
+                return nat
 
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):

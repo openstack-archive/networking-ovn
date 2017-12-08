@@ -292,6 +292,27 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug('ACL-SYNC: finished @ %s' %
                   str(datetime.now()))
 
+    def _calculate_fips_differences(self, ovn_fips, db_fips):
+        to_add = []
+        to_remove = []
+        for db_fip in db_fips:
+            for ovn_fip in ovn_fips:
+                if (ovn_fip['logical_ip'] == db_fip['fixed_ip_address'] and
+                   ovn_fip['external_ip'] == db_fip['floating_ip_address']):
+                    break
+            else:
+                to_add.append(db_fip)
+
+        for ovn_fip in ovn_fips:
+            for db_fip in db_fips:
+                if (ovn_fip['logical_ip'] == db_fip['fixed_ip_address'] and
+                   ovn_fip['external_ip'] == db_fip['floating_ip_address']):
+                    break
+            else:
+                to_remove.append(ovn_fip)
+
+        return to_add, to_remove
+
     def sync_routers_and_rports(self, ctx):
         """Sync Routers between neutron and NB.
 
@@ -344,20 +365,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
 
         fips = self.l3_plugin.get_floatingips(
             ctx, {'router_id': list(db_routers.keys())})
-        fip_macs = {}
-        if config.is_ovn_distributed_floating_ip():
-            fip_ports = self.core_plugin.get_ports(ctx, filters={
-                'device_owner': [constants.DEVICE_OWNER_FLOATINGIP]})
-            fip_macs = {p['device_id']: p['mac_address'] for p in
-                        fip_ports if p['device_id']}
         for fip in fips:
-            columns = {'external_ip': fip['floating_ip_address'],
-                       'logical_ip': fip['fixed_ip_address'],
-                       'type': 'dnat_and_snat'}
-            if fip['id'] in fip_macs:
-                columns['external_mac'] = fip_macs[fip['id']]
-                columns['logical_port'] = fip['port_id']
-            db_extends[fip['router_id']]['fips'].append(columns)
+            db_extends[fip['router_id']]['fips'].append(fip)
         interfaces = self.l3_plugin._get_sync_interfaces(
             ctx, list(db_routers.keys()),
             [constants.DEVICE_OWNER_ROUTER_INTF,
@@ -405,7 +414,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                             'del': del_routes})
                 ovn_fips = lrouter['dnat_and_snats']
                 db_fips = db_extends[lrouter['name']]['fips']
-                add_fips, del_fips = helpers.diff_list_of_dict(
+                add_fips, del_fips = self._calculate_fips_differences(
                     ovn_fips, db_fips)
                 update_fips_list.append({'id': lrouter['name'],
                                          'add': add_fips,
@@ -536,11 +545,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                             "Delete floating ips %s from OVN NB DB",
                             fip['del'])
                         for nat in fip['del']:
-                            txn.add(self.ovn_api.delete_nat_rule_in_lrouter(
-                                utils.ovn_name(fip['id']),
-                                logical_ip=nat['logical_ip'],
-                                external_ip=nat['external_ip'],
-                                type='dnat_and_snat'))
+                            self._ovn_client._delete_floatingip(
+                                nat, utils.ovn_name(fip['id']))
                 if fip['add']:
                     LOG.warning("Router %(id)s floating ips %(fip)s "
                                 "found in Neutron but not in OVN",
@@ -549,14 +555,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         LOG.warning("Add floating ips %s to OVN NB DB",
                                     fip['add'])
                         for nat in fip['add']:
-                            columns = {'type': 'dnat_and_snat',
-                                       'logical_ip': nat['logical_ip'],
-                                       'external_ip': nat['external_ip']}
-                            if nat.get('external_mac'):
-                                columns['external_mac'] = nat['external_mac']
-                                columns['logical_port'] = nat['logical_port']
-                            txn.add(self.ovn_api.add_nat_rule_in_lrouter(
-                                utils.ovn_name(fip['id']), **columns))
+                            self._ovn_client.create_floatingip(nat)
             for snat in update_snats_list:
                 if snat['del']:
                     LOG.warning("Router %(id)s snat %(snat)s "

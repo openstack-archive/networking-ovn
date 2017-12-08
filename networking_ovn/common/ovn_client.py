@@ -456,83 +456,149 @@ class OVNClient(object):
             if self.is_dns_required_for_port(port):
                 self.add_txns_to_remove_port_dns_records(txn, port)
 
-    def _update_floatingip(self, floatingip, router_id, associate=True):
-        fip_apis = {}
-        fip_apis['nat'] = self._nb_idl.add_nat_rule_in_lrouter if \
-            associate else self._nb_idl.delete_nat_rule_in_lrouter
+    def _create_or_update_floatingip(self, floatingip, txn=None):
+        router_id = floatingip.get('router_id')
+        if not router_id:
+            return
+
+        commands = []
+        context = n_context.get_admin_context()
+        fip_db = self._l3_plugin._get_floatingip(context, floatingip['id'])
+
+        func = self._nb_idl.add_nat_rule_in_lrouter
         gw_lrouter_name = utils.ovn_name(router_id)
+        nat_rule_args = (gw_lrouter_name,)
+        # TODO(chandrav): Since the floating ip port is not
+        # bound to any chassis, packets destined to floating ip
+        # will be dropped. To overcome this, delete the floating
+        # ip port. Proper fix for this would be to redirect packets
+        # destined to floating ip to the router port. This would
+        # require changes in ovn-northd.
+        commands.append(self._nb_idl.delete_lswitch_port(
+                        fip_db['floating_port_id'],
+                        utils.ovn_name(floatingip['floating_network_id'])))
+
+        # Get the list of nat rules and check if the external_ip
+        # with type 'dnat_and_snat' already exists or not.
+        # If exists, set the new value.
+        # This happens when the port associated to a floating ip
+        # is deleted before the disassociation.
+        lrouter_nat_rules = self._nb_idl.get_lrouter_nat_rules(
+            gw_lrouter_name)
+        for nat_rule in lrouter_nat_rules:
+            if (nat_rule['external_ip'] ==
+                    floatingip['floating_ip_address'] and
+                    nat_rule['type'] == 'dnat_and_snat'):
+                func = self._nb_idl.set_nat_rule_in_lrouter
+                nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
+                break
+
+        ext_ids = {
+            ovn_const.OVN_FIP_EXT_ID_KEY: floatingip['id'],
+            ovn_const.OVN_FIP_PORT_EXT_ID_KEY: floatingip['port_id'],
+            ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: gw_lrouter_name}
+        columns = {'type': 'dnat_and_snat',
+                   'logical_ip': floatingip['fixed_ip_address'],
+                   'external_ip': floatingip['floating_ip_address'],
+                   'external_ids': ext_ids}
+        if config.is_ovn_distributed_floating_ip():
+            port = self._plugin.get_port(
+                context, fip_db['floating_port_id'])
+            columns['external_mac'] = port['mac_address']
+            columns['logical_port'] = floatingip['port_id']
+        commands.append(func(*nat_rule_args, **columns))
+        self._transaction(commands, txn=txn)
+
+    def _delete_floatingip(self, fip, lrouter, txn=None):
+        commands = [self._nb_idl.delete_nat_rule_in_lrouter(
+                    lrouter, type='dnat_and_snat',
+                    logical_ip=fip['logical_ip'],
+                    external_ip=fip['external_ip'])]
+        self._transaction(commands, txn=txn)
+
+    def create_floatingip(self, floatingip):
         try:
-            with self._nb_idl.transaction(check_error=True) as txn:
-                nat_rule_args = (gw_lrouter_name,)
-                if associate:
-                    # TODO(chandrav): Since the floating ip port is not
-                    # bound to any chassis, packets destined to floating ip
-                    # will be dropped. To overcome this, delete the floating
-                    # ip port. Proper fix for this would be to redirect packets
-                    # destined to floating ip to the router port. This would
-                    # require changes in ovn-northd.
-                    txn.add(self._nb_idl.delete_lswitch_port(
-                        floatingip['fip_port_id'],
-                        utils.ovn_name(floatingip['fip_net_id'])))
-
-                    # Get the list of nat rules and check if the external_ip
-                    # with type 'dnat_and_snat' already exists or not.
-                    # If exists, set the new value.
-                    # This happens when the port associated to a floating ip
-                    # is deleted before the disassociation.
-                    lrouter_nat_rules = self._nb_idl.get_lrouter_nat_rules(
-                        gw_lrouter_name)
-                    for nat_rule in lrouter_nat_rules:
-                        if (nat_rule['external_ip'] ==
-                                floatingip['external_ip'] and
-                                nat_rule['type'] == 'dnat_and_snat'):
-                            fip_apis['nat'] = (
-                                self._nb_idl.set_nat_rule_in_lrouter)
-                            nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
-                            break
-
-                columns = {'type': 'dnat_and_snat',
-                           'logical_ip': floatingip['logical_ip'],
-                           'external_ip': floatingip['external_ip']}
-                if associate and config.is_ovn_distributed_floating_ip():
-                    columns['external_mac'] = floatingip['fip_port_mac']
-                    columns['logical_port'] = floatingip['logical_port']
-                txn.add(fip_apis['nat'](*nat_rule_args, **columns))
-        except Exception as e:
-            with excutils.save_and_reraise_exception():
-                LOG.error('Unable to update NAT rule in gateway '
-                          'router. Error: %s', e)
-
-    def create_floatingip(self, floatingip, router_id):
-        try:
-            self._update_floatingip(floatingip, router_id)
+            self._create_or_update_floatingip(floatingip)
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to create floating ip in gateway '
                           'router. Error: %s', e)
+        # NOTE(lucasagomes): Revise the expected status
+        # of floating ips, setting it to ACTIVE here doesn't
+        # see consistent with other drivers (ODL here), see:
+        # https://bugs.launchpad.net/networking-ovn/+bug/1657693
+        if floatingip.get('router_id'):
+            self._l3_plugin.update_floatingip_status(
+                n_context.get_admin_context(), floatingip['id'],
+                const.FLOATINGIP_STATUS_ACTIVE)
 
-    def update_floatingip(self, floatingip, router_id, associate=True):
-        try:
-            self._update_floatingip(floatingip, router_id,
-                                    associate=associate)
-        except Exception as e:
-            with excutils.save_and_reraise_exception():
-                LOG.error('Unable to update floating ip in gateway '
-                          'router. Error: %s', e)
+    # TODO(lucasagomes): The ``fip_object`` parameter was added to
+    # keep things backward compatible since old FIPs might not have
+    # the OVN_FIP_EXT_ID_KEY in their external_ids field. Remove it
+    # in the Rocky release.
+    def update_floatingip(self, floatingip, fip_object=None):
+        fip_status = None
+        router_id = None
+        ovn_fip = self._nb_idl.get_floatingip(floatingip['id'])
 
-    def delete_floatingip(self, floatingip, router_id):
+        if not ovn_fip and fip_object:
+            router_id = fip_object.get('router_id')
+            ovn_fip = self._nb_idl.get_floatingip_by_ips(
+                router_id, fip_object['fixed_ip_address'],
+                fip_object['floating_ip_address'])
+
+        with self._nb_idl.transaction(check_error=True) as txn:
+            if (ovn_fip and
+                (floatingip['fixed_ip_address'] != ovn_fip['logical_ip'] or
+                 floatingip['port_id'] != ovn_fip['external_ids'].get(
+                    ovn_const.OVN_FIP_PORT_EXT_ID_KEY))):
+
+                lrouter = ovn_fip['external_ids'].get(
+                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY,
+                    utils.ovn_name(router_id))
+
+                self._delete_floatingip(ovn_fip, lrouter, txn=txn)
+                fip_status = const.FLOATINGIP_STATUS_DOWN
+
+            if floatingip.get('port_id'):
+                self._create_or_update_floatingip(floatingip, txn=txn)
+                fip_status = const.FLOATINGIP_STATUS_ACTIVE
+
+        if fip_status:
+            self._l3_plugin.update_floatingip_status(
+                n_context.get_admin_context(), floatingip['id'], fip_status)
+
+    # TODO(lucasagomes): The ``fip_object`` parameter was added to
+    # keep things backward compatible since old FIPs might not have
+    # the OVN_FIP_EXT_ID_KEY in their external_ids field. Remove it
+    # in the Rocky release.
+    def delete_floatingip(self, fip_id, fip_object=None):
+        router_id = None
+        ovn_fip = self._nb_idl.get_floatingip(fip_id)
+
+        if not ovn_fip and fip_object:
+            router_id = fip_object.get('router_id')
+            ovn_fip = self._nb_idl.get_floatingip_by_ips(
+                router_id, fip_object['fixed_ip_address'],
+                fip_object['floating_ip_address'])
+
+        if not ovn_fip:
+            return
+
+        lrouter = ovn_fip['external_ids'].get(
+            ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY, utils.ovn_name(router_id))
+
         try:
-            self._update_floatingip(floatingip, router_id,
-                                    associate=False)
+            self._delete_floatingip(ovn_fip, lrouter)
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to delete floating ip in gateway '
                           'router. Error: %s', e)
 
     def disassociate_floatingip(self, floatingip, router_id):
+        lrouter = utils.ovn_name(router_id)
         try:
-            self._update_floatingip(floatingip, router_id,
-                                    associate=False)
+            self._delete_floatingip(floatingip, lrouter)
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to disassociate floating ip in gateway '
