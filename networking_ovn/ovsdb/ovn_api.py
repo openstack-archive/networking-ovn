@@ -349,12 +349,13 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def get_unhosted_gateways(self, valid_chassis_list):
+    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets):
         """Return a dictionary of gateways not hosted on chassis
 
-        :param valid_chassis_list: List of valid chassis
-        :returns:                   List of gateways not hosted on a valid
-                                   chassis
+        :param port_physnet_dict: Dictionary of gateway ports and their physnet
+        :param chassis_physnets:  Dictionary of chassis and physnets
+        :returns:                 Dictionary of gateways not hosted on a valid
+                                  chassis
         """
 
     @abc.abstractmethod
@@ -542,6 +543,14 @@ class SbAPI(api.API):
 
         Hostname will be dict key, and a list of physnets will be dict
         value. And hostname and physnets are related to the same host.
+        """
+
+    @abc.abstractmethod
+    def get_chassis_and_physnets(self):
+        """Return a dict contains chassis name and physnets mapping.
+
+        Chassis name will be dict key, and a list of physnets will be dict
+        value. And chassis name and physnets are related to the same chassis.
         """
 
     @abc.abstractmethod

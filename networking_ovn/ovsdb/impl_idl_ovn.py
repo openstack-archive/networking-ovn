@@ -362,8 +362,9 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
         except idlutils.RowNotFound:
             return None
 
-    def get_unhosted_gateways(self, valid_chassis_list):
+    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets):
         unhosted_gateways = {}
+        valid_chassis_list = list(chassis_physnets)
         for lrp in self._tables['Logical_Router_Port'].rows.values():
             if not lrp.name.startswith('lrp-'):
                 continue
@@ -371,11 +372,14 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
             if not chassis_name:
                 # Not a gateway router
                 continue
+            physnet = port_physnet_dict.get(lrp.name[len('lrp-'):])
             # TODO(azbiswas): Handle the case when a chassis is no
             # longer valid. This may involve moving conntrack states,
             # so it needs to discussed in the OVN community first.
             if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
-                    chassis_name not in valid_chassis_list):
+                    chassis_name not in valid_chassis_list or
+                    (physnet and
+                     physnet not in chassis_physnets.get(chassis_name))):
                 unhosted_gateways[lrp.name] = lrp.options
         return unhosted_gateways
 
@@ -584,6 +588,12 @@ class OvsdbSbOvnIdl(Backend, ovn_api.SbAPI):
         chassis_info_dict = {}
         for ch in self.idl.tables['Chassis'].rows.values():
             chassis_info_dict[ch.hostname] = self._get_chassis_physnets(ch)
+        return chassis_info_dict
+
+    def get_chassis_and_physnets(self):
+        chassis_info_dict = {}
+        for ch in self.idl.tables['Chassis'].rows.values():
+            chassis_info_dict[ch.name] = self._get_chassis_physnets(ch)
         return chassis_info_dict
 
     def get_all_chassis(self, chassis_type=None):
