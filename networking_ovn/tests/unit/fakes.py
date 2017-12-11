@@ -21,8 +21,6 @@ from oslo_utils import uuidutils
 class FakeOvsdbNbOvnIdl(object):
 
     def __init__(self, **kwargs):
-        def _fake(*args, **kwargs):
-            return mock.MagicMock()
         self.lswitch_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.lsp_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.lrouter_table = FakeOvsdbTable.create_one_ovsdb_table()
@@ -44,7 +42,7 @@ class FakeOvsdbNbOvnIdl(object):
         self._tables['Address_Set'] = self.addrset_table
         self._tables['DHCP_Options'] = self.dhcp_options_table
         self._tables['NAT'] = self.nat_table
-        self.transaction = _fake
+        self.transaction = mock.MagicMock()
         self.ls_add = mock.Mock()
         self.set_lswitch_ext_id = mock.Mock()
         self.ls_del = mock.Mock()

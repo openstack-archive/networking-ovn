@@ -894,8 +894,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'gateway_ip': '10.0.0.1', 'enable_dhcp': True,
                   'dns_nameservers': [], 'host_routes': []}
         network = {'id': 'network-id', 'mtu': 1000}
-        cmd = mock.Mock()
-        self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
+        fake_dhcp_uuid = 'fake-dhcp-uuid'
+        txn = self.mech_driver._nb_ovn.transaction().__enter__.return_value
+        txn.get_insert_uuid.return_value = fake_dhcp_uuid
 
         self.mech_driver._ovn_client._enable_subnet_dhcp_options(subnet,
                                                                  network)
@@ -936,7 +937,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         # Check setting lport rows
         set_lsp_calls = [mock.call(lport_name='port-id-1',
-                                   dhcpv4_options=[cmd.result]),
+                                   dhcpv4_options=[fake_dhcp_uuid]),
                          mock.call(lport_name='port-id-2',
                                    dhcpv4_options=mock.ANY),
                          mock.call(lport_name='port-id-3',
@@ -966,8 +967,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'ipv6_address_mode': 'dhcpv6-stateless',
                   'dns_nameservers': [], 'host_routes': []}
         network = {'id': 'network-id', 'mtu': 1000}
-        cmd = mock.Mock()
-        self.mech_driver._nb_ovn.add_dhcp_options.return_value = cmd
+        fake_dhcp_uuid = 'fake-dhcp-uuid'
+        txn = self.mech_driver._nb_ovn.transaction().__enter__.return_value
+        txn.get_insert_uuid.return_value = fake_dhcp_uuid
 
         self.mech_driver._ovn_client._enable_subnet_dhcp_options(subnet,
                                                                  network)
@@ -1000,7 +1002,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         # Check setting lport rows
         set_lsp_calls = [mock.call(lport_name='port-id-1',
-                                   dhcpv6_options=[cmd.result]),
+                                   dhcpv6_options=[fake_dhcp_uuid]),
                          mock.call(lport_name='port-id-2',
                                    dhcpv6_options=mock.ANY),
                          mock.call(lport_name='port-id-3',

@@ -976,7 +976,6 @@ class OVNClient(object):
                                                         **subnet_dhcp_options)
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(subnet_dhcp_cmd)
-        with self._nb_idl.transaction(check_error=True) as txn:
             # Traverse ports to add port DHCP_Options rows
             for port in ports:
                 lsp_dhcp_disabled, lsp_dhcp_opts = utils.get_lsp_dhcp_opts(
@@ -984,7 +983,8 @@ class OVNClient(object):
                 if lsp_dhcp_disabled:
                     continue
                 elif not lsp_dhcp_opts:
-                    lsp_dhcp_options = [subnet_dhcp_cmd.result]
+                    lsp_dhcp_options = [
+                        txn.get_insert_uuid(subnet_dhcp_cmd.result)]
                 else:
                     port_dhcp_options = copy.deepcopy(subnet_dhcp_options)
                     port_dhcp_options['options'].update(lsp_dhcp_opts)
