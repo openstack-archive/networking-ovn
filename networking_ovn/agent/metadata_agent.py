@@ -31,6 +31,7 @@ def main():
     meta.register_meta_conf_opts(meta.OVS_OPTS, group='ovs')
     config.init(sys.argv[1:])
     config.setup_logging()
+    meta.setup_privsep()
     utils.log_opt_values(LOG)
 
     agt = agent.MetadataAgent(cfg.CONF)
