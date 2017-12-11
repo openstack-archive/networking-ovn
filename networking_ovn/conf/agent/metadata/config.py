@@ -13,9 +13,11 @@
 #    under the License.
 
 import itertools
+import shlex
 
 from neutron_lib.utils import host
 from oslo_config import cfg
+from oslo_privsep import priv_context
 
 from networking_ovn._i18n import _
 
@@ -135,3 +137,11 @@ def list_metadata_agent_opts():
          ),
         ('ovs', OVS_OPTS)
     ]
+
+
+def get_root_helper(conf):
+    return conf.AGENT.root_helper
+
+
+def setup_privsep():
+    priv_context.init(root_helper=shlex.split(get_root_helper(cfg.CONF)))
