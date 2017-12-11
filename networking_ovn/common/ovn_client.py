@@ -832,7 +832,7 @@ class OVNClient(object):
             tag=tag if tag else [],
             options={'network_name': physnet}))
 
-    def create_network(self, network, physnet=None, segid=None):
+    def create_network(self, network):
         # Create a logical switch with a name equal to the Neutron network
         # UUID.  This provides an easy way to refer to the logical switch
         # without having to track what UUID OVN assigned to it.
@@ -843,9 +843,10 @@ class OVNClient(object):
         lswitch_name = utils.ovn_name(network['id'])
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.ls_add(lswitch_name, external_ids=ext_ids))
-            if physnet is not None:
-                tag = int(segid) if segid else None
-                self._create_provnet_port(txn, network, physnet, tag)
+            physnet = network.get(pnet.PHYSICAL_NETWORK)
+            if physnet:
+                self._create_provnet_port(txn, network, physnet,
+                                          network.get(pnet.SEGMENTATION_ID))
 
         self.create_metadata_port(n_context.get_admin_context(), network)
 

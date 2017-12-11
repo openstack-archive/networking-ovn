@@ -15,7 +15,6 @@
 import threading
 
 from neutron_lib.api.definitions import portbindings
-from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
@@ -119,12 +118,6 @@ class OVNMechanismDriver(api.MechanismDriver):
             self._ovn_client_inst = ovn_client.OVNClient(self._nb_ovn,
                                                          self._sb_ovn)
         return self._ovn_client_inst
-
-    def _get_attribute(self, obj, attribute):
-        res = obj.get(attribute)
-        if res is const.ATTR_NOT_SPECIFIED:
-            res = None
-        return res
 
     def _setup_vif_port_bindings(self):
         self.supported_vnic_types = [portbindings.VNIC_NORMAL,
@@ -265,9 +258,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         cause the deletion of the resource.
         """
         network = context.current
-        physnet = self._get_attribute(network, pnet.PHYSICAL_NETWORK)
-        segid = self._get_attribute(network, pnet.SEGMENTATION_ID)
-        self._ovn_client.create_network(network, physnet, segid)
+        self._ovn_client.create_network(network)
 
     def update_network_precommit(self, context):
         """Update resources of a network.

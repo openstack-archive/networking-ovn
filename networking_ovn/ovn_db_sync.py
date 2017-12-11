@@ -91,18 +91,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         self.sync_acls(ctx)
         self.sync_routers_and_rports(ctx)
 
-    @staticmethod
-    def _get_attribute(obj, attribute):
-        res = obj.get(attribute)
-        if res is constants.ATTR_NOT_SPECIFIED:
-            res = None
-        return res
-
-    def _create_network_in_ovn(self, net):
-        physnet = self._get_attribute(net, pnet.PHYSICAL_NETWORK)
-        segid = self._get_attribute(net, pnet.SEGMENTATION_ID)
-        self._ovn_client.create_network(net, physnet, segid)
-
     def _create_port_in_ovn(self, ctx, port):
         # Remove any old ACLs for the port to avoid creating duplicate ACLs.
         self.ovn_api.delete_acl(
@@ -834,7 +822,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 try:
                     LOG.debug('Creating the network %s in OVN NB DB',
                               network['id'])
-                    self._create_network_in_ovn(network)
+                    self._ovn_client.create_network(network)
                 except RuntimeError:
                     LOG.warning("Create network in OVN NB failed for "
                                 "network %s", network['id'])
