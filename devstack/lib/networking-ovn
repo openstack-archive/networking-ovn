@@ -32,7 +32,7 @@
 # - cleanup_ovn
 
 # Save trace setting
-XTRACE=$(set +o | grep xtrace)
+_XTRACE_NETWORKING_OVN=$(set +o | grep xtrace)
 set +o xtrace
 
 # Libraries that could be installed from source
@@ -560,3 +560,6 @@ function create_public_bridge {
 
     sudo ip link set $ext_gw_ifc up
 }
+
+# Restore xtrace
+$_XTRACE_NETWORKING_OVN
