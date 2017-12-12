@@ -954,16 +954,20 @@ class OVNClient(object):
 
         return dhcpv6_opts
 
-    def _remove_subnet_dhcp_options(self, subnet_id):
-        with self._nb_idl.transaction(check_error=True) as txn:
-            dhcp_options = self._nb_idl.get_subnet_and_ports_dhcp_options(
-                subnet_id)
-            # Remove subnet and port DHCP_Options rows, the DHCP options in
-            # lsp rows will be removed by related UUID
-            for dhcp_option in dhcp_options:
-                txn.add(self._nb_idl.delete_dhcp_options(dhcp_option['uuid']))
+    def _remove_subnet_dhcp_options(self, subnet_id, txn):
+        dhcp_options = self._nb_idl.get_subnet_dhcp_options(
+            subnet_id, with_ports=True)
 
-    def _enable_subnet_dhcp_options(self, subnet, network):
+        if dhcp_options['subnet'] is not None:
+            txn.add(self._nb_idl.delete_dhcp_options(
+                dhcp_options['subnet']['uuid']))
+
+        # Remove subnet and port DHCP_Options rows, the DHCP options in
+        # lsp rows will be removed by related UUID
+        for opt in dhcp_options['ports']:
+            txn.add(self._nb_idl.delete_dhcp_options(opt['uuid']))
+
+    def _enable_subnet_dhcp_options(self, subnet, network, txn):
         if utils.is_dhcp_options_ignored(subnet):
             return
 
@@ -975,38 +979,38 @@ class OVNClient(object):
         subnet_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
         subnet_dhcp_cmd = self._nb_idl.add_dhcp_options(subnet['id'],
                                                         **subnet_dhcp_options)
-        with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(subnet_dhcp_cmd)
-            # Traverse ports to add port DHCP_Options rows
-            for port in ports:
-                lsp_dhcp_disabled, lsp_dhcp_opts = utils.get_lsp_dhcp_opts(
-                    port, subnet['ip_version'])
-                if lsp_dhcp_disabled:
-                    continue
-                elif not lsp_dhcp_opts:
-                    lsp_dhcp_options = [
-                        txn.get_insert_uuid(subnet_dhcp_cmd.result)]
-                else:
-                    port_dhcp_options = copy.deepcopy(subnet_dhcp_options)
-                    port_dhcp_options['options'].update(lsp_dhcp_opts)
-                    port_dhcp_options['external_ids'].update(
-                        {'port_id': port['id']})
-                    lsp_dhcp_options = txn.add(self._nb_idl.add_dhcp_options(
-                        subnet['id'], port_id=port['id'],
-                        **port_dhcp_options))
-                columns = {'dhcpv6_options': lsp_dhcp_options} if \
-                    subnet['ip_version'] == const.IP_VERSION_6 else {
-                    'dhcpv4_options': lsp_dhcp_options}
+        txn.add(subnet_dhcp_cmd)
+        # Traverse ports to add port DHCP_Options rows
+        for port in ports:
+            lsp_dhcp_disabled, lsp_dhcp_opts = utils.get_lsp_dhcp_opts(
+                port, subnet['ip_version'])
+            if lsp_dhcp_disabled:
+                continue
+            elif not lsp_dhcp_opts:
+                lsp_dhcp_options = [
+                    txn.get_insert_uuid(subnet_dhcp_cmd.result)]
+            else:
+                port_dhcp_options = copy.deepcopy(subnet_dhcp_options)
+                port_dhcp_options['options'].update(lsp_dhcp_opts)
+                port_dhcp_options['external_ids'].update(
+                    {'port_id': port['id']})
+                lsp_dhcp_options = txn.add(self._nb_idl.add_dhcp_options(
+                    subnet['id'], port_id=port['id'],
+                    **port_dhcp_options))
+            columns = {'dhcpv6_options': lsp_dhcp_options} if \
+                subnet['ip_version'] == const.IP_VERSION_6 else {
+                'dhcpv4_options': lsp_dhcp_options}
 
-                # Set lsp DHCP options
-                txn.add(self._nb_idl.set_lswitch_port(
-                        lport_name=port['id'],
-                        **columns))
+            # Set lsp DHCP options
+            txn.add(self._nb_idl.set_lswitch_port(
+                    lport_name=port['id'],
+                    **columns))
 
-    def _update_subnet_dhcp_options(self, subnet, network):
+    def _update_subnet_dhcp_options(self, subnet, network, txn):
         if utils.is_dhcp_options_ignored(subnet):
             return
-        original_options = self._nb_idl.get_subnet_dhcp_options(subnet['id'])
+        original_options = self._nb_idl.get_subnet_dhcp_options(
+            subnet['id'])['subnet']
         mac = None
         if original_options:
             if subnet['ip_version'] == const.IP_VERSION_6:
@@ -1020,11 +1024,18 @@ class OVNClient(object):
                 original_options['options'] == new_options['options']):
             return
 
-        txn_commands = self._nb_idl.compose_dhcp_options_commands(
-            subnet['id'], **new_options)
-        with self._nb_idl.transaction(check_error=True) as txn:
-            for cmd in txn_commands:
-                txn.add(cmd)
+        txn.add(self._nb_idl.add_dhcp_options(subnet['id'], **new_options))
+
+        dhcp_options = self._nb_idl.get_subnet_dhcp_options(
+            subnet['id'], with_ports=True)
+        for opt in dhcp_options['ports']:
+            if not new_options.get('options'):
+                continue
+            options = dict(new_options['options'])
+            options.update(opt['options'])
+            port_id = opt['external_ids']['port_id']
+            txn.add(self._nb_idl.add_dhcp_options(
+                subnet['id'], port_id=port_id, options=options))
 
     def create_subnet(self, subnet, network):
         if subnet['enable_dhcp']:
@@ -1040,15 +1051,17 @@ class OVNClient(object):
 
         context = n_context.get_admin_context()
         self.update_metadata_port(context, network['id'])
-        if not original_subnet['enable_dhcp']:
-            self._enable_subnet_dhcp_options(subnet, network)
-        elif not subnet['enable_dhcp']:
-            self._remove_subnet_dhcp_options(subnet['id'])
-        else:
-            self._update_subnet_dhcp_options(subnet, network)
+        with self._nb_idl.transaction(check_error=True) as txn:
+            if not original_subnet['enable_dhcp']:
+                self._enable_subnet_dhcp_options(subnet, network, txn)
+            elif not subnet['enable_dhcp']:
+                self._remove_subnet_dhcp_options(subnet['id'], txn)
+            else:
+                self._update_subnet_dhcp_options(subnet, network, txn)
 
     def delete_subnet(self, subnet_id):
-        self._remove_subnet_dhcp_options(subnet_id)
+        with self._nb_idl.transaction(check_error=True) as txn:
+            self._remove_subnet_dhcp_options(subnet_id, txn)
 
     def _process_security_group(self, security_group, func, external_ids=True):
         with self._nb_idl.transaction(check_error=True) as txn:

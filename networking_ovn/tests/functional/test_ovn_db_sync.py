@@ -109,10 +109,10 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
         n1_s1_dhcp_options_uuid = (
             self.mech_driver._nb_ovn.get_subnet_dhcp_options(
-                n1_s1['subnet']['id'])['uuid'])
+                n1_s1['subnet']['id'])['subnet']['uuid'])
         n1_s2_dhcpv6_options_uuid = (
             self.mech_driver._nb_ovn.get_subnet_dhcp_options(
-                n1_s2['subnet']['id'])['uuid'])
+                n1_s2['subnet']['id'])['subnet']['uuid'])
         update_port_ids_v4 = []
         update_port_ids_v6 = []
         n1_port_dict = {}
@@ -494,10 +494,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         n3_s2 = self.deserialize(self.fmt, res)
         if not restart_ovsdb_processes:
             # Test using original mac when syncing.
-            dhcp_mac_v4 = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
-                n3_s1['subnet']['id']).get('options', {}).get('server_mac')
-            dhcp_mac_v6 = self.mech_driver._nb_ovn.get_subnet_dhcp_options(
-                n3_s2['subnet']['id']).get('options', {}).get('server_id')
+            dhcp_mac_v4 = (self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n3_s1['subnet']['id'])['subnet'].get('options', {})
+                .get('server_mac'))
+            dhcp_mac_v6 = (self.mech_driver._nb_ovn.get_subnet_dhcp_options(
+                n3_s2['subnet']['id'])['subnet'].get('options', {})
+                .get('server_id'))
             self.assertTrue(dhcp_mac_v4 is not None)
             self.assertTrue(dhcp_mac_v6 is not None)
             self.match_old_mac_dhcp_subnets.append(n3_s1['subnet']['id'])
