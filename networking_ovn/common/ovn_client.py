@@ -61,7 +61,6 @@ class OVNClient(object):
         self._plugin_property = None
         self._l3_plugin_property = None
 
-        qos_driver.OVNQosNotificationDriver.create()
         self._qos_driver = qos_driver.OVNQosDriver(self)
         self._ovn_scheduler = l3_ovn_scheduler.get_scheduler()
 
