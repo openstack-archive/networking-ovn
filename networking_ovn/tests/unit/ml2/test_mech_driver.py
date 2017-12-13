@@ -894,9 +894,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'gateway_ip': '10.0.0.1', 'enable_dhcp': True,
                   'dns_nameservers': [], 'host_routes': []}
         network = {'id': 'network-id', 'mtu': 1000}
-        fake_dhcp_uuid = 'fake-dhcp-uuid'
         txn = self.mech_driver._nb_ovn.transaction().__enter__.return_value
-        txn.get_insert_uuid.return_value = fake_dhcp_uuid
+        dhcp_option_command = mock.Mock()
+        txn.add.return_value = dhcp_option_command
 
         self.mech_driver._ovn_client._enable_subnet_dhcp_options(
             subnet, network, txn)
@@ -937,11 +937,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         # Check setting lport rows
         set_lsp_calls = [mock.call(lport_name='port-id-1',
-                                   dhcpv4_options=[fake_dhcp_uuid]),
+                                   dhcpv4_options=dhcp_option_command),
                          mock.call(lport_name='port-id-2',
-                                   dhcpv4_options=mock.ANY),
+                                   dhcpv4_options=dhcp_option_command),
                          mock.call(lport_name='port-id-3',
-                                   dhcpv4_options=mock.ANY)]
+                                   dhcpv4_options=dhcp_option_command)]
         self.assertEqual(len(set_lsp_calls),
                          self.mech_driver._nb_ovn.set_lswitch_port.call_count)
         self.mech_driver._nb_ovn.set_lswitch_port.assert_has_calls(
@@ -967,9 +967,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                   'ipv6_address_mode': 'dhcpv6-stateless',
                   'dns_nameservers': [], 'host_routes': []}
         network = {'id': 'network-id', 'mtu': 1000}
-        fake_dhcp_uuid = 'fake-dhcp-uuid'
         txn = self.mech_driver._nb_ovn.transaction().__enter__.return_value
-        txn.get_insert_uuid.return_value = fake_dhcp_uuid
+        dhcp_option_command = mock.Mock()
+        txn.add.return_value = dhcp_option_command
 
         self.mech_driver._ovn_client._enable_subnet_dhcp_options(
             subnet, network, txn)
@@ -1002,11 +1002,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         # Check setting lport rows
         set_lsp_calls = [mock.call(lport_name='port-id-1',
-                                   dhcpv6_options=[fake_dhcp_uuid]),
+                                   dhcpv6_options=dhcp_option_command),
                          mock.call(lport_name='port-id-2',
-                                   dhcpv6_options=mock.ANY),
+                                   dhcpv6_options=dhcp_option_command),
                          mock.call(lport_name='port-id-3',
-                                   dhcpv6_options=mock.ANY)]
+                                   dhcpv6_options=dhcp_option_command)]
         self.assertEqual(len(set_lsp_calls),
                          self.mech_driver._nb_ovn.set_lswitch_port.call_count)
         self.mech_driver._nb_ovn.set_lswitch_port.assert_has_calls(
