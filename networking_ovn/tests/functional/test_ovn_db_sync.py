@@ -354,11 +354,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 'tenant_id': self._tenant_id,
                 'floating_network_id': e1['network']['id'],
                 'floating_ip_address': '100.0.0.20',
+                'subnet_id': None,
                 'port_id': n1_port_dict['p1']}})
         r1_f2 = self.l3_plugin.create_floatingip(
             self.context, {'floatingip': {
                 'tenant_id': self._tenant_id,
                 'floating_network_id': e1['network']['id'],
+                'subnet_id': None,
                 'floating_ip_address': '100.0.0.21'}})
         self.l3_plugin.update_floatingip(
             self.context, r1_f2['id'], {'floatingip': {
@@ -450,12 +452,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 'tenant_id': self._tenant_id,
                 'floating_network_id': e1['network']['id'],
                 'floating_ip_address': '100.0.0.30',
+                'subnet_id': None,
                 'port_id': n4_port_dict['p1']}})
         self.l3_plugin.create_floatingip(
             self.context, {'floatingip': {
                 'tenant_id': self._tenant_id,
                 'floating_network_id': e1['network']['id'],
                 'floating_ip_address': '100.0.0.31',
+                'subnet_id': None,
                 'port_id': n4_port_dict['p2']}})
         # To test l3_plugin.disassociate_floatingips, associating floating IP
         # to port p3 and then deleting p3.
@@ -464,6 +468,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 'tenant_id': self._tenant_id,
                 'floating_network_id': e1['network']['id'],
                 'floating_ip_address': '100.0.0.32',
+                'subnet_id': None,
                 'port_id': n4_port_dict['p3']}})
         self._delete('ports', n4_port_dict['p3'])
 
