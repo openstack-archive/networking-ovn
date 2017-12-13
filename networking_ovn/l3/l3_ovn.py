@@ -422,6 +422,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                   ] if orig_gw_ip else []
         add = [{'destination': '0.0.0.0/0', 'nexthop': current_gw_ip}
                ] if current_gw_ip else []
-        for router_id in router_ids:
-            l3plugin._ovn_client.update_router_routes(
-                context, router_id, add, remove)
+        with l3plugin._ovn.transaction(check_error=True) as txn:
+            for router_id in router_ids:
+                l3plugin._ovn_client.update_router_routes(
+                    context, router_id, add, remove, txn=txn)

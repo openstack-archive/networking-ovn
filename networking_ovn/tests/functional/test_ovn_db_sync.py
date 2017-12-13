@@ -364,7 +364,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.context, r1_f2['id'], {'floatingip': {
                 'port_id': n1_port_dict['p2']}})
 
-        # update External subnet gateway ip
+        # update External subnet gateway ip to test function _subnet_update
+        #  of L3 OVN plugin.
         data = {'subnet': {'gateway_ip': '100.0.0.1'}}
         subnet_req = self.new_update_request(
             'subnets', data, e1_s1['subnet']['id'])
