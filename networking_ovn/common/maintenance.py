@@ -236,6 +236,36 @@ class DBInconsistenciesPeriodics(object):
         else:
             self._ovn_client.delete_security_group(row.resource_uuid)
 
+    def _fix_create_update_floatingip(self, row):
+        # Get the latest version of the resource in Neutron DB
+        admin_context = n_context.get_admin_context()
+        fip_db_obj = self._ovn_client._l3_plugin.get_floatingip(
+            admin_context, row.resource_uuid)
+        ovn_fip = self._nb_idl.get_floatingip(row.resource_uuid)
+
+        if not ovn_fip:
+            # If the resource doesn't exist in the OVN DB, create it.
+            self._ovn_client.create_floatingip(fip_db_obj)
+        else:
+            ovn_revision = int(ovn_fip['external_ids'].get(
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
+            # If the resource exist in the OVN DB but the revision
+            # number is different from Neutron DB, updated it.
+            if ovn_revision != fip_db_obj['revision_number']:
+                self._ovn_client.update_floatingip(fip_db_obj)
+            else:
+                # If the resource exist and the revision number
+                # is equal on both databases just bump the revision on
+                # the cache table.
+                db_rev.bump_revision(fip_db_obj, ovn_const.TYPE_FLOATINGIPS)
+
+    def _fix_delete_floatingip(self, row):
+        ovn_fip = self._nb_idl.get_floatingip(row.resource_uuid)
+        if not ovn_fip:
+            db_rev.delete_revision(row.resource_uuid)
+        else:
+            self._ovn_client.delete_floatingip(row.resource_uuid)
+
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
@@ -263,6 +293,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_create_update_routers(row)
                 elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
                     self._fix_create_security_group(row)
+                elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
+                    self._fix_create_update_floatingip(row)
             except Exception:
                 LOG.exception('Failed to fix resource %(res_uuid)s '
                               '(type: %(res_type)s)',
@@ -282,6 +314,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_delete_router(row)
                 elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
                     self._fix_delete_security_group(row)
+                elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
+                    self._fix_delete_floatingip(row)
             except Exception:
                 LOG.exception('Failed to fix deleted resource %(res_uuid)s '
                               '(type: %(res_type)s)',

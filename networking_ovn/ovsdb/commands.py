@@ -22,6 +22,7 @@ RESOURCE_TYPE_MAP = {
     ovn_const.TYPE_NETWORKS: 'Logical_Switch',
     ovn_const.TYPE_PORTS: 'Logical_Switch_Port',
     ovn_const.TYPE_ROUTERS: 'Logical_Router',
+    ovn_const.TYPE_FLOATINGIPS: 'NAT',
 }
 
 
@@ -1021,10 +1022,30 @@ class CheckRevisionNumberCommand(command.BaseCommand):
         self.resource_type = resource_type
         self.if_exists = if_exists
 
+    def _get_floatingip(self):
+        # TODO(lucasagomes): We can't use self.api.lookup() because that
+        # method does not introspect map type columns. We could either:
+        # 1. Enhance it to look into maps or, 2. Add a new ``name`` column
+        # to the NAT table so that we can use lookup() just like we do
+        # for other resources
+        for nat in self.api._tables['NAT'].rows.values():
+            if nat.type != 'dnat_and_snat':
+                continue
+            ext_ids = getattr(nat, 'external_ids', {})
+            if ext_ids.get(ovn_const.OVN_FIP_EXT_ID_KEY) == self.name:
+                return nat
+
+        raise idlutils.RowNotFound(
+            table='NAT', col='external_ids', match=self.name)
+
     def run_idl(self, txn):
         try:
             ovn_table = RESOURCE_TYPE_MAP[self.resource_type]
-            ovn_resource = self.api.lookup(ovn_table, self.name)
+            ovn_resource = None
+            if self.resource_type == ovn_const.TYPE_FLOATINGIPS:
+                ovn_resource = self._get_floatingip()
+            else:
+                ovn_resource = self.api.lookup(ovn_table, self.name)
         except idlutils.RowNotFound:
             if self.if_exists:
                 return

@@ -142,3 +142,6 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         self.assertEqual(str(1), ovn_revision)
         # Assert it also matches with the newest returned by neutron API
         self.assertEqual(str(updated_router['revision_number']), ovn_revision)
+
+    # TODO(lucasagomes): Add a test for floating IPs here when we get
+    # the router stuff done.
