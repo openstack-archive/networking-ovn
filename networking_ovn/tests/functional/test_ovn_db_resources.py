@@ -404,6 +404,18 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             expected_dhcp_options_rows['v4-' + p4['port']['id']]
         expected_dhcp_v6_options_rows['v6-' + p4['port']['id']] = \
             expected_dhcp_options_rows['v6-' + p4['port']['id']]
+
+        # test port without extra_dhcp_opts but using subnet DHCP options
+        data = {
+            'port': {'network_id': n1['network']['id'],
+                     'tenant_id': self._tenant_id,
+                     'device_owner': 'compute:None',
+                     'fixed_ips': [{'subnet_id': subnet['id']},
+                                   {'subnet_id': subnet_v6['id']}]}}
+        port_req = self.new_create_request('ports', data, self.fmt)
+        port_res = port_req.get_response(self.api)
+        p5 = self.deserialize(self.fmt, port_res)
+
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
         self._verify_dhcp_option_row_for_port(
@@ -421,6 +433,11 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             expected_dhcp_options_rows['v4-' + p4['port']['id']],
             expected_lsp_dhcpv6_options=expected_dhcp_options_rows[
                 'v6-' + p4['port']['id']])
+        self._verify_dhcp_option_row_for_port(
+            p5['port']['id'],
+            expected_dhcp_options_rows[subnet['id']],
+            expected_lsp_dhcpv6_options=expected_dhcp_options_rows[
+                subnet_v6['id']])
 
         # Update the subnet with dns_server. It should get propagated
         # to the DHCP options of the p1. Note that it should not get
@@ -460,12 +477,14 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         self._verify_dhcp_option_rows(expected_dhcp_options_rows)
 
         # Test subnet DHCP disabling and enabling
-        for (subnet_id, expect_subnet_rows_disabled,
-             expect_port_v4_row_disabled, expect_port_v6_row_disabled) in [
-            (subnet['id'], expected_dhcp_v6_options_rows, {},
-             expected_dhcp_options_rows['v6-' + p4['port']['id']]),
+        for (subnet_id, expect_subnet_rows_disabled, expect_port_row_disabled
+             ) in [
+            (subnet['id'], expected_dhcp_v6_options_rows,
+             [(p4, {}, expected_dhcp_options_rows['v6-' + p4['port']['id']]),
+              (p5, {}, expected_dhcp_options_rows[subnet_v6['id']])]),
             (subnet_v6['id'], expected_dhcp_v4_options_rows,
-             expected_dhcp_options_rows['v4-' + p4['port']['id']], {})]:
+             [(p4, expected_dhcp_options_rows['v4-' + p4['port']['id']], {}),
+              (p5, expected_dhcp_options_rows[subnet['id']], {})])]:
             # Disable subnet's DHCP and verify DHCP_Options,
             data = {'subnet': {'enable_dhcp': False}}
             req = self.new_update_request('subnets', data, subnet_id)
@@ -476,9 +495,9 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             self._verify_dhcp_option_rows(expect_subnet_rows_disabled)
             # Verify that the corresponding port DHCP options were cleared
             # and the others were not affected.
-            self._verify_dhcp_option_row_for_port(
-                p4['port']['id'], expect_port_v4_row_disabled,
-                expect_port_v6_row_disabled)
+            for p in expect_port_row_disabled:
+                self._verify_dhcp_option_row_for_port(
+                    p[0]['port']['id'], p[1], p[2])
             # Re-enable dhcpv4 in subnet and verify DHCP_Options
             n_net.get_random_mac = mock.Mock()
             n_net.get_random_mac.return_value = dhcp_mac[subnet_id]
@@ -490,6 +509,11 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 p4['port']['id'],
                 expected_dhcp_options_rows['v4-' + p4['port']['id']],
                 expected_dhcp_options_rows['v6-' + p4['port']['id']])
+            self._verify_dhcp_option_row_for_port(
+                p5['port']['id'],
+                expected_dhcp_options_rows[subnet['id']],
+                expected_lsp_dhcpv6_options=expected_dhcp_options_rows[
+                    subnet_v6['id']])
         n_net.get_random_mac = self.orig_get_random_mac
 
         # Disable dhcp in p2
