@@ -1,0 +1,381 @@
+# Andi Chandler <andi@gowling.com>, 2016. #zanata
+# Andi Chandler <andi@gowling.com>, 2017. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: networking-ovn 4.0.0.0b3.dev24\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2017-12-14 16:58+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2017-12-13 12:29+0000\n"
+"Last-Translator: Andi Chandler <andi@gowling.com>\n"
+"Language-Team: English (United Kingdom)\n"
+"Language: en-GB\n"
+"X-Generator: Zanata 3.9.6\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#, python-format
+msgid "%(match)s does not exist in %(column)s of %(table)s"
+msgstr "%(match)s does not exist in %(column)s of %(table)s"
+
+#, python-format
+msgid "Address set %s does not exist. Can't delete."
+msgstr "Address set %s does not exist. Can't delete."
+
+#, python-format
+msgid "Address set %s does not exist. Can't update addresses"
+msgstr "Address set %s does not exist. Can't update addresses"
+
+#, python-format
+msgid "Address set %s does not exist. Can't update external IDs"
+msgstr "Address set %s does not exist. Can't update external IDs"
+
+msgid "Allow to perform insecure SSL (https) requests to nova metadata"
+msgstr "Allow to perform insecure SSL (https) requests to nova metadata"
+
+msgid "An unknown error has occurred. Please try your request again."
+msgstr "An unknown error has occurred. Please try your request again."
+
+msgid "Certificate Authority public key (CA cert) file for ssl"
+msgstr "Certificate Authority public key (CA cert) file for SSL"
+
+#, python-format
+msgid "Chassis %s does not exist. Can't update external IDs"
+msgstr "Chassis %s does not exist. Can't update external IDs"
+
+#, python-format
+msgid "Chassis with hostname %s does not exist"
+msgstr "Chassis with hostname %s does not exist"
+
+msgid "Client certificate for nova metadata api server."
+msgstr "Client certificate for Nova metadata API server."
+
+msgid "Could not find LISTEN port."
+msgstr "Could not find LISTEN port."
+
+msgid "Currently only supports delete by lport-name"
+msgstr "Currently only supports delete by lport-name"
+
+#, python-format
+msgid "DHCP Options row %s does not exist"
+msgstr "DHCP Options row %s does not exist"
+
+msgid "Default least time (in seconds) to use with OVN's native DHCP service."
+msgstr "Default least time (in seconds) to use with OVN's native DHCP service."
+
+msgid ""
+"Enable distributed floating IP support.\n"
+"If True, the NAT action for floating IPs will be done locally and not in the "
+"centralized gateway. This saves the path to the external network. This "
+"requires the user to configure the physical network map (i.e. ovn-bridge-"
+"mappings) on each compute node."
+msgstr ""
+"Enable distributed Floating IP support.\n"
+"If True, the NAT action for Floating IPs will be done locally and not in the "
+"centralised gateway. This saves the path to the external network. This "
+"requires the user to configure the physical network map (i.e. ovn-bridge-"
+"mappings) on each compute node."
+
+msgid ""
+"Group (gid or name) running metadata proxy after its initialization (if "
+"empty: agent effective group)."
+msgstr ""
+"Group (gid or name) running metadata proxy after its initialisation (if "
+"empty: agent effective group)."
+
+msgid "IP address or DNS name of Nova metadata server."
+msgstr "IP address or DNS name of Nova metadata server."
+
+#, python-format
+msgid "Invalid binding:profile. %(key)s %(value)s value invalid type"
+msgstr "Invalid binding:profile. %(key)s %(value)s value invalid type"
+
+#, python-format
+msgid "Invalid binding:profile. %s are all required."
+msgstr "Invalid binding:profile. %s are all required."
+
+#, python-format
+msgid ""
+"Invalid binding:profile. tag \"%s\" must be an integer between 0 and 4095, "
+"inclusive"
+msgstr ""
+"Invalid binding:profile. tag \"%s\" must be an integer between 0 and 4095, "
+"inclusive"
+
+msgid "Invalid binding:profile. too many parameters"
+msgstr "Invalid binding:profile. too many parameters"
+
+#, python-format
+msgid "Invalid group/gid: '%s'"
+msgstr "Invalid group/gid: '%s'"
+
+#, python-format
+msgid "Invalid user/uid: '%s'"
+msgstr "Invalid user/uid: '%s'"
+
+msgid "Location for Metadata Proxy UNIX domain socket."
+msgstr "Location for Metadata Proxy UNIX domain socket."
+
+#, python-format
+msgid "Logical Router %s does not exist"
+msgstr "Logical Router %s does not exist"
+
+#, python-format
+msgid "Logical Router Port %s does not exist"
+msgstr "Logical Router Port %s does not exist"
+
+#, python-format
+msgid "Logical Router Port with name \"%s\" already exists."
+msgstr "Logical Router Port with name \"%s\" already exists."
+
+#, python-format
+msgid "Logical Switch %s does not exist"
+msgstr "Logical Switch %s does not exist"
+
+#, python-format
+msgid "Logical Switch Port %s does not exist"
+msgstr "Logical Switch Port %s does not exist"
+
+msgid ""
+"Metadata Proxy UNIX domain socket mode, 4 values allowed: 'deduce': deduce "
+"mode from metadata_proxy_user/group values, 'user': set metadata proxy "
+"socket mode to 0o644, to use when metadata_proxy_user is agent effective "
+"user or root, 'group': set metadata proxy socket mode to 0o664, to use when "
+"metadata_proxy_group is agent effective group or root, 'all': set metadata "
+"proxy socket mode to 0o666, to use otherwise."
+msgstr ""
+"Metadata Proxy UNIX domain socket mode, 4 values allowed: 'deduce': deduce "
+"mode from metadata_proxy_user/group values, 'user': set metadata proxy "
+"socket mode to 0o644, to use when metadata_proxy_user is agent effective "
+"user or root, 'group': set metadata proxy socket mode to 0o664, to use when "
+"metadata_proxy_group is agent effective group or root, 'all': set metadata "
+"proxy socket mode to 0o666, to use otherwise."
+
+msgid "Name of Open vSwitch bridge to use"
+msgstr "Name of Open vSwitch bridge to use"
+
+#, python-format
+msgid "Network type %s is not supported"
+msgstr "Network type %s is not supported"
+
+msgid "Number of backlog requests to configure the metadata server socket with"
+msgstr ""
+"Number of backlog requests to configure the metadata server socket with"
+
+msgid ""
+"Number of separate worker processes for metadata server (defaults to half of "
+"the number of CPUs)"
+msgstr ""
+"Number of separate worker processes for metadata server (defaults to half of "
+"the number of CPUs)"
+
+#, python-format
+msgid ""
+"OVS database connection to %(db_schema)s failed with error: '%(error)s'. "
+"Verify that the OVS and OVN services are available and that the "
+"'ovn_nb_connection' and 'ovn_sb_connection' configuration options are "
+"correct."
+msgstr ""
+"OVS database connection to %(db_schema)s failed with error: '%(error)s'. "
+"Verify that the OVS and OVN services are available and that the "
+"'ovn_nb_connection' and 'ovn_sb_connection' configuration options are "
+"correct."
+
+#, python-format
+msgid "Port %s does not exist"
+msgstr "Port %s does not exist"
+
+#, python-format
+msgid "Port %s does not exist. Can't update external IDs"
+msgstr "Port %s does not exist. Can't update external IDs"
+
+msgid "Private key of client certificate."
+msgstr "Private key of client certificate."
+
+msgid "Protocol to access nova metadata, http or https"
+msgstr "Protocol to access Nova metadata, http or https"
+
+msgid "Remote metadata server experienced an internal server error."
+msgstr "Remote metadata server experienced an internal server error."
+
+msgid "TCP Port used by Nova metadata server."
+msgstr "TCP Port used by Nova metadata server."
+
+msgid ""
+"The OVN L3 Scheduler type used to schedule router gateway ports on "
+"hypervisors/chassis. \n"
+"leastloaded - chassis with fewest gateway ports selected \n"
+"chance - chassis randomly selected"
+msgstr ""
+"The OVN L3 Scheduler type used to schedule router gateway ports on "
+"hypervisors/chassis. \n"
+"leastloaded - chassis with fewest gateway ports selected \n"
+"chance - chassis randomly selected"
+
+msgid ""
+"The PEM file with CA certificate that OVN should use to verify certificates "
+"presented to it by SSL peers"
+msgstr ""
+"The PEM file with CA certificate that OVN should use to verify certificates "
+"presented to it by SSL peers"
+
+msgid ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_nb_private_key"
+msgstr ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_nb_private_key"
+
+msgid ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_sb_private_key"
+msgstr ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_sb_private_key"
+
+msgid "The PEM file with private key for SSL connection to OVN-NB-DB"
+msgstr "The PEM file with private key for SSL connection to OVN-NB-DB"
+
+msgid "The PEM file with private key for SSL connection to OVN-SB-DB"
+msgstr "The PEM file with private key for SSL connection to OVN-SB-DB"
+
+msgid ""
+"The connection string for the OVN_Northbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_nb_private_key, "
+"ovn_nb_certificate and ovn_nb_ca_cert are mandatory.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"The connection string for the OVN_Northbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_nb_private_key, "
+"ovn_nb_certificate and ovn_nb_ca_cert are mandatory.\n"
+"Use unix:FILE for unix domain socket connection."
+
+msgid ""
+"The connection string for the OVN_Southbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_sb_private_key, "
+"ovn_sb_certificate and ovn_sb_ca_cert are mandatory.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"The connection string for the OVN_Southbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_sb_private_key, "
+"ovn_sb_certificate and ovn_sb_ca_cert are mandatory.\n"
+"Use unix:FILE for Unix domain socket connection."
+
+msgid ""
+"The connection string for the native OVSDB backend.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"The connection string for the native OVSDB backend.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use unix:FILE for unix domain socket connection."
+
+msgid ""
+"The directory in which vhost virtio socket is created by all the vswitch "
+"daemons"
+msgstr ""
+"The directory in which vhost virtio socket is created by all the vswitch "
+"daemons"
+
+msgid "The log level used for OVSDB"
+msgstr "The log level used for OVSDB"
+
+msgid ""
+"The probe interval in for the OVSDB session in milliseconds. If this is "
+"zero, it disables the connection keepalive feature. If non-zero the value "
+"will be forced to at least 1000 milliseconds. Probing is disabled by default."
+msgstr ""
+"The probe interval in for the OVSDB session in milliseconds. If this is "
+"zero, it disables the connection keepalive feature. If non-zero the value "
+"will be forced to at least 1000 milliseconds. Probing is disabled by default."
+
+#, python-format
+msgid ""
+"The protocol \"%(protocol)s\" is not supported. Valid protocols are: "
+"%(valid_protocols); or protocol numbers ranging from 0 to 255."
+msgstr ""
+"The protocol \"%(protocol)s\" is not supported. Valid protocols are: "
+"%(valid_protocols); or protocol numbers ranging from 0 to 255."
+
+msgid ""
+"The synchronization mode of OVN_Northbound OVSDB with Neutron DB.\n"
+"off - synchronization is off \n"
+"log - during neutron-server startup, check to see if OVN is in sync with the "
+"Neutron database.  Log warnings for any inconsistencies found so that an "
+"admin can investigate \n"
+"repair - during neutron-server startup, automatically create resources found "
+"in Neutron but not in OVN. Also remove resources from OVN that are no longer "
+"in Neutron."
+msgstr ""
+"The synchronization mode of OVN_Northbound OVSDB with Neutron DB.\n"
+"off - synchronisation is off \n"
+"log - during neutron-server startup, check to see if OVN is in sync with the "
+"Neutron database.  Log warnings for any inconsistencies found so that an "
+"admin can investigate \n"
+"repair - during neutron-server startup, automatically create resources found "
+"in Neutron but not in OVN. Also remove resources from OVN that are no longer "
+"in Neutron."
+
+msgid "Timeout in seconds for the OVSDB connection transaction"
+msgstr "Timeout in seconds for the OVSDB connection transaction"
+
+#, python-format
+msgid ""
+"Type of VIF to be used for ports valid values are (%(ovs)s, %(dpdk)s) "
+"default %(ovs)s"
+msgstr ""
+"Type of VIF to be used for ports valid values are (%(ovs)s, %(dpdk)s) "
+"default %(ovs)s"
+
+#, python-format
+msgid "Unexpected response code: %s"
+msgstr "Unexpected response code: %s"
+
+#, python-format
+msgid ""
+"Updating device_owner for port %(port_id)s owned by %(device_owner)s is not "
+"supported"
+msgstr ""
+"Updating device_owner for port %(port_id)s owned by %(device_owner)s is not "
+"supported"
+
+#, python-format
+msgid ""
+"Updating device_owner to %(device_owner)s for port %(port_id)s is not "
+"supported"
+msgstr ""
+"Updating device_owner to %(device_owner)s for port %(port_id)s is not "
+"supported"
+
+msgid ""
+"User (uid or name) running metadata proxy after its initialization (if "
+"empty: agent effective user)."
+msgstr ""
+"User (uid or name) running metadata proxy after its initialisation (if "
+"empty: agent effective user)."
+
+msgid ""
+"When proxying metadata requests, Neutron signs the Instance-ID header with a "
+"shared secret to prevent spoofing. You may select any string for a secret, "
+"but it must match here and in the configuration used by the Nova Metadata "
+"Server. NOTE: Nova uses the same config key, but in [neutron] section."
+msgstr ""
+"When proxying metadata requests, Neutron signs the Instance-ID header with a "
+"shared secret to prevent spoofing. You may select any string for a secret, "
+"but it must match here and in the configuration used by the Nova Metadata "
+"Server. NOTE: Nova uses the same config key, but in [neutron] section."
+
+msgid ""
+"Whether to use OVN native L3 support. Do not change the value for existing "
+"deployments that contain routers."
+msgstr ""
+"Whether to use OVN native L3 support. Do not change the value for existing "
+"deployments that contain routers."
+
+msgid "Whether to use metadata service."
+msgstr "Whether to use metadata service."
