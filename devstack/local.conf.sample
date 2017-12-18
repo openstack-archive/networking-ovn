@@ -47,6 +47,9 @@ enable_service horizon
 disable_service cinder c-sch c-api c-vol
 #enable_service cinder c-sch c-api c-vol
 
+# To enable Rally, uncomment the line below
+#enable_plugin rally https://github.com/openstack/rally master
+
 # How to connect to ovsdb-server hosting the OVN NB database.
 #OVN_NB_REMOTE=tcp:$SERVICE_HOST:6641
 
