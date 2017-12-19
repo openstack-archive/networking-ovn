@@ -16,6 +16,7 @@ from ovs.db import idl
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.schema.open_vswitch import impl_idl as idl_ovs
+import tenacity
 
 from networking_ovn.common import config
 from networking_ovn.ovsdb import impl_idl_ovn as idl_ovn
@@ -28,7 +29,7 @@ class MetadataAgentOvnSbIdl(ovsdb_monitor.OvnIdl):
 
     def __init__(self, events=None):
         connection_string = config.get_ovn_sb_connection()
-        helper = idlutils.get_schema_helper(connection_string, self.SCHEMA)
+        helper = self._get_ovsdb_helper(connection_string)
         tables = ('Chassis', 'Encap', 'Port_Binding', 'Datapath_Binding')
         for table in tables:
             helper.register_table(table)
@@ -36,6 +37,12 @@ class MetadataAgentOvnSbIdl(ovsdb_monitor.OvnIdl):
             None, connection_string, helper)
         if events:
             self.notify_handler.watch_events(events)
+
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(max=180),
+        reraise=True)
+    def _get_ovsdb_helper(self, connection_string):
+        return idlutils.get_schema_helper(connection_string, self.SCHEMA)
 
     def start(self):
         ovsdb_monitor._check_and_set_ssl_files(self.SCHEMA)
