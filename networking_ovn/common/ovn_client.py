@@ -20,6 +20,7 @@ import netaddr
 from neutron.plugins.common import utils as p_utils
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
+from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
 from neutron_lib.plugins import directory
@@ -699,6 +700,17 @@ class OVNClient(object):
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.delete_lrouter(lrouter_name))
 
+    def get_candidates_for_scheduling(self, extnet):
+        if extnet.get(pnet.NETWORK_TYPE) in [const.TYPE_FLAT,
+                                             const.TYPE_VLAN]:
+            physnet = extnet.get(pnet.PHYSICAL_NETWORK)
+            if not physnet:
+                return []
+            chassis_physnets = self._sb_idl.get_chassis_and_physnets()
+            return [chassis for chassis, physnets in chassis_physnets.items()
+                    if physnet in physnets]
+        return []
+
     def create_router_port(self, router_id, port):
         """Create a logical router port."""
         lrouter = utils.ovn_name(router_id)
@@ -708,8 +720,12 @@ class OVNClient(object):
             'device_owner')
         columns = {}
         if is_gw_port:
+            context = n_context.get_admin_context()
+            candidates = self.get_candidates_for_scheduling(
+                self._plugin.get_network(context, port['network_id']))
             selected_chassis = self._ovn_scheduler.select(
-                self._nb_idl, self._sb_idl, lrouter_port_name)
+                self._nb_idl, self._sb_idl, lrouter_port_name,
+                candidates=candidates)
             columns['options'] = {
                 ovn_const.OVN_GATEWAY_CHASSIS_KEY: selected_chassis}
         with self._nb_idl.transaction(check_error=True) as txn:
