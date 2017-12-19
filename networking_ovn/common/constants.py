@@ -72,3 +72,9 @@ DHCPV6_STATELESS_OPT = 'dhcpv6_stateless'
 
 CHASSIS_DATAPATH_NETDEV = 'netdev'
 CHASSIS_IFACE_DPDKVHOSTUSER = 'dpdkvhostuser'
+
+OVN_IPV6_ADDRESS_MODES = {
+    const.IPV6_SLAAC: const.IPV6_SLAAC,
+    const.DHCPV6_STATEFUL: const.DHCPV6_STATEFUL.replace('-', '_'),
+    const.DHCPV6_STATELESS: const.DHCPV6_STATELESS.replace('-', '_')
+}

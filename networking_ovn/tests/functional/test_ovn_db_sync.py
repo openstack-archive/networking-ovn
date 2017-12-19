@@ -672,7 +672,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
             for lrport, lrouter_name, networks in self.update_lrouter_ports:
                 txn.add(self.nb_api.update_lrouter_port(
-                    lrport, True, **{'networks': [networks]}))
+                    lrport, True, **{'networks': [networks],
+                                     'ipv6_ra_configs': {'foo': 'bar'}}))
 
             for lrport, lrouter_name in self.delete_lrouter_ports:
                 txn.add(self.nb_api.delete_lrouter_port(lrport,
@@ -1100,15 +1101,31 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 AssertionError, self.assertItemsEqual, db_router_ids,
                 monitor_lrouter_ids)
 
+        def _get_networks_for_router_port(port_fixed_ips):
+            _ovn_client = self.l3_plugin._ovn_client
+            networks, _ = (
+                _ovn_client._get_nets_and_ipv6_ra_confs_for_router_port(
+                    port_fixed_ips))
+            return networks
+
+        def _get_ipv6_ra_configs_for_router_port(port_fixed_ips):
+            _ovn_client = self.l3_plugin._ovn_client
+            networks, ipv6_ra_configs = (
+                _ovn_client._get_nets_and_ipv6_ra_confs_for_router_port(
+                    port_fixed_ips))
+            return ipv6_ra_configs
+
         for router_id in db_router_ids:
             r_ports = self._list('ports',
                                  query_params='device_id=%s' % (router_id))
             r_port_ids = [p['id'] for p in r_ports['ports']]
             r_port_networks = {
                 p['id']:
-                    self.l3_plugin._ovn_client._get_networks_for_router_port(
-                        p['fixed_ips'])
+                    _get_networks_for_router_port(p['fixed_ips'])
                     for p in r_ports['ports']}
+            r_port_ipv6_ra_configs = {
+                p['id']: _get_ipv6_ra_configs_for_router_port(p['fixed_ips'])
+                for p in r_ports['ports']}
             r_routes = db_routes[router_id]
             r_nats = db_nats[router_id]
 
@@ -1121,6 +1138,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                            for lport in lports]
                 plugin_lport_networks = {
                     lport.name.replace('lrp-', ''): lport.networks
+                    for lport in lports}
+                plugin_lport_ra_configs = {
+                    lport.name.replace('lrp-', ''): lport.ipv6_ra_configs
                     for lport in lports}
                 sroutes = getattr(lrouter, 'static_routes', [])
                 plugin_routes = [sroute.ip_prefix + sroute.nexthop
@@ -1146,6 +1166,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 monitor_lport_networks = {
                     lport.name.replace('lrp-', ''): lport.networks
                     for lport in lports}
+                monitor_lport_ra_configs = {
+                    lport.name.replace('lrp-', ''): lport.ipv6_ra_configs
+                    for lport in lports}
                 sroutes = getattr(lrouter, 'static_routes', [])
                 monitor_routes = [sroute.ip_prefix + sroute.nexthop
                                   for sroute in sroutes]
@@ -1166,9 +1189,13 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 for p in plugin_lport_networks:
                     self.assertItemsEqual(r_port_networks[p],
                                           plugin_lport_networks[p])
+                    self.assertItemsEqual(r_port_ipv6_ra_configs[p],
+                                          plugin_lport_ra_configs[p])
                 for p in monitor_lport_networks:
                     self.assertItemsEqual(r_port_networks[p],
                                           monitor_lport_networks[p])
+                    self.assertItemsEqual(r_port_ipv6_ra_configs[p],
+                                          monitor_lport_ra_configs[p])
                 self.assertItemsEqual(r_routes, plugin_routes)
                 self.assertItemsEqual(r_routes, monitor_routes)
                 self.assertItemsEqual(r_nats, plugin_nats)
@@ -1188,10 +1215,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         self.assertRaises(
                             AssertionError, self.assertItemsEqual,
                             r_port_networks[p], plugin_lport_networks[p])
+                        self.assertRaises(
+                            AssertionError, self.assertItemsEqual,
+                            r_port_ipv6_ra_configs[p],
+                            plugin_lport_ra_configs[p])
                     if p in monitor_lport_networks:
                         self.assertRaises(
                             AssertionError, self.assertItemsEqual,
                             r_port_networks[p], monitor_lport_networks[p])
+                        self.assertRaises(
+                            AssertionError, self.assertItemsEqual,
+                            r_port_ipv6_ra_configs[p],
+                            monitor_lport_ra_configs[p])
 
                 self.assertRaises(
                     AssertionError, self.assertItemsEqual, r_routes,

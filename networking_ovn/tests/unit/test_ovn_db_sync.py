@@ -379,8 +379,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
         ovn_nb_synchronizer._ovn_client = mock.Mock()
-        ovn_nb_synchronizer._ovn_client._get_networks_for_router_port. \
-            return_value = self.lrport_networks
+        ovn_nb_synchronizer._ovn_client.\
+            _get_nets_and_ipv6_ra_confs_for_router_port.return_value = (
+                self.lrport_networks, {})
         ovn_nb_synchronizer._ovn_client._get_v4_network_of_all_router_ports. \
             side_effect = self._fake_get_v4_network_of_all_router_ports
         # end of router-sync block
@@ -606,7 +607,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.assertEqual(len(del_router_list),
                          ovn_api.delete_lrouter.call_count)
-        update_router_port_calls = [mock.call(r, p, self.lrport_networks)
+        update_router_port_calls = [mock.call(r, p)
                                     for (r, p) in update_router_port_list]
         self.assertEqual(
             len(update_router_port_list),
