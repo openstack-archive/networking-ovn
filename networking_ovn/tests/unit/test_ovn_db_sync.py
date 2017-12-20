@@ -181,20 +181,20 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
               'ip4.src == 10.0.0.0/24 && udp && '
               'udp.src == 67 && udp.dst == 68'}]}
         self.address_sets_ovn = {
-            'as_ip4_sg1': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+            'as_ip4_sg1': {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY:
                                             'all-tcp'},
                            'name': 'as_ip4_sg1',
                            'addresses': ['10.0.0.4']},
-            'as_ip4_sg2': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+            'as_ip4_sg2': {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY:
                                             'all-tcpe'},
                            'name': 'as_ip4_sg2',
                            'addresses': []},
-            'as_ip6_sg2': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+            'as_ip6_sg2': {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY:
                                             'all-tcpe'},
                            'name': 'as_ip6_sg2',
                            'addresses': ['fd79:e1c:a55::816:eff:eff:ff2',
                                          'fd79:e1c:a55::816:eff:eff:ff3']},
-            'as_ip4_del': {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
+            'as_ip4_del': {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY:
                                             'all-delete'},
                            'name': 'as_ip4_delete',
                            'addresses': ['10.0.0.4']},
@@ -732,8 +732,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
             {'networks': self.lrport_networks})
 
         add_address_set_list = [
-            {'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY:
-                              'all-tcp'},
+            {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'sg1'},
              'name': 'as_ip6_sg1',
              'addresses': ['fd79:e1c:a55::816:eff:eff:ff2']}]
         del_address_set_list = [{'name': 'as_ip4_del'}]
