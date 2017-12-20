@@ -16,6 +16,7 @@ from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_securitygroup
+from neutron_lib.api.definitions import dns as dns_apidef
 from neutron_lib.api.definitions import l3
 from neutron_lib import constants
 from neutron_lib import context
@@ -33,7 +34,10 @@ from networking_ovn.tests.functional import base
 
 class TestOvnNbSync(base.TestOVNFunctionalBase):
 
+    _extension_drivers = ['port_security', 'dns']
+
     def setUp(self):
+        ovn_config.cfg.CONF.set_override('dns_domain', 'ovn.test')
         super(TestOvnNbSync, self).setUp()
         ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
         self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
@@ -69,6 +73,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.dirty_dhcp_options = []
         self.lport_dhcp_ignored = []
         self.match_old_mac_dhcp_subnets = []
+        self.expected_dns_records = []
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
                                          group='ovn')
 
@@ -79,7 +84,16 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             return super(TestOvnNbSync, self)._api_for_resource(resource)
 
     def _create_resources(self, restart_ovsdb_processes=False):
-        n1 = self._make_network(self.fmt, 'n1', True)
+        net_kwargs = {dns_apidef.DNSDOMAIN: 'ovn.test.'}
+        net_kwargs['arg_list'] = (dns_apidef.DNSDOMAIN,)
+        res = self._create_network(self.fmt, 'n1', True, **net_kwargs)
+        n1 = self.deserialize(self.fmt, res)
+
+        self.expected_dns_records = [
+            {'external_ids': {'ls_name': utils.ovn_name(n1['network']['id'])},
+             'records': {}}
+        ]
+
         res = self._create_subnet(self.fmt, n1['network']['id'],
                                   '10.0.0.0/24')
         n1_s1 = self.deserialize(self.fmt, res)
@@ -117,12 +131,28 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         update_port_ids_v6 = []
         n1_port_dict = {}
         for p in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']:
-            port = self._make_port(self.fmt, n1['network']['id'],
-                                   name='n1-' + p,
-                                   device_owner='compute:None')
+            if p in ['p1', 'p5']:
+                port_kwargs = {'arg_list': (dns_apidef.DNSNAME,),
+                               dns_apidef.DNSNAME: 'n1-' + p,
+                               'device_id': 'n1-' + p}
+            else:
+                port_kwargs = {}
+
+            res = self._create_port(self.fmt, n1['network']['id'],
+                                    name='n1-' + p,
+                                    device_owner='compute:None',
+                                    **port_kwargs)
+            port = self.deserialize(self.fmt, res)
             n1_port_dict[p] = port['port']['id']
             lport_name = port['port']['id']
             lswitch_name = 'neutron-' + n1['network']['id']
+            if p in ['p1', 'p5']:
+                port_ips = " ".join([f['ip_address']
+                                     for f in port['port']['fixed_ips']])
+                hname = 'n1-' + p
+                self.expected_dns_records[0]['records'][hname] = port_ips
+                hname = 'n1-' + p + '.ovn.test.'
+                self.expected_dns_records[0]['records'][hname] = port_ips
             if p == 'p1':
                 fake_subnet = {'cidr': '11.11.11.11/24'}
                 dhcp_acls = acl_utils.add_acl_dhcp(port['port'], fake_subnet)
@@ -224,7 +254,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.dirty_dhcp_options.append({'subnet_id': n1_s1['subnet']['id']})
         self.dirty_dhcp_options.append({'subnet_id': n1_s2['subnet']['id']})
 
-        n2 = self._make_network(self.fmt, 'n2', True)
+        res = self._create_network(self.fmt, 'n2', True, **net_kwargs)
+        n2 = self.deserialize(self.fmt, res)
         res = self._create_subnet(self.fmt, n2['network']['id'],
                                   '20.0.0.0/24')
         n2_s1 = self.deserialize(self.fmt, res)
@@ -415,15 +446,38 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                              r1_f1['fixed_ip_address'],
                                           'type': 'dnat_and_snat'}))
 
-        n4 = self._make_network(self.fmt, 'n4', True)
+        res = self._create_network(self.fmt, 'n4', True, **net_kwargs)
+        n4 = self.deserialize(self.fmt, res)
         res = self._create_subnet(self.fmt, n4['network']['id'],
                                   '40.0.0.0/24', enable_dhcp=False)
+        self.expected_dns_records.append(
+            {'external_ids': {'ls_name': utils.ovn_name(n4['network']['id'])},
+             'records': {}}
+        )
         n4_s1 = self.deserialize(self.fmt, res)
         n4_port_dict = {}
         for p in ['p1', 'p2', 'p3']:
-            port = self._make_port(self.fmt, n4['network']['id'],
-                                   name='n4-' + p,
-                                   device_owner='compute:None')
+            if p in ['p1', 'p2']:
+                port_kwargs = {'arg_list': (dns_apidef.DNSNAME,),
+                               dns_apidef.DNSNAME: 'n4-' + p,
+                               'device_id': 'n4-' + p}
+            else:
+                port_kwargs = {}
+
+            res = self._create_port(self.fmt, n4['network']['id'],
+                                    name='n4-' + p,
+                                    device_owner='compute:None',
+                                    **port_kwargs)
+            port = self.deserialize(self.fmt, res)
+
+            if p in ['p1', 'p2']:
+                port_ips = " ".join([f['ip_address']
+                                     for f in port['port']['fixed_ips']])
+                hname = 'n4-' + p
+                self.expected_dns_records[1]['records'][hname] = port_ips
+                hname = 'n4-' + p + '.ovn.test.'
+                self.expected_dns_records[1]['records'][hname] = port_ips
+
             n4_port_dict[p] = port['port']['id']
             self.lport_dhcp_ignored.append(port['port']['id'])
 
@@ -722,6 +776,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(self.nb_api.set_lswitch_port(
                     port_id, True,
                     dhcpv6_options=[self.lport_dhcpv6_disabled[port_id]]))
+
+            # Delete the first DNS record and clear the second row records
+            i = 0
+            for dns_row in self.nb_api.tables['DNS'].rows.values():
+                if i == 0:
+                    txn.add(self.nb_api.dns_del(dns_row.uuid))
+                else:
+                    txn.add(self.nb_api.dns_set_records(dns_row.uuid, **{}))
+                i += 1
 
     def _validate_networks(self, should_match=True):
         db_networks = self._list('networks')
@@ -1212,6 +1275,19 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 txn.add(self.nb_api.delete_lswitch_port(port, lswitches[port],
                                                         True))
 
+    def _validate_dns_records(self, should_match=True):
+        observed_dns_records = []
+        for dns_row in self.nb_api.tables['DNS'].rows.values():
+            observed_dns_records.append(
+                {'external_ids': dns_row.external_ids,
+                 'records': dns_row.records})
+        if should_match:
+            self.assertItemsEqual(self.expected_dns_records,
+                                  observed_dns_records)
+        else:
+            self.assertRaises(AssertionError, self.assertItemsEqual,
+                              self.expected_dns_records, observed_dns_records)
+
     def _validate_resources(self, should_match=True):
         self._validate_networks(should_match=should_match)
         self._validate_metadata_ports(should_match=should_match)
@@ -1220,6 +1296,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self._validate_acls(should_match=should_match)
         self._validate_routers_and_router_ports(should_match=should_match)
         self._validate_address_sets(should_match=should_match)
+        self._validate_dns_records(should_match=should_match)
 
     def _sync_resources(self, mode):
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(

@@ -469,6 +469,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_nb_synchronizer._ovn_client._get_ovn_dhcp_options.side_effect = (
             self._fake_get_ovn_dhcp_options)
         ovn_api.delete_dhcp_options = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.get_port_dns_records = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.get_port_dns_records.return_value = {}
 
     def _test_ovn_nb_sync_helper(self, ovn_nb_synchronizer,
                                  networks, ports,

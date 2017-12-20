@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Use native OVN DNS support if "dns" extension is loaded and "dns_domain"
+    is defined.

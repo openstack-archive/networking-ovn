@@ -90,6 +90,11 @@ class FakeOvsdbNbOvnIdl(object):
         self.check_for_row_by_value_and_retry = mock.Mock()
         self.get_parent_port = mock.Mock()
         self.get_parent_port.return_value = []
+        self.dns_add = mock.Mock()
+        self.get_ls_and_dns_record = mock.Mock()
+        self.get_ls_and_dns_record.return_value = (
+            FakeOvsdbRow.create_one_ovsdb_row(), None)
+        self.ls_set_dns_records = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
