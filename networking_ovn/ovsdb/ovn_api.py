@@ -507,6 +507,7 @@ class API(api.API):
         :returns: The NAT rule row or None
         """
 
+    @abc.abstractmethod
     def get_floatingip_by_ips(self, router_id, logical_ip, external_ip):
         """Get a Floating IP based on it's logical and external IPs.
 
