@@ -263,19 +263,19 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         'address_sets': [
             {'name': '$as_ip4_id_1',
              'addresses': ['10.0.1.1', '10.0.1.2'],
-             'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'id_1'}},
+             'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'id_1'}},
             {'name': '$as_ip4_id_2',
              'addresses': ['10.0.2.1'],
-             'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'id_2'}},
+             'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'id_2'}},
             {'name': '$as_ip4_id_3',
              'addresses': ['10.0.3.1', '10.0.3.2'],
-             'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'id_3'}},
+             'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'id_3'}},
             {'name': '$as_ip4_id_4',
              'addresses': ['20.0.1.1', '20.0.1.2'],
              'external_ids': {}},
             {'name': '$as_ip4_id_5',
              'addresses': ['20.0.2.1', '20.0.2.2'],
-             'external_ids': {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'id_5'}},
+             'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'id_5'}},
             ]}
 
     fake_associations = {

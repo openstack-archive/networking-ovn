@@ -1098,7 +1098,7 @@ class TestUpdateAddrSetCommand(TestBaseCommand):
 class TestUpdateAddrSetExtIdsCommand(TestBaseCommand):
     def setUp(self):
         super(TestUpdateAddrSetExtIdsCommand, self).setUp()
-        self.ext_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'default'}
+        self.ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default'}
 
     def _test_addrset_extids_update_no_exist(self, if_exists=True):
         with mock.patch.object(idlutils, 'row_by_value',
@@ -1118,7 +1118,7 @@ class TestUpdateAddrSetExtIdsCommand(TestBaseCommand):
         self._test_addrset_extids_update_no_exist(if_exists=False)
 
     def test_addrset_extids_update(self):
-        new_ext_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: 'default-new'}
+        new_ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default-new'}
         fake_addrset = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'external_ids': self.ext_ids})
         with mock.patch.object(idlutils, 'row_by_value',

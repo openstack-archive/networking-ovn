@@ -182,8 +182,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 name = utils.ovn_addrset_name(sg['id'], ip_version)
                 neutron_sgs[name] = {
                     'name': name, 'addresses': [],
-                    'external_ids': {const.OVN_SG_NAME_EXT_ID_KEY:
-                                     sg['name']}}
+                    'external_ids': {const.OVN_SG_EXT_ID_KEY: sg['id']}}
 
         for port in db_ports:
             sg_ids = utils.get_lsp_security_groups(port)

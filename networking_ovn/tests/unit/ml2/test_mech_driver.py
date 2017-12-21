@@ -86,11 +86,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             return_value=True
         ).start()
 
-    def test__process_sg_notification_create(self):
-        self.mech_driver._process_sg_notification(
+    def test__create_security_group(self):
+        self.mech_driver._create_security_group(
             resources.SECURITY_GROUP, events.AFTER_CREATE, {},
             security_group=self.fake_sg)
-        external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: self.fake_sg['name']}
+        external_ids = {ovn_const.OVN_SG_EXT_ID_KEY: self.fake_sg['id']}
         ip4_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip4')
         ip6_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip6')
         create_address_set_calls = [mock.call(name=name,
@@ -100,24 +100,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.nb_ovn.create_address_set.assert_has_calls(
             create_address_set_calls, any_order=True)
 
-    def test__process_sg_notification_update(self):
-        self.mech_driver._process_sg_notification(
-            resources.SECURITY_GROUP, events.AFTER_UPDATE, {},
-            security_group=self.fake_sg)
-        external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: self.fake_sg['name']}
-        ip4_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip4')
-        ip6_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip6')
-        update_address_set_calls = [mock.call(name=name,
-                                              external_ids=external_ids)
-                                    for name in [ip4_name, ip6_name]]
-
-        self.nb_ovn.update_address_set_ext_ids.assert_has_calls(
-            update_address_set_calls, any_order=True)
-
-    def test__process_sg_notification_delete(self):
-        self.mech_driver._process_sg_notification(
-            resources.SECURITY_GROUP, events.BEFORE_DELETE, {},
-            security_group=self.fake_sg)
+    def test__delete_security_group(self):
+        self.mech_driver._delete_security_group(
+            resources.SECURITY_GROUP, events.AFTER_CREATE, {},
+            security_group_id=self.fake_sg['id'])
         ip4_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip4')
         ip6_name = ovn_utils.ovn_addrset_name(self.fake_sg['id'], 'ip6')
         delete_address_set_calls = [mock.call(name=name)

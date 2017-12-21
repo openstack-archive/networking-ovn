@@ -707,7 +707,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
             for name, ip_version in self.create_address_sets:
                 ovn_name = utils.ovn_addrset_name(name, ip_version)
-                external_ids = {ovn_const.OVN_SG_NAME_EXT_ID_KEY: name}
+                external_ids = {ovn_const.OVN_SG_EXT_ID_KEY: name}
                 txn.add(self.nb_api.create_address_set(
                     ovn_name, True, external_ids=external_ids))
 

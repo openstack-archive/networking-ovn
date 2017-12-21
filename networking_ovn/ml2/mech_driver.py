@@ -144,15 +144,12 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         # Handle security group/rule notifications
         if self.sg_enabled:
-            registry.subscribe(self._process_sg_notification,
+            registry.subscribe(self._create_security_group,
                                resources.SECURITY_GROUP,
                                events.AFTER_CREATE)
-            registry.subscribe(self._process_sg_notification,
+            registry.subscribe(self._delete_security_group,
                                resources.SECURITY_GROUP,
-                               events.AFTER_UPDATE)
-            registry.subscribe(self._process_sg_notification,
-                               resources.SECURITY_GROUP,
-                               events.BEFORE_DELETE)
+                               events.AFTER_DELETE)
             registry.subscribe(self._process_sg_rule_notification,
                                resources.SECURITY_GROUP_RULE,
                                events.AFTER_CREATE)
@@ -189,15 +186,13 @@ class OVNMechanismDriver(api.MechanismDriver):
             )
             self.sb_synchronizer.sync()
 
-    def _process_sg_notification(self, resource, event, trigger, **kwargs):
-        sg = {'name': kwargs['security_group']['name'],
-              'id': kwargs['security_group']['id']}
-        if event == events.AFTER_CREATE:
-            self._ovn_client.create_security_group(sg)
-        elif event == events.AFTER_UPDATE:
-            self._ovn_client.update_security_group(sg)
-        elif event == events.BEFORE_DELETE:
-            self._ovn_client.delete_security_group(sg)
+    def _create_security_group(self, resource, event, trigger,
+                               security_group, **kwargs):
+        self._ovn_client.create_security_group(security_group)
+
+    def _delete_security_group(self, resource, event, trigger,
+                               security_group_id, **kwargs):
+        self._ovn_client.delete_security_group(security_group_id)
 
     def _process_sg_rule_notification(
             self, resource, event, trigger, **kwargs):
