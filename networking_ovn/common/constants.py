@@ -27,6 +27,8 @@ OVN_SEGID_EXT_ID_KEY = 'neutron:provnet-segmentation-id'
 OVN_PROJID_EXT_ID_KEY = 'neutron:project_id'
 OVN_DEVID_EXT_ID_KEY = 'neutron:device_id'
 OVN_CIDRS_EXT_ID_KEY = 'neutron:cidrs'
+OVN_FIP_EXT_ID_KEY = 'neutron:fip_id'
+OVN_FIP_PORT_EXT_ID_KEY = 'neutron:fip_port_id'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE
 OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},

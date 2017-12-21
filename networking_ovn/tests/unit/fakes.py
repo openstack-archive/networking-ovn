@@ -95,6 +95,13 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_ls_and_dns_record.return_value = (
             FakeOvsdbRow.create_one_ovsdb_row(), None)
         self.ls_set_dns_records = mock.Mock()
+        self.get_floatingip = mock.Mock()
+        self.get_floatingip.return_value = None
+        # TODO(lucasagomes): The get_floatingip_by_ips() method is part
+        # of a backwards compatibility layer for the Pike -> Queens release,
+        # remove it in the Rocky release.
+        self.get_floatingip_by_ips = mock.Mock()
+        self.get_floatingip_by_ips.return_value = None
 
 
 class FakeOvsdbSbOvnIdl(object):

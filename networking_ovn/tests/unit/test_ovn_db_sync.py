@@ -559,19 +559,32 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertEqual(len(del_static_route_list),
                          ovn_api.delete_static_route.call_count)
 
-        add_nat_list = add_snat_list + add_floating_ip_list
-        add_nat_calls = [mock.call(mock.ANY, **nat) for nat in add_nat_list]
+        add_nat_calls = [mock.call(mock.ANY, **nat) for nat in add_snat_list]
         ovn_api.add_nat_rule_in_lrouter.assert_has_calls(add_nat_calls,
                                                          any_order=True)
-        self.assertEqual(len(add_nat_list),
+        self.assertEqual(len(add_snat_list),
                          ovn_api.add_nat_rule_in_lrouter.call_count)
 
-        del_nat_list = del_snat_list + del_floating_ip_list
-        del_nat_calls = [mock.call(mock.ANY, **nat) for nat in del_nat_list]
+        add_fip_calls = [mock.call(nat) for nat in add_floating_ip_list]
+        ovn_nb_synchronizer._ovn_client.create_floatingip.assert_has_calls(
+            add_fip_calls)
+        self.assertEqual(
+            len(add_floating_ip_list),
+            ovn_nb_synchronizer._ovn_client.create_floatingip.call_count)
+
+        del_nat_calls = [mock.call(mock.ANY, **nat) for nat in del_snat_list]
         ovn_api.delete_nat_rule_in_lrouter.assert_has_calls(del_nat_calls,
                                                             any_order=True)
-        self.assertEqual(len(del_nat_list),
+        self.assertEqual(len(del_snat_list),
                          ovn_api.delete_nat_rule_in_lrouter.call_count)
+
+        del_fip_calls = [mock.call(nat, mock.ANY) for nat in
+                         del_floating_ip_list]
+        ovn_nb_synchronizer._ovn_client._delete_floatingip.assert_has_calls(
+            del_fip_calls, any_order=True)
+        self.assertEqual(
+            len(del_floating_ip_list),
+            ovn_nb_synchronizer._ovn_client._delete_floatingip.call_count)
 
         create_router_calls = [mock.call(r, add_external_gateway=False)
                                for r in create_router_list]
@@ -710,21 +723,23 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         # fip 100.0.0.11 exists in OVN with distributed type and in Neutron
         # with centralized type. This fip is used to test
         # enable_distributed_floating_ip switch and migration
-        add_floating_ip_list = [{'logical_ip': '172.16.2.12',
-                                 'external_ip': '90.0.0.12',
-                                 'type': 'dnat_and_snat'},
-                                {'logical_ip': '192.168.2.10',
-                                 'external_ip': '100.0.0.10',
-                                 'type': 'dnat_and_snat'},
-                                {'logical_ip': '192.168.2.11',
-                                 'external_ip': '100.0.0.11',
-                                 'type': 'dnat_and_snat'}]
+        add_floating_ip_list = [{'id': 'fip2', 'router_id': 'r1',
+                                 'floating_ip_address': '90.0.0.12',
+                                 'fixed_ip_address': '172.16.2.12'},
+                                {'id': 'fip3', 'router_id': 'r2',
+                                 'floating_ip_address': '100.0.0.10',
+                                 'fixed_ip_address': '192.168.2.10'},
+                                {'id': 'fip4', 'router_id': 'r2',
+                                 'floating_ip_address': '100.0.0.11',
+                                 'fixed_ip_address': '192.168.2.11'}]
         del_floating_ip_list = [{'logical_ip': '172.16.1.11',
                                  'external_ip': '90.0.0.11',
                                  'type': 'dnat_and_snat'},
                                 {'logical_ip': '192.168.2.11',
                                  'external_ip': '100.0.0.11',
-                                 'type': 'dnat_and_snat'}]
+                                 'type': 'dnat_and_snat',
+                                 'external_mac': '01:02:03:04:05:06',
+                                 'logical_port': 'vm1'}]
 
         del_router_list = [{'router': 'neutron-r3'}]
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
