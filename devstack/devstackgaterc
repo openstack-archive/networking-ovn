@@ -91,6 +91,13 @@ r="$r|(?:tempest\.api\.compute\.flavors*)"
 r="$r|(?:tempest\.api\.compute\.test_quotas*)"
 r="$r|(?:tempest\.api\.compute\.test_versions*)"
 r="$r|(?:tempest\.api\.compute\.volumes*)"
+r="$r|(?:tempest\.api\.compute\.admin\.test_flavor*)"
+r="$r|(?:tempest\.api\.compute\.admin\.test_volume*)"
+r="$r|(?:tempest\.api\.compute\.admin\.test_hypervisor*)"
+r="$r|(?:tempest\.api\.compute\.admin\.test_aggregate*)"
+r="$r|(?:tempest\.api\.compute\.admin\.test_quota*)"
+
+r="$r|(?:tempest\.scenario\.test_volume*)"
 
 # End list of exclusions.
 r="$r)"
