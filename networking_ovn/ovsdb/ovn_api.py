@@ -591,6 +591,15 @@ class API(api.API):
         :returns: :class:`Command` with no result
         """
 
+    @abc.abstractmethod
+    def get_address_set(self, addr_name):
+        """Get a Address Set by its ID.
+
+        :param addr_name: The Address Set name
+        :type addr_name: string
+        :returns: The Address Set row or None
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(api.API):

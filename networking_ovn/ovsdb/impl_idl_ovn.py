@@ -608,6 +608,13 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                nat['external_ip'] == external_ip):
                 return nat
 
+    def get_address_set(self, addr_name):
+        try:
+            return idlutils.row_by_value(self.idl, 'Address_Set',
+                                         'name', addr_name)
+        except idlutils.RowNotFound:
+            return None
+
     def check_revision_number(self, name, resource, resource_type,
                               if_exists=True):
         return cmd.CheckRevisionNumberCommand(
