@@ -90,6 +90,12 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             return_value=True
         ).start()
         revision_plugin.RevisionPlugin()
+        p = mock.patch.object(ovn_utils, 'get_revision_number', return_value=1)
+        p.start()
+        self.addCleanup(p.stop)
+        p = mock.patch.object(db_rev, 'bump_revision')
+        p.start()
+        self.addCleanup(p.stop)
 
     @mock.patch.object(db_rev, 'bump_revision')
     def test__create_security_group(self, mock_bump):
@@ -883,7 +889,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
     def test_add_subnet_dhcp_options_in_ovn_with_given_ovn_dhcp_opts(self):
         subnet = {'ip_version': const.IP_VERSION_4}
         self._test_add_subnet_dhcp_options_in_ovn(
-            subnet, ovn_dhcp_opts={'foo': 'bar'}, call_get_dhcp_opts=False)
+            subnet, ovn_dhcp_opts={'foo': 'bar', 'external_ids': {}},
+            call_get_dhcp_opts=False)
 
     def test_add_subnet_dhcp_options_in_ovn_with_slaac_v6_subnet(self):
         subnet = {'ip_version': const.IP_VERSION_6,
@@ -919,7 +926,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             subnet, network, txn)
         # Check adding DHCP_Options rows
         subnet_dhcp_options = {
-            'external_ids': {'subnet_id': subnet['id']},
+            'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'cidr': subnet['cidr'], 'options': {
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
@@ -928,6 +936,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'mtu': str(1000)}}
         ports_dhcp_options = [{
             'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
                              'port_id': 'port-id-2'},
             'cidr': subnet['cidr'], 'options': {
                 'router': '10.0.0.33',
@@ -936,6 +945,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}, {
             'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
                              'port_id': 'port-id-3'},
             'cidr': subnet['cidr'], 'options': {
                 'router': subnet['gateway_ip'],
@@ -992,17 +1002,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             subnet, network, txn)
         # Check adding DHCP_Options rows
         subnet_dhcp_options = {
-            'external_ids': {'subnet_id': subnet['id']},
+            'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'cidr': subnet['cidr'], 'options': {
                 'dhcpv6_stateless': 'true',
                 'server_id': '01:02:03:04:05:06'}}
         ports_dhcp_options = [{
             'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
                              'port_id': 'port-id-2'},
             'cidr': subnet['cidr'], 'options': {
                 'dhcpv6_stateless': 'true',
                 'server_id': '11:22:33:44:55:66'}}, {
             'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
                              'port_id': 'port-id-3'},
             'cidr': subnet['cidr'], 'options': {
                 'dhcpv6_stateless': 'true',
@@ -1080,7 +1093,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._ovn_client._update_subnet_dhcp_options(
             subnet, network, mock.Mock())
         new_options = {
-            'external_ids': {'subnet_id': subnet['id']},
+            'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'cidr': subnet['cidr'], 'options': {
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
@@ -1129,7 +1143,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             subnet, network, mock.Mock())
 
         new_options = {
-            'external_ids': {'subnet_id': subnet['id']},
+            'external_ids': {'subnet_id': subnet['id'],
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'cidr': subnet['cidr'], 'options': {
                 'dhcpv6_stateless': 'true',
                 'dns_server': '{10::3}',
@@ -1166,8 +1181,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test_update_subnet_postcommit_ovn_do_nothing(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': False, 'ip_version': 4, 'network_id': 'id'},
-            original_subnet={'enable_dhcp': False, 'ip_version': 4},
+            subnet={'enable_dhcp': False, 'ip_version': 4, 'network_id': 'id',
+                    'id': 'subnet_id'},
             network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
@@ -1193,8 +1208,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test_update_subnet_postcommit_enable_dhcp(self):
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id'},
-            original_subnet={'enable_dhcp': False, 'ip_version': 4},
+            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id',
+                    'id': 'subnet_id'},
             network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
@@ -1208,10 +1223,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             umd.assert_called_once_with(mock.ANY, 'id')
 
     def test_update_subnet_postcommit_disable_dhcp(self):
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = {
+            'subnet': mock.sentinel.subnet, 'ports': []}
         context = fakes.FakeSubnetContext(
             subnet={'enable_dhcp': False, 'id': 'fake_id', 'ip_version': 4,
                     'network_id': 'id'},
-            original_subnet={'enable_dhcp': True, 'ip_version': 4},
             network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
@@ -1224,9 +1240,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             umd.assert_called_once_with(mock.ANY, 'id')
 
     def test_update_subnet_postcommit_update_dhcp(self):
+        self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value = {
+            'subnet': mock.sentinel.subnet, 'ports': []}
         context = fakes.FakeSubnetContext(
-            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id'},
-            original_subnet={'enable_dhcp': True, 'ip_version': 4},
+            subnet={'enable_dhcp': True, 'ip_version': 4, 'network_id': 'id',
+                    'id': 'subnet_id'},
             network={'id': 'id'})
         with mock.patch.object(
                 self.mech_driver._ovn_client,
@@ -1514,7 +1532,9 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         network = {'id': 'network-id', 'mtu': 1400}
 
         expected_dhcp_options = {'cidr': '10.0.0.0/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet'}}
+                                 'external_ids': {
+                                     'subnet_id': 'foo-subnet',
+                                     ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
         expected_dhcp_options['options'] = {
             'server_id': subnet['gateway_ip'],
             'server_mac': '01:02:03:04:05:06',
@@ -1545,7 +1565,9 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         network = {'id': 'network-id', 'mtu': 1400}
 
         expected_dhcp_options = {'cidr': '10.0.0.0/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet'},
+                                 'external_ids': {
+                                     'subnet_id': 'foo-subnet',
+                                     ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
                                  'options': {}}
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
@@ -1563,7 +1585,9 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         network = {'id': 'network-id', 'mtu': 1400}
 
         expected_dhcp_options = {'cidr': '10.0.0.0/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet'},
+                                 'external_ids': {
+                                     'subnet_id': 'foo-subnet',
+                                     ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
                                  'options': {}}
 
         self._test_get_ovn_dhcp_options_helper(subnet, network,
@@ -1577,8 +1601,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                   'dns_nameservers': ['7.7.7.7', '8.8.8.8']}
         network = {'id': 'network-id', 'mtu': 1400}
 
+        ext_ids = {'subnet_id': 'foo-subnet',
+                   ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}
         expected_dhcp_options = {
-            'cidr': 'ae70::/24', 'external_ids': {'subnet_id': 'foo-subnet'},
+            'cidr': 'ae70::/24', 'external_ids': ext_ids,
             'options': {'server_id': '01:02:03:04:05:06',
                         'dns_server': '{7.7.7.7, 8.8.8.8}'}}
 
@@ -1598,8 +1624,10 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                   'ipv6_address_mode': const.DHCPV6_STATELESS}
         network = {'id': 'network-id', 'mtu': 1400}
 
+        ext_ids = {'subnet_id': 'foo-subnet',
+                   ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}
         expected_dhcp_options = {
-            'cidr': 'ae70::/24', 'external_ids': {'subnet_id': 'foo-subnet'},
+            'cidr': 'ae70::/24', 'external_ids': ext_ids,
             'options': {'server_id': '01:02:03:04:05:06',
                         'dns_server': '{7.7.7.7, 8.8.8.8}',
                         'dhcpv6_stateless': 'true'}}
@@ -1622,7 +1650,9 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         network = {'id': 'network-id', 'mtu': 1400}
 
         expected_dhcp_options = {'cidr': '10.0.0.0/24',
-                                 'external_ids': {'subnet_id': 'foo-subnet'}}
+                                 'external_ids': {
+                                     'subnet_id': 'foo-subnet',
+                                     ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
         expected_dhcp_options['options'] = {
             'server_id': subnet['gateway_ip'],
             'server_mac': '01:02:03:04:05:06',

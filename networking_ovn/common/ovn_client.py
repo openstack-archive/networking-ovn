@@ -1136,11 +1136,17 @@ class OVNClient(object):
             ovn_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
 
         with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(self._nb_idl.add_dhcp_options(
-                subnet['id'], **ovn_dhcp_options))
+            rev_num = {ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(
+                utils.get_revision_number(subnet, ovn_const.TYPE_SUBNETS))}
+            ovn_dhcp_options['external_ids'].update(rev_num)
+            txn.add(self._nb_idl.add_dhcp_options(subnet['id'],
+                                                  **ovn_dhcp_options))
 
     def _get_ovn_dhcp_options(self, subnet, network, server_mac=None):
-        external_ids = {'subnet_id': subnet['id']}
+        external_ids = {
+            'subnet_id': subnet['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(utils.get_revision_number(
+                subnet, ovn_const.TYPE_SUBNETS))}
         dhcp_options = {'cidr': subnet['cidr'], 'options': {},
                         'external_ids': external_ids}
 
@@ -1239,9 +1245,9 @@ class OVNClient(object):
                                            filters=filters)
         ports = [p for p in all_ports if not utils.is_network_device_port(p)]
 
-        subnet_dhcp_options = self._get_ovn_dhcp_options(subnet, network)
+        dhcp_options = self._get_ovn_dhcp_options(subnet, network)
         subnet_dhcp_cmd = self._nb_idl.add_dhcp_options(subnet['id'],
-                                                        **subnet_dhcp_options)
+                                                        **dhcp_options)
         subnet_dhcp_option = txn.add(subnet_dhcp_cmd)
         # Traverse ports to add port DHCP_Options rows
         for port in ports:
@@ -1252,7 +1258,7 @@ class OVNClient(object):
             elif not lsp_dhcp_opts:
                 lsp_dhcp_options = subnet_dhcp_option
             else:
-                port_dhcp_options = copy.deepcopy(subnet_dhcp_options)
+                port_dhcp_options = copy.deepcopy(dhcp_options)
                 port_dhcp_options['options'].update(lsp_dhcp_opts)
                 port_dhcp_options['external_ids'].update(
                     {'port_id': port['id']})
@@ -1285,9 +1291,7 @@ class OVNClient(object):
                 original_options['cidr'] == new_options['cidr'] and
                 original_options['options'] == new_options['options']):
             return
-
         txn.add(self._nb_idl.add_dhcp_options(subnet['id'], **new_options))
-
         dhcp_options = self._nb_idl.get_subnet_dhcp_options(
             subnet['id'], with_ports=True)
         for opt in dhcp_options['ports']:
@@ -1306,24 +1310,32 @@ class OVNClient(object):
                 self.update_metadata_port(context, network['id'])
 
             self._add_subnet_dhcp_options(subnet, network)
+        db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
 
-    def update_subnet(self, subnet, original_subnet, network):
-        if not subnet['enable_dhcp'] and not original_subnet['enable_dhcp']:
-            return
+    def update_subnet(self, subnet, network):
+        ovn_subnet = self._nb_idl.get_subnet_dhcp_options(
+            subnet['id'])['subnet']
 
-        context = n_context.get_admin_context()
-        self.update_metadata_port(context, network['id'])
+        if subnet['enable_dhcp'] or ovn_subnet:
+            context = n_context.get_admin_context()
+            self.update_metadata_port(context, network['id'])
+
+        check_rev_cmd = self._nb_idl.check_revision_number(
+            subnet['id'], subnet, ovn_const.TYPE_SUBNETS)
         with self._nb_idl.transaction(check_error=True) as txn:
-            if not original_subnet['enable_dhcp']:
+            txn.add(check_rev_cmd)
+            if subnet['enable_dhcp'] and not ovn_subnet:
                 self._enable_subnet_dhcp_options(subnet, network, txn)
-            elif not subnet['enable_dhcp']:
+            elif not subnet['enable_dhcp'] and ovn_subnet:
                 self._remove_subnet_dhcp_options(subnet['id'], txn)
-            else:
+            elif subnet['enable_dhcp'] and ovn_subnet:
                 self._update_subnet_dhcp_options(subnet, network, txn)
+        db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
 
     def delete_subnet(self, subnet_id):
         with self._nb_idl.transaction(check_error=True) as txn:
             self._remove_subnet_dhcp_options(subnet_id, txn)
+        db_rev.delete_revision(subnet_id)
 
     def create_security_group(self, security_group):
         with self._nb_idl.transaction(check_error=True) as txn:

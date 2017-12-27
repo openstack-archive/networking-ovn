@@ -266,6 +266,19 @@ class DBInconsistenciesPeriodics(object):
         else:
             self._ovn_client.delete_floatingip(row.resource_uuid)
 
+    def _fix_create_update_subnet(self, row):
+        # Get the lasted version of the port in Neutron DB
+        admin_context = n_context.get_admin_context()
+        sn_db_obj = self._ovn_client._plugin.get_subnet(
+            admin_context, row.resource_uuid)
+        n_db_obj = self._ovn_client._plugin.get_network(
+            admin_context, sn_db_obj['network_id'])
+
+        if row.revision_number == ovn_const.INITIAL_REV_NUM:
+            self._ovn_client.create_subnet(sn_db_obj, n_db_obj)
+        else:
+            self._ovn_client.update_subnet(sn_db_obj, n_db_obj)
+
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
@@ -295,6 +308,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_create_security_group(row)
                 elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
                     self._fix_create_update_floatingip(row)
+                elif row.resource_type == ovn_const.TYPE_SUBNETS:
+                    self._fix_create_update_subnet(row)
             except Exception:
                 LOG.exception('Failed to fix resource %(res_uuid)s '
                               '(type: %(res_type)s)',
@@ -316,6 +331,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_delete_security_group(row)
                 elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
                     self._fix_delete_floatingip(row)
+                elif row.resource_type == ovn_const.TYPE_SUBNETS:
+                    self._ovn_client.delete_subnet(row.resource_uuid)
             except Exception:
                 LOG.exception('Failed to fix deleted resource %(res_uuid)s '
                               '(type: %(res_type)s)',

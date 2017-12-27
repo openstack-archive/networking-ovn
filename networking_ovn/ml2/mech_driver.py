@@ -350,13 +350,18 @@ class OVNMechanismDriver(api.MechanismDriver):
         """
         self._ovn_client.delete_network(context.current['id'])
 
+    def create_subnet_precommit(self, context):
+        db_rev.create_initial_revision(
+            context.current['id'], ovn_const.TYPE_SUBNETS,
+            context._plugin_context.session)
+
     def create_subnet_postcommit(self, context):
         self._ovn_client.create_subnet(context.current,
                                        context.network.current)
 
     def update_subnet_postcommit(self, context):
-        self._ovn_client.update_subnet(context.current, context.original,
-                                       context.network.current)
+        self._ovn_client.update_subnet(
+            context.current, context.network.current)
 
     def delete_subnet_postcommit(self, context):
         self._ovn_client.delete_subnet(context.current['id'])
