@@ -279,6 +279,22 @@ def _acl_columns_name_severity_supported(nb_idl):
     return ('name' in columns) and ('severity' in columns)
 
 
+def _filter_security_groups_by_rule(plugin, admin_context,
+                                    security_group_rule, security_groups):
+    if not security_groups:
+        return set()
+
+    # Need accurate match including value None
+    filters = {key: security_group_rule.get(key)
+               for key in ('direction', 'protocol', 'ethertype',
+                           'port_range_min', 'port_range_max',
+                           'remote_ip_prefix', 'remote_group_id')}
+    filters['security_group_id'] = set(security_groups)
+    rules = plugin.get_security_group_rules(admin_context,
+                                            filters=filters)
+    return set([r['security_group_id'] for r in rules])
+
+
 def update_acls_for_security_group(plugin,
                                    admin_context,
                                    ovn,
@@ -302,6 +318,17 @@ def update_acls_for_security_group(plugin,
     sg_port_ids = list(set(sg_port_ids))
     port_list = plugin.get_ports(admin_context,
                                  filters={'id': sg_port_ids})
+    if not port_list:
+        return
+
+    # Port can have multiple security groups, we will check whether other
+    # related security groups contain duplicate rules.
+    # If true, this rule will not be added to or removed from OVN.
+    related_sgs = [sg for p in port_list for sg in p['security_groups']
+                   if sg != security_group_id]
+    duplicate_sgs = _filter_security_groups_by_rule(
+        plugin, admin_context, security_group_rule, related_sgs)
+
     acl_new_values_dict = {}
     update_port_list = []
 
@@ -313,6 +340,12 @@ def update_acls_for_security_group(plugin,
         # Skip trusted port
         if utils.is_lsp_trusted(port):
             continue
+
+        # Check whether other security groups contain duplicate rules.
+        # If true, this rule will not be added or removed.
+        if set(port['security_groups']) & duplicate_sgs:
+            continue
+
         update_port_list.append(port)
         acl = _add_sg_rule_acl_for_port(port, security_group_rule)
         # Remove lport and lswitch since we don't need them
