@@ -68,6 +68,10 @@ class Backend(ovs_idl.Backend):
     def is_table_present(self, table_name):
         return table_name in self._tables
 
+    def is_col_present(self, table_name, col_name):
+        return self.is_table_present(table_name) and (
+            col_name in self._tables[table_name].columns)
+
     def create_transaction(self, check_error=False, log_errors=True):
         return idl_trans.Transaction(
             self, self.ovsdb_connection, self.ovsdb_connection.timeout,

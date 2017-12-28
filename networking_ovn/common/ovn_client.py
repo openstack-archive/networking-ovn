@@ -633,16 +633,31 @@ class OVNClient(object):
                 gw_lrouter_name, type='snat', logical_ip=network,
                 external_ip=router_ip))
 
-    def _get_networks_for_router_port(self, port_fixed_ips):
+    def _get_nets_and_ipv6_ra_confs_for_router_port(
+            self, port_fixed_ips):
         context = n_context.get_admin_context()
         networks = set()
+        ipv6_ra_configs = {}
+        ipv6_ra_configs_supported = self._nb_idl.is_col_present(
+            'Logical_Router_Port', 'ipv6_ra_configs')
+
         for fixed_ip in port_fixed_ips:
             subnet_id = fixed_ip['subnet_id']
             subnet = self._plugin.get_subnet(context, subnet_id)
             cidr = netaddr.IPNetwork(subnet['cidr'])
             networks.add("%s/%s" % (fixed_ip['ip_address'],
                                     str(cidr.prefixlen)))
-        return list(networks)
+
+            if subnet.get('ipv6_address_mode') and not ipv6_ra_configs and (
+                    ipv6_ra_configs_supported):
+                ipv6_ra_configs['address_mode'] = (
+                    utils.get_ovn_ipv6_address_mode(
+                        subnet['ipv6_address_mode']))
+                ipv6_ra_configs['send_periodic'] = 'true'
+                net = self._plugin.get_network(context, subnet['network_id'])
+                ipv6_ra_configs['mtu'] = str(net['mtu'])
+
+        return list(networks), ipv6_ra_configs
 
     def _add_router_ext_gw(self, context, router, networks, txn):
         router_id = router['id']
@@ -839,7 +854,9 @@ class OVNClient(object):
     def create_router_port(self, router_id, port, txn=None):
         """Create a logical router port."""
         lrouter = utils.ovn_name(router_id)
-        networks = self._get_networks_for_router_port(port['fixed_ips'])
+        networks, ipv6_ra_configs = (
+            self._get_nets_and_ipv6_ra_confs_for_router_port(
+                port['fixed_ips']))
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
             'device_owner')
@@ -853,6 +870,8 @@ class OVNClient(object):
                 candidates=candidates)
             if selected_chassis:
                 columns['gateway_chassis'] = selected_chassis
+        if ipv6_ra_configs:
+            columns['ipv6_ra_configs'] = ipv6_ra_configs
 
         commands = [self._nb_idl.add_lrouter_port(
                     name=lrouter_port_name, lrouter=lrouter,
@@ -862,13 +881,14 @@ class OVNClient(object):
                     port['id'], lrouter_port_name, is_gw_port=is_gw_port)]
         self._transaction(commands, txn=txn)
 
-    def update_router_port(self, router_id, port, networks=None):
+    def update_router_port(self, router_id, port):
         """Update a logical router port."""
-        if networks is None:
-            networks = self._get_networks_for_router_port(port['fixed_ips'])
+        networks, ipv6_ra_configs = (
+            self._get_nets_and_ipv6_ra_confs_for_router_port(
+                port['fixed_ips']))
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
-        update = {'networks': networks}
+        update = {'networks': networks, 'ipv6_ra_configs': ipv6_ra_configs}
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
             'device_owner')
         with self._nb_idl.transaction(check_error=True) as txn:

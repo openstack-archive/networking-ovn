@@ -13,11 +13,16 @@
 #    under the License.
 
 import mock
+
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils as ovn_utils
 from networking_ovn.tests.functional import base
+
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import provider_net as pnet
+from neutron_lib import constants as n_consts
+from ovsdbapp.backend.ovs_idl import idlutils
 
 
 class TestRouter(base.TestOVNFunctionalBase):
@@ -131,3 +136,55 @@ class TestRouter(base.TestOVNFunctionalBase):
             # Check self.l3_plugin.scheduler.select called for
             # schedule_unhosted_gateways
             self.assertEqual(3, plugin_select.call_count)
+
+    def _validate_router_ipv6_ra_configs(self, lrp_name, expected_ra_confs):
+        lrp = idlutils.row_by_value(self.nb_api.idl,
+                                    'Logical_Router_Port', 'name', lrp_name)
+        self.assertEqual(expected_ra_confs, lrp.ipv6_ra_configs)
+
+    def _test_router_port_ipv6_ra_configs_helper(
+            self, cidr='aef0::/64', ip_version=6,
+            address_mode=n_consts.IPV6_SLAAC,):
+        router1 = self._create_router('router1')
+        n1 = self._make_network(self.fmt, 'n1', True)
+        if ip_version == 6:
+            kwargs = {'ip_version': 6, 'cidr': 'aef0::/64',
+                      'ipv6_address_mode': address_mode,
+                      'ipv6_ra_mode': address_mode}
+        else:
+            kwargs = {'ip_version': 4, 'cidr': '10.0.0.0/24'}
+
+        res = self._create_subnet(self.fmt, n1['network']['id'],
+                                  **kwargs)
+
+        n1_s1 = self.deserialize(self.fmt, res)
+        n1_s1_id = n1_s1['subnet']['id']
+        router_iface_info = self.l3_plugin.add_router_interface(
+            self.context, router1['id'], {'subnet_id': n1_s1_id})
+
+        lrp_name = ovn_utils.ovn_lrouter_port_name(
+            router_iface_info['port_id'])
+        if ip_version == 6:
+            expected_ra_configs = {
+                'address_mode': ovn_utils.get_ovn_ipv6_address_mode(
+                    address_mode),
+                'send_periodic': 'true',
+                'mtu': '1450'}
+        else:
+            expected_ra_configs = {}
+        self._validate_router_ipv6_ra_configs(lrp_name, expected_ra_configs)
+
+    def test_router_port_ipv6_ra_configs_addr_mode_slaac(self):
+        self._test_router_port_ipv6_ra_configs_helper()
+
+    def test_router_port_ipv6_ra_configs_addr_mode_dhcpv6_stateful(self):
+        self._test_router_port_ipv6_ra_configs_helper(
+            address_mode=n_consts.DHCPV6_STATEFUL)
+
+    def test_router_port_ipv6_ra_configs_addr_mode_dhcpv6_stateless(self):
+        self._test_router_port_ipv6_ra_configs_helper(
+            address_mode=n_consts.DHCPV6_STATELESS)
+
+    def test_router_port_ipv6_ra_configs_ipv4(self):
+        self._test_router_port_ipv6_ra_configs_helper(
+            ip_version=4)

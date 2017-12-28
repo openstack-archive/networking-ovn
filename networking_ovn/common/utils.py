@@ -191,3 +191,7 @@ def is_dhcp_options_ignored(subnet):
     # 'ipv6_address_mode', since DHCPv6 shouldn't work for this mode.
     return (subnet['ip_version'] == const.IP_VERSION_6 and
             subnet.get('ipv6_address_mode') == const.IPV6_SLAAC)
+
+
+def get_ovn_ipv6_address_mode(address_mode):
+    return constants.OVN_IPV6_ADDRESS_MODES[address_mode]

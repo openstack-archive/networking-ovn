@@ -375,9 +375,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
              constants.DEVICE_OWNER_HA_REPLICATED_INT])
         for interface in interfaces:
             db_router_ports[interface['id']] = interface
-            db_router_ports[interface['id']]['networks'] = sorted(
-                self._ovn_client._get_networks_for_router_port(
-                    interface['fixed_ips']))
+
         lrouters = self.ovn_api.get_all_logical_routers_with_rports()
 
         del_lrouters_list = []
@@ -390,10 +388,12 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             if lrouter['name'] in db_routers:
                 for lrport, lrport_nets in lrouter['ports'].items():
                     if lrport in db_router_ports:
-                        db_lrport_nets = db_router_ports[lrport]['networks']
-                        if db_lrport_nets != sorted(lrport_nets):
-                            update_lrport_list.append((
-                                lrouter['name'], db_router_ports[lrport]))
+                        # We dont have to check for the networks and
+                        # ipv6_ra_configs values. Lets add it to the
+                        # update_lrport_list. If they are in sync, then
+                        # update_router_port will be a no-op.
+                        update_lrport_list.append((
+                            lrouter['name'], db_router_ports[lrport]))
                         del db_router_ports[lrport]
                     else:
                         del_lrouter_ports_list.append(
@@ -483,8 +483,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning(
                         "Updating networks on router port %s in OVN NB DB",
                         rport['id'])
-                    self._ovn_client.update_router_port(
-                        router_id, rport, rport['networks'])
+                    self._ovn_client.update_router_port(router_id, rport)
                 except RuntimeError:
                     LOG.warning("Update router port networks in OVN "
                                 "NB failed for router port %s", rport['id'])

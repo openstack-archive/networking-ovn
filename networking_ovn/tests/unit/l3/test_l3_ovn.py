@@ -246,6 +246,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_inst._ovn.update_lrouter_port.assert_called_once_with(
             if_exists=False, name='lrp-router-port-id',
+            ipv6_ra_configs={},
             networks=['10.0.0.100/24'])
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')

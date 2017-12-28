@@ -102,6 +102,8 @@ class FakeOvsdbNbOvnIdl(object):
         # remove it in the Rocky release.
         self.get_floatingip_by_ips = mock.Mock()
         self.get_floatingip_by_ips.return_value = None
+        self.is_col_present = mock.Mock()
+        self.is_col_present.return_value = False
 
 
 class FakeOvsdbSbOvnIdl(object):
