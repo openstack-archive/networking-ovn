@@ -685,6 +685,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
     def test_create_floatingip(self, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         gf.return_value = {'floating_port_id': 'fip-port-id'}
         self.l3_inst.create_floatingip(self.context, 'floatingip')
         expected_ext_ids = {
@@ -705,6 +706,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
     def test_create_floatingip_distributed(self, gf, gp):
+        self.l3_inst._ovn.is_col_present.return_value = True
         gp.return_value = {'mac_address': '00:01:02:03:04:05'}
         gf.return_value = {'floating_port_id': 'fip-port-id'}
         config.cfg.CONF.set_override(
@@ -724,6 +726,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
     def test_create_floatingip_external_ip_present_in_nat_rule(self, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         gf.return_value = {'floating_port_id': 'fip-port-id'}
         self.l3_inst._ovn.get_lrouter_nat_rules.return_value = [
             {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.6',
@@ -747,6 +750,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
     def test_create_floatingip_external_ip_present_type_snat(self, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         gf.return_value = {'floating_port_id': 'fip-port-id'}
         self.l3_inst._ovn.get_lrouter_nat_rules.return_value = [
             {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.0/24',
@@ -783,6 +787,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_floatingip')
     def test_update_floatingip(self, uf, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         gf.return_value = self.fake_floating_ip
         uf.return_value = self.fake_floating_ip_new
         self.l3_inst._ovn.get_floatingip.return_value = (
@@ -810,6 +815,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_floatingip')
     def test_update_floatingip_associate(self, uf, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         self.fake_floating_ip.update({'fixed_port_id': None})
         gf.return_value = self.fake_floating_ip
         uf.return_value = self.fake_floating_ip_new
@@ -833,6 +839,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_floatingip')
     def test_update_floatingip_associate_distributed(self, uf, gf, gp):
+        self.l3_inst._ovn.is_col_present.return_value = True
         self.fake_floating_ip.update({'fixed_port_id': None})
         gp.return_value = {'mac_address': '00:01:02:03:04:05'}
         gf.return_value = self.fake_floating_ip
@@ -870,6 +877,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 'update_floatingip')
     def test_update_floatingip_reassociate_to_same_port_diff_fixed_ip(
             self, uf, gf):
+        self.l3_inst._ovn.is_col_present.return_value = True
         self.l3_inst._ovn.get_floatingip.return_value = (
             self.fake_ovn_nat_rule)
         self.fake_floating_ip_new.update({'port_id': 'port_id',

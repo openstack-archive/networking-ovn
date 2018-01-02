@@ -499,8 +499,13 @@ class OVNClient(object):
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: gw_lrouter_name}
         columns = {'type': 'dnat_and_snat',
                    'logical_ip': floatingip['fixed_ip_address'],
-                   'external_ip': floatingip['floating_ip_address'],
-                   'external_ids': ext_ids}
+                   'external_ip': floatingip['floating_ip_address']}
+
+        # TODO(dalvarez): remove this check once the minimum OVS required
+        # version contains the column (when OVS 2.8.2 is released).
+        if self._nb_idl.is_col_present('NAT', 'external_ids'):
+            columns['external_ids'] = ext_ids
+
         if config.is_ovn_distributed_floating_ip():
             port = self._plugin.get_port(
                 context, fip_db['floating_port_id'])
