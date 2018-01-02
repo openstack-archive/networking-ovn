@@ -21,6 +21,7 @@ from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
 from neutron_lib import constants as const
+from neutron_lib import context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_net
@@ -1855,6 +1856,7 @@ class TestOVNMechanismDriverSecurityGroup(
         sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
+        self.ctx = context.get_admin_context()
 
     def _delete_default_sg_rules(self, security_group_id):
         res = self._list(
@@ -1888,6 +1890,73 @@ class TestOVNMechanismDriverSecurityGroup(
 
     def _delete_sg_rule(self, rule_id):
         self._delete('security-group-rules', rule_id)
+
+    def test__filter_security_groups_by_rule(self):
+        sg1 = self._create_empty_sg('sg1')
+        sg2 = self._create_empty_sg('sg2')
+        sg3 = self._create_empty_sg('sg3')
+        sg4 = self._create_empty_sg('sg4')
+
+        r1 = self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP)
+        r2 = self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP,
+                                  port_range_min=22, port_range_max=22,
+                                  remote_ip_prefix='10.0.0.0/24')
+        r3 = self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_UDP,
+                                  remote_group_id=sg4['id'],
+                                  ethertype=const.IPv6)
+
+        # Rules in sg2 are not duplicate with any rules in sg1
+        self._create_sg_rule(sg2['id'], 'egress', const.PROTO_NAME_TCP)
+        self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_UDP)
+        self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_TCP,
+                             port_range_min=22, port_range_max=23,
+                             remote_ip_prefix='10.0.0.0/24')
+        self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_TCP,
+                             port_range_min=22, port_range_max=22,
+                             remote_ip_prefix='10.0.0.0/25')
+        self._create_sg_rule(sg2['id'], 'egress', const.PROTO_NAME_UDP)
+        self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_UDP,
+                             remote_group_id=sg3['id'],
+                             ethertype=const.IPv6)
+        self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_UDP,
+                             remote_group_id=sg4['id'],
+                             ethertype=const.IPv4)
+
+        # Rules in sg3 are duplicate with r1 and r2 in sg1
+        self._create_sg_rule(sg3['id'], 'ingress', const.PROTO_NAME_TCP)
+        self._create_sg_rule(sg3['id'], 'ingress', const.PROTO_NAME_TCP,
+                             port_range_min=22, port_range_max=22,
+                             remote_ip_prefix='10.0.0.0/24')
+
+        # Rules in sg4 are duplicate with r1 and r3 in sg1
+        self._create_sg_rule(sg4['id'], 'ingress', const.PROTO_NAME_TCP)
+        self._create_sg_rule(sg4['id'], 'ingress', const.PROTO_NAME_UDP,
+                             remote_group_id=sg4['id'],
+                             ethertype=const.IPv6)
+
+        # Check r1
+        all_sgs = [sg1['id'], sg2['id'], sg3['id'], sg4['id']]
+        sgs = ovn_acl._filter_security_groups_by_rule(self.plugin, self.ctx,
+                                                      r1, all_sgs)
+        self.assertItemsEqual(list(sgs), [sg1['id'], sg3['id'], sg4['id']])
+
+        sgs = ovn_acl._filter_security_groups_by_rule(self.plugin, self.ctx,
+                                                      r1, [])
+        self.assertItemsEqual(list(sgs), [])
+
+        # Check r2
+        sgs = ovn_acl._filter_security_groups_by_rule(self.plugin, self.ctx,
+                                                      r2, all_sgs)
+        self.assertItemsEqual(list(sgs), [sg1['id'], sg3['id']])
+
+        sgs = ovn_acl._filter_security_groups_by_rule(
+            self.plugin, self.ctx, r2, [sg2['id'], sg4['id']])
+        self.assertItemsEqual(list(sgs), [])
+
+        # Check r3
+        sgs = ovn_acl._filter_security_groups_by_rule(self.plugin, self.ctx,
+                                                      r3, all_sgs)
+        self.assertItemsEqual(list(sgs), [sg1['id'], sg4['id']])
 
     def test_create_port_with_sg_default_rules(self):
         with self.network() as n, self.subnet(n):
@@ -2002,6 +2071,73 @@ class TestOVNMechanismDriverSecurityGroup(
 
             self._delete_sg_rule(sg2_r['id'])
             self.mech_driver._nb_ovn.update_acls.assert_not_called()
+
+    def test_update_sg_duplicate_rule(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            sg2 = self._create_empty_sg('sg2')
+            self._create_sg_rule(sg1['id'], 'ingress',
+                                 const.PROTO_NAME_UDP,
+                                 port_range_min=22, port_range_max=23)
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id'], sg2['id']])
+            # One DHCP rule, one UDP rule and two default dropping rules.
+            self.assertEqual(
+                4, self.mech_driver._nb_ovn.add_acl.call_count)
+
+            # Add a new duplicate rule to sg2
+            sg2_r = self._create_sg_rule(sg2['id'], 'ingress',
+                                         const.PROTO_NAME_UDP,
+                                         port_range_min=22, port_range_max=23)
+            self.mech_driver._nb_ovn.update_acls.assert_not_called()
+
+            # Delete the duplicate rule
+            self._delete_sg_rule(sg2_r['id'])
+            self.mech_driver._nb_ovn.update_acls.assert_not_called()
+
+    def test_update_sg_duplicate_rule_multi_ports(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            sg2 = self._create_empty_sg('sg2')
+            sg3 = self._create_empty_sg('sg3')
+            self._create_sg_rule(sg1['id'], 'ingress',
+                                 const.PROTO_NAME_UDP,
+                                 remote_group_id=sg3['id'])
+            self._create_sg_rule(sg2['id'], 'egress', const.PROTO_NAME_TCP,
+                                 port_range_min=60, port_range_max=70)
+
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id'], sg2['id']])
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id'], sg2['id']])
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg2['id'], sg3['id']])
+            # Rules include 5 + 5 + 4
+            self.assertEqual(
+                14, self.mech_driver._nb_ovn.add_acl.call_count)
+
+            # Add a rule to sg1 duplicate with sg2
+            sg1_r = self._create_sg_rule(sg1['id'], 'egress',
+                                         const.PROTO_NAME_TCP,
+                                         port_range_min=60, port_range_max=70)
+            self.mech_driver._nb_ovn.update_acls.assert_not_called()
+
+            # Add a rule to sg2 duplicate with sg1 but not duplicate with sg3
+            sg2_r = self._create_sg_rule(sg2['id'], 'ingress',
+                                         const.PROTO_NAME_UDP,
+                                         remote_group_id=sg3['id'])
+            self.assertEqual(
+                1, self.mech_driver._nb_ovn.update_acls.call_count)
+
+            # Delete the duplicate rule in sg1
+            self._delete_sg_rule(sg1_r['id'])
+            self.assertEqual(
+                1, self.mech_driver._nb_ovn.update_acls.call_count)
+
+            # Delete the duplicate rule in sg2
+            self._delete_sg_rule(sg2_r['id'])
+            self.assertEqual(
+                2, self.mech_driver._nb_ovn.update_acls.call_count)
 
 
 class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
