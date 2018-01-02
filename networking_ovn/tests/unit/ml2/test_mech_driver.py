@@ -34,6 +34,7 @@ from neutron.tests import tools
 from neutron.tests.unit.extensions import test_segment
 from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron.tests.unit.plugins.ml2 import test_security_group
 
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config as ovn_config
@@ -1835,6 +1836,172 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_subnet_dhcp_options_for_port_v6_dhcp_disabled(self):
         self._test__get_subnet_dhcp_options_for_port(ip_version=6,
                                                      enable_dhcp=False)
+
+
+class TestOVNMechanismDriverSecurityGroup(
+    test_security_group.Ml2SecurityGroupsTestCase):
+    # This set of test cases is supplement to test_acl.py, the purpose is to
+    # test acl methods invoking. Content correctness of args of acl methods
+    # is mainly guaranteed by acl_test.py.
+
+    def setUp(self):
+        cfg.CONF.set_override('mechanism_drivers',
+                              ['logger', 'ovn'],
+                              'ml2')
+        super(TestOVNMechanismDriverSecurityGroup, self).setUp()
+        mm = directory.get_plugin().mechanism_manager
+        self.mech_driver = mm.mech_drivers['ovn'].obj
+        nb_ovn = fakes.FakeOvsdbNbOvnIdl()
+        sb_ovn = fakes.FakeOvsdbSbOvnIdl()
+        self.mech_driver._nb_ovn = nb_ovn
+        self.mech_driver._sb_ovn = sb_ovn
+
+    def _delete_default_sg_rules(self, security_group_id):
+        res = self._list(
+            'security-group-rules',
+            query_params='security_group_id=%s' % security_group_id)
+        for r in res['security_group_rules']:
+            self._delete('security-group-rules', r['id'])
+
+    def _create_sg(self, sg_name):
+        sg = self._make_security_group(self.fmt, sg_name, '')
+        return sg['security_group']
+
+    def _create_empty_sg(self, sg_name):
+        sg = self._create_sg(sg_name)
+        self._delete_default_sg_rules(sg['id'])
+        return sg
+
+    def _create_sg_rule(self, sg_id, direction, proto,
+                        port_range_min=None, port_range_max=None,
+                        remote_ip_prefix=None, remote_group_id=None,
+                        ethertype=const.IPv4):
+        r = self._build_security_group_rule(sg_id, direction, proto,
+                                            port_range_min=port_range_min,
+                                            port_range_max=port_range_max,
+                                            remote_ip_prefix=remote_ip_prefix,
+                                            remote_group_id=remote_group_id,
+                                            ethertype=ethertype)
+        res = self._create_security_group_rule(self.fmt, r)
+        rule = self.deserialize(self.fmt, res)
+        return rule['security_group_rule']
+
+    def _delete_sg_rule(self, rule_id):
+        self._delete('security-group-rules', rule_id)
+
+    def test_create_port_with_sg_default_rules(self):
+        with self.network() as n, self.subnet(n):
+            sg = self._create_sg('sg')
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg['id']])
+
+            # One DHCP rule, one IPv6 rule, one IPv4 rule and
+            # two default dropping rules.
+            self.assertEqual(
+                5, self.mech_driver._nb_ovn.add_acl.call_count)
+
+    def test_create_port_with_empty_sg(self):
+        with self.network() as n, self.subnet(n):
+            sg = self._create_empty_sg('sg')
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg['id']])
+            # One DHCP rule and two default dropping rules.
+            self.assertEqual(
+                3, self.mech_driver._nb_ovn.add_acl.call_count)
+
+    def test_create_port_with_multi_sgs(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            sg2 = self._create_empty_sg('sg2')
+            self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP,
+                                 port_range_min=22, port_range_max=23)
+            self._create_sg_rule(sg2['id'], 'egress', const.PROTO_NAME_UDP,
+                                 remote_ip_prefix='0.0.0.0/0')
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id'], sg2['id']])
+
+            # One DHCP rule, one TCP rule, one UDP rule and
+            # two default dropping rules.
+            self.assertEqual(
+                5, self.mech_driver._nb_ovn.add_acl.call_count)
+
+    def test_create_port_with_multi_sgs_duplicate_rules(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            sg2 = self._create_empty_sg('sg2')
+            self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP,
+                                 port_range_min=22, port_range_max=23,
+                                 remote_ip_prefix='20.0.0.0/24')
+            self._create_sg_rule(sg2['id'], 'ingress', const.PROTO_NAME_TCP,
+                                 port_range_min=22, port_range_max=23,
+                                 remote_ip_prefix='20.0.0.0/24')
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id'], sg2['id']])
+
+            # One DHCP rule, one TCP rule and two default dropping rules.
+            self.assertEqual(
+                4, self.mech_driver._nb_ovn.add_acl.call_count)
+
+    def test_update_port_with_sgs(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP,
+                                 ethertype=const.IPv6)
+
+            p = self._make_port(self.fmt, n['network']['id'],
+                                security_groups=[sg1['id']])['port']
+            # One DHCP rule, one TCP rule and two default dropping rules.
+            self.assertEqual(
+                4, self.mech_driver._nb_ovn.add_acl.call_count)
+
+            sg2 = self._create_empty_sg('sg2')
+            self._create_sg_rule(sg2['id'], 'egress', const.PROTO_NAME_UDP,
+                                 remote_ip_prefix='30.0.0.0/24')
+            data = {'port': {'security_groups': [sg1['id'], sg2['id']]}}
+            req = self.new_update_request('ports', data, p['id'])
+            req.get_response(self.api)
+            self.assertEqual(
+                1, self.mech_driver._nb_ovn.update_acls.call_count)
+
+    def test_update_sg_change_rule(self):
+        with self.network() as n, self.subnet(n):
+            sg = self._create_empty_sg('sg')
+
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg['id']])
+            # One DHCP rule and two default dropping rules.
+            self.assertEqual(
+                3, self.mech_driver._nb_ovn.add_acl.call_count)
+
+            sg_r = self._create_sg_rule(sg['id'], 'ingress',
+                                        const.PROTO_NAME_UDP,
+                                        ethertype=const.IPv6)
+            self.assertEqual(
+                1, self.mech_driver._nb_ovn.update_acls.call_count)
+
+            self._delete_sg_rule(sg_r['id'])
+            self.assertEqual(
+                2, self.mech_driver._nb_ovn.update_acls.call_count)
+
+    def test_update_sg_change_rule_unrelated_port(self):
+        with self.network() as n, self.subnet(n):
+            sg1 = self._create_empty_sg('sg1')
+            sg2 = self._create_empty_sg('sg2')
+            self._create_sg_rule(sg1['id'], 'ingress', const.PROTO_NAME_TCP,
+                                 remote_group_id=sg2['id'])
+
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg1['id']])
+            # One DHCP rule, one TCP rule and two default dropping rules.
+            self.assertEqual(
+                4, self.mech_driver._nb_ovn.add_acl.call_count)
+
+            sg2_r = self._create_sg_rule(sg2['id'], 'egress',
+                                         const.PROTO_NAME_UDP)
+            self.mech_driver._nb_ovn.update_acls.assert_not_called()
+
+            self._delete_sg_rule(sg2_r['id'])
+            self.mech_driver._nb_ovn.update_acls.assert_not_called()
 
 
 class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
