@@ -492,7 +492,12 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
 
         nat_rules = []
         for nat_rule in getattr(lrouter, 'nat', []):
-            ext_ids = dict(getattr(nat_rule, 'external_ids', {}))
+            ext_ids = {}
+            # TODO(dalvarez): remove this check once the minimum OVS required
+            # version contains the column (when OVS 2.8.2 is released).
+            if self.is_col_present('NAT', 'external_ids'):
+                ext_ids = dict(getattr(nat_rule, 'external_ids', {}))
+
             nat_rules.append({'external_ip': nat_rule.external_ip,
                               'logical_ip': nat_rule.logical_ip,
                               'type': nat_rule.type,
