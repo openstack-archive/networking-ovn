@@ -311,3 +311,7 @@ def get_lrouter_non_gw_routes(ovn_router):
     except KeyError:
         pass
     return routes
+
+
+def is_ovn_l3(l3_plugin):
+    return hasattr(l3_plugin, '_ovn_client_inst')

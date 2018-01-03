@@ -1337,7 +1337,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def _sync_resources(self, mode):
         nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
-            self.plugin, self.mech_driver._nb_ovn, mode, self.mech_driver)
+            self.plugin, self.mech_driver._nb_ovn, self.mech_driver._sb_ovn,
+            mode, self.mech_driver)
         self.addCleanup(nb_synchronizer.stop)
         nb_synchronizer.do_sync()
 

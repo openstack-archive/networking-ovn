@@ -179,6 +179,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
                 self._plugin,
                 self._nb_ovn,
+                self._sb_ovn,
                 config.get_ovn_neutron_sync_mode(),
                 self
             )
