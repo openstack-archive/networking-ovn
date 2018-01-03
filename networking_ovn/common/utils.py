@@ -202,7 +202,9 @@ def get_ovn_ipv6_address_mode(address_mode):
 
 def get_revision_number(resource, resource_type):
     """Get the resource's revision number based on its type."""
-    if resource_type in (constants.TYPE_NETWORKS, constants.TYPE_PORTS):
+    if resource_type in (constants.TYPE_NETWORKS,
+                         constants.TYPE_PORTS,
+                         constants.TYPE_SECURITY_GROUP_RULES):
         return resource['revision_number']
     else:
         raise ovn_exc.UnknownResourceType(resource_type=resource_type)

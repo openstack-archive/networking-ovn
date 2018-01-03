@@ -226,6 +226,12 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                            'dnat_and_snats': dnat_and_snats})
         return result
 
+    def get_acl_by_id(self, acl_id):
+        try:
+            return self.lookup('ACL', uuid.UUID(acl_id))
+        except idlutils.RowNotFound:
+            return
+
     def get_acls_for_lswitches(self, lswitch_names):
         """Get the existing set of acls that belong to the logical switches
 

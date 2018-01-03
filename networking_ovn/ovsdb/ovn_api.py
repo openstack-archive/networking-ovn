@@ -228,6 +228,15 @@ class API(api.API):
         """
 
     @abc.abstractmethod
+    def get_acl_by_id(self, acl_id):
+        """Get an ACL by its ID.
+
+        :param acl_id:                ID of the ACL to lookup
+        :type acl_id:                 string
+        :returns                      The ACL row or None:
+        """
+
+    @abc.abstractmethod
     def add_static_route(self, lrouter, **columns):
         """Add static route to logical router.
 

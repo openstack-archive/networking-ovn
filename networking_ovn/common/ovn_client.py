@@ -1298,9 +1298,11 @@ class OVNClient(object):
 
     def create_security_group_rule(self, rule):
         self._process_security_group_rule(rule)
+        db_rev.bump_revision(rule, ovn_const.TYPE_SECURITY_GROUP_RULES)
 
     def delete_security_group_rule(self, rule):
         self._process_security_group_rule(rule, is_add_acl=False)
+        db_rev.delete_revision(rule['id'])
 
     def _find_metadata_port(self, context, network_id):
         if not config.is_ovn_metadata_enabled():

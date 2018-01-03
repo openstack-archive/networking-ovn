@@ -431,7 +431,6 @@ class AddACLCommand(command.BaseCommand):
         row = txn.insert(self.api._tables['ACL'])
         for col, val in self.columns.items():
             setattr(row, col, val)
-        row.external_ids = {'neutron:lport': self.lport}
         _addvalue_to_list(lswitch, 'acls', row.uuid)
 
 
@@ -561,15 +560,18 @@ class UpdateACLsCommand(command.BaseCommand):
         else:
             acl_add_values_dict = {}
             acl_del_objs_dict = {}
-            del_acl_matches = []
+            del_acl_extids = []
             for acl_dict in self.acl_new_values_dict.values():
-                del_acl_matches.append(acl_dict['match'])
+                del_acl_extids.append({acl_dict['match']:
+                                       acl_dict['external_ids']})
             for switch_name, lswitch in lswitch_ovsdb_dict.items():
                 if switch_name not in acl_del_objs_dict:
                     acl_del_objs_dict[switch_name] = []
                 acls = getattr(lswitch, 'acls', [])
                 for acl in acls:
-                    if getattr(acl, 'match') in del_acl_matches:
+                    match = getattr(acl, 'match')
+                    acl_extids = {match: getattr(acl, 'external_ids')}
+                    if acl_extids in del_acl_extids:
                         acl_del_objs_dict[switch_name].append(acl)
         return lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict
 

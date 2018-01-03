@@ -734,8 +734,6 @@ class TestAddACLCommand(TestBaseCommand):
                 self.ovn_api._tables['ACL'])
             fake_lswitch.addvalue.assert_called_once_with(
                 'acls', fake_acl.uuid)
-            self.assertEqual({'neutron:lport': 'fake-lsp'},
-                             fake_acl.external_ids)
             self.assertEqual('*', fake_acl.match)
 
 
@@ -865,7 +863,9 @@ class TestUpdateACLsCommand(TestBaseCommand):
             fakes.FakeSecurityGroupRule.create_one_security_group_rule().info()
         fake_port = fakes.FakePort.create_one_port().info()
         fake_acl = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'match': '*'})
+            attrs={'match': '*', 'external_ids':
+                   {'neutron:lport': fake_port['id'],
+                    'neutron:security_group_rule_id': fake_sg_rule['id']}})
         fake_lswitch = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'name': ovn_utils.ovn_name(fake_port['network_id']),
                    'acls': [fake_acl]})
