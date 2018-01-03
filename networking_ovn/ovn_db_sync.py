@@ -347,19 +347,19 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             db_extends[router['id']]['fips'] = []
             if not router.get(l3.EXTERNAL_GW_INFO):
                 continue
-            r_ip, gw_ip = self._ovn_client.\
-                _get_external_router_and_gateway_ip(ctx, router)
-            if gw_ip:
+            gw_info = self._ovn_client._get_gw_info(ctx, router)
+            if gw_info.gateway_ip:
                 db_extends[router['id']]['routes'].append(
-                    {'destination': '0.0.0.0/0', 'nexthop': gw_ip})
-            if r_ip and utils.is_snat_enabled(router):
+                    {'destination': '0.0.0.0/0',
+                     'nexthop': gw_info.gateway_ip})
+            if gw_info.router_ip and utils.is_snat_enabled(router):
                 networks = (
                     self._ovn_client._get_v4_network_of_all_router_ports(
                         ctx, router['id']))
                 for network in networks:
                     db_extends[router['id']]['snats'].append({
                         'logical_ip': network,
-                        'external_ip': r_ip,
+                        'external_ip': gw_info.router_ip,
                         'type': 'snat'})
 
         fips = self.l3_plugin.get_floatingips(

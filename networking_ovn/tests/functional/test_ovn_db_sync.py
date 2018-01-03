@@ -1051,18 +1051,19 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           for db_route in db_router['routes']]
             db_nats[db_router['id']] = []
             if db_router.get(l3.EXTERNAL_GW_INFO):
-                r_ip, gw_ip = self.l3_plugin._ovn_client.\
-                    _get_external_router_and_gateway_ip(self.context,
-                                                        db_router)
+                gw_info = self.l3_plugin._ovn_client._get_gw_info(
+                    self.context, db_router)
                 # Add gateway default route and snats
-                if gw_ip:
-                    db_routes[db_router['id']].append('0.0.0.0/0' + gw_ip)
-                if r_ip and utils.is_snat_enabled(db_router):
+                if gw_info.gateway_ip:
+                    db_routes[db_router['id']].append('0.0.0.0/0' +
+                                                      gw_info.gateway_ip)
+                if gw_info.router_ip and utils.is_snat_enabled(db_router):
                     networks = self.l3_plugin._ovn_client.\
                         _get_v4_network_of_all_router_ports(self.context,
                                                             db_router['id'])
-                    db_nats[db_router['id']].extend([r_ip + network + 'snat'
-                                                     for network in networks])
+                    db_nats[db_router['id']].extend(
+                        [gw_info.router_ip + network + 'snat'
+                         for network in networks])
         fips = self._list('floatingips')
         fip_macs = {}
         if ovn_config.is_ovn_distributed_floating_ip():

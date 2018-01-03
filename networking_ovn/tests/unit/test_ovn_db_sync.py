@@ -15,6 +15,7 @@
 import mock
 
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import ovn_client
 from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
@@ -312,9 +313,15 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                     'external_ids': {'subnet_id': 'n1-s1'}}
         return {'cidr': '', 'options': '', 'external_ids': {}}
 
-    def _fake_get_external_router_and_gateway_ip(self, ctx, router):
-        return {'r1': ('90.0.0.2', '90.0.0.1'),
-                'r2': ('100.0.0.2', '100.0.0.1')}.get(router['id'], ('', ''))
+    def _fake_get_gw_info(self, ctx, router):
+        return {
+            'r1': ovn_client.GW_INFO(router_ip='90.0.0.2',
+                                     gateway_ip='90.0.0.1',
+                                     network_id='', subnet_id=''),
+            'r2': ovn_client.GW_INFO(router_ip='100.0.0.2',
+                                     gateway_ip='100.0.0.1',
+                                     network_id='', subnet_id='')
+        }.get(router['id'], ovn_client.GW_INFO('', '', '', ''))
 
     def _fake_get_v4_network_of_all_router_ports(self, ctx, router_id):
         return {'r1': ['172.16.0.0/24', '172.16.2.0/24'],
@@ -381,11 +388,9 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                 self.lrport_networks, {})
         ovn_nb_synchronizer._ovn_client._get_v4_network_of_all_router_ports. \
             side_effect = self._fake_get_v4_network_of_all_router_ports
-        ovn_nb_synchronizer._ovn_client.\
-            _get_external_router_and_gateway_ip = mock.Mock()
-        ovn_nb_synchronizer._ovn_client.\
-            _get_external_router_and_gateway_ip.side_effect = \
-            self._fake_get_external_router_and_gateway_ip
+        ovn_nb_synchronizer._ovn_client._get_gw_info = mock.Mock()
+        ovn_nb_synchronizer._ovn_client._get_gw_info.side_effect = (
+            self._fake_get_gw_info)
         # end of router-sync block
         l3_plugin.get_floatingips = mock.Mock()
         l3_plugin.get_floatingips.return_value = self.floating_ips

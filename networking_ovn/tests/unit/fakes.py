@@ -12,9 +12,11 @@
 #    under the License.
 #
 
+import collections
 import copy
 
 import mock
+from neutron_lib.api.definitions import l3
 from oslo_utils import uuidutils
 
 from networking_ovn.common import constants as ovn_const
@@ -111,6 +113,10 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_floatingip_by_ips.return_value = None
         self.is_col_present = mock.Mock()
         self.is_col_present.return_value = False
+        self.get_lrouter = mock.Mock()
+        self.get_lrouter.return_value = None
+        self.delete_lrouter_ext_gw = mock.Mock()
+        self.delete_lrouter_ext_gw.return_value = None
 
 
 class FakeOvsdbSbOvnIdl(object):
@@ -646,3 +652,64 @@ class FakeOVNPort(object):
         return FakeOVNPort.create_one_port(
             {'external_ids': external_ids, 'addresses': addresses,
              'port_security': port_security})
+
+
+FakeStaticRoute = collections.namedtuple(
+    'Static_Routes', ['ip_prefix', 'nexthop', 'external_ids'])
+
+
+class FakeOVNRouter(object):
+
+    @staticmethod
+    def create_one_router(attrs=None):
+        router_attrs = {
+            'enabled': False,
+            'external_ids': {},
+            'load_balancer': [],
+            'name': '',
+            'nat': [],
+            'options': {},
+            'ports': [],
+            'static_routes': [],
+        }
+
+        # Overwrite default attributes.
+        router_attrs.update(attrs)
+        return type('Logical_Router', (object, ), router_attrs)
+
+    @staticmethod
+    def from_neutron_router(router):
+
+        def _get_subnet_id(gw_info):
+            subnet_id = ''
+            ext_ips = gw_info.get('external_fixed_ips', [])
+            if ext_ips:
+                subnet_id = ext_ips[0]['subnet_id']
+            return subnet_id
+
+        external_ids = {
+            ovn_const.OVN_GW_PORT_EXT_ID_KEY: router.get('gw_port_id') or '',
+            ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
+                router.get('name', 'no_router_name')}
+
+        # Get the routes
+        routes = []
+        for r in router.get('routes', []):
+            routes.append(FakeStaticRoute(ip_prefix=r['destination'],
+                                          nexthop=r['nexthop'],
+                                          external_ids={}))
+
+        gw_info = router.get(l3.EXTERNAL_GW_INFO)
+        if gw_info:
+            external_ids = {
+                ovn_const.OVN_ROUTER_IS_EXT_GW: 'true',
+                ovn_const.OVN_SUBNET_EXT_ID_KEY: _get_subnet_id(gw_info)}
+            routes.append(FakeStaticRoute(
+                ip_prefix='0.0.0.0/0', nexthop='',
+                external_ids=external_ids))
+
+        return FakeOVNRouter.create_one_router(
+            {'external_ids': external_ids,
+             'enabled': router.get('admin_state_up') or False,
+             'name': utils.ovn_name(router['id']),
+             'static_routes': routes})

@@ -564,6 +564,24 @@ class API(api.API):
         :returns: The Logical Switch Port row or None
         """
 
+    @abc.abstractmethod
+    def get_lrouter(self, lrouter_name):
+        """Get a Logical Router by its name
+
+        :param lrouter_name: The name of the logical router
+        :type lrouter_name: string
+        :returns: The Logical_Router row or None
+        """
+
+    @abc.abstractmethod
+    def delete_lrouter_ext_gw(self, lrouter_name):
+        """Delete Logical Router external gateway.
+
+        :param lrouter_name: The name of the logical router
+        :type lrouter_name: string
+        :returns: :class:`Command` with no result
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(api.API):
