@@ -33,7 +33,7 @@ class DBTestCase(SqlTestCaseLight):
 
     def get_revision_row(self, resource_uuid):
         try:
-            session = db_api.get_session()
+            session = db_api.get_reader_session()
             with session.begin():
                 return session.query(models.OVNRevisionNumbers).filter_by(
                     resource_uuid=resource_uuid).one()
