@@ -347,8 +347,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             db_extends[router['id']]['fips'] = []
             if not router.get(l3.EXTERNAL_GW_INFO):
                 continue
-            r_ip, gw_ip = self.l3_plugin.get_external_router_and_gateway_ip(
-                ctx, router)
+            r_ip, gw_ip = self._ovn_client.\
+                _get_external_router_and_gateway_ip(ctx, router)
             if gw_ip:
                 db_extends[router['id']]['routes'].append(
                     {'destination': '0.0.0.0/0', 'nexthop': gw_ip})
