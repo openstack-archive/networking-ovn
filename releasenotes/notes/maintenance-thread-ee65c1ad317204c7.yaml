@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Added a new mechanism that periodically detects and fix
+    inconsistencies between resources in the Neutron and OVN database.
+upgrade:
+  - |
+    Adds a new dependency on the Oslo Futurist library.
