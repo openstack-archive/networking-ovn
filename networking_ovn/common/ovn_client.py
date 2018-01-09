@@ -958,7 +958,8 @@ class OVNClient(object):
         ext_ids = self._gen_network_external_ids(network)
         lswitch_name = utils.ovn_name(network['id'])
         with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(self._nb_idl.ls_add(lswitch_name, external_ids=ext_ids))
+            txn.add(self._nb_idl.ls_add(lswitch_name, external_ids=ext_ids,
+                                        may_exist=True))
             physnet = network.get(pnet.PHYSICAL_NETWORK)
             if physnet:
                 self._create_provnet_port(txn, network, physnet,
