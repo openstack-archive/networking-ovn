@@ -1051,8 +1051,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           for db_route in db_router['routes']]
             db_nats[db_router['id']] = []
             if db_router.get(l3.EXTERNAL_GW_INFO):
-                r_ip, gw_ip = self.l3_plugin.\
-                    get_external_router_and_gateway_ip(self.context, db_router)
+                r_ip, gw_ip = self.l3_plugin._ovn_client.\
+                    _get_external_router_and_gateway_ip(self.context,
+                                                        db_router)
                 # Add gateway default route and snats
                 if gw_ip:
                     db_routes[db_router['id']].append('0.0.0.0/0' + gw_ip)

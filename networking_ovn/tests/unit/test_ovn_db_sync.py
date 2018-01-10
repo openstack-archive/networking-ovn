@@ -372,9 +372,6 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         # will be deleted from the OVN db
         l3_plugin.get_routers = mock.Mock()
         l3_plugin.get_routers.return_value = self.routers
-        l3_plugin.get_external_router_and_gateway_ip = mock.Mock()
-        l3_plugin.get_external_router_and_gateway_ip.side_effect = \
-            self._fake_get_external_router_and_gateway_ip
         l3_plugin._get_sync_interfaces = mock.Mock()
         l3_plugin._get_sync_interfaces.return_value = (
             self.get_sync_router_ports)
@@ -384,6 +381,11 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                 self.lrport_networks, {})
         ovn_nb_synchronizer._ovn_client._get_v4_network_of_all_router_ports. \
             side_effect = self._fake_get_v4_network_of_all_router_ports
+        ovn_nb_synchronizer._ovn_client.\
+            _get_external_router_and_gateway_ip = mock.Mock()
+        ovn_nb_synchronizer._ovn_client.\
+            _get_external_router_and_gateway_ip.side_effect = \
+            self._fake_get_external_router_and_gateway_ip
         # end of router-sync block
         l3_plugin.get_floatingips = mock.Mock()
         l3_plugin.get_floatingips.return_value = self.floating_ips

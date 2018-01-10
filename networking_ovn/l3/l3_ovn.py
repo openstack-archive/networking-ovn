@@ -107,21 +107,6 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return ("L3 Router Service Plugin for basic L3 forwarding"
                 " using OVN")
 
-    def get_external_router_and_gateway_ip(self, context, router):
-        ext_gw_info = router.get(l3.EXTERNAL_GW_INFO, {})
-        ext_fixed_ips = ext_gw_info.get('external_fixed_ips', [])
-        for ext_fixed_ip in ext_fixed_ips:
-            subnet_id = ext_fixed_ip['subnet_id']
-            subnet = self._plugin.get_subnet(context.elevated(), subnet_id)
-            if subnet['ip_version'] == 4:
-                return ext_fixed_ip['ip_address'], subnet.get('gateway_ip')
-        return '', ''
-
-    def _get_router_ip(self, context, router):
-        router_ip, gateway_ip = self.get_external_router_and_gateway_ip(
-            context, router)
-        return router_ip
-
     def create_router(self, context, router):
         router = super(OVNL3RouterPlugin, self).create_router(context, router)
         try:
