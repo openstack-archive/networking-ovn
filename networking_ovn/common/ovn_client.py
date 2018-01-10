@@ -839,7 +839,9 @@ class OVNClient(object):
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY:
                 router.get('name', 'no_router_name'),
             ovn_const.OVN_GW_PORT_EXT_ID_KEY:
-                router.get('gw_port_id') or ''}
+                router.get('gw_port_id') or '',
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(utils.get_revision_number(
+                router, ovn_const.TYPE_ROUTERS))}
 
     def create_router(self, router, add_external_gateway=True):
         """Create a logical router."""
@@ -860,6 +862,7 @@ class OVNClient(object):
                     context, router['id'])
                 if router.get(l3.EXTERNAL_GW_INFO) and networks is not None:
                     self._add_router_ext_gw(context, router, networks, txn)
+        db_rev.bump_revision(router, ovn_const.TYPE_ROUTERS)
 
     # TODO(lucasagomes): The ``router_object`` parameter was added to
     # keep things backward compatible with old routers created prior to
@@ -877,7 +880,10 @@ class OVNClient(object):
         ovn_snats = utils.get_lrouter_snats(ovn_router)
         networks = self._get_v4_network_of_all_router_ports(context, router_id)
         try:
+            check_rev_cmd = self._nb_idl.check_revision_number(
+                router_id, new_router, ovn_const.TYPE_ROUTERS)
             with self._nb_idl.transaction(check_error=True) as txn:
+                txn.add(check_rev_cmd)
                 if gateway_new and not gateway_old:
                     # Route gateway is set
                     self._add_router_ext_gw(
@@ -921,6 +927,10 @@ class OVNClient(object):
                         old_routes, routes)
                     self.update_router_routes(
                         context, router_id, added, removed, txn=txn)
+
+            if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+                db_rev.bump_revision(new_router, ovn_const.TYPE_ROUTERS)
+
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to update router %(router)s. '
@@ -932,6 +942,7 @@ class OVNClient(object):
         lrouter_name = utils.ovn_name(router_id)
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.delete_lrouter(lrouter_name))
+        db_rev.delete_revision(router_id)
 
     def get_candidates_for_scheduling(self, extnet):
         if extnet.get(pnet.NETWORK_TYPE) in [const.TYPE_FLAT,

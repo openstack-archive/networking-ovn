@@ -34,9 +34,11 @@ from neutron.db import l3_gwmode_db
 from neutron.db.models import l3 as l3_models
 from neutron.quota import resource_registry
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
+from networking_ovn.db import revision as db_rev
 from networking_ovn.l3 import l3_ovn_scheduler
 from networking_ovn.ovsdb import impl_idl_ovn
 
@@ -69,6 +71,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         self._plugin_property = None
         self._ovn_client_inst = None
         self.scheduler = l3_ovn_scheduler.get_scheduler()
+        self._register_precommit_callbacks()
+
+    def _register_precommit_callbacks(self):
+        registry.subscribe(
+            self.create_router_precommit, resources.ROUTER,
+            events.PRECOMMIT_CREATE)
 
     @property
     def _ovn_client(self):
@@ -106,6 +114,11 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         """returns string description of the plugin."""
         return ("L3 Router Service Plugin for basic L3 forwarding"
                 " using OVN")
+
+    def create_router_precommit(self, resource, event, trigger, context,
+                                router, router_id, router_db):
+        db_rev.create_initial_revision(
+            router_id, ovn_const.TYPE_ROUTERS, context.session)
 
     def create_router(self, context, router):
         router = super(OVNL3RouterPlugin, self).create_router(context, router)

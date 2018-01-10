@@ -168,6 +168,8 @@ class FakeResource(dict):
         self._add_details(info)
         self._add_methods(methods)
         self._loaded = loaded
+        # Add a revision number by default
+        setattr(self, 'revision_number', 1)
 
     @property
     def db_obj(self):

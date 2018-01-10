@@ -205,7 +205,8 @@ def get_revision_number(resource, resource_type):
     """Get the resource's revision number based on its type."""
     if resource_type in (constants.TYPE_NETWORKS,
                          constants.TYPE_PORTS,
-                         constants.TYPE_SECURITY_GROUP_RULES):
+                         constants.TYPE_SECURITY_GROUP_RULES,
+                         constants.TYPE_ROUTERS):
         return resource['revision_number']
     else:
         raise ovn_exc.UnknownResourceType(resource_type=resource_type)

@@ -98,3 +98,4 @@ INITIAL_REV_NUM = -1
 TYPE_NETWORKS = 'networks'
 TYPE_PORTS = 'ports'
 TYPE_SECURITY_GROUP_RULES = 'security_group_rules'
+TYPE_ROUTERS = 'routers'

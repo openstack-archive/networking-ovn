@@ -180,6 +180,39 @@ class DBInconsistenciesPeriodics(object):
             LOG.error("SG rule %s found with a revision number while this "
                       "resource doesn't support updates.", row.resource_uuid)
 
+    def _fix_create_update_routers(self, row):
+        # Get the latest version of the resource in Neutron DB
+        admin_context = n_context.get_admin_context()
+        r_db_obj = self._ovn_client._l3_plugin.get_router(
+            admin_context, row.resource_uuid)
+        ovn_router = self._nb_idl.get_lrouter(
+            utils.ovn_name(row.resource_uuid))
+
+        if not ovn_router:
+            # If the resource doesn't exist in the OVN DB, create it.
+            self._ovn_client.create_router(r_db_obj)
+        else:
+            ext_ids = getattr(ovn_router, 'external_ids', {})
+            ovn_revision = int(ext_ids.get(
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
+            # If the resource exist in the OVN DB but the revision
+            # number is different from Neutron DB, updated it.
+            if ovn_revision != r_db_obj['revision_number']:
+                self._ovn_client.update_router(r_db_obj)
+            else:
+                # If the resource exist and the revision number
+                # is equal on both databases just bump the revision on
+                # the cache table.
+                db_rev.bump_revision(r_db_obj, ovn_const.TYPE_ROUTERS)
+
+    def _fix_delete_router(self, row):
+        ovn_router = self._nb_idl.get_lrouter(
+            utils.ovn_name(row.resource_uuid))
+        if not ovn_router:
+            db_rev.delete_revision(row.resource_uuid)
+        else:
+            self._ovn_client.delete_router(row.resource_uuid)
+
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
@@ -203,6 +236,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_create_update_port(row)
                 elif row.resource_type == ovn_const.TYPE_SECURITY_GROUP_RULES:
                     self._fix_create_sg_rule(row)
+                elif row.resource_type == ovn_const.TYPE_ROUTERS:
+                    self._fix_create_update_routers(row)
             except Exception:
                 LOG.exception('Failed to fix resource %(res_uuid)s '
                               '(type: %(res_type)s)',
@@ -218,6 +253,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_delete_port(row)
                 elif row.resource_type == ovn_const.TYPE_SECURITY_GROUP_RULES:
                     self._fix_delete_sg_rule(row)
+                elif row.resource_type == ovn_const.TYPE_ROUTERS:
+                    self._fix_delete_router(row)
             except Exception:
                 LOG.exception('Failed to fix deleted resource %(res_uuid)s '
                               '(type: %(res_type)s)',

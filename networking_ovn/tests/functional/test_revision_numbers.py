@@ -57,6 +57,24 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
                     ovn_const.OVN_PORT_NAME_EXT_ID_KEY) == name):
                 return row
 
+    def _create_router(self, name):
+        data = {'router': {'name': name, 'tenant_id': self._tenant_id}}
+        req = self.new_create_request('routers', data, self.fmt)
+        res = req.get_response(self.api)
+        return self.deserialize(self.fmt, res)['router']
+
+    def _update_router_name(self, net_id, new_name):
+        data = {'router': {'name': new_name}}
+        req = self.new_update_request('routers', data, net_id, self.fmt)
+        res = req.get_response(self.api)
+        return self.deserialize(self.fmt, res)['router']
+
+    def _find_router_row_by_name(self, name):
+        for row in self.nb_api._tables['Logical_Router'].rows.values():
+            if (row.external_ids.get(
+                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY) == name):
+                return row
+
     def test_create_network(self):
         name = 'net1'
         neutron_net = self._create_network(name)
@@ -100,3 +118,27 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         self.assertEqual(str(3), ovn_revision)
         # Assert it also matches with the newest returned by neutron API
         self.assertEqual(str(updated_port['revision_number']), ovn_revision)
+
+    def test_create_router(self):
+        name = 'router1'
+        neutron_router = self._create_router(name)
+        ovn_router = self._find_router_row_by_name(name)
+
+        ovn_revision = ovn_router.external_ids[
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY]
+        self.assertEqual(str(0), ovn_revision)
+        # Assert it also matches with the newest returned by neutron API
+        self.assertEqual(str(neutron_router['revision_number']), ovn_revision)
+
+    def test_update_router(self):
+        new_name = 'newrouter'
+        neutron_router = self._create_router('router1')
+        updated_router = self._update_router_name(neutron_router['id'],
+                                                  new_name)
+        ovn_router = self._find_router_row_by_name(new_name)
+
+        ovn_revision = ovn_router.external_ids[
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY]
+        self.assertEqual(str(1), ovn_revision)
+        # Assert it also matches with the newest returned by neutron API
+        self.assertEqual(str(updated_router['revision_number']), ovn_revision)
