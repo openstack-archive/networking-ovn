@@ -22,6 +22,49 @@ import psutil
 import tenacity
 
 
+class OvnNorthd(fixtures.Fixture):
+
+    def __init__(self, temp_dir, ovn_nb_db, ovn_sb_db, protocol='unix'):
+        super(OvnNorthd, self).__init__()
+        self.temp_dir = temp_dir
+        self.ovn_nb_db = ovn_nb_db
+        self.ovn_sb_db = ovn_sb_db
+        self.protocol = protocol
+        self.unixctl_path = self.temp_dir + '/ovn_northd.ctl'
+        self.log_file_path = self.temp_dir + '/ovn_northd.log'
+        if self.protocol == 'ssl':
+            self.private_key = os.path.join(self.temp_dir, 'ovn-privkey.pem')
+            self.certificate = os.path.join(self.temp_dir, 'ovn-cert.pem')
+            self.ca_cert = os.path.join(self.temp_dir, 'controllerca',
+                                        'cacert.pem')
+
+    def _setUp(self):
+        self.addCleanup(self.stop)
+        self.start()
+
+    def start(self):
+        # start the ovn-northd
+        ovn_northd_cmd = [
+            spawn.find_executable('ovn-northd'), '-vconsole:off',
+            '--ovnnb-db=%s' % self.ovn_nb_db,
+            '--ovnsb-db=%s' % self.ovn_sb_db,
+            '--no-chdir',
+            '--unixctl=%s' % self.unixctl_path,
+            '--log-file=%s' % (self.log_file_path)]
+        if self.protocol == 'ssl':
+            ovn_northd_cmd.append('--private-key=%s' % self.private_key)
+            ovn_northd_cmd.append('--certificate=%s' % self.certificate)
+            ovn_northd_cmd.append('--ca-cert=%s' % self.ca_cert)
+        utils.create_process(ovn_northd_cmd)
+
+    def stop(self):
+        try:
+            stop_cmd = ['ovs-appctl', '-t', self.unixctl_path, 'exit']
+            utils.execute(stop_cmd)
+        except Exception:
+            pass
+
+
 class OvsdbServer(fixtures.Fixture):
 
     def __init__(self, temp_dir, ovs_dir, ovn_nb_db=True, ovn_sb_db=False,

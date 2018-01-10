@@ -108,8 +108,10 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver = mm.mech_drivers['ovn'].obj
         self.l3_plugin = directory.get_plugin(constants.L3)
         self.ovsdb_server_mgr = None
+        self.ovn_northd_mgr = None
         self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()
+        self._start_ovn_northd()
 
     def get_additional_service_plugins(self):
         p = super(TestOVNFunctionalBase, self).get_additional_service_plugins()
@@ -122,6 +124,16 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
     def get_ovsdb_server_protocol(self):
         return 'unix'
+
+    def _start_ovn_northd(self):
+        if not self.ovsdb_server_mgr:
+            return
+        ovn_nb_db = self.ovsdb_server_mgr.get_ovsdb_connection_path('nb')
+        ovn_sb_db = self.ovsdb_server_mgr.get_ovsdb_connection_path('sb')
+        self.ovn_northd_mgr = self.useFixture(
+            process.OvnNorthd(self.temp_dir,
+                              ovn_nb_db, ovn_sb_db,
+                              protocol=self._ovsdb_protocol))
 
     def _start_ovsdb_server_and_idls(self):
         self.temp_dir = self.useFixture(fixtures.TempDir()).path
@@ -218,6 +230,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
         if self.ovsdb_server_mgr:
             self.ovsdb_server_mgr.stop()
+        if self.ovn_northd_mgr:
+            self.ovn_northd_mgr.stop()
 
         self.mech_driver._nb_ovn = None
         self.mech_driver._sb_ovn = None
