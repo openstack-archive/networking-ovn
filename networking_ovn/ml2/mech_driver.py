@@ -342,9 +342,15 @@ class OVNMechanismDriver(api.MechanismDriver):
         of the current transaction.
         """
         port = context.current
+        if utils.is_lsp_ignored(port):
+            return
         utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host):
             self._insert_port_provisioning_block(context._plugin_context, port)
+
+        if not utils.is_lsp_router_port(port):
+            db_rev.create_initial_revision(port['id'], ovn_const.TYPE_PORTS,
+                                           context._plugin_context.session)
 
     def _is_port_provisioning_required(self, port, host, original_host=None):
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
@@ -467,7 +473,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         """
         port = context.current
         original_port = context.original
-        self._ovn_client.update_port(port, original_port)
+        self._ovn_client.update_port(port, port_object=original_port)
         self._notify_dhcp_updated(port['id'])
 
     def delete_port_postcommit(self, context):
@@ -483,7 +489,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         deleted.
         """
         port = context.current
-        self._ovn_client.delete_port(port)
+        self._ovn_client.delete_port(port['id'], port_object=port)
 
     def bind_port(self, context):
         """Attempt to bind a port.

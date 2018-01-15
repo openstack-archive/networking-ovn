@@ -422,16 +422,6 @@ def acl_port_ips(port):
     if not is_sg_enabled():
         return {'ip4': [], 'ip6': []}
 
-    ip_addresses = {4: [], 6: []}
-    for fixed_ip in port['fixed_ips']:
-        ip_version = netaddr.IPNetwork(fixed_ip['ip_address']).version
-        ip_addresses[ip_version].append(fixed_ip['ip_address'])
-
-    for allowed_ip in port.get('allowed_address_pairs', []):
-        if allowed_ip.get('ip_address'):
-            ip_version = \
-                netaddr.IPNetwork(allowed_ip['ip_address']).version
-            ip_addresses[ip_version].append(allowed_ip['ip_address'])
-
-    return {'ip4': ip_addresses[4],
-            'ip6': ip_addresses[6]}
+    ip_list = [x['ip_address'] for x in port.get('fixed_ips', [])]
+    ip_list.extend(utils.get_allowed_address_pairs_ip_addresses(port))
+    return utils.sort_ips_by_version(ip_list)

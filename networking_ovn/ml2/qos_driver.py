@@ -141,7 +141,7 @@ class OVNQosDriver(object):
             if utils.is_network_device_port(port):
                 continue
             # Call into OVN client to update port
-            self._driver.update_port(port, port, qos_options=options)
+            self._driver.update_port(port, qos_options=options)
 
     def update_network(self, network):
         # Is qos service enabled
@@ -166,4 +166,4 @@ class OVNQosDriver(object):
         port_bindings = policy.get_bound_ports()
         for port_id in port_bindings:
             port = self._plugin.get_port(context, port_id)
-            self._driver.update_port(port, port, qos_options=options)
+            self._driver.update_port(port, qos_options=options)

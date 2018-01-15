@@ -31,6 +31,8 @@ OVN_FIP_EXT_ID_KEY = 'neutron:fip_id'
 OVN_FIP_PORT_EXT_ID_KEY = 'neutron:fip_port_id'
 OVN_REV_NUM_EXT_ID_KEY = 'neutron:revision_number'
 OVN_QOS_POLICY_EXT_ID_KEY = 'neutron:qos_policy_id'
+OVN_SG_IDS_EXT_ID_KEY = 'neutron:security_group_ids'
+OVN_DEVICE_OWNER_EXT_ID_KEY = 'neutron:device_owner'
 OVN_PORT_BINDING_PROFILE = portbindings.PROFILE
 OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
                                     'tag': six.integer_types},
@@ -90,3 +92,4 @@ INITIAL_REV_NUM = -1
 
 # Resource types
 TYPE_NETWORKS = 'networks'
+TYPE_PORTS = 'ports'

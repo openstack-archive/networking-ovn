@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.tests.unit.ml2 import test_mech_driver
@@ -32,7 +33,8 @@ class TestOVNParentTagPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
                     arg_list=(OVN_PROFILE,),
                     **binding)
 
-    def test_create_port_with_parent_and_tag(self):
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    def test_create_port_with_parent_and_tag(self, mock_get_port):
         binding = {OVN_PROFILE: {"parent_name": '', 'tag': 1}}
         with self.network() as n:
             with self.subnet(n) as s:
@@ -44,6 +46,7 @@ class TestOVNParentTagPortBinding(test_mech_driver.OVNMechanismDriverTestCase):
                     port = self.deserialize(self.fmt, res)
                     self.assertEqual(port['port'][OVN_PROFILE],
                                      binding[OVN_PROFILE])
+                    mock_get_port.assert_called_with(mock.ANY, p['port']['id'])
 
     def test_create_port_with_invalid_tag(self):
         binding = {OVN_PROFILE: {"parent_name": '', 'tag': 'a'}}

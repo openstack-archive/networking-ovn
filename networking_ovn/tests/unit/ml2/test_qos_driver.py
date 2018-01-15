@@ -238,5 +238,4 @@ class TestOVNQosDriver(base.BaseTestCase):
                 context, self.network_id, {})
             get_bound_ports.assert_called_once()
             get_port.assert_called_once_with(context, self.port_id)
-            update_port.assert_called_once_with(self.port, self.port,
-                                                qos_options={})
+            update_port.assert_called_once_with(self.port, qos_options={})
