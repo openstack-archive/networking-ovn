@@ -22,6 +22,7 @@ from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_utils
 from oslo_utils import netutils
+from oslo_utils import strutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants
@@ -273,3 +274,38 @@ def sort_ips_by_version(addresses):
 def is_lsp_router_port(port):
     return port.get('device_owner') in [const.DEVICE_OWNER_ROUTER_INTF,
                                         const.DEVICE_OWNER_ROUTER_GW]
+
+
+def get_lrouter_ext_gw_static_route(ovn_router):
+    # TODO(lucasagomes): Remove the try...except block after OVS 2.8.2
+    # is tagged.
+    try:
+        for route in getattr(ovn_router, 'static_routes', []):
+            external_ids = getattr(route, 'external_ids', {})
+            if strutils.bool_from_string(
+                external_ids.get(constants.OVN_ROUTER_IS_EXT_GW, 'false')):
+                return route
+    except KeyError:
+        pass
+
+
+def get_lrouter_snats(ovn_router):
+    return [n for n in getattr(ovn_router, 'nat', []) if n.type == 'snat']
+
+
+def get_lrouter_non_gw_routes(ovn_router):
+    routes = []
+    # TODO(lucasagomes): Remove the try...except block after OVS 2.8.2
+    # is tagged.
+    try:
+        for route in getattr(ovn_router, 'static_routes', []):
+            external_ids = getattr(route, 'external_ids', {})
+            if strutils.bool_from_string(
+                external_ids.get(constants.OVN_ROUTER_IS_EXT_GW, 'false')):
+                continue
+
+            routes.append({'destination': route.ip_prefix,
+                           'nexthop': route.nexthop})
+    except KeyError:
+        pass
+    return routes

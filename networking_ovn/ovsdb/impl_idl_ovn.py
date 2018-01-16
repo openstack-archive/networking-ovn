@@ -607,6 +607,16 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         return cmd.CheckRevisionNumberCommand(
             self, name, resource, resource_type, if_exists)
 
+    def get_lrouter(self, lrouter_name):
+        # TODO(lucasagomes): Use lr_get() once we start refactoring this
+        # API to use methods from ovsdbapp.
+        lr = self.db_find_rows('Logical_Router', ('name', '=', lrouter_name))
+        result = lr.execute(check_error=True)
+        return result[0] if result else None
+
+    def delete_lrouter_ext_gw(self, lrouter_name, if_exists=True):
+        return cmd.DeleteLRouterExtGwCommand(self, lrouter_name, if_exists)
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):

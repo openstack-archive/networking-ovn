@@ -1050,3 +1050,59 @@ class CheckRevisionNumberCommand(command.BaseCommand):
 
     def post_commit(self, txn):
         self.result = ovn_const.TXN_COMMITTED
+
+
+class DeleteLRouterExtGwCommand(command.BaseCommand):
+
+    def __init__(self, api, lrouter, if_exists):
+        super(DeleteLRouterExtGwCommand, self).__init__(api)
+        self.lrouter = lrouter
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        # TODO(lucasagomes): Remove this check after OVS 2.8.2 is tagged
+        # (prior to that, the external_ids column didn't exist in this
+        # table).
+        if not self.api.is_col_present('Logical_Router_Static_Route',
+                                       'external_ids'):
+            return
+
+        try:
+            lrouter = idlutils.row_by_value(self.api.idl, 'Logical_Router',
+                                            'name', self.lrouter)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _("Logical Router %s does not exist") % self.lrouter
+            raise RuntimeError(msg)
+
+        lrouter.verify('static_routes')
+        static_routes = getattr(lrouter, 'static_routes', [])
+        for route in static_routes:
+            external_ids = getattr(route, 'external_ids', {})
+            if ovn_const.OVN_ROUTER_IS_EXT_GW in external_ids:
+                _delvalue_from_list(lrouter, 'static_routes', route)
+                route.delete()
+                break
+
+        lrouter.verify('nat')
+        nats = getattr(lrouter, 'nat', [])
+        for nat in nats:
+            if nat.type != 'snat':
+                continue
+            _delvalue_from_list(lrouter, 'nat', nat)
+            nat.delete()
+
+        lrouter_ext_ids = getattr(lrouter, 'external_ids', {})
+        gw_port_id = lrouter_ext_ids.get(ovn_const.OVN_GW_PORT_EXT_ID_KEY)
+        if not gw_port_id:
+            return
+
+        try:
+            lrouter_port = idlutils.row_by_value(
+                self.api.idl, 'Logical_Router_Port', 'name',
+                utils.ovn_lrouter_port_name(gw_port_id))
+        except idlutils.RowNotFound:
+            return
+
+        _delvalue_from_list(lrouter, 'ports', lrouter_port)
