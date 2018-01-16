@@ -153,6 +153,9 @@ class OVNMechanismDriver(api.MechanismDriver):
             registry.subscribe(self._delete_security_group,
                                resources.SECURITY_GROUP,
                                events.AFTER_DELETE)
+            registry.subscribe(self._create_sg_rule_precommit,
+                               resources.SECURITY_GROUP_RULE,
+                               events.PRECOMMIT_CREATE)
             registry.subscribe(self._process_sg_rule_notification,
                                resources.SECURITY_GROUP_RULE,
                                events.AFTER_CREATE)
@@ -202,6 +205,13 @@ class OVNMechanismDriver(api.MechanismDriver):
     def _delete_security_group(self, resource, event, trigger,
                                security_group_id, **kwargs):
         self._ovn_client.delete_security_group(security_group_id)
+
+    def _create_sg_rule_precommit(self, resource, event, trigger, **kwargs):
+        sg_rule = kwargs.get('security_group_rule')
+        context = kwargs.get('context')
+        db_rev.create_initial_revision(sg_rule['id'],
+                                       ovn_const.TYPE_SECURITY_GROUP_RULES,
+                                       context.session)
 
     def _process_sg_rule_notification(
             self, resource, event, trigger, **kwargs):

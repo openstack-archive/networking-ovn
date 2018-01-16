@@ -124,11 +124,14 @@ class TestACLs(base.TestCase):
                           'log': False, 'name': [], 'severity': [],
                           'direction': direction,
                           'match': match,
-                          'external_ids': {'neutron:lport': 'port-id'}},
+                          'external_ids': {
+                              'neutron:lport': 'port-id',
+                              'neutron:security_group_rule_id': 'sgr_id'}},
                          acl)
 
     def test_add_sg_rule_acl_for_port_remote_ip_prefix(self):
-        sg_rule = {'direction': 'ingress',
+        sg_rule = {'id': 'sgr_id',
+                   'direction': 'ingress',
                    'ethertype': 'IPv4',
                    'remote_group_id': None,
                    'remote_ip_prefix': '1.1.1.0/24',
@@ -144,7 +147,8 @@ class TestACLs(base.TestCase):
                                             match)
 
     def test_add_sg_rule_acl_for_port_remote_group(self):
-        sg_rule = {'direction': 'ingress',
+        sg_rule = {'id': 'sgr_id',
+                   'direction': 'ingress',
                    'ethertype': 'IPv4',
                    'remote_group_id': 'sg1',
                    'remote_ip_prefix': None,
@@ -296,10 +300,10 @@ class TestACLs(base.TestCase):
         ports = [port1, port2]
         aclport1_new = {'priority': 1002, 'direction': 'to-lport',
                         'match': 'outport == %s && ip4 && icmp4' %
-                        (port1['id'])}
+                        (port1['id']), 'external_ids': {}}
         aclport2_new = {'priority': 1002, 'direction': 'to-lport',
                         'match': 'outport == %s && ip4 && icmp4' %
-                        (port2['id'])}
+                        (port2['id']), 'external_ids': {}}
         acls_new_dict = {'%s' % (port1['id']): aclport1_new,
                          '%s' % (port2['id']): aclport2_new}
 
@@ -319,11 +323,12 @@ class TestACLs(base.TestCase):
 
         # test for deleting existing acls
         acl1 = mock.Mock(
-            match='outport == port-id1 && ip4 && icmp4')
+            match='outport == port-id1 && ip4 && icmp4', external_ids={})
         acl2 = mock.Mock(
-            match='outport == port-id2 && ip4 && icmp4')
+            match='outport == port-id2 && ip4 && icmp4', external_ids={})
         acl3 = mock.Mock(
-            match='outport == port-id1 && ip4 && (ip4.src == fake_ip)')
+            match='outport == port-id1 && ip4 && (ip4.src == fake_ip)',
+            external_ids={})
         lswitch_obj = mock.Mock(
             name='neutron-lswitch-1', acls=[acl1, acl2, acl3])
         with mock.patch('ovsdbapp.backend.ovs_idl.idlutils.row_by_value',

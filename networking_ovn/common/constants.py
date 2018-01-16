@@ -17,6 +17,7 @@ import six
 # TODO(lucasagomes): Remove OVN_SG_NAME_EXT_ID_KEY in the Rocky release
 OVN_SG_NAME_EXT_ID_KEY = 'neutron:security_group_name'
 OVN_SG_EXT_ID_KEY = 'neutron:security_group_id'
+OVN_SG_RULE_EXT_ID_KEY = 'neutron:security_group_rule_id'
 OVN_ML2_MECH_DRIVER_NAME = 'ovn'
 OVN_NETWORK_NAME_EXT_ID_KEY = 'neutron:network_name'
 OVN_PORT_NAME_EXT_ID_KEY = 'neutron:port_name'
@@ -96,3 +97,4 @@ INITIAL_REV_NUM = -1
 # Resource types
 TYPE_NETWORKS = 'networks'
 TYPE_PORTS = 'ports'
+TYPE_SECURITY_GROUP_RULES = 'security_group_rules'
