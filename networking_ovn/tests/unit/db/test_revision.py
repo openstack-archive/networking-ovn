@@ -61,6 +61,6 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
     def test_delete_revision(self):
         db_rev.create_initial_revision(self.net['id'], constants.TYPE_NETWORKS,
                                        self.session)
-        db_rev.delete_revision(self.net['id'])
+        db_rev.delete_revision(self.net['id'], constants.TYPE_NETWORKS)
         row = self.get_revision_row(self.net['id'])
         self.assertIsNone(row)

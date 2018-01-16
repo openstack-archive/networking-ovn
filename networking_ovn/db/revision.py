@@ -28,6 +28,10 @@ LOG = log.getLogger(__name__)
 
 STD_ATTR_MAP = standard_attr.get_standard_attr_resource_model_map()
 
+# 1:2 mapping for OVN, neutron router ports are simple ports, but
+# for OVN we handle LSP & LRP objects
+STD_ATTR_MAP[ovn_const.TYPE_ROUTER_PORTS] = STD_ATTR_MAP[ovn_const.TYPE_PORTS]
+
 _wrap_db_retry = oslo_db_api.wrap_db_retry(
     max_retries=ovn_const.DB_MAX_RETRIES,
     retry_interval=ovn_const.DB_INITIAL_RETRY_INTERVAL,
@@ -48,6 +52,8 @@ def _get_standard_attr_id(session, resource_uuid, resource_type):
 @_wrap_db_retry
 def create_initial_revision(resource_uuid, resource_type, session,
                             revision_number=ovn_const.INITIAL_REV_NUM):
+    LOG.debug('create_initial_revision uuid=%s, type=%s, rev=%s',
+              resource_uuid, resource_type, revision_number)
     with session.begin(subtransactions=True):
         std_attr_id = _get_standard_attr_id(
             session, resource_uuid, resource_type)
@@ -58,11 +64,13 @@ def create_initial_revision(resource_uuid, resource_type, session,
 
 
 @_wrap_db_retry
-def delete_revision(resource_id):
+def delete_revision(resource_id, resource_type):
+    LOG.debug('delete_revision(%s)', resource_id)
     session = db_api.get_writer_session()
     with session.begin():
         row = session.query(models.OVNRevisionNumbers).filter_by(
-            resource_uuid=resource_id).one_or_none()
+            resource_uuid=resource_id,
+            resource_type=resource_type).one_or_none()
         if row:
             session.delete(row)
 
@@ -82,7 +90,8 @@ def _ensure_revision_row_exist(session, resource, resource_type):
     with session.begin(subtransactions=True):
         try:
             session.query(models.OVNRevisionNumbers).filter_by(
-                resource_uuid=resource['id']).one()
+                resource_uuid=resource['id'],
+                resource_type=resource_type).one()
         except exc.NoResultFound:
             LOG.warning(
                 'No revision row found for %(res_uuid)s (type: '
@@ -101,7 +110,8 @@ def bump_revision(resource, resource_type):
         std_attr_id = _get_standard_attr_id(
             session, resource['id'], resource_type)
         row = session.merge(models.OVNRevisionNumbers(
-            standard_attr_id=std_attr_id, resource_uuid=resource['id']))
+            standard_attr_id=std_attr_id, resource_uuid=resource['id'],
+            resource_type=resource_type))
         if revision_number < row.revision_number:
             LOG.debug(
                 'Skip bumping the revision number for %(res_uuid)s (type: '

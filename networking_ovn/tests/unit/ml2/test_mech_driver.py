@@ -158,7 +158,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 ovn_acl_up.assert_called_once_with(
                     mock.ANY, mock.ANY, mock.ANY,
                     'sg_id', rule, is_add_acl=False)
-                mock_delrev.assert_called_once_with(rule['id'])
+                mock_delrev.assert_called_once_with(
+                    rule['id'], ovn_const.TYPE_SECURITY_GROUP_RULES)
 
     def test_add_acls_no_sec_group(self):
         acls = ovn_acl.add_acls(self.mech_driver._plugin,

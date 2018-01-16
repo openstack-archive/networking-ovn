@@ -636,6 +636,12 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         result = lr.execute(check_error=True)
         return result[0] if result else None
 
+    def get_lrouter_port(self, lrp_name):
+        # TODO(mangelajo): Implement lrp_get() ovsdbapp and use from here
+        lrp = self.db_find_rows('Logical_Router_Port', ('name', '=', lrp_name))
+        result = lrp.execute(check_error=True)
+        return result[0] if result else None
+
     def delete_lrouter_ext_gw(self, lrouter_name, if_exists=True):
         return cmd.DeleteLRouterExtGwCommand(self, lrouter_name, if_exists)
 

@@ -99,6 +99,7 @@ TYPE_NETWORKS = 'networks'
 TYPE_PORTS = 'ports'
 TYPE_SECURITY_GROUP_RULES = 'security_group_rules'
 TYPE_ROUTERS = 'routers'
+TYPE_ROUTER_PORTS = 'router_ports'
 TYPE_SECURITY_GROUPS = 'security_groups'
 TYPE_FLOATINGIPS = 'floatingips'
 TYPE_SUBNETS = 'subnets'
@@ -109,6 +110,7 @@ _TYPES_PRIORITY_ORDER = (
     TYPE_SUBNETS,
     TYPE_ROUTERS,
     TYPE_PORTS,
+    TYPE_ROUTER_PORTS,
     TYPE_FLOATINGIPS,
     TYPE_SECURITY_GROUP_RULES)
 

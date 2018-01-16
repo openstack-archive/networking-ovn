@@ -383,8 +383,15 @@ class OVNMechanismDriver(api.MechanismDriver):
         if self._is_port_provisioning_required(port, context.host):
             self._insert_port_provisioning_block(context._plugin_context, port)
 
-        if not utils.is_lsp_router_port(port):
-            db_rev.create_initial_revision(port['id'], ovn_const.TYPE_PORTS,
+        db_rev.create_initial_revision(port['id'],
+                                       ovn_const.TYPE_PORTS,
+                                       context._plugin_context.session)
+
+        # in the case of router ports we also need to
+        # track the creation and update of the LRP OVN objects
+        if utils.is_lsp_router_port(port):
+            db_rev.create_initial_revision(port['id'],
+                                           ovn_const.TYPE_ROUTER_PORTS,
                                            context._plugin_context.session)
 
     def _is_port_provisioning_required(self, port, host, original_host=None):
@@ -489,6 +496,14 @@ class OVNMechanismDriver(api.MechanismDriver):
         if self._is_port_provisioning_required(port, context.host,
                                                context.original_host):
             self._insert_port_provisioning_block(context._plugin_context, port)
+
+        if utils.is_lsp_router_port(port):
+            # handle the case when an existing port is added to a
+            # logical router so we need to track the creation of the lrp
+            if not utils.is_lsp_router_port(original_port):
+                db_rev.create_initial_revision(port['id'],
+                                               ovn_const.TYPE_ROUTER_PORTS,
+                                               context._plugin_context.session)
 
     def update_port_postcommit(self, context):
         """Update a port.

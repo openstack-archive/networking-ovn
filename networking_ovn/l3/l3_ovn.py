@@ -170,13 +170,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 len(port['fixed_ips']) > 1):
             # NOTE(lizk) It's adding a subnet onto an already existing router
             # interface port, try to update lrouter port 'networks' column.
-            self._ovn_client.update_router_port(port)
+            self._ovn_client.update_router_port(port,
+                                                bump_db_rev=False)
             multi_prefix = True
         else:
             self._ovn_client.create_router_port(router_id, port)
 
         router = self.get_router(context, router_id)
         if not router.get(l3.EXTERNAL_GW_INFO):
+            db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
             return router_interface_info
 
         cidr = None
@@ -205,6 +207,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                               {'subnet': router_interface_info['subnet_id'],
                                'router': router_id})
 
+        db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -214,17 +217,22 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         router = self.get_router(context, router_id)
         port_id = router_interface_info['port_id']
         multi_prefix = False
+        port_removed = False
         try:
             port = self._plugin.get_port(context, port_id)
             # The router interface port still exists, call ovn to update it.
-            self._ovn_client.update_router_port(port)
+            self._ovn_client.update_router_port(port,
+                                                bump_db_rev=False)
             multi_prefix = True
         except n_exc.PortNotFound:
-            # The router interface port doesn't exist any more, call ovn to
-            # delete it.
-            self._ovn_client.delete_router_port(port_id, router_id)
+            # The router interface port doesn't exist any more,
+            # we will call ovn to delete it once we remove the snat
+            # rules in the router itself if we have to
+            port_removed = True
 
         if not router.get(l3.EXTERNAL_GW_INFO):
+            if port_removed:
+                self._ovn_client.delete_router_port(port_id, router_id)
             return router_interface_info
 
         try:
@@ -250,6 +258,15 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 super(OVNL3RouterPlugin, self).add_router_interface(
                     context, router_id, interface_info)
                 LOG.error('Error is deleting snat')
+
+        # NOTE(mangelajo): If the port doesn't exist anymore, we delete the
+        # router port as the last operation and update the revision database
+        # to ensure consistency
+        if port_removed:
+            self._ovn_client.delete_router_port(port_id, router_id)
+        else:
+            # otherwise, we just update the revision database
+            db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
 
         return router_interface_info
 
