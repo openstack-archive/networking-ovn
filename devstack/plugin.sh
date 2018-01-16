@@ -22,7 +22,7 @@ source $DEST/networking-ovn/devstack/lib/networking-ovn
 source $TOP_DIR/lib/neutron-legacy
 
 # main loop
-if is_service_enabled q-svc || is_ovn_service_enabled ovn-northd || is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
+if is_service_enabled q-svc || is_service_enabled ovn-northd || is_service_enabled ovn-controller || is_service_enabled ovn-controller-vtep ; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
         install_ovn
         configure_ovn

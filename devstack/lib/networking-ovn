@@ -126,13 +126,6 @@ source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
 source $NETWORKING_OVN_DIR/devstack/override-defaults
 source $NETWORKING_OVN_DIR/devstack/network_utils.sh
 
-function is_ovn_service_enabled {
-    ovn_service=$1
-    is_service_enabled ovn && return 0
-    is_service_enabled $ovn_service && return 0
-    return 1
-}
-
 # NOTE(rtheis): Function copied from DevStack _neutron_ovs_base_setup_bridge
 # and _neutron_ovs_base_add_bridge with the call to neutron-ovs-cleanup
 # removed. The call is not relevant for OVN, as it is specific to the use
@@ -345,19 +338,19 @@ function install_ovn {
 
 function start_ovs {
     echo "Starting OVS"
-    if is_ovn_service_enabled ovn-controller || is_ovn_service_enabled ovn-controller-vtep ; then
+    if is_service_enabled ovn-controller || is_service_enabled ovn-controller-vtep ; then
         # ovsdb-server and ovs-vswitchd are used privately in OVN as openvswitch service names.
         enable_service ovsdb-server
         enable_service ovs-vswitchd
 
         ovsdb-tool create $OVS_DATADIR/conf.db $OVS_SHAREDIR/vswitch.ovsschema
-        if is_ovn_service_enabled ovn-controller-vtep; then
+        if is_service_enabled ovn-controller-vtep; then
             ovsdb-tool create $OVS_DATADIR/vtep.db $OVS_SHAREDIR/vtep.ovsschema
         fi
 
         local dbcmd="$OVS_SBINDIR/ovsdb-server --remote=punix:$OVS_RUNDIR/db.sock --pidfile --detach --log-file"
         dbcmd+=" --remote=db:Open_vSwitch,Open_vSwitch,manager_options"
-        if is_ovn_service_enabled ovn-controller-vtep; then
+        if is_service_enabled ovn-controller-vtep; then
             dbcmd+=" --remote=db:hardware_vtep,Global,managers $OVS_DATADIR/vtep.db"
         fi
         dbcmd+=" $OVS_DATADIR/conf.db"
@@ -382,7 +375,7 @@ function start_ovs {
             ovs-vsctl set open . external-ids:ovn-bridge-mappings=${PHYSICAL_NETWORK}:${OVS_PHYSICAL_BRIDGE}
         fi
 
-        if is_ovn_service_enabled ovn-controller-vtep ; then
+        if is_service_enabled ovn-controller-vtep ; then
             ovn_base_setup_bridge br-v
             vtep-ctl add-ps br-v
             vtep-ctl set Physical_Switch br-v tunnel_ips=$HOST_IP
@@ -402,7 +395,7 @@ function start_ovs {
 function start_ovn {
     echo "Starting OVN"
 
-    if is_ovn_service_enabled ovn-northd ; then
+    if is_service_enabled ovn-northd ; then
         local cmd="$OVS_SCRIPTDIR/ovn-ctl --no-monitor start_northd"
 
         _ovn_run_process ovn-northd "$cmd"
@@ -412,13 +405,13 @@ function start_ovn {
         sudo ovs-appctl -t $OVS_RUNDIR/ovnsb_db.ctl vlog/set console:off syslog:info file:info
     fi
 
-    if is_ovn_service_enabled ovn-controller ; then
+    if is_service_enabled ovn-controller ; then
         local cmd="$OVS_SCRIPTDIR/ovn-ctl --no-monitor start_controller"
 
         _ovn_run_process ovn-controller "$cmd" "$STACK_USER" "root"
     fi
 
-    if is_ovn_service_enabled ovn-controller-vtep ; then
+    if is_service_enabled ovn-controller-vtep ; then
         local cmd="$OVS_BINDIR/ovn-controller-vtep --log-file --pidfile --detach --ovnsb-db=$OVN_SB_REMOTE"
 
         _ovn_run_process ovn-controller-vtep "$cmd" "$STACK_USER" "root"
@@ -430,13 +423,13 @@ function start_ovn {
         setup_logging $OVN_META_CONF
     fi
 
-    if is_ovn_service_enabled br-ex-tcpdump ; then
+    if is_service_enabled br-ex-tcpdump ; then
         # tcpdump monitor on br-ex for ARP, reverse ARP and ICMP v4 / v6 packets
         sudo ip link set dev $PUBLIC_BRIDGE up
         run_process br-ex-tcpdump "/usr/sbin/tcpdump -i $PUBLIC_BRIDGE arp or rarp or icmp or icmp6 -enlX" $STACK_USER root
     fi
 
-    if is_ovn_service_enabled br-int-flows ; then
+    if is_service_enabled br-int-flows ; then
         run_process br-int-flows "/bin/sh -c \"set +e; while true; do echo ovs-ofctl dump-flows br-int; ovs-ofctl dump-flows br-int ; sleep 30; done; \"" $STACK_USER root
     fi
 }
@@ -447,13 +440,13 @@ function stop_ovn {
         sudo pkill -9 -f haproxy || :
         stop_process networking-ovn-metadata-agent
     fi
-    if is_ovn_service_enabled ovn-controller-vtep ; then
+    if is_service_enabled ovn-controller-vtep ; then
         stop_process ovn-controller-vtep
     fi
-    if is_ovn_service_enabled ovn-controller ; then
+    if is_service_enabled ovn-controller ; then
         stop_process ovn-controller
     fi
-    if is_ovn_service_enabled ovn-northd ; then
+    if is_service_enabled ovn-northd ; then
         stop_process ovn-northd
     fi
     if is_service_enabled ovs-vtep ; then
