@@ -147,6 +147,12 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         # Handle security group/rule notifications
         if self.sg_enabled:
+            registry.subscribe(self._create_security_group_precommit,
+                               resources.SECURITY_GROUP,
+                               events.PRECOMMIT_CREATE)
+            registry.subscribe(self._update_security_group,
+                               resources.SECURITY_GROUP,
+                               events.AFTER_UPDATE)
             registry.subscribe(self._create_security_group,
                                resources.SECURITY_GROUP,
                                events.AFTER_CREATE)
@@ -199,6 +205,12 @@ class OVNMechanismDriver(api.MechanismDriver):
                 maintenance.DBInconsistenciesPeriodics(self._ovn_client))
             self._maintenance_thread.start()
 
+    def _create_security_group_precommit(self, resource, event, trigger,
+                                         security_group, context, **kwargs):
+        db_rev.create_initial_revision(
+            security_group['id'], ovn_const.TYPE_SECURITY_GROUPS,
+            context.session)
+
     def _create_security_group(self, resource, event, trigger,
                                security_group, **kwargs):
         self._ovn_client.create_security_group(security_group)
@@ -206,6 +218,13 @@ class OVNMechanismDriver(api.MechanismDriver):
     def _delete_security_group(self, resource, event, trigger,
                                security_group_id, **kwargs):
         self._ovn_client.delete_security_group(security_group_id)
+
+    def _update_security_group(self, resource, event, trigger,
+                               security_group, **kwargs):
+        # OVN doesn't care about updates to security groups, only if they
+        # exist or not. We are bumping the revision number here so it
+        # doesn't show as inconsistent to the maintenance periodic task
+        db_rev.bump_revision(security_group, ovn_const.TYPE_SECURITY_GROUPS)
 
     def _create_sg_rule_precommit(self, resource, event, trigger, **kwargs):
         sg_rule = kwargs.get('security_group_rule')

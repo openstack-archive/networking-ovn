@@ -91,7 +91,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         ).start()
         revision_plugin.RevisionPlugin()
 
-    def test__create_security_group(self):
+    @mock.patch.object(db_rev, 'bump_revision')
+    def test__create_security_group(self, mock_bump):
         self.mech_driver._create_security_group(
             resources.SECURITY_GROUP, events.AFTER_CREATE, {},
             security_group=self.fake_sg)
@@ -104,6 +105,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
         self.nb_ovn.create_address_set.assert_has_calls(
             create_address_set_calls, any_order=True)
+        mock_bump.assert_called_once_with(
+            self.fake_sg, ovn_const.TYPE_SECURITY_GROUPS)
 
     def test__delete_security_group(self):
         self.mech_driver._delete_security_group(

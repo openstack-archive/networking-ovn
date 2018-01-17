@@ -1312,12 +1312,14 @@ class OVNClient(object):
                 ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: security_group['id']}
                 txn.add(self._nb_idl.create_address_set(
                     name=name, external_ids=ext_ids))
+        db_rev.bump_revision(security_group, ovn_const.TYPE_SECURITY_GROUPS)
 
     def delete_security_group(self, security_group_id):
         with self._nb_idl.transaction(check_error=True) as txn:
             for ip_version in ('ip4', 'ip6'):
                 name = utils.ovn_addrset_name(security_group_id, ip_version)
                 txn.add(self._nb_idl.delete_address_set(name=name))
+        db_rev.delete_revision(security_group_id)
 
     def _process_security_group_rule(self, rule, is_add_acl=True):
         admin_context = n_context.get_admin_context()

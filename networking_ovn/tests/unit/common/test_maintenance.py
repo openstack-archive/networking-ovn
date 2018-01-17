@@ -15,11 +15,12 @@
 
 import mock
 
-from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron.tests.unit.plugins.ml2 import test_security_group as test_sg
 from neutron_lib.db import api as db_api
 
 from networking_ovn.common import constants
 from networking_ovn.common import maintenance
+from networking_ovn.common import utils
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
 from networking_ovn.tests.unit.db import base as db_base
@@ -28,7 +29,7 @@ from networking_ovn.tests.unit.db import base as db_base
 @mock.patch.object(maintenance.DBInconsistenciesPeriodics,
                    'has_lock', lambda _: True)
 class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
-                                     test_plugin.Ml2PluginV2TestCase):
+                                     test_sg.Ml2SecurityGroupsTestCase):
 
     def setUp(self):
         super(TestDBInconsistenciesPeriodics, self).setUp()
@@ -130,3 +131,39 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
 
     def test_fix_port_update(self):
         self._test_fix_create_update_port(ovn_rev=5, neutron_rev=7)
+
+    @mock.patch.object(db_rev, 'bump_revision')
+    def _test_fix_security_group_create(self, mock_bump, revision_number):
+        sg_name = utils.ovn_addrset_name('fake_id', 'ip4')
+        sg = self._make_security_group(self.fmt, sg_name, '')['security_group']
+
+        db_rev.create_initial_revision(
+            sg['id'], constants.TYPE_SECURITY_GROUPS, self.session,
+            revision_number=revision_number)
+        row = self.get_revision_row(sg['id'])
+        self.assertEqual(revision_number, row.revision_number)
+
+        if revision_number < 0:
+            self.fake_ovn_client._nb_idl.get_address_set.return_value = None
+        else:
+            self.fake_ovn_client._nb_idl.get_address_set.return_value = (
+                mock.sentinel.AddressSet)
+
+        self.fake_ovn_client._plugin.get_security_group.return_value = sg
+        self.periodic._fix_create_security_group(row)
+
+        if revision_number < 0:
+            self.fake_ovn_client.create_security_group.assert_called_once_with(
+                sg)
+        else:
+            # If the object already exist let's make sure we just bump
+            # the revision number in the ovn_revision_numbers table
+            self.assertFalse(self.fake_ovn_client.create_security_group.called)
+            mock_bump.assert_called_once_with(
+                sg, constants.TYPE_SECURITY_GROUPS)
+
+    def test_fix_security_group_create_doesnt_exist(self):
+        self._test_fix_security_group_create(revision_number=-1)
+
+    def test_fix_security_group_create_version_mismatch(self):
+        self._test_fix_security_group_create(revision_number=2)

@@ -213,6 +213,29 @@ class DBInconsistenciesPeriodics(object):
         else:
             self._ovn_client.delete_router(row.resource_uuid)
 
+    def _fix_create_security_group(self, row):
+        # Get the latest version of the resource in Neutron DB
+        admin_context = n_context.get_admin_context()
+        sg_db_obj = self._ovn_client._plugin.get_security_group(
+            admin_context, row.resource_uuid)
+        ovn_sg = self._nb_idl.get_address_set(
+            utils.ovn_addrset_name(row.resource_uuid, 'ip4'))
+
+        # Since we don't have updates for Security Groups, we only need to
+        # check whether its been created or not.
+        if not ovn_sg:
+            self._ovn_client.create_security_group(sg_db_obj)
+        else:
+            db_rev.bump_revision(sg_db_obj, ovn_const.TYPE_SECURITY_GROUPS)
+
+    def _fix_delete_security_group(self, row):
+        ovn_sg = self._nb_idl.get_address_set(
+            utils.ovn_addrset_name(row.resource_uuid, 'ip4'))
+        if not ovn_sg:
+            db_rev.delete_revision(row.resource_uuid)
+        else:
+            self._ovn_client.delete_security_group(row.resource_uuid)
+
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
@@ -238,6 +261,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_create_sg_rule(row)
                 elif row.resource_type == ovn_const.TYPE_ROUTERS:
                     self._fix_create_update_routers(row)
+                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
+                    self._fix_create_security_group(row)
             except Exception:
                 LOG.exception('Failed to fix resource %(res_uuid)s '
                               '(type: %(res_type)s)',
@@ -255,6 +280,8 @@ class DBInconsistenciesPeriodics(object):
                     self._fix_delete_sg_rule(row)
                 elif row.resource_type == ovn_const.TYPE_ROUTERS:
                     self._fix_delete_router(row)
+                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
+                    self._fix_delete_security_group(row)
             except Exception:
                 LOG.exception('Failed to fix deleted resource %(res_uuid)s '
                               '(type: %(res_type)s)',
