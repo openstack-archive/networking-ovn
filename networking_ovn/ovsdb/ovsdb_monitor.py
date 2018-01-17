@@ -25,6 +25,7 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp import event
 
 from networking_ovn.common import config as ovn_config
+from networking_ovn.common import utils
 
 LOG = log.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class ChassisEvent(row_event.RowEvent):
             phy_nets = list(mapping_dict)
 
         self.driver.update_segment_host_mapping(host, phy_nets)
-        if ovn_config.is_ovn_l3():
+        if utils.is_ovn_l3(self.l3_plugin):
             self.l3_plugin.schedule_unhosted_gateways()
 
 

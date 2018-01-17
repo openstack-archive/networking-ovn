@@ -199,7 +199,7 @@ def main():
     ovn_driver._sb_ovn = ovn_sb_api
 
     synchronizer = ovn_db_sync.OvnNbSynchronizer(
-        core_plugin, ovn_api, mode, ovn_driver)
+        core_plugin, ovn_api, ovn_sb_api, mode, ovn_driver)
 
     LOG.info('Sync for Northbound db started with mode : %s', mode)
     synchronizer.do_sync()

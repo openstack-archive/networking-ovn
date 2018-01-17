@@ -774,7 +774,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         delete_dhcp_options_list = ['UUID2', 'UUID4', 'UUID5']
 
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
-            self.plugin, self.mech_driver._nb_ovn, 'repair', self.mech_driver)
+            self.plugin, self.mech_driver._nb_ovn, self.mech_driver._sb_ovn,
+            'repair', self.mech_driver)
         self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
                                       self.networks,
                                       self.ports,
@@ -823,7 +824,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         delete_dhcp_options_list = []
 
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
-            self.plugin, self.mech_driver._nb_ovn, 'log', self.mech_driver)
+            self.plugin, self.mech_driver._nb_ovn, self.mech_driver._sb_ovn,
+            'log', self.mech_driver)
         self._test_ovn_nb_sync_helper(ovn_nb_synchronizer,
                                       self.networks,
                                       self.ports,

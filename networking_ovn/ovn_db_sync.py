@@ -66,17 +66,17 @@ class OvnDbSynchronizer(object):
 class OvnNbSynchronizer(OvnDbSynchronizer):
     """Synchronizer class for NB."""
 
-    def __init__(self, core_plugin, ovn_api, mode, ovn_driver):
+    def __init__(self, core_plugin, ovn_api, sb_ovn, mode, ovn_driver):
         super(OvnNbSynchronizer, self).__init__(
             core_plugin, ovn_api, ovn_driver)
         self.mode = mode
         self.l3_plugin = directory.get_plugin(plugin_constants.L3)
-        self._ovn_client = ovn_client.OVNClient(
-            ovn_api, self.l3_plugin._sb_ovn)
+        self._ovn_client = ovn_client.OVNClient(ovn_api, sb_ovn)
 
     def stop(self):
-        self.l3_plugin._ovn.ovsdb_connection.stop()
-        self.l3_plugin._sb_ovn.ovsdb_connection.stop()
+        if utils.is_ovn_l3(self.l3_plugin):
+            self.l3_plugin._ovn.ovsdb_connection.stop()
+            self.l3_plugin._sb_ovn.ovsdb_connection.stop()
         super(OvnNbSynchronizer, self).stop()
 
     def do_sync(self):
@@ -247,7 +247,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                               port,
                                               sg_cache,
                                               subnet_cache,
-                                              self.l3_plugin._ovn)
+                                              self.ovn_api)
                 if port_id in neutron_acls:
                     neutron_acls[port_id].extend(acl_list)
                 else:
@@ -328,7 +328,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                deleted from NB
         @return: Nothing
         """
-        if not config.is_ovn_l3():
+        if not utils.is_ovn_l3(self.l3_plugin):
             LOG.debug("OVN L3 mode is disabled, skipping "
                       "sync routers and router ports")
             return
@@ -954,7 +954,7 @@ class OvnSbSynchronizer(OvnDbSynchronizer):
 
         ctx = context.get_admin_context()
         self.sync_hostname_and_physical_networks(ctx)
-        if config.is_ovn_l3():
+        if utils.is_ovn_l3(self.l3_plugin):
             self.l3_plugin.schedule_unhosted_gateways()
 
     def sync_hostname_and_physical_networks(self, ctx):
