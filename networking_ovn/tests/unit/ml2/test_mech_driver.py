@@ -1267,16 +1267,37 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     @mock.patch.object(mech_driver.OVNMechanismDriver,
                        '_is_port_provisioning_required', lambda *_: True)
+    @mock.patch.object(ovn_client.OVNClient, 'update_router_port')
     @mock.patch.object(mech_driver.OVNMechanismDriver, '_notify_dhcp_updated')
     @mock.patch.object(ovn_client.OVNClient, 'update_port')
     def test_update_port_postcommit(self, mock_update_port,
-                                    mock_notify_dhcp):
+                                    mock_notify_dhcp,
+                                    mock_update_router_port):
         fake_port = fakes.FakePort.create_one_port(
             attrs={'status': const.PORT_STATUS_ACTIVE}).info()
         fake_ctx = mock.Mock(current=fake_port)
         self.mech_driver.update_port_postcommit(fake_ctx)
         mock_update_port.assert_called_once_with(
             fake_port, port_object=fake_ctx.original)
+        mock_update_router_port.assert_not_called()
+        mock_notify_dhcp.assert_called_once_with(fake_port['id'])
+
+    @mock.patch.object(mech_driver.OVNMechanismDriver,
+                       '_is_port_provisioning_required', lambda *_: True)
+    @mock.patch.object(ovn_client.OVNClient, 'update_router_port')
+    @mock.patch.object(mech_driver.OVNMechanismDriver, '_notify_dhcp_updated')
+    @mock.patch.object(ovn_client.OVNClient, 'update_port')
+    def test_update_port_postcommit_router_port(self, mock_update_port,
+                                                mock_notify_dhcp,
+                                                mock_update_router_port):
+        attrs = {'status': const.PORT_STATUS_ACTIVE,
+                 'device_owner': const.DEVICE_OWNER_ROUTER_INTF}
+        fake_port = fakes.FakePort.create_one_port(attrs=attrs).info()
+        fake_ctx = mock.Mock(current=fake_port)
+        self.mech_driver.update_port_postcommit(fake_ctx)
+        mock_update_port.assert_called_once_with(
+            fake_port, port_object=fake_ctx.original)
+        mock_update_router_port.assert_called_once_with(fake_port)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
 

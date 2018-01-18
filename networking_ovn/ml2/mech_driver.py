@@ -484,6 +484,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         port = context.current
         original_port = context.original
         self._ovn_client.update_port(port, port_object=original_port)
+        if utils.is_lsp_router_port(port):
+            self._ovn_client.update_router_port(port)
         self._notify_dhcp_updated(port['id'])
 
     def delete_port_postcommit(self, context):

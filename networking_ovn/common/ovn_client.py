@@ -974,7 +974,7 @@ class OVNClient(object):
                     port['id'], lrouter_port_name, is_gw_port=is_gw_port)]
         self._transaction(commands, txn=txn)
 
-    def update_router_port(self, router_id, port):
+    def update_router_port(self, port):
         """Update a logical router port."""
         networks, ipv6_ra_configs = (
             self._get_nets_and_ipv6_ra_confs_for_router_port(
