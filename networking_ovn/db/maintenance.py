@@ -15,7 +15,9 @@
 
 from neutron.db import standard_attr
 from neutron_lib.db import api as db_api
+import sqlalchemy as sa
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import models
 
 
@@ -25,6 +27,8 @@ def get_inconsistent_resources():
     :returns: A list of objects which the revision number from the
               ovn_revision_number and standardattributes tables differs.
     """
+    sort_order = sa.case(value=models.OVNRevisionNumbers.resource_type,
+                         whens=ovn_const.MAINTENANCE_CREATE_UPDATE_TYPE_ORDER)
     session = db_api.get_reader_session()
     with session.begin():
         return (session.query(models.OVNRevisionNumbers).
@@ -34,7 +38,8 @@ def get_inconsistent_resources():
                     standard_attr.StandardAttribute.id).
                 filter(
                     models.OVNRevisionNumbers.revision_number !=
-                    standard_attr.StandardAttribute.revision_number).all())
+                    standard_attr.StandardAttribute.revision_number).
+                order_by(sort_order).all())
 
 
 def get_deleted_resources():
@@ -49,7 +54,9 @@ def get_deleted_resources():
     the entry will be kept and returned in this list so the maintenance
     thread can later fix it.
     """
+    sort_order = sa.case(value=models.OVNRevisionNumbers.resource_type,
+                         whens=ovn_const.MAINTENANCE_DELETE_TYPE_ORDER)
     session = db_api.get_reader_session()
     with session.begin():
         return session.query(models.OVNRevisionNumbers).filter_by(
-            standard_attr_id=None).all()
+            standard_attr_id=None).order_by(sort_order).all()

@@ -102,3 +102,22 @@ TYPE_ROUTERS = 'routers'
 TYPE_SECURITY_GROUPS = 'security_groups'
 TYPE_FLOATINGIPS = 'floatingips'
 TYPE_SUBNETS = 'subnets'
+
+_TYPES_PRIORITY_ORDER = (
+    TYPE_NETWORKS,
+    TYPE_SECURITY_GROUPS,
+    TYPE_SUBNETS,
+    TYPE_ROUTERS,
+    TYPE_PORTS,
+    TYPE_FLOATINGIPS,
+    TYPE_SECURITY_GROUP_RULES)
+
+# The order in which the resources should be created or updated by the
+# maintenance task: Root ones first and leafs at the end.
+MAINTENANCE_CREATE_UPDATE_TYPE_ORDER = {
+    t: n for n, t in enumerate(_TYPES_PRIORITY_ORDER, 1)}
+
+# The order in which the resources should be deleted by the maintenance
+# task: Leaf ones first and roots at the end.
+MAINTENANCE_DELETE_TYPE_ORDER = {
+    t: n for n, t in enumerate(reversed(_TYPES_PRIORITY_ORDER), 1)}
