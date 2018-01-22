@@ -18,6 +18,7 @@ from oslo_log import log
 import tenacity
 
 from neutron_lib.utils import helpers
+from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
@@ -537,8 +538,7 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
 
     def get_lswitch_port(self, lsp_name):
         try:
-            return idlutils.row_by_value(self.idl, 'Logical_Switch_Port',
-                                         'name', lsp_name)
+            return self.lookup('Logical_Switch_Port', lsp_name)
         except idlutils.RowNotFound:
             return None
 
@@ -549,9 +549,14 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         return lsp.parent_name
 
     def get_lswitch(self, lswitch_name):
+        # FIXME(lucasagomes): We should refactor those get_*()
+        # methods. Some of 'em require the name, others IDs etc... It can
+        # be confusing.
+        if uuidutils.is_uuid_like(lswitch_name):
+            lswitch_name = utils.ovn_name(lswitch_name)
+
         try:
-            return idlutils.row_by_value(self.idl, 'Logical_Switch',
-                                         'name', lswitch_name)
+            return self.lookup('Logical_Switch', lswitch_name)
         except idlutils.RowNotFound:
             return None
 
@@ -608,7 +613,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                nat['external_ip'] == external_ip):
                 return nat
 
-    def get_address_set(self, addr_name):
+    def get_address_set(self, addrset_id, ip_version='ip4'):
+        addr_name = utils.ovn_addrset_name(addrset_id, ip_version)
         try:
             return idlutils.row_by_value(self.idl, 'Address_Set',
                                          'name', addr_name)
@@ -621,6 +627,9 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             self, name, resource, resource_type, if_exists)
 
     def get_lrouter(self, lrouter_name):
+        if uuidutils.is_uuid_like(lrouter_name):
+            lrouter_name = utils.ovn_name(lrouter_name)
+
         # TODO(lucasagomes): Use lr_get() once we start refactoring this
         # API to use methods from ovsdbapp.
         lr = self.db_find_rows('Logical_Router', ('name', '=', lrouter_name))
