@@ -64,8 +64,10 @@ r="^(?!.*"
 # exclude the slow tag (part of the default for 'full')
 r="$r(?:.*\[.*\bslow\b.*\])"
 
-# TODO(chandrav): Opened bug #1629073 to track this
-r="$r|(?:tempest\.scenario\.test_network_v6.*)"
+# TODO(numans): Remove this if once OVS 2.9 branch is created.
+if [[ "${OVN_OPTS}" == *"latest-release"* ]] ; then
+    r="$r|(?:tempest\.scenario\.test_network_v6.*)"
+fi
 
 # exclude things that just aren't enabled with OVN
 r="$r|(?:tempest\.api\.network\.admin\.test_quotas\.QuotasTest\.test_lbaas_quotas.*)"
