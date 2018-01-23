@@ -75,6 +75,29 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
                     ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY) == name):
                 return row
 
+    def _create_subnet(self, net_id, cidr, name='subnet1'):
+        data = {'subnet': {'name': name,
+                           'tenant_id': self._tenant_id,
+                           'network_id': net_id,
+                           'cidr': cidr,
+                           'ip_version': 4,
+                           'enable_dhcp': True}}
+        req = self.new_create_request('subnets', data, self.fmt)
+        res = req.get_response(self.api)
+        return self.deserialize(self.fmt, res)['subnet']
+
+    def _update_subnet_name(self, subnet_id, new_name):
+        data = {'subnet': {'name': new_name}}
+        req = self.new_update_request('subnets', data, subnet_id, self.fmt)
+        res = req.get_response(self.api)
+        return self.deserialize(self.fmt, res)['subnet']
+
+    def _find_subnet_row_by_id(self, subnet_id):
+        for row in self.nb_api._tables['DHCP_Options'].rows.values():
+            if (row.external_ids.get('subnet_id') == subnet_id and
+               not row.external_ids.get('port_id')):
+                return row
+
     def test_create_network(self):
         name = 'net1'
         neutron_net = self._create_network(name)
@@ -142,6 +165,30 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         self.assertEqual(str(1), ovn_revision)
         # Assert it also matches with the newest returned by neutron API
         self.assertEqual(str(updated_router['revision_number']), ovn_revision)
+
+    def test_create_subnet(self):
+        neutron_net = self._create_network('net1')
+        neutron_subnet = self._create_subnet(neutron_net['id'], '10.0.0.0/24')
+        ovn_subnet = self._find_subnet_row_by_id(neutron_subnet['id'])
+
+        ovn_revision = ovn_subnet.external_ids[
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY]
+        self.assertEqual(str(0), ovn_revision)
+        # Assert it also matches with the newest returned by neutron API
+        self.assertEqual(str(neutron_subnet['revision_number']), ovn_revision)
+
+    def test_update_subnet(self):
+        neutron_net = self._create_network('net1')
+        neutron_subnet = self._create_subnet(neutron_net['id'], '10.0.0.0/24')
+        updated_subnet = self._update_subnet_name(
+            neutron_subnet['id'], 'newsubnet')
+        ovn_subnet = self._find_subnet_row_by_id(neutron_subnet['id'])
+
+        ovn_revision = ovn_subnet.external_ids[
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY]
+        self.assertEqual(str(1), ovn_revision)
+        # Assert it also matches with the newest returned by neutron API
+        self.assertEqual(str(updated_subnet['revision_number']), ovn_revision)
 
     # TODO(lucasagomes): Add a test for floating IPs here when we get
     # the router stuff done.

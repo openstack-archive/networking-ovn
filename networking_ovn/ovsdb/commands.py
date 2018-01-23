@@ -23,6 +23,7 @@ RESOURCE_TYPE_MAP = {
     ovn_const.TYPE_PORTS: 'Logical_Switch_Port',
     ovn_const.TYPE_ROUTERS: 'Logical_Router',
     ovn_const.TYPE_FLOATINGIPS: 'NAT',
+    ovn_const.TYPE_SUBNETS: 'DHCP_Options',
 }
 
 
@@ -1038,12 +1039,26 @@ class CheckRevisionNumberCommand(command.BaseCommand):
         raise idlutils.RowNotFound(
             table='NAT', col='external_ids', match=self.name)
 
+    def _get_subnet(self):
+        for dhcp in self.api._tables['DHCP_Options'].rows.values():
+            ext_ids = getattr(dhcp, 'external_ids', {})
+            # Ignore ports DHCP Options
+            if ext_ids.get('port_id'):
+                continue
+            if ext_ids.get('subnet_id') == self.name:
+                return dhcp
+
+        raise idlutils.RowNotFound(
+            table='DHCP_Options', col='external_ids', match=self.name)
+
     def run_idl(self, txn):
         try:
             ovn_table = RESOURCE_TYPE_MAP[self.resource_type]
             ovn_resource = None
             if self.resource_type == ovn_const.TYPE_FLOATINGIPS:
                 ovn_resource = self._get_floatingip()
+            elif self.resource_type == ovn_const.TYPE_SUBNETS:
+                ovn_resource = self._get_subnet()
             else:
                 ovn_resource = self.api.lookup(ovn_table, self.name)
         except idlutils.RowNotFound:

@@ -22,6 +22,7 @@ from oslo_config import cfg
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import config as ovn_config
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.tests.functional import base
 
@@ -39,12 +40,22 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
     def tearDown(self):
         super(TestNBDbResources, self).tearDown()
 
+    # FIXME(lucasagomes): Map the revision numbers properly instead
+    # of stripping them out. Currently, tests like test_dhcp_options()
+    # are quite complex making it difficult to map the exact the revision
+    # number that the DHCP Option will be at assertion time, we need to
+    # refactor it a little to make it easier for mapping these updates.
+    def _strip_revision_number(self, ext_ids):
+        ext_ids.pop(ovn_const.OVN_REV_NUM_EXT_ID_KEY, None)
+        return ext_ids
+
     def _verify_dhcp_option_rows(self, expected_dhcp_options_rows):
         expected_dhcp_options_rows = list(expected_dhcp_options_rows.values())
         observed_dhcp_options_rows = []
         for row in self.nb_api.tables['DHCP_Options'].rows.values():
+            ext_ids = self._strip_revision_number(row.external_ids)
             observed_dhcp_options_rows.append({
-                'cidr': row.cidr, 'external_ids': row.external_ids,
+                'cidr': row.cidr, 'external_ids': ext_ids,
                 'options': row.options})
 
         self.assertItemsEqual(expected_dhcp_options_rows,
@@ -58,17 +69,21 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                     None)
 
         if lsp.dhcpv4_options:
+            ext_ids = self._strip_revision_number(
+                lsp.dhcpv4_options[0].external_ids)
             observed_lsp_dhcpv4_options = {
                 'cidr': lsp.dhcpv4_options[0].cidr,
-                'external_ids': lsp.dhcpv4_options[0].external_ids,
+                'external_ids': ext_ids,
                 'options': lsp.dhcpv4_options[0].options}
         else:
             observed_lsp_dhcpv4_options = {}
 
         if lsp.dhcpv6_options:
+            ext_ids = self._strip_revision_number(
+                lsp.dhcpv6_options[0].external_ids)
             observed_lsp_dhcpv6_options = {
                 'cidr': lsp.dhcpv6_options[0].cidr,
-                'external_ids': lsp.dhcpv6_options[0].external_ids,
+                'external_ids': ext_ids,
                 'options': lsp.dhcpv6_options[0].options}
         else:
             observed_lsp_dhcpv6_options = {}
