@@ -573,12 +573,14 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertEqual(len(add_snat_list),
                          ovn_api.add_nat_rule_in_lrouter.call_count)
 
-        add_fip_calls = [mock.call(nat) for nat in add_floating_ip_list]
-        ovn_nb_synchronizer._ovn_client.create_floatingip.assert_has_calls(
-            add_fip_calls)
+        add_fip_calls = [mock.call(nat, txn=mock.ANY)
+                         for nat in add_floating_ip_list]
+        (ovn_nb_synchronizer._ovn_client._create_or_update_floatingip.
+            assert_has_calls(add_fip_calls))
         self.assertEqual(
             len(add_floating_ip_list),
-            ovn_nb_synchronizer._ovn_client.create_floatingip.call_count)
+            ovn_nb_synchronizer._ovn_client._create_or_update_floatingip.
+            call_count)
 
         del_nat_calls = [mock.call(mock.ANY, **nat) for nat in del_snat_list]
         ovn_api.delete_nat_rule_in_lrouter.assert_has_calls(del_nat_calls,
@@ -586,7 +588,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertEqual(len(del_snat_list),
                          ovn_api.delete_nat_rule_in_lrouter.call_count)
 
-        del_fip_calls = [mock.call(nat, mock.ANY) for nat in
+        del_fip_calls = [mock.call(nat, mock.ANY, txn=mock.ANY) for nat in
                          del_floating_ip_list]
         ovn_nb_synchronizer._ovn_client._delete_floatingip.assert_has_calls(
             del_fip_calls, any_order=True)

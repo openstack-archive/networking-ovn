@@ -77,6 +77,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         registry.subscribe(
             self.create_router_precommit, resources.ROUTER,
             events.PRECOMMIT_CREATE)
+        registry.subscribe(
+            self.create_floatingip_precommit, resources.FLOATING_IP,
+            events.PRECOMMIT_CREATE)
 
     @property
     def _ovn_client(self):
@@ -250,6 +253,11 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
 
         return router_interface_info
 
+    def create_floatingip_precommit(self, resource, event, trigger, context,
+                                    floatingip, floatingip_id, floatingip_db):
+        db_rev.create_initial_revision(
+            floatingip_id, ovn_const.TYPE_FLOATINGIPS, context.session)
+
     def create_floatingip(self, context, floatingip,
                           initial_status=n_const.FLOATINGIP_STATUS_DOWN):
         fip = super(OVNL3RouterPlugin, self).create_floatingip(
@@ -275,6 +283,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         fip = super(OVNL3RouterPlugin, self).update_floatingip(context, id,
                                                                floatingip)
         self._ovn_client.update_floatingip(fip, fip_object=original_fip)
+        return fip
+
+    def update_floatingip_status(self, context, floatingip_id, status):
+        fip = super(OVNL3RouterPlugin, self).update_floatingip_status(
+            context, floatingip_id, status)
+        self._ovn_client.update_floatingip_status(fip)
         return fip
 
     def disassociate_floatingips(self, context, port_id, do_notify=True):

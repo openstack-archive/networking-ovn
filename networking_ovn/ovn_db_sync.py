@@ -544,7 +544,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                             fip['del'])
                         for nat in fip['del']:
                             self._ovn_client._delete_floatingip(
-                                nat, utils.ovn_name(fip['id']))
+                                nat, utils.ovn_name(fip['id']), txn=txn)
                 if fip['add']:
                     LOG.warning("Router %(id)s floating ips %(fip)s "
                                 "found in Neutron but not in OVN",
@@ -553,7 +553,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         LOG.warning("Add floating ips %s to OVN NB DB",
                                     fip['add'])
                         for nat in fip['add']:
-                            self._ovn_client.create_floatingip(nat)
+                            self._ovn_client._create_or_update_floatingip(
+                                nat, txn=txn)
             for snat in update_snats_list:
                 if snat['del']:
                     LOG.warning("Router %(id)s snat %(snat)s "

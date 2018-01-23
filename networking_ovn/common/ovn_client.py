@@ -568,6 +568,8 @@ class OVNClient(object):
 
         ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: floatingip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(utils.get_revision_number(
+                floatingip, ovn_const.TYPE_FLOATINGIPS)),
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY: floatingip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: gw_lrouter_name}
         columns = {'type': 'dnat_and_snat',
@@ -594,6 +596,16 @@ class OVNClient(object):
                     external_ip=fip['external_ip'])]
         self._transaction(commands, txn=txn)
 
+    def update_floatingip_status(self, floatingip):
+        # NOTE(lucasagomes): OVN doesn't care about the floating ip
+        # status, this method just bumps the revision number
+        check_rev_cmd = self._nb_idl.check_revision_number(
+            floatingip['id'], floatingip, ovn_const.TYPE_FLOATINGIPS)
+        with self._nb_idl.transaction(check_error=True) as txn:
+            txn.add(check_rev_cmd)
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+            db_rev.bump_revision(floatingip, ovn_const.TYPE_FLOATINGIPS)
+
     def create_floatingip(self, floatingip):
         try:
             self._create_or_update_floatingip(floatingip)
@@ -601,6 +613,9 @@ class OVNClient(object):
             with excutils.save_and_reraise_exception():
                 LOG.error('Unable to create floating ip in gateway '
                           'router. Error: %s', e)
+
+        db_rev.bump_revision(floatingip, ovn_const.TYPE_FLOATINGIPS)
+
         # NOTE(lucasagomes): Revise the expected status
         # of floating ips, setting it to ACTIVE here doesn't
         # see consistent with other drivers (ODL here), see:
@@ -625,7 +640,10 @@ class OVNClient(object):
                 router_id, fip_object['fixed_ip_address'],
                 fip_object['floating_ip_address'])
 
+        check_rev_cmd = self._nb_idl.check_revision_number(
+            floatingip['id'], floatingip, ovn_const.TYPE_FLOATINGIPS)
         with self._nb_idl.transaction(check_error=True) as txn:
+            txn.add(check_rev_cmd)
             if (ovn_fip and
                 (floatingip['fixed_ip_address'] != ovn_fip['logical_ip'] or
                  floatingip['port_id'] != ovn_fip['external_ids'].get(
@@ -641,6 +659,9 @@ class OVNClient(object):
             if floatingip.get('port_id'):
                 self._create_or_update_floatingip(floatingip, txn=txn)
                 fip_status = const.FLOATINGIP_STATUS_ACTIVE
+
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+            db_rev.bump_revision(floatingip, ovn_const.TYPE_FLOATINGIPS)
 
         if fip_status:
             self._l3_plugin.update_floatingip_status(
@@ -660,18 +681,17 @@ class OVNClient(object):
                 router_id, fip_object['fixed_ip_address'],
                 fip_object['floating_ip_address'])
 
-        if not ovn_fip:
-            return
-
-        lrouter = ovn_fip['external_ids'].get(
-            ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY, utils.ovn_name(router_id))
-
-        try:
-            self._delete_floatingip(ovn_fip, lrouter)
-        except Exception as e:
-            with excutils.save_and_reraise_exception():
-                LOG.error('Unable to delete floating ip in gateway '
-                          'router. Error: %s', e)
+        if ovn_fip:
+            lrouter = ovn_fip['external_ids'].get(
+                ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY,
+                utils.ovn_name(router_id))
+            try:
+                self._delete_floatingip(ovn_fip, lrouter)
+            except Exception as e:
+                with excutils.save_and_reraise_exception():
+                    LOG.error('Unable to delete floating ip in gateway '
+                              'router. Error: %s', e)
+        db_rev.delete_revision(fip_id)
 
     def disassociate_floatingip(self, floatingip, router_id):
         lrouter = utils.ovn_name(router_id)

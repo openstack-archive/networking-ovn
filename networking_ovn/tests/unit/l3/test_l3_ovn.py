@@ -173,12 +173,23 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayLeastLoadedScheduler._schedule_gateway',
             return_value=['hv1'])
+        # FIXME(lucasagomes): We shouldn't be mocking the creation of
+        # floating IPs here, that makes the FIP to not be registered in
+        # the standardattributes table and therefore we also need to mock
+        # bump_revision.
         self._start_mock(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.create_floatingip',
             return_value=self.fake_floating_ip)
         self._start_mock(
+            'networking_ovn.db.revision.bump_revision',
+            return_value=None)
+        self._start_mock(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip',
             return_value=self.fake_floating_ip)
+        self._start_mock(
+            'networking_ovn.common.ovn_client.'
+            'OVNClient.update_floatingip_status',
+            return_value=None)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
     def test_add_router_interface(self, func):
@@ -713,6 +724,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.create_floatingip(self.context, 'floatingip')
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -737,6 +749,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.create_floatingip(self.context, 'floatingip')
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -758,6 +771,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_not_called()
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -782,6 +796,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.set_nat_rule_in_lrouter.assert_not_called()
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -823,6 +838,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             external_ip='192.168.0.10')
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip_new['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip_new['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -846,6 +862,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_not_called()
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip_new['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip_new['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -873,6 +890,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_not_called()
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip_new['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip_new['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -916,6 +934,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             external_ip='192.168.0.10')
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip_new['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip_new['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
@@ -1001,6 +1020,13 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             'networking_ovn.common.ovn_client.OVNClient.'
             '_get_v4_network_of_all_router_ports',
             return_value=[])
+        self._start_mock(
+            'networking_ovn.common.ovn_client.'
+            'OVNClient.update_floatingip_status',
+            return_value=None)
+        self._start_mock(
+            'networking_ovn.common.utils.get_revision_number',
+            return_value=1)
         self.setup_notification_driver()
 
     # Note(dongj): According to bug #1657693, status of an unassociated
