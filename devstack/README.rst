@@ -13,7 +13,9 @@
      cd devstack
      cat << EOF >> local.conf
      > enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
-     > enable_service ovn
+     > enable_service ovn-northd
+     > enable_service ovn-controller
+     > enable_service networking-ovn-metadata-agent
      > EOF
 
 You can also use the provided example local.conf, or look at its contents to
