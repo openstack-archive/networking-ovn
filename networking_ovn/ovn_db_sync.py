@@ -392,8 +392,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         # ipv6_ra_configs values. Lets add it to the
                         # update_lrport_list. If they are in sync, then
                         # update_router_port will be a no-op.
-                        update_lrport_list.append((
-                            lrouter['name'], db_router_ports[lrport]))
+                        update_lrport_list.append(db_router_ports[lrport])
                         del db_router_ports[lrport]
                     else:
                         del_lrouter_ports_list.append(
@@ -474,7 +473,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning("Create router port in OVN "
                                 "NB failed for router port %s", rrport['id'])
 
-        for router_id, rport in update_lrport_list:
+        for rport in update_lrport_list:
             LOG.warning("Router Port port_id=%s needs to be updated "
                         "for networks changed",
                         rport['id'])
@@ -483,7 +482,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     LOG.warning(
                         "Updating networks on router port %s in OVN NB DB",
                         rport['id'])
-                    self._ovn_client.update_router_port(router_id, rport)
+                    self._ovn_client.update_router_port(rport)
                 except RuntimeError:
                     LOG.warning("Update router port networks in OVN "
                                 "NB failed for router port %s", rport['id'])

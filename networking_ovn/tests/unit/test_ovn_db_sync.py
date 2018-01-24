@@ -616,8 +616,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.assertEqual(len(del_router_list),
                          ovn_api.delete_lrouter.call_count)
-        update_router_port_calls = [mock.call(r, p)
-                                    for (r, p) in update_router_port_list]
+        update_router_port_calls = [mock.call(p)
+                                    for p in update_router_port_list]
         self.assertEqual(
             len(update_router_port_list),
             ovn_nb_synchronizer._ovn_client.update_router_port.call_count)
@@ -754,8 +754,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         del_router_list = [{'router': 'neutron-r3'}]
         del_router_port_list = [{'id': 'lrp-p3r1', 'router': 'neutron-r1'}]
         create_router_port_list = self.get_sync_router_ports[:2]
-        update_router_port_list = [('r4', self.get_sync_router_ports[2])]
-        update_router_port_list[0][1].update(
+        update_router_port_list = [self.get_sync_router_ports[2]]
+        update_router_port_list[0].update(
             {'networks': self.lrport_networks})
 
         add_address_set_list = [
