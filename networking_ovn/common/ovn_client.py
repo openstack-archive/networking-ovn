@@ -901,7 +901,7 @@ class OVNClient(object):
         networks = self._get_v4_network_of_all_router_ports(context, router_id)
         try:
             check_rev_cmd = self._nb_idl.check_revision_number(
-                router_id, new_router, ovn_const.TYPE_ROUTERS)
+                router_name, new_router, ovn_const.TYPE_ROUTERS)
             with self._nb_idl.transaction(check_error=True) as txn:
                 txn.add(check_rev_cmd)
                 if gateway_new and not gateway_old:
