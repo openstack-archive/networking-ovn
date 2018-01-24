@@ -28,6 +28,9 @@ from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import connection
 
+# Load all the models to register them into SQLAlchemy metadata before using
+# the SqlFixture
+from networking_ovn.db import models  # noqa
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
