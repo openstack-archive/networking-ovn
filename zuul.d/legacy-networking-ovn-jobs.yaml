@@ -109,6 +109,7 @@
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
       - openstack/neutron
+      - openstack/neutron-tempest-plugin
       - openstack/tempest
 
 - job:
