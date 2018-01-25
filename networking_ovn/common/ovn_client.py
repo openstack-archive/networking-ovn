@@ -982,16 +982,40 @@ class OVNClient(object):
             txn.add(self._nb_idl.delete_lrouter(lrouter_name))
         db_rev.delete_revision(router_id, ovn_const.TYPE_ROUTERS)
 
-    def get_candidates_for_scheduling(self, extnet):
+    def get_candidates_for_scheduling(self, physnet, cms=None,
+                                      chassis_physnets=None):
+        """Return chassis for scheduling gateway router.
+
+        Criteria for selecting chassis as candidates
+        1) chassis from cms with proper bridge mappings
+        2) if no chassis is available from 1) then,
+           select chassis with proper bridge mappings
+        """
+        cms = cms or self._sb_idl.get_gateway_chassis_from_cms_options()
+        chassis_physnets = (chassis_physnets or
+                            self._sb_idl.get_chassis_and_physnets())
+        cms_bmaps = []
+        bmaps = []
+        for chassis, physnets in chassis_physnets.items():
+            if physnet and physnet in physnets:
+                if chassis in cms:
+                    cms_bmaps.append(chassis)
+                else:
+                    bmaps.append(chassis)
+        candidates = cms_bmaps or bmaps
+        if not cms_bmaps:
+            LOG.debug("No eligible chassis with external connectivity"
+                      " through ovn-cms-options.")
+        LOG.debug("Chassis candidates with external connectivity: %s",
+                  candidates)
+        return candidates
+
+    def _get_physnet(self, net_id):
+        extnet = self._plugin.get_network(n_context.get_admin_context(),
+                                          net_id)
         if extnet.get(pnet.NETWORK_TYPE) in [const.TYPE_FLAT,
                                              const.TYPE_VLAN]:
-            physnet = extnet.get(pnet.PHYSICAL_NETWORK)
-            if not physnet:
-                return []
-            chassis_physnets = self._sb_idl.get_chassis_and_physnets()
-            return [chassis for chassis, physnets in chassis_physnets.items()
-                    if physnet in physnets]
-        return []
+            return extnet.get(pnet.PHYSICAL_NETWORK)
 
     def _gen_router_port_ext_ids(self, port):
         return {
@@ -1009,9 +1033,8 @@ class OVNClient(object):
             'device_owner')
         columns = {}
         if is_gw_port:
-            context = n_context.get_admin_context()
-            candidates = self.get_candidates_for_scheduling(
-                self._plugin.get_network(context, port['network_id']))
+            physnet = self._get_physnet(port['network_id'])
+            candidates = self.get_candidates_for_scheduling(physnet)
             selected_chassis = self._ovn_scheduler.select(
                 self._nb_idl, self._sb_idl, lrouter_port_name,
                 candidates=candidates)

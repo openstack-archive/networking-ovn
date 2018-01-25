@@ -70,3 +70,9 @@ VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
 #PHYSICAL_NETWORK=providernet
 #OVS_PHYSICAL_BRIDGE=br-provider
 #PUBLIC_INTERFACE=<public interface>
+
+# If the admin wants to enable this chassis to host gateway routers for
+# external connectivity, then set ENABLE_CHASSIS_AS_GW to True.
+# Then devstack will set ovn-cms-options with enable-chassis-as-gw
+# in Open_vSwitch table's external_ids column.
+#ENABLE_CHASSIS_AS_GW=False

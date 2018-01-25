@@ -99,6 +99,9 @@ integration as follows, in the case of centralized routing:
 #   :alt: Architecture for Networking service with OVN integration (DVR)
 #   :align: center
 
+For external connectivity, gateway nodes have to set ovn-cms-options
+with enable-chassis-as-gw in Open_vSwitch table's external_ids column.
+$ovs-vsctl set open . external-ids:ovn-cms-options="enable-chassis-as-gw"
 
 Each compute node contains the following network components:
 

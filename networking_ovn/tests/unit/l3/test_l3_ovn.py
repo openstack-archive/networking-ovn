@@ -1066,6 +1066,10 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             'OVNGatewayScheduler._schedule_gateway',
             return_value='hv1')
         self._start_mock(
+            'networking_ovn.common.ovn_client.'
+            'OVNClient.get_candidates_for_scheduling',
+            return_value=[])
+        self._start_mock(
             'networking_ovn.common.ovn_client.OVNClient.'
             '_get_v4_network_of_all_router_ports',
             return_value=[])
