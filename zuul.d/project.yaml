@@ -1,5 +1,4 @@
 - project:
-    name: openstack/networking-ovn
     check:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master:
