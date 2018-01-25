@@ -27,7 +27,7 @@ enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
 
 disable_all_services
 enable_service n-cpu
-enable_service placement-api
+enable_service placement-client
 enable_service ovn-controller
 enable_service networking-ovn-metadata-agent
 
