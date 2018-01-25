@@ -44,6 +44,8 @@ PHYSICAL_NETWORK=provider
 # as necessary for your environment.
 NETWORK_GATEWAY=172.16.1.1
 FIXED_RANGE=172.16.1.0/24
+
+ENABLE_CHASSIS_AS_GW=False
 DEVSTACKEOF
 
 # Add unique post-config for DevStack here using a separate 'cat' with

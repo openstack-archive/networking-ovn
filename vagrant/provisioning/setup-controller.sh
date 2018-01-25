@@ -71,6 +71,12 @@ PUBLIC_SUBNET_NAME=provider-v4
 IPV6_PUBLIC_SUBNET_NAME=provider-v6
 Q_FLOATING_ALLOCATION_POOL="start=$start_ip,end=$end_ip"
 FLOATING_RANGE="$network"
+
+# If the admin wants to enable this chassis to host gateway routers for
+# external connectivity, then set ENABLE_CHASSIS_AS_GW to True.
+# Then devstack will set ovn-cms-options with enable-chassis-as-gw
+# in Open_vSwitch table's external_ids column
+ENABLE_CHASSIS_AS_GW=True
 DEVSTACKEOF
 
 # Add unique post-config for DevStack here using a separate 'cat' with

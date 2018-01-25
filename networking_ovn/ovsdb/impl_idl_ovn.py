@@ -408,7 +408,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         except idlutils.RowNotFound:
             return []
 
-    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets):
+    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets,
+                              gw_chassis):
         unhosted_gateways = []
         valid_chassis_list = list(chassis_physnets)
         for lrp in self._tables['Logical_Router_Port'].rows.values():
@@ -423,7 +424,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                 if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
                         chassis_name not in valid_chassis_list or
                         (physnet and
-                         physnet not in chassis_physnets.get(chassis_name))):
+                         physnet not in chassis_physnets.get(chassis_name)) or
+                        (gw_chassis and chassis_name not in gw_chassis)):
                     unhosted_gateways.append(lrp.name)
         return unhosted_gateways
 
@@ -671,6 +673,14 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
         for ch in self.chassis_list().execute(check_error=True):
             chassis_info_dict[ch.hostname] = self._get_chassis_physnets(ch)
         return chassis_info_dict
+
+    def get_gateway_chassis_from_cms_options(self):
+        gw_chassis = []
+        for ch in self.chassis_list().execute(check_error=True):
+            cms_options = ch.external_ids.get('ovn-cms-options', '')
+            if 'enable-chassis-as-gw' in cms_options.split(','):
+                gw_chassis.append(ch.name)
+        return gw_chassis
 
     def get_chassis_and_physnets(self):
         chassis_info_dict = {}

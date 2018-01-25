@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    New option "enable-chassis-as-gw" to select gateway router.
+    For external connectivity, gateway nodes have to set ovn-cms-options
+    with enable-chassis-as-gw in Open_vSwitch table's external_ids column.
+
+    $ovs-vsctl set open . external-ids:ovn-cms-options="enable-chassis-as-gw"
+
+    Networking-ovn will parse ovn-cms-options and select this chassis
+    if it has proper bridge mappings. This helps admin to exclude compute
+    nodes to host gateway routers as they are more likely to be restarted
+    for maintenance operations. If no chassis with enable-chassis-as-gw and
+    proper bridge mappings available, then chassis with only bridge mappings
+    are selected for scheduling router gateway.
+
+    This is not a config option enabled through conf files. Instead admin
+    has to set it through openstack installer or manually in Open_vSwitch
+    table.
