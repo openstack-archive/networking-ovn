@@ -1005,7 +1005,7 @@ class OVNClient(object):
                     port['id'], lrouter_port_name, is_gw_port=is_gw_port)]
         self._transaction(commands, txn=txn)
 
-    def update_router_port(self, port):
+    def update_router_port(self, port, if_exists=False):
         """Update a logical router port."""
         networks, ipv6_ra_configs = (
             self._get_nets_and_ipv6_ra_confs_for_router_port(
@@ -1017,7 +1017,7 @@ class OVNClient(object):
             'device_owner')
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.update_lrouter_port(name=lrouter_port_name,
-                                                     if_exists=False,
+                                                     if_exists=if_exists,
                                                      **update))
             txn.add(self._nb_idl.set_lrouter_port_in_lswitch_port(
                     port['id'], lrouter_port_name, is_gw_port=is_gw_port))

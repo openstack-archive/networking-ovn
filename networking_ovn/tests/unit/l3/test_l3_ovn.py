@@ -20,6 +20,8 @@ from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import resources
 from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import constants as plugin_constants
@@ -973,6 +975,20 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             self.l3_inst._ovn.delete_nat_rule_in_lrouter.call_count)
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_has_calls(
             delete_nat_calls, any_order=True)
+
+    @mock.patch('networking_ovn.common.ovn_client.OVNClient'
+                '.update_router_port')
+    def test_port_update_postcommit(self, update_rp_mock):
+        kwargs = {'port': {'device_owner': 'foo'}}
+        self.l3_inst._port_update(resources.PORT, events.AFTER_UPDATE, None,
+                                  **kwargs)
+        update_rp_mock.assert_not_called()
+
+        kwargs = {'port': {'device_owner': constants.DEVICE_OWNER_ROUTER_INTF}}
+        self.l3_inst._port_update(resources.PORT, events.AFTER_UPDATE, None,
+                                  **kwargs)
+
+        update_rp_mock.assert_called_once_with(kwargs['port'], if_exists=True)
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,

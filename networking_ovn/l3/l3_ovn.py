@@ -375,3 +375,19 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             for router_id in router_ids:
                 l3plugin._ovn_client.update_router_routes(
                     context, router_id, add, remove, txn=txn)
+
+    @staticmethod
+    @registry.receives(resources.PORT, [events.AFTER_UPDATE])
+    def _port_update(resource, event, trigger, **kwargs):
+        l3plugin = directory.get_plugin(plugin_constants.L3)
+        if not l3plugin:
+            return
+
+        current = kwargs['port']
+
+        if utils.is_lsp_router_port(current):
+            # We call the update_router port with if_exists, because neutron,
+            # internally creates the port, and then calls update, which will
+            # trigger this callback even before we had the chance to create
+            # the OVN NB DB side
+            l3plugin._ovn_client.update_router_port(current, if_exists=True)
