@@ -23,7 +23,6 @@ from neutron_lib import worker
 from oslo_log import log
 
 from networking_ovn.common import constants as ovn_const
-from networking_ovn.common import utils
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
 
@@ -92,179 +91,94 @@ class DBInconsistenciesPeriodics(object):
         self._idl = self._nb_idl.idl
         self._idl.set_lock('ovn_db_inconsistencies_periodics')
 
+        self._resources_func_map = {
+            ovn_const.TYPE_NETWORKS: {
+                'neutron_get': self._ovn_client._plugin.get_network,
+                'ovn_get': self._nb_idl.get_lswitch,
+                'ovn_create': self._ovn_client.create_network,
+                'ovn_update': self._ovn_client.update_network,
+                'ovn_delete': self._ovn_client.delete_network,
+            },
+            ovn_const.TYPE_PORTS: {
+                'neutron_get': self._ovn_client._plugin.get_port,
+                'ovn_get': self._nb_idl.get_lswitch_port,
+                'ovn_create': self._ovn_client.create_port,
+                'ovn_update': self._ovn_client.update_port,
+                'ovn_delete': self._ovn_client.delete_port,
+            },
+            ovn_const.TYPE_FLOATINGIPS: {
+                'neutron_get': self._ovn_client._l3_plugin.get_floatingip,
+                'ovn_get': self._nb_idl.get_floatingip,
+                'ovn_create': self._ovn_client.create_floatingip,
+                'ovn_update': self._ovn_client.update_floatingip,
+                'ovn_delete': self._ovn_client.delete_floatingip,
+            },
+            ovn_const.TYPE_ROUTERS: {
+                'neutron_get': self._ovn_client._l3_plugin.get_router,
+                'ovn_get': self._nb_idl.get_lrouter,
+                'ovn_create': self._ovn_client.create_router,
+                'ovn_update': self._ovn_client.update_router,
+                'ovn_delete': self._ovn_client.delete_router,
+            },
+            ovn_const.TYPE_SECURITY_GROUPS: {
+                'neutron_get': self._ovn_client._plugin.get_security_group,
+                'ovn_get': self._nb_idl.get_address_set,
+                'ovn_create': self._ovn_client.create_security_group,
+                'ovn_delete': self._ovn_client.delete_security_group,
+            },
+            ovn_const.TYPE_SECURITY_GROUP_RULES: {
+                'neutron_get':
+                    self._ovn_client._plugin.get_security_group_rule,
+                'ovn_get': self._nb_idl.get_acl_by_id,
+                'ovn_create': self._ovn_client.create_security_group_rule,
+                'ovn_delete': self._ovn_client.delete_security_group_rule,
+            },
+        }
+
     @property
     def has_lock(self):
         return not self._idl.is_lock_contended
 
-    def _fix_create_update_network(self, row):
-        # Get the latest version of the resource in Neutron DB
+    def _fix_create_update(self, row):
+        res_map = self._resources_func_map[row.resource_type]
         admin_context = n_context.get_admin_context()
-        n_db_obj = self._ovn_client._plugin.get_network(
-            admin_context, row.resource_uuid)
-        ovn_net = self._nb_idl.get_lswitch(utils.ovn_name(row.resource_uuid))
+        # Get the latest version of the resource in Neutron DB
+        n_obj = res_map['neutron_get'](admin_context, row.resource_uuid)
+        ovn_obj = res_map['ovn_get'](row.resource_uuid)
 
-        if not ovn_net:
-            # If the resource doesn't exist in the OVN DB, create it.
-            self._ovn_client.create_network(n_db_obj)
+        if not ovn_obj:
+            res_map['ovn_create'](n_obj)
         else:
-            ext_ids = getattr(ovn_net, 'external_ids', {})
-            ovn_revision = int(ext_ids.get(
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
-            # If the resource exist in the OVN DB but the revision
-            # number is different from Neutron DB, updated it.
-            if ovn_revision != n_db_obj['revision_number']:
-                self._ovn_client.update_network(n_db_obj)
+            if row.resource_type == ovn_const.TYPE_SECURITY_GROUP_RULES:
+                LOG.error("SG rule %s found with a revision number while "
+                          "this resource doesn't support updates",
+                          row.resource_uuid)
+            elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
+                # In OVN, we don't care about updates to security groups,
+                # so just bump the revision number to whatever it's
+                # supposed to be.
+                db_rev.bump_revision(n_obj, row.resource_type)
             else:
-                # If the resource exist and the revision number
-                # is equal on both databases just bump the revision on
-                # the cache table.
-                db_rev.bump_revision(n_db_obj, ovn_const.TYPE_NETWORKS)
+                ext_ids = getattr(ovn_obj, 'external_ids', {})
+                ovn_revision = int(ext_ids.get(
+                    ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
+                # If the resource exist in the OVN DB but the revision
+                # number is different from Neutron DB, updated it.
+                if ovn_revision != n_obj['revision_number']:
+                    res_map['ovn_update'](n_obj)
+                else:
+                    # If the resource exist and the revision number
+                    # is equal on both databases just bump the revision on
+                    # the cache table.
+                    db_rev.bump_revision(n_obj, row.resource_type)
 
-    def _fix_delete_network(self, row):
-        ovn_net = self._nb_idl.get_lswitch(utils.ovn_name(row.resource_uuid))
-        if not ovn_net:
+    def _fix_delete(self, row):
+        res_map = self._resources_func_map[row.resource_type]
+        ovn_obj = res_map['ovn_get'](row.resource_uuid)
+        if not ovn_obj:
             db_rev.delete_revision(row.resource_uuid)
         else:
-            self._ovn_client.delete_network(row.resource_uuid)
-
-    def _fix_create_update_port(self, row):
-        # Get the latest version of the resource in Neutron DB
-        admin_context = n_context.get_admin_context()
-        p_db_obj = self._ovn_client._plugin.get_port(
-            admin_context, row.resource_uuid)
-        ovn_port = self._nb_idl.get_lswitch_port(
-            utils.ovn_name(row.resource_uuid))
-
-        if not ovn_port:
-            # If the resource doesn't exist in the OVN DB, create it.
-            self._ovn_client.create_port(p_db_obj)
-        else:
-            ext_ids = getattr(ovn_port, 'external_ids', {})
-            ovn_revision = int(ext_ids.get(
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
-            # If the resource exist in the OVN DB but the revision
-            # number is different from Neutron DB, updated it.
-            if ovn_revision != p_db_obj['revision_number']:
-                self._ovn_client.update_port(p_db_obj)
-            else:
-                # If the resource exist and the revision number
-                # is equal on both databases just bump the revision on
-                # the cache table.
-                db_rev.bump_revision(p_db_obj, ovn_const.TYPE_PORTS)
-
-    def _fix_delete_port(self, row):
-        ovn_port = self._nb_idl.get_lswitch_port(
-            utils.ovn_name(row.resource_uuid))
-        if not ovn_port:
-            db_rev.delete_revision(row.resource_uuid)
-        else:
-            self._ovn_client.delete_port(row.resource_uuid)
-
-    def _fix_delete_sg_rule(self, row):
-        acl = self._nb_idl.get_acl_by_id(row.resource_uuid)
-        if not acl:
-            db_rev.delete_revision(row.resource_uuid)
-        else:
-            self._ovn_client.delete_security_group_rule(
-                row.resource_uuid)
-
-    def _fix_create_sg_rule(self, row):
-        # Get the latest version of the sg rule in Neutron DB
-        admin_context = n_context.get_admin_context()
-        sgr_db_obj = self._ovn_client._plugin.get_security_group_rule(
-            admin_context, row.resource_uuid)
-
-        if row.revision_number == ovn_const.INITIAL_REV_NUM:
-            self._ovn_client.create_security_group_rule(sgr_db_obj)
-        else:
-            LOG.error("SG rule %s found with a revision number while this "
-                      "resource doesn't support updates.", row.resource_uuid)
-
-    def _fix_create_update_routers(self, row):
-        # Get the latest version of the resource in Neutron DB
-        admin_context = n_context.get_admin_context()
-        r_db_obj = self._ovn_client._l3_plugin.get_router(
-            admin_context, row.resource_uuid)
-        ovn_router = self._nb_idl.get_lrouter(
-            utils.ovn_name(row.resource_uuid))
-
-        if not ovn_router:
-            # If the resource doesn't exist in the OVN DB, create it.
-            self._ovn_client.create_router(r_db_obj)
-        else:
-            ext_ids = getattr(ovn_router, 'external_ids', {})
-            ovn_revision = int(ext_ids.get(
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
-            # If the resource exist in the OVN DB but the revision
-            # number is different from Neutron DB, updated it.
-            if ovn_revision != r_db_obj['revision_number']:
-                self._ovn_client.update_router(r_db_obj)
-            else:
-                # If the resource exist and the revision number
-                # is equal on both databases just bump the revision on
-                # the cache table.
-                db_rev.bump_revision(r_db_obj, ovn_const.TYPE_ROUTERS)
-
-    def _fix_delete_router(self, row):
-        ovn_router = self._nb_idl.get_lrouter(
-            utils.ovn_name(row.resource_uuid))
-        if not ovn_router:
-            db_rev.delete_revision(row.resource_uuid)
-        else:
-            self._ovn_client.delete_router(row.resource_uuid)
-
-    def _fix_create_security_group(self, row):
-        # Get the latest version of the resource in Neutron DB
-        admin_context = n_context.get_admin_context()
-        sg_db_obj = self._ovn_client._plugin.get_security_group(
-            admin_context, row.resource_uuid)
-        ovn_sg = self._nb_idl.get_address_set(
-            utils.ovn_addrset_name(row.resource_uuid, 'ip4'))
-
-        # Since we don't have updates for Security Groups, we only need to
-        # check whether its been created or not.
-        if not ovn_sg:
-            self._ovn_client.create_security_group(sg_db_obj)
-        else:
-            db_rev.bump_revision(sg_db_obj, ovn_const.TYPE_SECURITY_GROUPS)
-
-    def _fix_delete_security_group(self, row):
-        ovn_sg = self._nb_idl.get_address_set(
-            utils.ovn_addrset_name(row.resource_uuid, 'ip4'))
-        if not ovn_sg:
-            db_rev.delete_revision(row.resource_uuid)
-        else:
-            self._ovn_client.delete_security_group(row.resource_uuid)
-
-    def _fix_create_update_floatingip(self, row):
-        # Get the latest version of the resource in Neutron DB
-        admin_context = n_context.get_admin_context()
-        fip_db_obj = self._ovn_client._l3_plugin.get_floatingip(
-            admin_context, row.resource_uuid)
-        ovn_fip = self._nb_idl.get_floatingip(row.resource_uuid)
-
-        if not ovn_fip:
-            # If the resource doesn't exist in the OVN DB, create it.
-            self._ovn_client.create_floatingip(fip_db_obj)
-        else:
-            ovn_revision = int(ovn_fip['external_ids'].get(
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY, -1))
-            # If the resource exist in the OVN DB but the revision
-            # number is different from Neutron DB, updated it.
-            if ovn_revision != fip_db_obj['revision_number']:
-                self._ovn_client.update_floatingip(fip_db_obj)
-            else:
-                # If the resource exist and the revision number
-                # is equal on both databases just bump the revision on
-                # the cache table.
-                db_rev.bump_revision(fip_db_obj, ovn_const.TYPE_FLOATINGIPS)
-
-    def _fix_delete_floatingip(self, row):
-        ovn_fip = self._nb_idl.get_floatingip(row.resource_uuid)
-        if not ovn_fip:
-            db_rev.delete_revision(row.resource_uuid)
-        else:
-            self._ovn_client.delete_floatingip(row.resource_uuid)
+            res_map['ovn_delete'](row.resource_uuid)
 
     def _fix_create_update_subnet(self, row):
         # Get the lasted version of the port in Neutron DB
@@ -296,20 +210,16 @@ class DBInconsistenciesPeriodics(object):
         # Fix the create/update resources inconsistencies
         for row in create_update_inconsistencies:
             try:
-                if row.resource_type == ovn_const.TYPE_NETWORKS:
-                    self._fix_create_update_network(row)
-                elif row.resource_type == ovn_const.TYPE_PORTS:
-                    self._fix_create_update_port(row)
-                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUP_RULES:
-                    self._fix_create_sg_rule(row)
-                elif row.resource_type == ovn_const.TYPE_ROUTERS:
-                    self._fix_create_update_routers(row)
-                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
-                    self._fix_create_security_group(row)
-                elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
-                    self._fix_create_update_floatingip(row)
-                elif row.resource_type == ovn_const.TYPE_SUBNETS:
+                # NOTE(lucasagomes): The way to fix subnets is bit
+                # different than other resources. A subnet in OVN language
+                # is just a DHCP rule but, this rule only exist if the
+                # subnet in Neutron has the "enable_dhcp" attribute set
+                # to True. So, it's possible to have a consistent subnet
+                # resource even when it does not exist in the OVN database.
+                if row.resource_type == ovn_const.TYPE_SUBNETS:
                     self._fix_create_update_subnet(row)
+                else:
+                    self._fix_create_update(row)
             except Exception:
                 LOG.exception('Failed to fix resource %(res_uuid)s '
                               '(type: %(res_type)s)',
@@ -319,20 +229,10 @@ class DBInconsistenciesPeriodics(object):
         # Fix the deleted resources inconsistencies
         for row in delete_inconsistencies:
             try:
-                if row.resource_type == ovn_const.TYPE_NETWORKS:
-                    self._fix_delete_network(row)
-                elif row.resource_type == ovn_const.TYPE_PORTS:
-                    self._fix_delete_port(row)
-                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUP_RULES:
-                    self._fix_delete_sg_rule(row)
-                elif row.resource_type == ovn_const.TYPE_ROUTERS:
-                    self._fix_delete_router(row)
-                elif row.resource_type == ovn_const.TYPE_SECURITY_GROUPS:
-                    self._fix_delete_security_group(row)
-                elif row.resource_type == ovn_const.TYPE_FLOATINGIPS:
-                    self._fix_delete_floatingip(row)
-                elif row.resource_type == ovn_const.TYPE_SUBNETS:
+                if row.resource_type == ovn_const.TYPE_SUBNETS:
                     self._ovn_client.delete_subnet(row.resource_uuid)
+                else:
+                    self._fix_delete(row)
             except Exception:
                 LOG.exception('Failed to fix deleted resource %(res_uuid)s '
                               '(type: %(res_type)s)',

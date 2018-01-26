@@ -592,10 +592,12 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def get_address_set(self, addr_name):
+    def get_address_set(self, addrset_id, ip_version='ip4'):
         """Get a Address Set by its ID.
 
-        :param addr_name: The Address Set name
+        :param addrset_id: The Address Set ID
+        :type addrset_id: string
+        :param ip_version: Either "ip4" or "ip6". Defaults to "ip4"
         :type addr_name: string
         :returns: The Address Set row or None
         """

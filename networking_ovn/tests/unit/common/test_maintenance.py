@@ -43,7 +43,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         self.session = db_api.get_writer_session()
 
     @mock.patch.object(maintenance.DBInconsistenciesPeriodics,
-                       '_fix_create_update_network')
+                       '_fix_create_update')
     @mock.patch.object(db_maint, 'get_inconsistent_resources')
     def test_check_for_inconsistencies(self, mock_get_incon_res, mock_fix_net):
         fake_row = mock.Mock(resource_type=constants.TYPE_NETWORKS)
@@ -70,7 +70,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
             self.fake_ovn_client._nb_idl.get_lswitch.return_value = fake_ls
 
         self.fake_ovn_client._plugin.get_network.return_value = self.net
-        self.periodic._fix_create_update_network(row)
+        self.periodic._fix_create_update(row)
 
         # Since the revision number was < 0, make sure create_network()
         # is invoked with the latest version of the object in the neutron
@@ -111,7 +111,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
                 fake_lsp)
 
         self.fake_ovn_client._plugin.get_port.return_value = self.port
-        self.periodic._fix_create_update_port(row)
+        self.periodic._fix_create_update(row)
 
         # Since the revision number was < 0, make sure create_port()
         # is invoked with the latest version of the object in the neutron
@@ -150,7 +150,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
                 mock.sentinel.AddressSet)
 
         self.fake_ovn_client._plugin.get_security_group.return_value = sg
-        self.periodic._fix_create_security_group(row)
+        self.periodic._fix_create_update(row)
 
         if revision_number < 0:
             self.fake_ovn_client.create_security_group.assert_called_once_with(
