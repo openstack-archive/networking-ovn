@@ -1054,6 +1054,12 @@ class CheckRevisionNumberCommand(command.BaseCommand):
     def run_idl(self, txn):
         try:
             ovn_table = RESOURCE_TYPE_MAP[self.resource_type]
+            # TODO(lucasagomes): After OVS 2.8.2 is released all tables should
+            # have the external_ids column. We can remove this conditional
+            # here by then.
+            if not self.api.is_col_present(ovn_table, 'external_ids'):
+                return
+
             ovn_resource = None
             if self.resource_type == ovn_const.TYPE_FLOATINGIPS:
                 ovn_resource = self._get_floatingip()
@@ -1067,12 +1073,6 @@ class CheckRevisionNumberCommand(command.BaseCommand):
             msg = (_('Failed to check the revision number for %s: Resource '
                      'does not exist') % self.name)
             raise RuntimeError(msg)
-
-        # TODO(lucasagomes): After OVS 2.8.2 is released all tables should
-        # have the external_ids column. We can remove this conditional
-        # here by then.
-        if not self.api.is_col_present(ovn_table, 'external_ids'):
-            return
 
         external_ids = getattr(ovn_resource, 'external_ids', {})
         ovn_revision = int(external_ids.get(
