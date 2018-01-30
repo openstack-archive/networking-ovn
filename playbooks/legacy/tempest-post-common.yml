@@ -1,4 +1,21 @@
 #
+# Synchronize files from workspace in node to the zuul log_root which will be stored
+#
+
+- name: Copy files from {{ ansible_user_dir }}/workspace/ on node
+  synchronize:
+    src: '{{ ansible_user_dir }}/workspace/'
+    dest: '{{ zuul.executor.log_root }}'
+    mode: pull
+    copy_links: true
+    verify_host: true
+    rsync_opts:
+      - --include=/logs/**
+      - --include=*/
+      - --exclude=*
+      - --prune-empty-dirs
+
+#
 # Copy OVN SB & NB database files: those files can be handy for debugging issues as the
 # ovsdb files are stored as logs.
 #
@@ -19,19 +36,3 @@
 - name: Compress OVN databases in individual files
   shell: gzip -9 {{ ansible_user_dir }}/workspace/logs/ovs_dbs/*
 
-#
-# Synchronize files from workspace in node to the zuul log_root which will be stored
-#
-
-- name: Copy files from {{ ansible_user_dir }}/workspace/ on node
-  synchronize:
-    src: '{{ ansible_user_dir }}/workspace/'
-    dest: '{{ zuul.executor.log_root }}'
-    mode: pull
-    copy_links: true
-    verify_host: true
-    rsync_opts:
-      - --include=/logs/**
-      - --include=*/
-      - --exclude=*
-      - --prune-empty-dirs
