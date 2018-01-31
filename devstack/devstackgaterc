@@ -105,7 +105,8 @@ r="$r|(?:tempest\.scenario\.test_volume*)"
 r="$r)"
 
 if [[ "${OVN_OPTS}" == *"neutron-api-scenario-tests"* ]] ; then
-    r="$r((^neutron\.tests\.tempest\.api)|(^neutron\.tests\.tempest\.scenario)).*$"
+    r="$r((^neutron_tempest_plugin\.api)|(^neutron_tempest_plugin\.scenario)).*$"
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin"
     export DEVSTACK_GATE_TEMPEST=1
     export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
 else
