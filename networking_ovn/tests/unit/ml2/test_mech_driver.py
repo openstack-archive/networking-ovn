@@ -1594,6 +1594,33 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
         self._test_get_ovn_dhcp_options_helper(subnet, network,
                                                expected_dhcp_options)
 
+    def test_get_ovn_dhcp_options_no_gw_ip_but_metadata_ip(self):
+        subnet = {'id': 'foo-subnet', 'network_id': 'network-id',
+                  'cidr': '10.0.0.0/24',
+                  'ip_version': 4,
+                  'enable_dhcp': True,
+                  'dns_nameservers': [],
+                  'host_routes': [],
+                  'gateway_ip': None}
+        network = {'id': 'network-id', 'mtu': 1400}
+
+        expected_dhcp_options = {
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': 'foo-subnet',
+                             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
+            'options': {'server_id': '10.0.0.2',
+                        'server_mac': '01:02:03:04:05:06',
+                        'lease_time': str(12 * 60 * 60),
+                        'mtu': '1400',
+                        'classless_static_route':
+                            '{169.254.169.254/32,10.0.0.2}'}}
+
+        with mock.patch.object(self.mech_driver._ovn_client,
+                               '_find_metadata_port_ip',
+                               return_value='10.0.0.2'):
+            self._test_get_ovn_dhcp_options_helper(subnet, network,
+                                                   expected_dhcp_options)
+
     def test_get_ovn_dhcp_options_ipv6_subnet(self):
         subnet = {'id': 'foo-subnet', 'network_id': 'network-id',
                   'cidr': 'ae70::/24',

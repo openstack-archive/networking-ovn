@@ -1207,17 +1207,26 @@ class OVNClient(object):
         return dhcp_options
 
     def _get_ovn_dhcpv4_opts(self, subnet, network, server_mac=None):
-        if not subnet['gateway_ip']:
+        metadata_port_ip = self._find_metadata_port_ip(
+            n_context.get_admin_context(), subnet)
+        # TODO(dongj): Currently the metadata port is created only when
+        # ovn_metadata_enabled is true, therefore this is a restriction for
+        # supporting DHCP of subnet without gateway IP.
+        # We will remove this restriction later.
+        service_id = subnet['gateway_ip'] or metadata_port_ip
+        if not service_id:
             return {}
 
         default_lease_time = str(config.get_ovn_dhcp_default_lease_time())
         mtu = network['mtu']
         options = {
-            'server_id': subnet['gateway_ip'],
+            'server_id': service_id,
             'lease_time': default_lease_time,
             'mtu': str(mtu),
-            'router': subnet['gateway_ip']
         }
+
+        if subnet['gateway_ip']:
+            options['router'] = subnet['gateway_ip']
 
         if server_mac:
             options['server_mac'] = server_mac
@@ -1229,26 +1238,24 @@ class OVNClient(object):
             dns_servers = '{%s}' % ', '.join(subnet['dns_nameservers'])
             options['dns_server'] = dns_servers
 
-        # If subnet hostroutes are defined, add them in the
-        # 'classless_static_route' dhcp option
-        classless_static_routes = "{"
-        metadata_port_ip = self._find_metadata_port_ip(
-            n_context.get_admin_context(), subnet)
+        routes = []
         if metadata_port_ip:
-            classless_static_routes += ("%s/32,%s, ") % (
-                metadata_agent.METADATA_DEFAULT_IP, metadata_port_ip)
+            routes.append('%s/32,%s' % (
+                metadata_agent.METADATA_DEFAULT_IP, metadata_port_ip))
 
-        for route in subnet['host_routes']:
-            classless_static_routes += ("%s,%s, ") % (
-                route['destination'], route['nexthop'])
+        # Add subnet host_routes to 'classless_static_route' dhcp option
+        routes.extend(['%s,%s' % (route['destination'], route['nexthop'])
+                      for route in subnet['host_routes']])
 
-        if classless_static_routes != "{":
+        if routes:
             # if there are static routes, then we need to add the
             # default route in this option. As per RFC 3442 dhcp clients
             # should ignore 'router' dhcp option (option 3)
             # if option 121 is present.
-            classless_static_routes += "0.0.0.0/0,%s}" % (subnet['gateway_ip'])
-            options['classless_static_route'] = classless_static_routes
+            if subnet['gateway_ip']:
+                routes.append('0.0.0.0/0,%s' % subnet['gateway_ip'])
+
+            options['classless_static_route'] = '{' + ', '.join(routes) + '}'
 
         return options
 
