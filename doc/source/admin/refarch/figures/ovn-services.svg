@@ -1,205 +1,860 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 536.0669 283.6181" width="536.0669pt" height="283.6181pt" xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <metadata> Produced by OmniGraffle 7.4.1 
-    <dc:date>2017-08-04 09:17:59 +0000</dc:date>
-  </metadata>
-  <defs>
-    <font-face font-family="Helvetica" font-size="12" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="0" x-height="532.22656" cap-height="719.7266" ascent="770.0195" descent="-229.98047" font-weight="bold">
-      <font-face-src>
-        <font-face-name name="Helvetica-Bold"/>
-      </font-face-src>
-    </font-face>
-    <font-face font-family="Helvetica" font-size="16" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="0" x-height="522.9492" cap-height="717.28516" ascent="770.0195" descent="-229.98047" font-weight="500">
-      <font-face-src>
-        <font-face-name name="Helvetica"/>
-      </font-face-src>
-    </font-face>
-    <filter id="Shadow" filterUnits="userSpaceOnUse">
-      <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="1.308"/>
-      <feOffset in="blur" result="offset" dx="0" dy="2"/>
-      <feFlood flood-color="black" flood-opacity=".5" result="flood"/>
-      <feComposite in="flood" in2="offset" operator="in" result="color"/>
-      <feMerge>
-        <feMergeNode in="color"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:osb="http://www.openswatchbook.org/uri/2009/osb"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="297mm"
+   height="210mm"
+   viewBox="0 0 1052.3622 744.09448"
+   id="svg6654"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="ovn-services.svg"
+   inkscape:export-filename="/Users/ajo/Documents/work/redhat/ovn/docs/networking-ovn/doc/source/admin/refarch/figures/ovn-services.png"
+   inkscape:export-xdpi="71.498116"
+   inkscape:export-ydpi="71.498116">
+  <defs
+     id="defs6656">
+    <linearGradient
+       id="linearGradient8990"
+       osb:paint="solid">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop8992" />
+    </linearGradient>
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       inkscape:label="Drop Shadow"
+       id="filter9167">
+      <feFlood
+         flood-opacity="0.498039"
+         flood-color="rgb(0,0,0)"
+         result="flood"
+         id="feFlood9169" />
+      <feComposite
+         in="flood"
+         in2="SourceGraphic"
+         operator="in"
+         result="composite1"
+         id="feComposite9171" />
+      <feGaussianBlur
+         in="composite1"
+         stdDeviation="1.7"
+         result="blur"
+         id="feGaussianBlur9173" />
+      <feOffset
+         dx="2.7"
+         dy="3.2"
+         result="offset"
+         id="feOffset9175" />
+      <feComposite
+         in="SourceGraphic"
+         in2="offset"
+         operator="over"
+         result="composite2"
+         id="feComposite9177" />
     </filter>
-    <font-face font-family="Helvetica" font-size="8" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="0" x-height="532.22656" cap-height="719.7266" ascent="770.0195" descent="-229.98047" font-weight="bold">
-      <font-face-src>
-        <font-face-name name="Helvetica-Bold"/>
-      </font-face-src>
-    </font-face>
-    <font-face font-family="Helvetica" font-size="8" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="-1500" x-height="539.5508" cap-height="719.7266" ascent="770.0195" descent="-229.98047" font-style="italic" font-weight="bold">
-      <font-face-src>
-        <font-face-name name="Helvetica-BoldOblique"/>
-      </font-face-src>
-    </font-face>
   </defs>
-  <g stroke="none" stroke-opacity="1" stroke-dasharray="none" fill="none" fill-opacity="1">
-    <title>Canvas 1</title>
-    <rect fill="white" width="536.0669" height="283.6181"/>
-    <g>
-      <title>Layer 1</title>
-      <path d="M 16.503937 56.69291 L 96.88189 56.69291 C 101.30017 56.69291 104.88189 60.274635 104.88189 64.69291 L 104.88189 247.1181 C 104.88189 251.5364 101.30017 255.1181 96.88189 255.1181 L 16.503937 255.1181 C 12.085659 255.1181 8.503937 251.5364 8.503937 247.1181 L 8.503937 64.69291 C 8.503937 60.274635 12.085659 56.69291 16.503937 56.69291 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-      <text transform="translate(13.503937 61.69291)" fill="black">
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="12.854992" y="11" textLength="3.3339844"> </tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="16.188976" y="11" textLength="60.66797">Controller </tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="28.188976" y="25" textLength="30">Node</tspan>
-      </text>
-      <text transform="translate(199.47638 24.015748)" fill="#657b83">
-        <tspan font-family="Helvetica" font-size="16" font-weight="500" fill="#657b83" x=".25390625" y="15" textLength="100.49219">Service layout</tspan>
-      </text>
-      <g filter="url(#Shadow)">
-        <path d="M 22.173228 99.2126 L 91.2126 99.2126 C 95.63088 99.2126 99.2126 102.79432 99.2126 107.2126 L 99.2126 125.22835 C 99.2126 129.64663 95.63088 133.22835 91.2126 133.22835 L 22.173228 133.22835 C 17.75495 133.22835 14.173228 129.64663 14.173228 125.22835 L 14.173228 107.2126 C 14.173228 102.79432 17.75495 99.2126 22.173228 99.2126 Z" fill="#fdf6e3"/>
-        <path d="M 22.173228 99.2126 L 91.2126 99.2126 C 95.63088 99.2126 99.2126 102.79432 99.2126 107.2126 L 99.2126 125.22835 C 99.2126 129.64663 95.63088 133.22835 91.2126 133.22835 L 22.173228 133.22835 C 17.75495 133.22835 14.173228 129.64663 14.173228 125.22835 L 14.173228 107.2126 C 14.173228 102.79432 17.75495 99.2126 22.173228 99.2126 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(19.173228 106.22047)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="15.740388" y="8" textLength="43.558594">Networking</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="13.070466" y="18" textLength="48.89844">Management</tspan>
-        </text>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="121.51632"
+     inkscape:cy="281.03287"
+     inkscape:document-units="px"
+     inkscape:current-layer="g6113"
+     showgrid="false"
+     inkscape:window-width="1440"
+     inkscape:window-height="802"
+     inkscape:window-x="3"
+     inkscape:window-y="10"
+     inkscape:window-maximized="0"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:snap-perpendicular="true"
+     inkscape:snap-tangential="true" />
+  <metadata
+     id="metadata6659">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-308.26772)">
+    <g
+       id="g9020"
+       transform="matrix(1,0,0,1.03616,-11.428571,294.19464)">
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="92.625908"
+         y="182.74992"
+         id="text9193"
+         sodipodi:linespacing="125%"
+         transform="scale(1.0179194,0.982396)"><tspan
+           sodipodi:role="line"
+           id="tspan9195"
+           x="92.625908"
+           y="182.74992" /></text>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="89.117348"
+         y="215.02866"
+         id="text9207"
+         sodipodi:linespacing="125%"
+         transform="scale(1.0179194,0.982396)"><tspan
+           sodipodi:role="line"
+           id="tspan9209"
+           x="89.117348"
+           y="215.02866" /></text>
+      <g
+         id="g6204">
+        <g
+           transform="matrix(0.85690424,0,0,0.85207019,7.9434853,12.057662)"
+           id="g9229">
+          <g
+             id="g6232">
+            <rect
+               id="rect7554"
+               width="231.82626"
+               height="505.07404"
+               x="38.981712"
+               y="83.861069"
+               style="fill:none;fill-opacity:1;stroke:#657b83;stroke-width:3.44908571;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+               ry="16.653866"
+               rx="15.363441" />
+            <g
+               id="g6113"
+               transform="translate(-15.772158,46.338267)">
+              <g
+                 id="g6160"
+                 transform="translate(7.0019493,0)">
+                <rect
+                   rx="9.0842314"
+                   ry="9.1202831"
+                   style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.24329948;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                   y="151.98941"
+                   x="66.423546"
+                   height="362.10504"
+                   width="181.43475"
+                   id="rect9045"
+                   transform="matrix(1.1020268,0,0,1.0262228,-7.1868545,-4.0997074)" />
+                <text
+                   transform="scale(1.0179194,0.98239605)"
+                   sodipodi:linespacing="125%"
+                   id="text9201"
+                   y="184.5858"
+                   x="155.16545"
+                   style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   xml:space="preserve"><tspan
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     y="184.5858"
+                     x="155.16545"
+                     sodipodi:role="line"
+                     id="tspan6111">neutron-server</tspan></text>
+              </g>
+              <g
+                 transform="translate(7.0019493,81.551195)"
+                 id="g6166">
+                <rect
+                   transform="matrix(1.1020268,0,0,1,-7.1868545,0)"
+                   id="rect6168"
+                   width="173.42773"
+                   height="157.66496"
+                   x="66.423546"
+                   y="151.98941"
+                   style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                   ry="9.3594418"
+                   rx="9.0842314" />
+                <text
+                   xml:space="preserve"
+                   style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   x="155.16545"
+                   y="184.5858"
+                   id="text6170"
+                   sodipodi:linespacing="125%"
+                   transform="scale(1.0179194,0.98239605)"><tspan
+                     sodipodi:role="line"
+                     x="155.16545"
+                     y="184.5858"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     id="tspan6172">Networking</tspan><tspan
+                     id="tspan6174"
+                     sodipodi:role="line"
+                     x="155.16545"
+                     y="206.07571"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1">ML2 Plug-in</tspan></text>
+              </g>
+              <g
+                 transform="translate(8.6690801,158.57176)"
+                 id="g6176">
+                <rect
+                   transform="matrix(1.1020268,0,0,1,-0.18490522,0)"
+                   id="rect6178"
+                   width="157.23018"
+                   height="65.555252"
+                   x="67.936325"
+                   y="151.98941"
+                   style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                   ry="9.3594418"
+                   rx="9.0842314" />
+                <text
+                   xml:space="preserve"
+                   style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   x="155.16545"
+                   y="184.5858"
+                   id="text6180"
+                   sodipodi:linespacing="125%"
+                   transform="scale(1.0179194,0.98239605)"><tspan
+                     id="tspan6184"
+                     sodipodi:role="line"
+                     x="155.16545"
+                     y="184.5858"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1">OVN Mechanism</tspan><tspan
+                     sodipodi:role="line"
+                     x="155.16545"
+                     y="206.07571"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     id="tspan6188">Driver</tspan></text>
+              </g>
+              <g
+                 id="g6190"
+                 transform="translate(7.0019493,244.32996)">
+                <rect
+                   rx="9.0842314"
+                   ry="9.3594418"
+                   style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                   y="151.98941"
+                   x="67.936325"
+                   height="86.590279"
+                   width="157.23018"
+                   id="rect6192"
+                   transform="matrix(1.1020268,0,0,1,1.583354,18.306476)" />
+                <text
+                   transform="scale(1.0179194,0.98239605)"
+                   sodipodi:linespacing="125%"
+                   id="text6194"
+                   y="212.25668"
+                   x="157.45834"
+                   style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   xml:space="preserve"><tspan
+                     id="tspan6198"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     y="212.25668"
+                     x="157.45834"
+                     sodipodi:role="line">OVN Layer-3</tspan><tspan
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     y="233.7466"
+                     x="157.45834"
+                     sodipodi:role="line"
+                     id="tspan6202">Service Plug-in</tspan></text>
+              </g>
+            </g>
+            <text
+               xml:space="preserve"
+               style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.74238205px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+               x="155.93349"
+               y="129.21364"
+               id="text6154"
+               sodipodi:linespacing="125%"
+               transform="scale(1.0150442,0.98517878)"><tspan
+                 sodipodi:role="line"
+                 id="tspan6156"
+                 x="155.93349"
+                 y="129.21364">Controller</tspan><tspan
+                 sodipodi:role="line"
+                 x="155.93349"
+                 y="165.14162"
+                 id="tspan6158">Node</tspan></text>
+          </g>
+          <g
+             id="g6259"
+             transform="translate(266.74092,0)">
+            <g
+               id="g6343"
+               transform="translate(-23.339831,0)">
+              <rect
+                 id="rect6261"
+                 width="231.82626"
+                 height="467.86197"
+                 x="38.981712"
+                 y="83.859184"
+                 style="fill:none;fill-opacity:1;stroke:#657b83;stroke-width:3.44908571;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                 ry="14.937626"
+                 rx="13.005761" />
+              <g
+                 id="g6263"
+                 transform="translate(-15.772158,46.338267)">
+                <g
+                   id="g6265"
+                   transform="translate(7.0019493,0)">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6267"
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6269"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line"
+                       id="tspan6273">OVN Northbound</tspan><tspan
+                       id="tspan6313"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="206.07571"
+                       x="155.16545"
+                       sodipodi:role="line">Service</tspan><tspan
+                       id="tspan6315"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="227.56563"
+                       x="155.16545"
+                       sodipodi:role="line">ovn-northd</tspan></text>
+                </g>
+                <g
+                   transform="translate(7.0019493,81.551195)"
+                   id="g6275" />
+                <g
+                   transform="translate(8.6690801,158.57176)"
+                   id="g6285">
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="155.16545"
+                     y="184.5858"
+                     id="text6289"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="184.5858"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6293" /></text>
+                </g>
+                <g
+                   transform="translate(8.6690801,114.88362)"
+                   id="g6319">
+                  <rect
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)"
+                     id="rect6321"
+                     width="172.35803"
+                     height="88.208359"
+                     x="66.423546"
+                     y="151.98941"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     ry="9.3594418"
+                     rx="9.0842314" />
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="155.16545"
+                     y="184.5858"
+                     id="text6323"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       id="tspan6325"
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="184.5858"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1">OVN Northbound</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="206.07571"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6327">Database</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="227.56563"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6329">ovsdb-server</tspan></text>
+                </g>
+                <g
+                   id="g6331"
+                   transform="translate(8.6690801,230.41443)">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6333"
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6335"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line"
+                       id="tspan6337">OVN Southbound</tspan><tspan
+                       id="tspan6339"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="206.07571"
+                       x="155.16545"
+                       sodipodi:role="line">Database</tspan><tspan
+                       id="tspan6341"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="227.56563"
+                       x="155.16545"
+                       sodipodi:role="line">ovsdb-server</tspan></text>
+                </g>
+              </g>
+              <text
+                 xml:space="preserve"
+                 style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.74238205px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                 x="155.93349"
+                 y="129.21364"
+                 id="text6305"
+                 sodipodi:linespacing="125%"
+                 transform="scale(1.0150442,0.98517878)"><tspan
+                   sodipodi:role="line"
+                   id="tspan6307"
+                   x="155.93349"
+                   y="129.21364">Database</tspan><tspan
+                   sodipodi:role="line"
+                   x="155.93349"
+                   y="165.14162"
+                   id="tspan6309">Node</tspan></text>
+            </g>
+            <g
+               id="g6372"
+               transform="translate(261.40593,0)">
+              <g
+                 transform="translate(-15.772158,46.338267)"
+                 id="g6376">
+                <g
+                   id="g6390"
+                   transform="translate(7.0019493,81.551195)" />
+                <g
+                   id="g6392"
+                   transform="translate(8.6690801,158.57176)">
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6394"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       id="tspan6396"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line" /></text>
+                </g>
+                <g
+                   transform="translate(8.6690801,230.41443)"
+                   id="g6410" />
+              </g>
+              <g
+                 id="g6450">
+                <rect
+                   id="rect6374"
+                   width="231.82626"
+                   height="467.86197"
+                   x="1.6379815"
+                   y="83.859184"
+                   style="fill:none;fill-opacity:1;stroke:#657b83;stroke-width:3.44908571;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                   ry="16.474392"
+                   rx="14.184594" />
+                <g
+                   id="g6378"
+                   transform="translate(-46.113938,46.338267)"
+                   style="">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6380"
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6382"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line"
+                       id="tspan6384">OVN Controller</tspan><tspan
+                       id="tspan6386"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="206.07571"
+                       x="155.16545"
+                       sodipodi:role="line">Service</tspan><tspan
+                       id="tspan6388"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="227.56563"
+                       x="155.16545"
+                       sodipodi:role="line">ovn-controller</tspan></text>
+                </g>
+                <g
+                   transform="translate(-44.446809,161.22189)"
+                   id="g6398"
+                   style="">
+                  <rect
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)"
+                     id="rect6400"
+                     width="172.35803"
+                     height="88.208359"
+                     x="66.423546"
+                     y="151.98941"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     ry="9.3594418"
+                     rx="9.0842314" />
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="155.16545"
+                     y="184.5858"
+                     id="text6402"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       id="tspan6404"
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="184.5858"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1">OVS Local</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="206.07571"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6406">Database</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="227.56563"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6408">ovsdb-server</tspan></text>
+                </g>
+                <rect
+                   rx="9.0842314"
+                   ry="9.3594418"
+                   style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                   y="151.98941"
+                   x="66.423546"
+                   height="88.208359"
+                   width="172.35803"
+                   id="rect6412"
+                   transform="matrix(1.1020268,0,0,1,-51.633657,276.7527)" />
+                <text
+                   transform="matrix(1.0179194,0,0,0.98239605,-7.10308,276.7527)"
+                   sodipodi:linespacing="125%"
+                   id="text6414"
+                   y="193.80943"
+                   x="118.47914"
+                   style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   xml:space="preserve"><tspan
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     y="193.80943"
+                     x="118.47914"
+                     sodipodi:role="line"
+                     id="tspan6416">OVS Data Plane</tspan><tspan
+                     id="tspan6420"
+                     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                     y="215.29935"
+                     x="118.47914"
+                     sodipodi:role="line">ovs-vswitchd</tspan></text>
+                <text
+                   xml:space="preserve"
+                   style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.74238205px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   x="119.14323"
+                   y="129.21364"
+                   id="text6422"
+                   sodipodi:linespacing="125%"
+                   transform="scale(1.0150442,0.98517878)"><tspan
+                     sodipodi:role="line"
+                     x="119.14323"
+                     y="129.21364"
+                     id="tspan6426">Gateway</tspan><tspan
+                     id="tspan6430"
+                     sodipodi:role="line"
+                     x="119.14323"
+                     y="165.14162">Nodes</tspan></text>
+              </g>
+              <g
+                 id="g6472"
+                 transform="translate(245.06822,0)">
+                <rect
+                   rx="11.826921"
+                   ry="17.798012"
+                   style="fill:none;fill-opacity:1;stroke:#657b83;stroke-width:3.44908571;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                   y="83.859184"
+                   x="1.6379815"
+                   height="469.48001"
+                   width="440.21762"
+                   id="rect6474" />
+                <g
+                   transform="translate(159.60998,43.102109)"
+                   id="g6476">
+                  <rect
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)"
+                     id="rect6478"
+                     width="172.35803"
+                     height="88.208359"
+                     x="66.423546"
+                     y="151.98941"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     ry="9.3594418"
+                     rx="9.0842314" />
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="155.16545"
+                     y="184.5858"
+                     id="text6480"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       id="tspan6482"
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="184.5858"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1">OVN Controller</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="206.07571"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6484">Service</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="227.56563"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6486">ovn-controller</tspan></text>
+                </g>
+                <g
+                   id="g6488"
+                   transform="translate(161.27711,157.98573)">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6490"
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6492"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line"
+                       id="tspan6494">OVS Local</tspan><tspan
+                       id="tspan6496"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="206.07571"
+                       x="155.16545"
+                       sodipodi:role="line">Database</tspan><tspan
+                       id="tspan6498"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="227.56563"
+                       x="155.16545"
+                       sodipodi:role="line">ovsdb-server</tspan></text>
+                </g>
+                <g
+                   id="g6516"
+                   transform="translate(14.003898,0)">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6500"
+                     transform="matrix(1.1020268,0,0,1,140.08638,273.51654)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6502"
+                     y="473.8743"
+                     x="301.48389"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="473.8743"
+                       x="301.48389"
+                       sodipodi:role="line"
+                       id="tspan6504">OVS Data Plane</tspan><tspan
+                       id="tspan6506"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="495.3642"
+                       x="301.48389"
+                       sodipodi:role="line">ovs-vswitchd</tspan></text>
+                </g>
+                <text
+                   transform="scale(1.0150442,0.98517878)"
+                   sodipodi:linespacing="125%"
+                   id="text6508"
+                   y="129.21364"
+                   x="219.33096"
+                   style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.74238205px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                   xml:space="preserve"><tspan
+                     y="129.21364"
+                     x="219.33095"
+                     sodipodi:role="line"
+                     id="tspan6512">Compute Nodes</tspan></text>
+                <g
+                   id="g6522"
+                   transform="translate(-51.115331,42.454877)">
+                  <rect
+                     rx="9.0842314"
+                     ry="9.3594418"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     y="151.98941"
+                     x="66.423546"
+                     height="88.208359"
+                     width="172.35803"
+                     id="rect6524"
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)" />
+                  <text
+                     transform="scale(1.0179194,0.98239605)"
+                     sodipodi:linespacing="125%"
+                     id="text6526"
+                     y="184.5858"
+                     x="155.16545"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     xml:space="preserve"><tspan
+                       id="tspan6532"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       y="184.5858"
+                       x="155.16545"
+                       sodipodi:role="line">nova-compute</tspan></text>
+                </g>
+                <g
+                   transform="translate(-49.448201,157.3385)"
+                   id="g6534">
+                  <rect
+                     transform="matrix(1.1020268,0,0,1,-7.1868545,0)"
+                     id="rect6536"
+                     width="172.35803"
+                     height="88.208359"
+                     x="66.423546"
+                     y="151.98941"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     ry="9.3594418"
+                     rx="9.0842314" />
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="155.16545"
+                     y="205.33897"
+                     id="text6538"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="205.33897"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6544">KVM Hypervisor</tspan><tspan
+                       sodipodi:role="line"
+                       x="155.16545"
+                       y="226.82889"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6568" /></text>
+                </g>
+                <g
+                   id="g6546"
+                   transform="translate(-196.72143,-0.64723163)">
+                  <rect
+                     transform="matrix(1.1020268,0,0,1,140.08638,273.51654)"
+                     id="rect6548"
+                     width="172.35803"
+                     height="88.208359"
+                     x="66.423546"
+                     y="151.98941"
+                     style="fill:#fcf4d7;fill-opacity:1;stroke:#657b83;stroke-width:3.28554845;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter9167)"
+                     ry="9.3594418"
+                     rx="9.0842314" />
+                  <text
+                     xml:space="preserve"
+                     style="font-style:normal;font-weight:normal;font-size:39.29584122px;line-height:125%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#657b83;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                     x="301.48389"
+                     y="473.8743"
+                     id="text6550"
+                     sodipodi:linespacing="125%"
+                     transform="scale(1.0179194,0.98239605)"><tspan
+                       sodipodi:role="line"
+                       x="301.48389"
+                       y="473.8743"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6554">OVN Metadata</tspan><tspan
+                       sodipodi:role="line"
+                       x="301.48389"
+                       y="495.3642"
+                       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.19193077px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#657b83;fill-opacity:1"
+                       id="tspan6572">Agent</tspan></text>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
       </g>
-      <path d="M 331.1496 56.69291 L 499.4016 56.69291 C 503.81985 56.69291 507.4016 60.274635 507.4016 64.69291 L 507.4016 210.26772 C 507.4016 214.686 503.81985 218.26772 499.4016 218.26772 L 331.1496 218.26772 C 326.73133 218.26772 323.1496 214.686 323.1496 210.26772 L 323.1496 64.69291 C 323.1496 60.274635 326.73133 56.69291 331.1496 56.69291 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-      <text transform="translate(328.1496 61.69291)" fill="#657b83">
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="39.45704" y="11" textLength="95.33789"> Compute Nodes</tspan>
-      </text>
-      <g filter="url(#Shadow)">
-        <path d="M 427.52756 178.58268 L 496.5669 178.58268 C 500.9852 178.58268 504.5669 182.1644 504.5669 186.58268 L 504.5669 204.59843 C 504.5669 209.0167 500.9852 212.59843 496.5669 212.59843 L 427.52756 212.59843 C 423.1093 212.59843 419.52756 209.0167 419.52756 204.59843 L 419.52756 186.58268 C 419.52756 182.1644 423.1093 178.58268 427.52756 178.58268 Z" fill="#fdf6e3"/>
-        <path d="M 427.52756 178.58268 L 496.5669 178.58268 C 500.9852 178.58268 504.5669 182.1644 504.5669 186.58268 L 504.5669 204.59843 C 504.5669 209.0167 500.9852 212.59843 496.5669 212.59843 L 427.52756 212.59843 C 423.1093 212.59843 419.52756 209.0167 419.52756 204.59843 L 419.52756 186.58268 C 419.52756 182.1644 423.1093 178.58268 427.52756 178.58268 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(424.52756 185.59055)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="7.507966" y="8" textLength="60.02344">OVS Data Plane</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.179841" y="18" textLength="50.67969">ovs-vswitchd</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 336.8189 138.89764 L 405.85827 138.89764 C 410.27654 138.89764 413.85827 142.47936 413.85827 146.89764 L 413.85827 164.91338 C 413.85827 169.33166 410.27654 172.91338 405.85827 172.91338 L 336.8189 172.91338 C 332.4006 172.91338 328.8189 169.33166 328.8189 164.91338 L 328.8189 146.89764 C 328.8189 142.47936 332.4006 138.89764 336.8189 138.89764 Z" fill="#fdf6e3"/>
-        <path d="M 336.8189 138.89764 L 405.85827 138.89764 C 410.27654 138.89764 413.85827 142.47936 413.85827 146.89764 L 413.85827 164.91338 C 413.85827 169.33166 410.27654 172.91338 405.85827 172.91338 L 336.8189 172.91338 C 332.4006 172.91338 328.8189 169.33166 328.8189 164.91338 L 328.8189 146.89764 C 328.8189 142.47936 332.4006 138.89764 336.8189 138.89764 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(333.8189 150.90551)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="6.621247" y="8" textLength="61.796875">KVM Hypervisor</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 336.8189 99.2126 L 405.85827 99.2126 C 410.27654 99.2126 413.85827 102.79432 413.85827 107.2126 L 413.85827 125.22835 C 413.85827 129.64663 410.27654 133.22835 405.85827 133.22835 L 336.8189 133.22835 C 332.4006 133.22835 328.8189 129.64663 328.8189 125.22835 L 328.8189 107.2126 C 328.8189 102.79432 332.4006 99.2126 336.8189 99.2126 Z" fill="#fdf6e3"/>
-        <path d="M 336.8189 99.2126 L 405.85827 99.2126 C 410.27654 99.2126 413.85827 102.79432 413.85827 107.2126 L 413.85827 125.22835 C 413.85827 129.64663 410.27654 133.22835 405.85827 133.22835 L 336.8189 133.22835 C 332.4006 133.22835 328.8189 129.64663 328.8189 125.22835 L 328.8189 107.2126 C 328.8189 102.79432 332.4006 99.2126 336.8189 99.2126 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(333.8189 111.22047)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="20.187654" y="8" textLength="34.664062">Compute</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 22.173228 138.89764 L 91.2126 138.89764 C 95.63088 138.89764 99.2126 142.47936 99.2126 146.89764 L 99.2126 241.44882 C 99.2126 245.8671 95.63088 249.44882 91.2126 249.44882 L 22.173228 249.44882 C 17.75495 249.44882 14.173228 245.8671 14.173228 241.44882 L 14.173228 146.89764 C 14.173228 142.47936 17.75495 138.89764 22.173228 138.89764 Z" fill="#fdf6e3"/>
-        <path d="M 22.173228 138.89764 L 91.2126 138.89764 C 95.63088 138.89764 99.2126 142.47936 99.2126 146.89764 L 99.2126 241.44882 C 99.2126 245.8671 95.63088 249.44882 91.2126 249.44882 L 22.173228 249.44882 C 17.75495 249.44882 14.173228 245.8671 14.173228 241.44882 L 14.173228 146.89764 C 14.173228 142.47936 17.75495 138.89764 22.173228 138.89764 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(19.173228 143.89764)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="15.740388" y="8" textLength="43.558594">Networking</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="14.855622" y="18" textLength="45.328125">ML2 Plug-in</tspan>
-        </text>
-      </g>
-      <path d="M 121.38583 56.69291 L 201.76378 56.69291 C 206.18206 56.69291 209.76378 60.274635 209.76378 64.69291 L 209.76378 210.26772 C 209.76378 214.686 206.18206 218.26772 201.76378 218.26772 L 121.38583 218.26772 C 116.96755 218.26772 113.38583 214.686 113.38583 210.26772 L 113.38583 64.69291 C 113.38583 60.274635 116.96755 56.69291 121.38583 56.69291 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-      <text transform="translate(118.38583 61.69291)" fill="black">
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="14.84132" y="11" textLength="3.3339844"> </tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="18.175304" y="11" textLength="56.69531">Database </tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="28.188976" y="25" textLength="30">Node</tspan>
-      </text>
-      <g filter="url(#Shadow)">
-        <path d="M 127.05512 99.2126 L 196.09449 99.2126 C 200.51276 99.2126 204.09449 102.79432 204.09449 107.2126 L 204.09449 125.22835 C 204.09449 129.64663 200.51276 133.22835 196.09449 133.22835 L 127.05512 133.22835 C 122.63684 133.22835 119.05512 129.64663 119.05512 125.22835 L 119.05512 107.2126 C 119.05512 102.79432 122.63684 99.2126 127.05512 99.2126 Z" fill="#fdf6e3"/>
-        <path d="M 127.05512 99.2126 L 196.09449 99.2126 C 200.51276 99.2126 204.09449 102.79432 204.09449 107.2126 L 204.09449 125.22835 C 204.09449 129.64663 200.51276 133.22835 196.09449 133.22835 L 127.05512 133.22835 C 122.63684 133.22835 119.05512 129.64663 119.05512 125.22835 L 119.05512 107.2126 C 119.05512 102.79432 122.63684 99.2126 127.05512 99.2126 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(124.05512 101.22047)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="4.8595285" y="8" textLength="65.32031">OVN Northbound</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="23.28531" y="18" textLength="28.46875">Service</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="16.414216" y="28" textLength="42.21094">ovn-northd</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 336.8189 178.58268 L 405.85827 178.58268 C 410.27654 178.58268 413.85827 182.1644 413.85827 186.58268 L 413.85827 204.59843 C 413.85827 209.0167 410.27654 212.59843 405.85827 212.59843 L 336.8189 212.59843 C 332.4006 212.59843 328.8189 209.0167 328.8189 204.59843 L 328.8189 186.58268 C 328.8189 182.1644 332.4006 178.58268 336.8189 178.58268 Z" fill="#fdf6e3"/>
-        <path d="M 336.8189 178.58268 L 405.85827 178.58268 C 410.27654 178.58268 413.85827 182.1644 413.85827 186.58268 L 413.85827 204.59843 C 413.85827 209.0167 410.27654 212.59843 405.85827 212.59843 L 336.8189 212.59843 C 332.4006 212.59843 328.8189 209.0167 328.8189 204.59843 L 328.8189 186.58268 C 328.8189 182.1644 332.4006 178.58268 336.8189 178.58268 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(333.8189 180.59055)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="17.513825" y="8" textLength="40.01172">OVS Local</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="19.732575" y="18" textLength="35.57422">Database</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.396638" y="28" textLength="50.246094">ovsdb-server</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 427.52756 99.2126 L 496.5669 99.2126 C 500.9852 99.2126 504.5669 102.79432 504.5669 107.2126 L 504.5669 125.22835 C 504.5669 129.64663 500.9852 133.22835 496.5669 133.22835 L 427.52756 133.22835 C 423.1093 133.22835 419.52756 129.64663 419.52756 125.22835 L 419.52756 107.2126 C 419.52756 102.79432 423.1093 99.2126 427.52756 99.2126 Z" fill="#fdf6e3"/>
-        <path d="M 427.52756 99.2126 L 496.5669 99.2126 C 500.9852 99.2126 504.5669 102.79432 504.5669 107.2126 L 504.5669 125.22835 C 504.5669 129.64663 500.9852 133.22835 496.5669 133.22835 L 427.52756 133.22835 C 423.1093 133.22835 419.52756 129.64663 419.52756 125.22835 L 419.52756 107.2126 C 419.52756 102.79432 423.1093 99.2126 427.52756 99.2126 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(424.52756 101.22047)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="8.62906" y="8" textLength="57.78125">OVN Controller</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="23.28531" y="18" textLength="28.46875">Service</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="10.62906" y="28" textLength="53.78125">ovn-controller</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 427.52756 138.89764 L 496.5669 138.89764 C 500.9852 138.89764 504.5669 142.47936 504.5669 146.89764 L 504.5669 164.91338 C 504.5669 169.33166 500.9852 172.91338 496.5669 172.91338 L 427.52756 172.91338 C 423.1093 172.91338 419.52756 169.33166 419.52756 164.91338 L 419.52756 146.89764 C 419.52756 142.47936 423.1093 138.89764 427.52756 138.89764 Z" fill="#fdf6e3"/>
-        <path d="M 427.52756 138.89764 L 496.5669 138.89764 C 500.9852 138.89764 504.5669 142.47936 504.5669 146.89764 L 504.5669 164.91338 C 504.5669 169.33166 500.9852 172.91338 496.5669 172.91338 L 427.52756 172.91338 C 423.1093 172.91338 419.52756 169.33166 419.52756 164.91338 L 419.52756 146.89764 C 419.52756 142.47936 423.1093 138.89764 427.52756 138.89764 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(424.52756 145.90551)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="28.851716" y="8" textLength="17.335938">OVN</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="7.884919" y="18" textLength="36.898438">Metadata </tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="44.49039" y="18" textLength="22.664062">Agent</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 127.05512 138.89764 L 196.09449 138.89764 C 200.51276 138.89764 204.09449 142.47936 204.09449 146.89764 L 204.09449 164.91338 C 204.09449 169.33166 200.51276 172.91338 196.09449 172.91338 L 127.05512 172.91338 C 122.63684 172.91338 119.05512 169.33166 119.05512 164.91338 L 119.05512 146.89764 C 119.05512 142.47936 122.63684 138.89764 127.05512 138.89764 Z" fill="#fdf6e3"/>
-        <path d="M 127.05512 138.89764 L 196.09449 138.89764 C 200.51276 138.89764 204.09449 142.47936 204.09449 146.89764 L 204.09449 164.91338 C 204.09449 169.33166 200.51276 172.91338 196.09449 172.91338 L 127.05512 172.91338 C 122.63684 172.91338 119.05512 169.33166 119.05512 164.91338 L 119.05512 146.89764 C 119.05512 142.47936 122.63684 138.89764 127.05512 138.89764 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(124.05512 140.90551)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="4.8595285" y="8" textLength="65.32031">OVN Northbound</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="19.732575" y="18" textLength="35.57422">Database</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.396638" y="28" textLength="50.246094">ovsdb-server</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 127.05512 178.58268 L 196.09449 178.58268 C 200.51276 178.58268 204.09449 182.1644 204.09449 186.58268 L 204.09449 204.59842 C 204.09449 209.0167 200.51276 212.59842 196.09449 212.59842 L 127.05512 212.59842 C 122.63684 212.59842 119.05512 209.0167 119.05512 204.59842 L 119.05512 186.58268 C 119.05512 182.1644 122.63684 178.58268 127.05512 178.58268 Z" fill="#fdf6e3"/>
-        <path d="M 127.05512 178.58268 L 196.09449 178.58268 C 200.51276 178.58268 204.09449 182.1644 204.09449 186.58268 L 204.09449 204.59842 C 204.09449 209.0167 200.51276 212.59842 196.09449 212.59842 L 127.05512 212.59842 C 122.63684 212.59842 119.05512 209.0167 119.05512 204.59842 L 119.05512 186.58268 C 119.05512 182.1644 122.63684 178.58268 127.05512 178.58268 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(124.05512 180.59055)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="4.193513" y="8" textLength="66.65234">OVN Southbound</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="19.732575" y="18" textLength="35.57422">Database</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.396638" y="28" textLength="50.246094">ovsdb-server</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 27.84252 170.07874 L 85.54331 170.07874 C 89.96158 170.07874 93.54331 173.66046 93.54331 178.07874 L 93.54331 196.0945 C 93.54331 200.51277 89.96158 204.0945 85.54331 204.0945 L 27.84252 204.0945 C 23.424242 204.0945 19.84252 200.51277 19.84252 196.0945 L 19.84252 178.07874 C 19.84252 173.66046 23.424242 170.07874 27.84252 170.07874 Z" fill="#eee8d5"/>
-        <path d="M 27.84252 170.07874 L 85.54331 170.07874 C 89.96158 170.07874 93.54331 173.66046 93.54331 178.07874 L 93.54331 196.0945 C 93.54331 200.51277 89.96158 204.0945 85.54331 204.0945 L 27.84252 204.0945 C 23.424242 204.0945 19.84252 200.51277 19.84252 196.0945 L 19.84252 178.07874 C 19.84252 173.66046 23.424242 170.07874 27.84252 170.07874 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(24.84252 177.08661)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x=".28594036" y="8" textLength="65.35156">OVN Mechanism </tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="20.287893" y="18" textLength="23.125">Driver</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 27.84252 209.76378 L 85.54331 209.76378 C 89.96158 209.76378 93.54331 213.3455 93.54331 217.76378 L 93.54331 235.77953 C 93.54331 240.1978 89.96158 243.77953 85.54331 243.77953 L 27.84252 243.77953 C 23.424242 243.77953 19.84252 240.1978 19.84252 235.77953 L 19.84252 217.76378 C 19.84252 213.3455 23.424242 209.76378 27.84252 209.76378 Z" fill="#eee8d5"/>
-        <path d="M 27.84252 209.76378 L 85.54331 209.76378 C 89.96158 209.76378 93.54331 213.3455 93.54331 217.76378 L 93.54331 235.77953 C 93.54331 240.1978 89.96158 243.77953 85.54331 243.77953 L 27.84252 243.77953 C 23.424242 243.77953 19.84252 240.1978 19.84252 235.77953 L 19.84252 217.76378 C 19.84252 213.3455 23.424242 209.76378 27.84252 209.76378 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(24.84252 216.77165)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="17.619925" y="8" textLength="28.460938">Layer-3</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="2.951956" y="18" textLength="57.796875">Service Plug-in</tspan>
-        </text>
-      </g>
-      <path d="M 226.26772 56.69291 L 306.64567 56.69291 C 311.06395 56.69291 314.64567 60.274635 314.64567 64.69291 L 314.64567 210.26772 C 314.64567 214.686 311.06395 218.26772 306.64567 218.26772 L 226.26772 218.26772 C 221.84944 218.26772 218.26772 214.686 218.26772 210.26772 L 218.26772 64.69291 C 218.26772 60.274635 221.84944 56.69291 226.26772 56.69291 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" stroke-dasharray="4,4"/>
-      <text transform="translate(223.26772 61.69291)" fill="black">
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" x="16.842296" y="11" textLength="3.3339844"> </tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="20.17628" y="11" textLength="49.359375">Gateway</tspan>
-        <tspan font-family="Helvetica" font-size="12" font-weight="bold" fill="#657b83" x="23.18507" y="25" textLength="40.007812"> Nodes</tspan>
-      </text>
-      <g filter="url(#Shadow)">
-        <path d="M 231.937 175.74803 L 300.97638 175.74803 C 305.39465 175.74803 308.97638 179.32975 308.97638 183.74803 L 308.97638 201.76378 C 308.97638 206.18206 305.39465 209.76378 300.97638 209.76378 L 231.937 209.76378 C 227.51873 209.76378 223.937 206.18206 223.937 201.76378 L 223.937 183.74803 C 223.937 179.32975 227.51873 175.74803 231.937 175.74803 Z" fill="#fdf6e3"/>
-        <path d="M 231.937 175.74803 L 300.97638 175.74803 C 305.39465 175.74803 308.97638 179.32975 308.97638 183.74803 L 308.97638 201.76378 C 308.97638 206.18206 305.39465 209.76378 300.97638 209.76378 L 231.937 209.76378 C 227.51873 209.76378 223.937 206.18206 223.937 201.76378 L 223.937 183.74803 C 223.937 179.32975 227.51873 175.74803 231.937 175.74803 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(228.937 182.7559)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="7.507966" y="8" textLength="60.02344">OVS Data Plane</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.179841" y="18" textLength="50.67969">ovs-vswitchd</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 231.937 136.06299 L 300.97638 136.06299 C 305.39465 136.06299 308.97638 139.64471 308.97638 144.06299 L 308.97638 162.07874 C 308.97638 166.49702 305.39465 170.07874 300.97638 170.07874 L 231.937 170.07874 C 227.51873 170.07874 223.937 166.49702 223.937 162.07874 L 223.937 144.06299 C 223.937 139.64471 227.51873 136.06299 231.937 136.06299 Z" fill="#fdf6e3"/>
-        <path d="M 231.937 136.06299 L 300.97638 136.06299 C 305.39465 136.06299 308.97638 139.64471 308.97638 144.06299 L 308.97638 162.07874 C 308.97638 166.49702 305.39465 170.07874 300.97638 170.07874 L 231.937 170.07874 C 227.51873 170.07874 223.937 166.49702 223.937 162.07874 L 223.937 144.06299 C 223.937 139.64471 227.51873 136.06299 231.937 136.06299 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(228.937 138.07086)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="17.513825" y="8" textLength="40.01172">OVS Local</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="19.732575" y="18" textLength="35.57422">Database</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="12.396638" y="28" textLength="50.246094">ovsdb-server</tspan>
-        </text>
-      </g>
-      <g filter="url(#Shadow)">
-        <path d="M 231.937 96.37795 L 300.97638 96.37795 C 305.39465 96.37795 308.97638 99.95967 308.97638 104.37795 L 308.97638 122.3937 C 308.97638 126.81198 305.39465 130.3937 300.97638 130.3937 L 231.937 130.3937 C 227.51873 130.3937 223.937 126.81198 223.937 122.3937 L 223.937 104.37795 C 223.937 99.95967 227.51873 96.37795 231.937 96.37795 Z" fill="#fdf6e3"/>
-        <path d="M 231.937 96.37795 L 300.97638 96.37795 C 305.39465 96.37795 308.97638 99.95967 308.97638 104.37795 L 308.97638 122.3937 C 308.97638 126.81198 305.39465 130.3937 300.97638 130.3937 L 231.937 130.3937 C 227.51873 130.3937 223.937 126.81198 223.937 122.3937 L 223.937 104.37795 C 223.937 99.95967 227.51873 96.37795 231.937 96.37795 Z" stroke="#657b83" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
-        <text transform="translate(228.937 98.38583)" fill="#657b83">
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="8.62906" y="8" textLength="57.78125">OVN Controller</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-weight="bold" fill="#657b83" x="23.28531" y="18" textLength="28.46875">Service</tspan>
-          <tspan font-family="Helvetica" font-size="8" font-style="italic" font-weight="bold" fill="#657b83" x="10.62906" y="28" textLength="53.78125">ovn-controller</tspan>
-        </text>
-      </g>
-    </g>
+      <flowRoot
+         transform="matrix(1,0,0,0.96510193,11.428574,13.581956)"
+         style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         id="flowRoot9454"
+         xml:space="preserve"><flowRegion
+           id="flowRegion9456"><rect
+             y="294.09448"
+             x="777.14288"
+             height="111.42857"
+             width="238.57143"
+             id="rect9458" /></flowRegion><flowPara
+           id="flowPara9460" /></flowRoot>    </g>
   </g>
 </svg>
