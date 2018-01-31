@@ -143,9 +143,6 @@ class OvsdbServer(fixtures.Fixture):
                 stop_cmd = ['ovs-appctl', '-t', ovsdb_process['unixctl_path'],
                             'exit']
                 utils.execute(stop_cmd)
-                # Delete the db
-                cmd = ['rm', '-f', ovsdb_process['db_path']]
-                utils.execute(cmd)
             except Exception:
                 pass
 
