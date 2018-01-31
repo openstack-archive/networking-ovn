@@ -133,6 +133,14 @@ class DBInconsistenciesPeriodics(object):
                 'ovn_create': self._ovn_client.create_security_group_rule,
                 'ovn_delete': self._ovn_client.delete_security_group_rule,
             },
+            ovn_const.TYPE_ROUTER_PORTS: {
+                'neutron_get':
+                    self._ovn_client._plugin.get_port,
+                'ovn_get': self._nb_idl.get_lrouter_port,
+                'ovn_create': self._create_lrouter_port,
+                'ovn_update': self._update_lrouter_port,
+                'ovn_delete': self._ovn_client.delete_router_port,
+            },
         }
 
     @property
@@ -176,7 +184,7 @@ class DBInconsistenciesPeriodics(object):
         res_map = self._resources_func_map[row.resource_type]
         ovn_obj = res_map['ovn_get'](row.resource_uuid)
         if not ovn_obj:
-            db_rev.delete_revision(row.resource_uuid)
+            db_rev.delete_revision(row.resource_uuid, row.resource_type)
         else:
             res_map['ovn_delete'](row.resource_uuid)
 
@@ -238,3 +246,13 @@ class DBInconsistenciesPeriodics(object):
                               '(type: %(res_type)s)',
                               {'res_uuid': row.resource_uuid,
                                'res_type': row.resource_type})
+
+    def _create_lrouter_port(self, port):
+        admin_context = n_context.get_admin_context()
+        self._ovn_client._l3_plugin.add_router_interface(
+            admin_context, port['device_owner'],
+            {'port_id': port['id']})
+
+    def _update_lrouter_port(self, port):
+        self._ovn_client._l3_plugin.update_router_port(
+            port['device_owner'], port)

@@ -42,8 +42,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def _start_mock(self, path, return_value, new_callable=None):
         patcher = mock.patch(path, return_value=return_value,
                              new_callable=new_callable)
-        patcher.start()
+        patch = patcher.start()
         self.addCleanup(patcher.stop)
+        return patch
 
     def setUp(self):
         super(OVNL3RouterPlugin, self).setUp()
@@ -57,11 +58,13 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                  'fixed_ips': [{'ip_address': '10.0.0.100',
                                                 'subnet_id': 'subnet-id'}],
                                  'id': 'router-port-id'}
-        self.fake_router_port_assert = {'lrouter': 'neutron-router-id',
-                                        'mac': 'aa:aa:aa:aa:aa:aa',
-                                        'name': 'lrp-router-port-id',
-                                        'may_exist': True,
-                                        'networks': ['10.0.0.100/24']}
+        self.fake_router_port_assert = {
+            'lrouter': 'neutron-router-id',
+            'mac': 'aa:aa:aa:aa:aa:aa',
+            'name': 'lrp-router-port-id',
+            'may_exist': True,
+            'networks': ['10.0.0.100/24'],
+            'external_ids': {ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
         self.fake_router_ports = [self.fake_router_port]
         self.fake_subnet = {'id': 'subnet-id',
                             'ip_version': 4,
@@ -107,12 +110,14 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                  'mac_address': '00:00:00:02:04:06',
                                  'network_id': self.fake_network['id'],
                                  'id': 'gw-port-id'}
-        self.fake_ext_gw_port_assert = {'lrouter': 'neutron-router-id',
-                                        'mac': '00:00:00:02:04:06',
-                                        'name': 'lrp-gw-port-id',
-                                        'networks': ['192.168.1.1/24'],
-                                        'may_exist': True,
-                                        'gateway_chassis': ['hv1']}
+        self.fake_ext_gw_port_assert = {
+            'lrouter': 'neutron-router-id',
+            'mac': '00:00:00:02:04:06',
+            'name': 'lrp-gw-port-id',
+            'networks': ['192.168.1.1/24'],
+            'may_exist': True,
+            'external_ids': {ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
+            'gateway_chassis': ['hv1']}
         self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
                                        'fixed_ip_address': '10.0.0.10'}
         self.fake_floating_ip = fakes.FakeFloatingIp.create_one_fip(
@@ -192,6 +197,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'networking_ovn.common.ovn_client.'
             'OVNClient.update_floatingip_status',
             return_value=None)
+        self.bump_rev_p = self._start_mock(
+            'networking_ovn.db.revision.bump_revision', return_value=None)
+        self.del_rev_p = self._start_mock(
+            'networking_ovn.db.revision.delete_revision', return_value=None)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
     def test_add_router_interface(self, func):
@@ -205,6 +214,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
             assert_called_once_with('router-port-id', 'lrp-router-port-id',
                                     is_gw_port=False)
+        self.bump_rev_p.assert_called_once_with(self.fake_router_port,
+                                                ovn_const.TYPE_ROUTER_PORTS)
 
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
@@ -234,6 +245,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                           interface_info)
         called_args_dict = (
             self.l3_inst._ovn.update_lrouter_port.call_args_list[0][1])
+
         self.assertEqual(1, self.l3_inst._ovn.update_lrouter_port.call_count)
         self.assertItemsEqual(fake_rtr_intf_networks,
                               called_args_dict.get('networks', []))
@@ -250,8 +262,10 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.remove_router_interface(
             self.context, router_id, interface_info)
 
-        self.l3_inst._ovn.delete_lrouter_port.assert_called_once_with(
+        self.l3_inst._ovn.lrp_del.assert_called_once_with(
             'lrp-router-port-id', 'neutron-router-id', if_exists=True)
+        self.del_rev_p.assert_called_once_with('router-port-id',
+                                               ovn_const.TYPE_ROUTER_PORTS)
 
     def test_remove_router_interface_update_lrouter_port(self):
         router_id = 'router-id'
@@ -262,7 +276,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.update_lrouter_port.assert_called_once_with(
             if_exists=False, name='lrp-router-port-id',
             ipv6_ra_configs={},
-            networks=['10.0.0.100/24'])
+            networks=['10.0.0.100/24'],
+            external_ids={ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'})
 
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
@@ -357,18 +372,16 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id',
             ip_prefix='1.1.1.0/24', nexthop='10.0.0.2')
 
-    @mock.patch('networking_ovn.db.revision.bump_revision')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('networking_ovn.common.ovn_client.OVNClient.'
                 '_get_v4_network_of_all_router_ports')
-    def test_create_router_with_ext_gw(self, get_rps, get_subnet, get_port,
-                                       mock_bump):
+    def test_create_router_with_ext_gw(self, get_rps, get_subnet, get_port):
         self.l3_inst._ovn.is_col_present.return_value = True
         router = {'router': {'name': 'router'}}
         get_subnet.return_value = self.fake_ext_subnet
         get_port.return_value = self.fake_ext_gw_port
-        get_rps.return_value = []
+        get_rps.return_value = self.fake_ext_subnet['cidr']
 
         self.l3_inst.create_router(self.context, router)
 
@@ -390,8 +403,15 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             assert_called_once_with('gw-port-id', 'lrp-gw-port-id',
                                     is_gw_port=True)
         self.l3_inst._ovn.add_static_route.assert_has_calls(expected_calls)
-        mock_bump.assert_called_once_with(self.fake_router_with_ext_gw,
-                                          ovn_const.TYPE_ROUTERS)
+
+        bump_rev_calls = [mock.call(self.fake_ext_gw_port,
+                                    ovn_const.TYPE_ROUTER_PORTS),
+                          mock.call(self.fake_router_with_ext_gw,
+                                    ovn_const.TYPE_ROUTERS),
+                          ]
+
+        self.assertEqual(len(bump_rev_calls), self.bump_rev_p.call_count)
+        self.bump_rev_p.assert_has_calls(bump_rev_calls, any_order=False)
 
     @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
@@ -431,6 +451,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
 
+        self.bump_rev_p.assert_called_with(self.fake_router_port,
+                                           ovn_const.TYPE_ROUTER_PORTS)
+
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
@@ -469,11 +492,14 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.remove_router_interface(
             self.context, router_id, interface_info)
 
-        self.l3_inst._ovn.delete_lrouter_port.assert_called_once_with(
+        self.l3_inst._ovn.lrp_del.assert_called_once_with(
             'lrp-router-port-id', 'neutron-router-id', if_exists=True)
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
+
+        self.del_rev_p.assert_called_with('router-port-id',
+                                          ovn_const.TYPE_ROUTER_PORTS)
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
@@ -506,6 +532,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', type='snat',
             logical_ip='10.0.0.0/24', external_ip='192.168.1.1')
+        self.bump_rev_p.assert_called_with(self.fake_ext_gw_port,
+                                           ovn_const.TYPE_ROUTER_PORTS)
 
     @mock.patch.object(utils, 'get_lrouter_ext_gw_static_route')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
@@ -558,6 +586,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', type='snat', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1')
+
+        self.bump_rev_p.assert_called_with(self.fake_ext_gw_port,
+                                           ovn_const.TYPE_ROUTER_PORTS)
+        self.del_rev_p.assert_called_once_with('old-gw-port-id',
+                                               ovn_const.TYPE_ROUTER_PORTS)
 
     @mock.patch.object(utils, 'get_lrouter_ext_gw_static_route')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
@@ -618,7 +651,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.l3_inst.update_router(self.context, 'router-id', router)
 
-        self.l3_inst._ovn.delete_lrouter_port.assert_not_called()
+        self.l3_inst._ovn.lrp_del.assert_not_called()
         self.l3_inst._ovn.delete_static_route.assert_not_called()
         self.l3_inst._ovn.delete_nat_rule_in_lrouter.assert_not_called()
         self.l3_inst._ovn.add_lrouter_port.assert_not_called()

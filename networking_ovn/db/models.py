@@ -28,7 +28,7 @@ class OVNRevisionNumbers(model_base.BASEV2):
         sa.ForeignKey('standardattributes.id', ondelete='SET NULL'),
         nullable=True)
     resource_uuid = sa.Column(sa.String(36), nullable=False, primary_key=True)
-    resource_type = sa.Column(sa.String(36), nullable=False)
+    resource_type = sa.Column(sa.String(36), nullable=False, primary_key=True)
     revision_number = sa.Column(
         sa.BigInteger().with_variant(sa.Integer(), 'sqlite'),
         server_default='0', nullable=False)

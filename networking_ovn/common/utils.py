@@ -207,6 +207,7 @@ def get_revision_number(resource, resource_type):
                          constants.TYPE_PORTS,
                          constants.TYPE_SECURITY_GROUP_RULES,
                          constants.TYPE_ROUTERS,
+                         constants.TYPE_ROUTER_PORTS,
                          constants.TYPE_SECURITY_GROUPS,
                          constants.TYPE_FLOATINGIPS, constants.TYPE_SUBNETS):
         return resource['revision_number']

@@ -117,6 +117,8 @@ class TestMaintenance(test_securitygroup.SecurityGroupsTestCase,
         db_rev.create_initial_revision(
             port['id'], constants.TYPE_PORTS, self.session)
         db_rev.create_initial_revision(
+            port['id'], constants.TYPE_ROUTER_PORTS, self.session)
+        db_rev.create_initial_revision(
             sg['id'], constants.TYPE_SECURITY_GROUPS, self.session)
         db_rev.create_initial_revision(
             sg_rule['id'], constants.TYPE_SECURITY_GROUP_RULES, self.session)
