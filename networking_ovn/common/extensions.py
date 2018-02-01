@@ -55,4 +55,5 @@ ML2_SUPPORTED_API_EXTENSIONS = [
     'subnet_allocation',
     'tag',
     'timestamp_core',
+    'trunk',
 ]
