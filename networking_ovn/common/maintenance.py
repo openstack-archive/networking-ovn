@@ -21,6 +21,7 @@ from neutron.common import config as n_conf
 from neutron_lib import context as n_context
 from neutron_lib import worker
 from oslo_log import log
+from oslo_utils import timeutils
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import maintenance as db_maint
@@ -90,6 +91,7 @@ class DBInconsistenciesPeriodics(object):
         self._nb_idl = self._ovn_client._nb_idl
         self._idl = self._nb_idl.idl
         self._idl.set_lock('ovn_db_inconsistencies_periodics')
+        self._sync_timer = timeutils.StopWatch()
 
         self._resources_func_map = {
             ovn_const.TYPE_NETWORKS: {
@@ -214,6 +216,7 @@ class DBInconsistenciesPeriodics(object):
         if not any([create_update_inconsistencies, delete_inconsistencies]):
             return
         LOG.warning('Inconsistencies found in the database!')
+        self._sync_timer.restart()
 
         # Fix the create/update resources inconsistencies
         for row in create_update_inconsistencies:
@@ -246,6 +249,10 @@ class DBInconsistenciesPeriodics(object):
                               '(type: %(res_type)s)',
                               {'res_uuid': row.resource_uuid,
                                'res_type': row.resource_type})
+
+        LOG.info('Maintenance thread synchronization finished '
+                 '(took %.2f seconds)', self._sync_timer.elapsed())
+        self._sync_timer.stop()
 
     def _create_lrouter_port(self, port):
         admin_context = n_context.get_admin_context()
