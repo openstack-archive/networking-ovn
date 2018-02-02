@@ -638,6 +638,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
 
     def get_lrouter_port(self, lrp_name):
         # TODO(mangelajo): Implement lrp_get() ovsdbapp and use from here
+        if uuidutils.is_uuid_like(lrp_name):
+            lrp_name = utils.ovn_lrouter_port_name(lrp_name)
         lrp = self.db_find_rows('Logical_Router_Port', ('name', '=', lrp_name))
         result = lrp.execute(check_error=True)
         return result[0] if result else None
