@@ -13,67 +13,63 @@
 #    under the License.
 
 import mock
+from oslo_utils import uuidutils
 
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
 from neutron.common import utils as n_utils
+from neutron_lib.api.definitions import portbindings
+from neutron_lib.plugins import directory
 
 
 class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestNBDbMonitor, self).setUp(ovn_worker=True)
+        self.chassis = self.add_fake_chassis('ovs-host1')
 
-    def _test_port_up_down_helper(self, port, ovn_mech_driver):
-        # Set the Logical_Switch_Port.up to True. This is to mock
-        # the vif plug. When the Logical_Switch_Port.up changes from
-        # False to True, ovsdb_monitor should call
-        # mech_driver.set_port_status_up.
-        with self.nb_api.transaction(check_error=True) as txn:
-            txn.add(self.nb_api.set_lswitch_port(port['id'], True, up=True))
+    def create_port(self):
+        net = self._make_network(self.fmt, 'net1', True)
+        self._make_subnet(self.fmt, net, '20.0.0.1',
+                          '20.0.0.0/24', ip_version=4)
+        arg_list = ('device_owner', 'device_id', portbindings.HOST_ID)
+        host_arg = {'device_owner': 'compute:nova',
+                    'device_id': uuidutils.generate_uuid(),
+                    portbindings.HOST_ID: 'ovs-host1'}
+        port_res = self._create_port(self.fmt, net['network']['id'],
+                                     arg_list=arg_list, **host_arg)
+        port = self.deserialize(self.fmt, port_res)['port']
+        return port
 
-        ovn_mech_driver.set_port_status_up.assert_called_once_with(port['id'])
-        ovn_mech_driver.set_port_status_down.assert_not_called()
+    def _test_port_binding_and_status(self, port_id, action, status):
+        # This function binds or unbinds port to chassis and
+        # checks if port status matches with input status
+        core_plugin = directory.get_plugin()
+        self.sb_api.check_for_row_by_value_and_retry(
+            'Port_Binding', 'logical_port', port_id)
 
-        # Set the Logical_Switch_Port.up to False. ovsdb_monitor should
-        # call mech_driver.set_port_status_down
-        with self.nb_api.transaction(check_error=True) as txn:
-            txn.add(self.nb_api.set_lswitch_port(port['id'], True, up=False))
-        ovn_mech_driver.set_port_status_down.assert_called_once_with(
-            port['id'])
+        def check_port_status(status):
+            port = core_plugin.get_ports(
+                self.context, filters={'id': [port_id]})[0]
+            return port['status'] == status
+        if action == 'bind':
+            self.sb_api.lsp_bind(port_id, self.chassis,
+                                 may_exist=True).execute(check_error=True)
+        else:
+            self.sb_api.lsp_unbind(port_id).execute(check_error=True)
+        n_utils.wait_until_true(lambda: check_port_status(status))
 
     def test_port_up_down_events(self):
         """Test the port up down events.
 
-        This test case creates a port, sets the LogicalSwitchPort.up
-        to True and False to test if the ovsdb monitor handles these
-        events from the ovsdb server and calls the mech_driver
-        functions 'set_port_status_up()' or 'set_port_status_down()' are not.
-
-        For now mocking the 'set_port_status_up()' and 'set_port_status_down()'
-        OVN mech driver functions to check if these functions are called or
-        not by the ovsdb monitor.
-
-        Ideally it would have been good to check that the port status
-        is set to ACTIVE when mech_driver.set_port_status_up calls
-        "provisioning_blocks.provisioning_complete". But it is not
-        happening because port.binding.vif_type is unbound.
-
-        TODO(numans) - Remove the mocking of these functions and instead create
-        the port properly so that vif_type is set to "ovs".
+        This test case creates a port, binds the port to chassis,
+        tests if the ovsdb monitor calls mech_driver to set port status
+        to 'ACTIVE'. Then unbinds the port and checks if the port status
+        is set to "DOWN'
         """
-        self.mech_driver.set_port_status_up = mock.Mock()
-        self.mech_driver.set_port_status_down = mock.Mock()
-        with self.port(name='port') as p:
-            p = p['port']
-            # using the monitor IDL connection to the NB DB, set the
-            # Logical_Switch_Port.up to False first. This is to mock the
-            # ovn-controller setting it to False when the logical switch
-            # port is created.
-            with self.nb_api.transaction(check_error=True) as txn:
-                txn.add(self.nb_api.set_lswitch_port(p['id'], True, up=False))
-
-            self._test_port_up_down_helper(p, self.mech_driver)
+        port = self.create_port()
+        self._test_port_binding_and_status(port['id'], 'bind', 'ACTIVE')
+        self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
 
     def test_ovsdb_monitor_lock(self):
         """Test case to test the ovsdb monitor lock used by OvnConnection.
@@ -86,9 +82,11 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         'TestOVNFunctionalBase' setup() function.
 
         The port up/down events should be handled by the first IDL connection.
-        Then we will restart the first IDL connection so that the 2nd IDL
+        Then the first IDL connection will release the lock so that the 2nd IDL
         connection created in this test case gets the lock and it should
-        handle the port up/down events.
+        handle the port up/down events. Later when 2nd IDL connection releases
+        lock, first IDL connection will get the lock and handles the
+        port up/down events.
 
         Please note that the "self.monitor_nb_idl_con" created by the base
         class is created using 'connection.Connection' and hence it will not
@@ -102,31 +100,25 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
             base.ConnectionFixture(idl=_idl, timeout=10)).connection
         tst_ovn_conn.start()
 
-        self.mech_driver.set_port_status_up = mock.Mock()
-        self.mech_driver.set_port_status_down = mock.Mock()
+        port = self.create_port()
 
-        with self.port(name='port') as p:
-            p = p['port']
-            with self.nb_api.transaction(check_error=True) as txn:
-                txn.add(self.nb_api.set_lswitch_port(p['id'], True, up=False))
+        # mech_driver will release the lock to fake test driver. During chassis
+        # binding and unbinding, port status won't change(i.e will be DOWN)
+        # as mech driver can't update it.
+        self.mech_driver._nb_ovn.idl.set_lock(None)
+        n_utils.wait_until_true(lambda: tst_ovn_conn.idl.has_lock)
+        self.mech_driver._nb_ovn.idl.set_lock(
+            self.mech_driver._nb_ovn.idl.event_lock_name)
+        self._test_port_binding_and_status(port['id'], 'bind', 'DOWN')
+        self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
 
-            self._test_port_up_down_helper(p, self.mech_driver)
-            fake_driver.set_port_status_up.assert_not_called()
-            fake_driver.set_port_status_down.assert_not_called()
-
-            # Now restart the mech_driver's IDL connection.
-            self.mech_driver._nb_ovn.idl.force_reconnect()
-            # Wait till the test_ovn_idl_conn has acquired the lock.
-            n_utils.wait_until_true(lambda: tst_ovn_conn.idl.has_lock)
-
-            self.mech_driver.set_port_status_up.reset_mock()
-            self.mech_driver.set_port_status_down.reset_mock()
-            fake_driver.set_port_status_up.reset_mock()
-            fake_driver.set_port_status_down.reset_mock()
-
-            self._test_port_up_down_helper(p, fake_driver)
-            self.assertFalse(self.mech_driver.set_port_status_up.called)
-            self.assertFalse(self.mech_driver.set_port_status_down.called)
+        # Fake driver will relase the lock to mech driver. Port status will be
+        # updated to 'ACTIVE' for chassis binding and to 'DOWN' for chassis
+        # unbinding.
+        tst_ovn_conn.idl.set_lock(None)
+        n_utils.wait_until_true(lambda: self.mech_driver._nb_ovn.idl.has_lock)
+        self._test_port_binding_and_status(port['id'], 'bind', 'ACTIVE')
+        self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
 
 
 class TestNBDbMonitorOverTcp(TestNBDbMonitor):
