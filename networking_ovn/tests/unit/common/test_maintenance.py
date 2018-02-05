@@ -167,3 +167,11 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
 
     def test_fix_security_group_create_version_mismatch(self):
         self._test_fix_security_group_create(revision_number=2)
+
+    def test__create_lrouter_port(self):
+        port = {'id': 'port-id',
+                'device_id': 'router-id'}
+        self.periodic._create_lrouter_port(port)
+        l3_mock = self.periodic._ovn_client._l3_plugin
+        l3_mock.add_router_interface.assert_called_once_with(
+            mock.ANY, port['device_id'], {'port_id': port['id']})

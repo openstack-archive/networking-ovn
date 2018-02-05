@@ -140,7 +140,7 @@ class DBInconsistenciesPeriodics(object):
                     self._ovn_client._plugin.get_port,
                 'ovn_get': self._nb_idl.get_lrouter_port,
                 'ovn_create': self._create_lrouter_port,
-                'ovn_update': self._update_lrouter_port,
+                'ovn_update': self._ovn_client.update_router_port,
                 'ovn_delete': self._ovn_client.delete_router_port,
             },
         }
@@ -256,10 +256,6 @@ class DBInconsistenciesPeriodics(object):
 
     def _create_lrouter_port(self, port):
         admin_context = n_context.get_admin_context()
+        router_id = port['device_id']
         self._ovn_client._l3_plugin.add_router_interface(
-            admin_context, port['device_owner'],
-            {'port_id': port['id']})
-
-    def _update_lrouter_port(self, port):
-        self._ovn_client._l3_plugin.update_router_port(
-            port['device_owner'], port)
+            admin_context, router_id, {'port_id': port['id']})
