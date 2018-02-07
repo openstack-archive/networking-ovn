@@ -75,9 +75,15 @@ The gateway nodes contain the following components:
 
    ip netns ovn-metadata-$net_uuid exec ssh user@my.instance.ip.address
 
+Hardware layout
+~~~~~~~~~~~~~~~
+
 .. image:: figures/ovn-hw.png
    :alt: Hardware layout
    :align: center
+
+Service layout
+~~~~~~~~~~~~~~
 
 .. image:: figures/ovn-services.png
    :alt: Service layout
@@ -87,18 +93,39 @@ Networking service with OVN integration
 ---------------------------------------
 
 The reference architecture deploys the Networking service with OVN
-integration as follows, in the case of centralized routing:
+integration as described in the following scenarios:
 
-.. image:: figures/ovn-architecture-centralized-routing1.png
-   :alt: Architecture for Networking service with OVN integration
+.. image:: figures/ovn-architecture1.png
+  :alt: Architecture for Networking service with OVN integration
+  :align: center
 
-# TODO(majopela): This depends on patch https://review.openstack.org/#/c/463928/
-# in the case of DVR:
-#
-# .. image:: figures/ovn-architecture1.png
-#   :alt: Architecture for Networking service with OVN integration (DVR)
-#   :align: center
 
+With networking-ovn, all the E/W traffic which traverses a virtual
+router is completely distributed, going from compute to compute node
+without passing through the gateway nodes.
+
+N/S traffic that needs SNAT (without floating IPs) will always pass
+through the centralized gateway nodes, although, as soon as you
+have more than one gateway node networking-ovn will make use of
+the HA capabilities of ovn.
+
+Centralized Floating IPs
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this architecture, all the N/S router traffic (snat and floating
+IPs) goes through the gateway nodes.
+
+The compute nodes don't need connectivity to the external network,
+although it could be provided if we wanted to have direct connectivity
+to such network from some instances.
+
+Distributed Floating IPs (DVR)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this architecture, the floating IP N/S traffic flows directly
+from/to the compute nodes through the specific provider network
+bridge. In this case compute nodes need connectivity to the external
+network.
 
 Each compute node contains the following network components:
 
@@ -110,6 +137,10 @@ Each compute node contains the following network components:
 
    The Networking service creates a unique network namespace for each
    virtual network that enables the metadata service.
+
+Several external connections can be optionally created via provider
+bridges. Those can be used for direct vm connectivity to the specific
+networks or the use of distributed floating ips.
 
 .. _refarch_database-access:
 
@@ -185,7 +216,7 @@ with remote_group_id can be efficiently applied.
 .. todo: add block with openstack security group rule example
 
 OVN operations
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 #. Creating a security group will cause the OVN mechanism driver to create
    2 new entries in the Address Set table of the northbound DB:
