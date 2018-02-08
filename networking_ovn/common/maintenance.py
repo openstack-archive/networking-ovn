@@ -259,9 +259,9 @@ class DBInconsistenciesPeriodics(object):
                               {'res_uuid': row.resource_uuid,
                                'res_type': row.resource_type})
 
+        self._sync_timer.stop()
         LOG.info('Maintenance thread synchronization finished '
                  '(took %.2f seconds)', self._sync_timer.elapsed())
-        self._sync_timer.stop()
 
     def _create_lrouter_port(self, port):
         admin_context = n_context.get_admin_context()
