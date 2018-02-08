@@ -19,6 +19,7 @@ import threading
 from futurist import periodics
 from neutron.common import config as n_conf
 from neutron_lib import context as n_context
+from neutron_lib import exceptions as n_exc
 from neutron_lib import worker
 from oslo_log import log
 from oslo_utils import timeutils
@@ -152,8 +153,16 @@ class DBInconsistenciesPeriodics(object):
     def _fix_create_update(self, row):
         res_map = self._resources_func_map[row.resource_type]
         admin_context = n_context.get_admin_context()
-        # Get the latest version of the resource in Neutron DB
-        n_obj = res_map['neutron_get'](admin_context, row.resource_uuid)
+        try:
+            # Get the latest version of the resource in Neutron DB
+            n_obj = res_map['neutron_get'](admin_context, row.resource_uuid)
+        except n_exc.NotFound:
+            LOG.warning('Skip fixing resource %(res_uuid)s (type: '
+                        '%(res_type)s). Resource does not exist in Neutron '
+                        'database anymore', {'res_uuid': row.resource_uuid,
+                                             'res_type': row.resource_type})
+            return
+
         ovn_obj = res_map['ovn_get'](row.resource_uuid)
 
         if not ovn_obj:
