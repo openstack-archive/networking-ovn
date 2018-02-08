@@ -14,13 +14,12 @@ gateway=$4
 network=$5
 ovn_vm_subnet=$6
 
-cp networking-ovn/devstack/local.conf.sample devstack/local.conf
 
 # Get the IP address
 ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
 
 # Adjust some things in local.conf
-cat << DEVSTACKEOF >> devstack/local.conf
+cat << DEVSTACKEOF >> devstack/local.conf.vagrant
 
 # Good to set these
 HOST_IP=$ipaddress
@@ -40,6 +39,9 @@ disable_service ovn-northd
 # Disable the ovn-controller service because the architecture lacks services
 # on the controller node that depend on it.
 disable_service ovn-controller
+
+# Disable the ovn metadadta agent.
+disable_service networking-ovn-metadata-agent
 
 # Disable the nova compute service on the controller node because the
 # architecture only deploys it on separate compute nodes.
@@ -71,7 +73,7 @@ DEVSTACKEOF
 # single quotes around EOF to prevent interpretation of variables such
 # as $NEUTRON_CONF.
 
-cat << 'DEVSTACKEOF' >> devstack/local.conf
+cat << 'DEVSTACKEOF' >> devstack/local.conf.vagrant
 
 # Enable two DHCP agents per neutron subnet with support for availability
 # zones. Requires two or more compute nodes.
@@ -90,6 +92,11 @@ dhcp_agents_per_network = 2
 use_forwarded_for = True
 DEVSTACKEOF
 
+
+sed '/#EXTRA_CONFIG/ r devstack/local.conf.vagrant' \
+    networking-ovn/devstack/local.conf.sample > devstack/local.conf
+
+
 devstack/stack.sh
 
 # Make the provider network shared and enable DHCP for its v4 subnet.
@@ -104,7 +111,7 @@ sudo mkdir -p /opt/stack/data/nova/instances
 sudo touch /etc/exports
 sudo sh -c "echo \"/opt/stack/data/nova/instances $ovn_vm_subnet(rw,sync,fsid=0,no_root_squash)\" >> /etc/exports"
 sudo service nfs-kernel-server restart
-sudo service idmapd restart
+sudo service nfs-idmapd restart
 
 # Set the OVN_*_DB variables to enable OVN commands using a remote database.
 echo -e "\n# Enable OVN commands using a remote database.

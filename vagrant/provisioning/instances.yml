@@ -1,5 +1,5 @@
 ---
-box: "ubuntu/trusty64"
+box: "bento/ubuntu-16.04"
 provider_network: "10.10.0.0/16"
 provider_gateway: "10.10.0.1"
 provider_start_ip: "10.10.0.101"
@@ -10,7 +10,7 @@ ovndb:
   host_name: "ovn-db.devstack.dev"
   ip: "192.168.33.11"
   prov-ip: "10.10.0.11"
-  memory: 2048
+  memory: 512
   cpus: 2
   mtu: 1500
 ovncontroller:
@@ -18,7 +18,7 @@ ovncontroller:
   host_name: "ovn-controller.devstack.dev"
   ip: "192.168.33.12"
   prov-ip: "10.10.0.12"
-  memory: 6144
+  memory: 3072
   cpus: 2
   mtu: 1500
 ovnvtep:

@@ -91,6 +91,8 @@ chmod 600 ~/.ssh/id_rsa
 echo "Host *" >> ~/.ssh/config
 echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 chmod 600 ~/.ssh/config
+sudo mkdir /root/.ssh
+chmod 700 /root/.ssh
 sudo cp ~vagrant/.ssh/id_rsa /root/.ssh
 sudo cp ~vagrant/.ssh/authorized_keys /root/.ssh
 sudo cp ~vagrant/.ssh/config /root/.ssh/config

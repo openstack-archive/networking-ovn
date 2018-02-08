@@ -127,6 +127,11 @@ disable_service cinder c-sch c-api c-vol
 # Enable Nova automatic host discovery for cell every 2 seconds
 # Only needed in case of multinode devstack, as otherwise there will be issues
 # when the 2nd compute node goes online.
+
+# The next line is used to insert extra configuration here from the vagrant
+# script, please don't modify or remove, keep it before any post-config items
+#EXTRA_CONFIG
+
 [[post-config|$NOVA_CONF]]
 [scheduler]
 discover_hosts_in_cells_interval = 2
