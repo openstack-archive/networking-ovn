@@ -16,7 +16,11 @@ ovn_vm_subnet=$6
 
 
 # Get the IP address
-ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
+if ip a | grep enp0 ; then
+    ipaddress=$(ip -4 addr show enp0s8 | grep -oP "(?<=inet ).*(?=/)")
+else
+    ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
+fi
 
 # Adjust some things in local.conf
 cat << DEVSTACKEOF >> devstack/local.conf.vagrant

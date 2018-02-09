@@ -12,7 +12,11 @@ sed -i -e 's/<IP address of host running everything else>/'$OVN_CONTROLLER_IP'/g
 sudo umount /opt/stack/data/nova/instances
 
 # Get the IP address
-ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
+if ip a | grep enp0 ; then
+    ipaddress=$(ip -4 addr show enp0s8 | grep -oP "(?<=inet ).*(?=/)")
+else
+    ipaddress=$(ip -4 addr show eth1 | grep -oP "(?<=inet ).*(?=/)")
+fi
 
 # Fixup HOST_IP with the local IP address
 sed -i -e 's/<IP address of current host>/'$ipaddress'/g' devstack/local.conf
