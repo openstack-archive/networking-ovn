@@ -30,7 +30,10 @@ ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3 = [
 ML2_SUPPORTED_API_EXTENSIONS_OVN_L3 = [
     'router',
     'extraroute',
-    'ext-gw-mode'
+    'ext-gw-mode',
+    'pagination',
+    'sorting',
+    'project-id',
 ]
 ML2_SUPPORTED_API_EXTENSIONS = [
     'address-scope',
