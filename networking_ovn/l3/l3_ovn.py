@@ -160,10 +160,39 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                 super(OVNL3RouterPlugin, self).create_router(
                     context, {'router': original_router})
 
-    def add_router_interface(self, context, router_id, interface_info):
-        router_interface_info = \
-            super(OVNL3RouterPlugin, self).add_router_interface(
-                context, router_id, interface_info)
+    def _add_neutron_router_interface(self, context, router_id,
+                                      interface_info, may_exist=False):
+        try:
+            router_interface_info = (
+                super(OVNL3RouterPlugin, self).add_router_interface(
+                    context, router_id, interface_info))
+        except n_exc.PortInUse:
+            if not may_exist:
+                raise
+            # NOTE(lucasagomes): If the port is already being used it means
+            # the interface has been created already, let's just fetch it from
+            # the database. Perhaps the code below should live in Neutron
+            # itself, a get_router_interface() method in the main class
+            # would be handy
+            port = self._plugin.get_port(context, interface_info['port_id'])
+            fixed_ips = [ip for ip in port['fixed_ips']]
+            subnets = []
+            for fixed_ip in fixed_ips:
+                subnets.append(self._ovn_client._plugin.get_subnet(
+                    context, fixed_ip['subnet_id']))
+
+            router_interface_info = (
+                self._make_router_interface_info(
+                    router_id, port['tenant_id'], port['id'],
+                    port['network_id'], subnets[0]['id'],
+                    [subnet['id'] for subnet in subnets]))
+
+        return router_interface_info
+
+    def add_router_interface(self, context, router_id, interface_info,
+                             may_exist=False):
+        router_interface_info = self._add_neutron_router_interface(
+            context, router_id, interface_info, may_exist=may_exist)
         port = self._plugin.get_port(context, router_interface_info['port_id'])
 
         multi_prefix = False

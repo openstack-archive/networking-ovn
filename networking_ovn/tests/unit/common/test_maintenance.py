@@ -174,4 +174,5 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         self.periodic._create_lrouter_port(port)
         l3_mock = self.periodic._ovn_client._l3_plugin
         l3_mock.add_router_interface.assert_called_once_with(
-            mock.ANY, port['device_id'], {'port_id': port['id']})
+            mock.ANY, port['device_id'], {'port_id': port['id']},
+            may_exist=True)
