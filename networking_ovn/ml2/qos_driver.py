@@ -98,7 +98,8 @@ class OVNQosDriver(object):
             return {}
         options = {}
         # The policy might not have any rules
-        all_rules = qos_rule.get_rules(context, policy_id)
+        all_rules = qos_rule.get_rules(qos_policy.QosPolicy,
+                                       context, policy_id)
         for rule in all_rules:
             if isinstance(rule, qos_rule.QosBandwidthLimitRule):
                 if rule.max_kbps:

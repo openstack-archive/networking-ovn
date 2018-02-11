@@ -126,7 +126,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_port = self._find_port_row_by_name(name)
 
         ovn_revision = ovn_port.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(2), ovn_revision)
+        self.assertEqual(str(5), ovn_revision)
         # Assert it also matches with the newest returned by neutron API
         self.assertEqual(str(neutron_port['revision_number']), ovn_revision)
 
@@ -138,7 +138,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_port = self._find_port_row_by_name(new_name)
 
         ovn_revision = ovn_port.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(3), ovn_revision)
+        self.assertEqual(str(6), ovn_revision)
         # Assert it also matches with the newest returned by neutron API
         self.assertEqual(str(updated_port['revision_number']), ovn_revision)
 
