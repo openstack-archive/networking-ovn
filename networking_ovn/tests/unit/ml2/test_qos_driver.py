@@ -105,7 +105,8 @@ class TestOVNQosDriver(base.BaseTestCase):
                                return_value=return_val) as get_rules:
             options = self.driver._generate_port_options(context, policy_id)
             if policy_id:
-                get_rules.assert_called_once_with(context, policy_id)
+                get_rules.assert_called_once_with(qos_policy.QosPolicy,
+                                                  context, policy_id)
             else:
                 get_rules.assert_not_called()
             self.assertEqual(expected_result, options)
