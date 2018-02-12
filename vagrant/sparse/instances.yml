@@ -1,5 +1,4 @@
 ---
-box: "bento/ubuntu-16.04"
 provider_network: "10.10.0.0/16"
 provider_gateway: "10.10.0.1"
 provider_start_ip: "10.10.0.101"

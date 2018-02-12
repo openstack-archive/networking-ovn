@@ -8,7 +8,6 @@ require '../provisioning/providers.rb'
 vagrant_config = YAML.load_file("instances.yml")
 
 Vagrant.configure(2) do |config|
-  config.vm.box = ENV.fetch('VAGRANT_OVN_VM_BOX', vagrant_config['box'])
 
   if Vagrant.has_plugin?("vagrant-cachier")
     # Configure cached packages to be shared between instances of the same base box.
