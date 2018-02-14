@@ -249,9 +249,9 @@ that would serve as a cache for the revision numbers in **OVNDB**.
 
 The new table schema could look this:
 
-================  ========  ===========
+================  ========  =================================================
 Column name       Type      Description
-================  ========  ===========
+================  ========  =================================================
 standard_attr_id  Integer   Primary key. The reference ID from the
                             standardattributes table in Neutron for
                             that resource. ONDELETE SET NULL.
@@ -262,7 +262,7 @@ acquired_at       DateTime  The time that the entry was create. For
                             troubleshooting purposes
 updated_at        DateTime  The time that the entry was updated. For
                             troubleshooting purposes
-================  ========  ===========
+================  ========  =================================================
 
 For the different actions: Create, update and delete; this table will be
 used as:
