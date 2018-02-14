@@ -7,6 +7,7 @@ Administration Guide
 
    ovn
    features
+   routing
    tutorial
    faq
    refarch/refarch
