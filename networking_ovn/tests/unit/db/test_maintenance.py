@@ -14,7 +14,6 @@
 #    under the License.
 
 from neutron.api import extensions
-from neutron.api.v2 import attributes
 from neutron.common import config
 import neutron.extensions
 from neutron.services.revisions import revision_plugin
@@ -56,7 +55,6 @@ class TestMaintenance(test_securitygroup.SecurityGroupsTestCase,
         ext_mgr = extensions.PluginAwareExtensionManager(
             EXTENSIONS_PATH, {'router': l3_plugin, 'sec': sec_plugin}
         )
-        ext_mgr.extend_resources('2.0', attributes.RESOURCE_ATTRIBUTE_MAP)
         app = config.load_paste_app('extensions_test_app')
         self.ext_api = extensions.ExtensionMiddleware(app, ext_mgr=ext_mgr)
         self.session = db_api.get_writer_session()
