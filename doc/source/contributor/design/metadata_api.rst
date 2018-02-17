@@ -334,7 +334,7 @@ To schedule a new metadata proxy:
   by reading the ``Chassis`` table of the OVN Southbound database.  Look for
   chassis that have an external-id of ``neutron-metadata-proxy-host=true``.
 
-* Of the available OVN chassis, choose the one “least loaded”, or currently
+* Of the available OVN chassis, choose the one "least loaded", or currently
   hosting the fewest number of metadata proxies.
 
 * Set ``neutron-metadata-proxy-chassis=CHASSIS_HOSTNAME`` as an external-id on
