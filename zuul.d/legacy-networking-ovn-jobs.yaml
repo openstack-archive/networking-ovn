@@ -46,17 +46,6 @@
       - openstack/networking-ovn
 
 - job:
-    name: networking-ovn-install-dsvm-kuryr
-    parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/install-dsvm-networking-ovn-kuryr/run.yaml
-    post-run: playbooks/legacy/install-dsvm-networking-ovn-kuryr/post.yaml
-    timeout: 7500
-    required-projects:
-      - openstack-infra/devstack-gate
-      - openstack/kuryr
-      - openstack/networking-ovn
-
-- job:
     name: networking-ovn-dsvm-functional
     parent: legacy-networking-ovn-dsvm-base
     run: playbooks/legacy/networking-ovn-dsvm-functional/run.yaml
