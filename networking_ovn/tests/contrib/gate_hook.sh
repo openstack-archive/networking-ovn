@@ -31,6 +31,13 @@ case $VENV in
     remove_ovs_packages
     # compile_ovs expects "DEST" to be defined
     DEST=$GATE_DEST
+    # The commit 8bf332225d4a73f359c806ad907bcb78ad2a6087
+    # - "ovn-northd: Reduce amount of flow hashing." and the other patches
+    # of the series in ovs master has caused regressions because of which
+    # functional tests are failing. So use commit -
+    # 8b70d82461ea104858ebd7d397ec004f6974240b.
+    # We can revert back to master, once the regressions are addressed.
+    OVS_BRANCH=8b70d82461ea104858ebd7d397ec004f6974240b
     compile_ovs True /usr/local /var
 
     # Make the workspace owned by GATE_STACK_USER
