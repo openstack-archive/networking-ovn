@@ -6,5 +6,6 @@ Contributor Documentation
    :maxdepth: 2
 
    contributing
+   vagrant/index
    testing
    design/index
