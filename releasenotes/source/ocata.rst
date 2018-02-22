@@ -3,5 +3,5 @@
 ===================================
 
 .. release-notes::
-   :branch: origin/stable/ocata
+   :branch: stable/ocata
    :earliest-version: 2.0.0
