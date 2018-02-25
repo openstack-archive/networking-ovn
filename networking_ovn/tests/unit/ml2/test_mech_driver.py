@@ -70,9 +70,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.nb_ovn = self.mech_driver._nb_ovn
         self.sb_ovn = self.mech_driver._sb_ovn
 
-        self.mech_driver._ovn_client = ovn_client.OVNClient(
-            self.nb_ovn, self.sb_ovn)
-
         self.fake_subnet = fakes.FakeSubnet.create_one_subnet().info()
         self.fake_port_no_sg = fakes.FakePort.create_one_port().info()
 
@@ -1261,7 +1258,6 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
         self.mech_driver._insert_port_provisioning_block = mock.Mock()
-        self.mech_driver._ovn_client = ovn_client.OVNClient(nb_ovn, sb_ovn)
 
 
 class TestOVNMechansimDriverBasicGet(test_plugin.TestMl2BasicGet,
@@ -1379,7 +1375,6 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.mech_driver._nb_ovn = nb_ovn
         self.mech_driver._sb_ovn = sb_ovn
-        self.mech_driver._ovn_client = ovn_client.OVNClient(nb_ovn, sb_ovn)
 
     def _test_segment_host_mapping(self):
         # Disable the callback to update SegmentHostMapping by default, so
@@ -1450,11 +1445,6 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
 
 @mock.patch.object(n_net, 'get_random_mac', lambda *_: '01:02:03:04:05:06')
 class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
-
-    def setUp(self):
-        super(TestOVNMechansimDriverDHCPOptions, self).setUp()
-        self.mech_driver._ovn_client = ovn_client.OVNClient(
-            self.mech_driver._nb_ovn, self.mech_driver._sb_ovn)
 
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
                                           expected_dhcp_options,
@@ -1866,8 +1856,6 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.nb_ovn = self.mech_driver._nb_ovn
         self.sb_ovn = self.mech_driver._sb_ovn
-        self.mech_driver._ovn_client = ovn_client.OVNClient(
-            self.nb_ovn, self.sb_ovn)
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          True,
                                          group='ovn')
