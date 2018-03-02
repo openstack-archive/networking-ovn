@@ -38,6 +38,9 @@ else
     echo "No ovs branch specified, using the default from the devstack plugin"
 fi
 
+# Enable controller to host gateway routers
+export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_CHASSIS_AS_GW=True"
+
 if [[ "$DEVSTACK_GATE_TOPOLOGY" == "multinode" ]] ; then
     # NOTE(rtheis): Multinode does not require creating an OVN L3 public network.
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_L3_CREATE_PUBLIC_NETWORK=False"

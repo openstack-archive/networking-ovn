@@ -44,6 +44,17 @@ Create a provider network
 
 #. On the controller node, source the administrative project credentials.
 
+#. On the controller node, to enable this chassis to host gateway routers
+   for external connectivity, set ovn-cms-options to enable-chassis-as-gw.
+
+   .. code-block:: console
+
+      # ovs-vsctl set open . external-ids:ovn-cms-options="enable-chassis-as-gw"
+
+   .. note::
+
+      This command provide no output if successful.
+
 #. On the controller node, create the provider network in the Networking
    service. In this case, instances and routers in other projects can use
    the network.

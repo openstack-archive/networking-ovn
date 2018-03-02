@@ -119,6 +119,10 @@ The compute nodes don't need connectivity to the external network,
 although it could be provided if we wanted to have direct connectivity
 to such network from some instances.
 
+For external connectivity, gateway nodes have to set ovn-cms-options
+with enable-chassis-as-gw in Open_vSwitch table's external_ids column.
+$ovs-vsctl set open . external-ids:ovn-cms-options="enable-chassis-as-gw"
+
 Distributed Floating IPs (DVR)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

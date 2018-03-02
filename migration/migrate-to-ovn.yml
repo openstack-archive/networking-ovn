@@ -161,6 +161,8 @@
   - name: Schedule gateway routers by running the sync util.
     when: ovn_central is defined
     command: neutron-ovn-db-sync-util --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+  - name: Configure node for hosting gateway routers for external connectivity.
+    command: "ovs-vsctl set open . external_ids:ovn-cms-options=enable-chassis-as-gw"
 
 - hosts: overcloud
   remote_user: "{{ remote_user }}"

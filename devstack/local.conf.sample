@@ -96,6 +96,13 @@ disable_service cinder c-sch c-api c-vol
 #PUBLIC_INTERFACE=<public interface>
 #OVS_PHYSICAL_BRIDGE=br-provider
 #PROVIDER_SUBNET_NAME=provider-subnet
+
+# If the admin wants to enable this chassis to host gateway routers for
+# external connectivity, then set ENABLE_CHASSIS_AS_GW to True.
+# Then devstack will set ovn-cms-options with enable-chassis-as-gw
+# in Open_vSwitch table's external_ids column
+#ENABLE_CHASSIS_AS_GW=True
+
 # use the following for IPv4
 #IP_VERSION=4
 #FIXED_RANGE=<CIDR for the Provider Network>
