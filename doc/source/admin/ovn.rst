@@ -4,11 +4,11 @@ OVN information
 
 The original OVN project announcement can be found here:
 
-* http://networkheresy.com/2015/01/13/ovn-bringing-native-virtual-networking-to-ovs/
+* https://networkheresy.com/2015/01/13/ovn-bringing-native-virtual-networking-to-ovs/
 
 The OVN architecture is described here:
 
-* http://openvswitch.org/support/dist-docs/ovn-architecture.7.html
+* http://www.openvswitch.org/support/dist-docs/ovn-architecture.7.html
 
 Here are two tutorials that help with learning different aspects of OVN:
 
@@ -21,13 +21,13 @@ There is also an in depth tutorial on using OVN with OpenStack:
 
 OVN DB schemas and other man pages:
 
-* http://openvswitch.org/support/dist-docs/ovn-nb.5.html
-* http://openvswitch.org/support/dist-docs/ovn-sb.5.html
-* http://openvswitch.org/support/dist-docs/ovn-nbctl.8.html
-* http://openvswitch.org/support/dist-docs/ovn-sbctl.8.html
-* http://openvswitch.org/support/dist-docs/ovn-northd.8.html
-* http://openvswitch.org/support/dist-docs/ovn-controller.8.html
-* http://openvswitch.org/support/dist-docs/ovn-controller-vtep.8.html
+* http://www.openvswitch.org/support/dist-docs/ovn-nb.5.html
+* http://www.openvswitch.org/support/dist-docs/ovn-sb.5.html
+* http://www.openvswitch.org/support/dist-docs/ovn-nbctl.8.html
+* http://www.openvswitch.org/support/dist-docs/ovn-sbctl.8.html
+* http://www.openvswitch.org/support/dist-docs/ovn-northd.8.html
+* http://www.openvswitch.org/support/dist-docs/ovn-controller.8.html
+* http://www.openvswitch.org/support/dist-docs/ovn-controller-vtep.8.html
 
 or find a full list of OVS and OVN man pages here:
 
