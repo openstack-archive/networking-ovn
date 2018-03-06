@@ -38,11 +38,11 @@ L3HA support
 ~~~~~~~~~~~~
 
 Networking-ovn implements L3 high availability in a transparent way. You
-don't need to enable any config flags. As soon as you have more than one
-chassis capable of acting as an l3 gateway to the specific external network
-attached to the router it will schedule the router gateway port to multiple
-chassis, making use of the gateway_chassis column on OVN's logical router
-ports.
+don't need to enable any config flags. As soon as you have more than
+one chassis capable of acting as an l3 gateway to the specific external
+network attached to the router it will schedule the router gateway port
+to multiple chassis, making use of the ``gateway_chassis`` column on OVN's
+``Logical_Router_Port`` table.
 
 At the low level, functionality is all implemented mostly by OpenFlow rules
 with bundle active_passive outputs. The ARP responder and router
@@ -111,7 +111,7 @@ Supported failure modes are:
    - gateway chassis becomes disconnected from network (tunneling interface)
    - ovs-vswitchd is stopped (it's responsible for BFD signaling)
    - ovn-controller is stopped, as ovn-controller will remove himself as a
-      registered chassis.
+     registered chassis.
 
 .. note::
    As a side note, it's also important to understand, that as for VRRP or CARP
