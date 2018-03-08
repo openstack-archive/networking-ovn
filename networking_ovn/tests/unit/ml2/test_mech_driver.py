@@ -1449,7 +1449,7 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         # that update_segment_host_mapping is the only path to add the mapping
         registry.unsubscribe(
             self.mech_driver._add_segment_host_mapping_for_segment,
-            resources.SEGMENT, events.PRECOMMIT_CREATE)
+            resources.SEGMENT, events.AFTER_CREATE)
         host = 'hostname'
         with self.network() as network:
             network = network['network']

@@ -143,7 +143,7 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         registry.subscribe(self._add_segment_host_mapping_for_segment,
                            resources.SEGMENT,
-                           events.PRECOMMIT_CREATE)
+                           events.AFTER_CREATE)
 
         # Handle security group/rule notifications
         if self.sg_enabled:

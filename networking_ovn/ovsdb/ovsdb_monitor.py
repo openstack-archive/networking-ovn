@@ -55,6 +55,37 @@ class ChassisEvent(row_event.RowEvent):
             self.l3_plugin.schedule_unhosted_gateways()
 
 
+class PortBindingChassisEvent(row_event.RowEvent):
+    """Port_Binding update event - set chassis for chassisredirect port.
+
+    When a chassisredirect port is updated with chassis, this event get
+    generated. We will update corresponding router's gateway port with
+    the chassis's host_id. Later, users can check router's gateway port
+    host_id to find the location of master HA router.
+    """
+
+    def __init__(self, driver):
+        self.driver = driver
+        self.l3_plugin = directory.get_plugin(constants.L3)
+        table = 'Port_Binding'
+        events = (self.ROW_UPDATE)
+        super(PortBindingChassisEvent, self).__init__(
+            events, table, (('type', '=', 'chassisredirect'),))
+        self.event_name = 'PortBindingChassisEvent'
+
+    def run(self, event, row, old):
+        chassis = getattr(row, 'chassis', [])
+        if chassis:
+            router = row.datapath.external_ids.get('name', '').replace(
+                'neutron-', '')
+            host = chassis[0].hostname
+            LOG.info("Router %(router)s is bound to host %(host)s",
+                     {'router': router, 'host': host})
+            if ovn_config.is_ovn_l3():
+                self.l3_plugin.update_router_gateway_port_bindings(
+                    router, host)
+
+
 class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):
     """Row create event - Logical_Switch_Port 'up' = True.
 
@@ -156,9 +187,8 @@ class BaseOvnSbIdl(connection.OvsdbIdl):
         helper = idlutils.get_schema_helper(connection_string, schema_name)
         helper.register_table('Chassis')
         helper.register_table('Encap')
-        if ovn_config.is_ovn_metadata_enabled():
-            helper.register_table('Port_Binding')
-            helper.register_table('Datapath_Binding')
+        helper.register_table('Port_Binding')
+        helper.register_table('Datapath_Binding')
         return cls(connection_string, helper)
 
 
@@ -249,9 +279,8 @@ class OvnSbIdl(OvnIdl):
         helper = idlutils.get_schema_helper(connection_string, schema_name)
         helper.register_table('Chassis')
         helper.register_table('Encap')
-        if ovn_config.is_ovn_metadata_enabled():
-            helper.register_table('Port_Binding')
-            helper.register_table('Datapath_Binding')
+        helper.register_table('Port_Binding')
+        helper.register_table('Datapath_Binding')
         _idl = cls(driver, connection_string, helper)
         _idl.set_lock(_idl.event_lock_name)
         return _idl
@@ -265,7 +294,9 @@ class OvnSbIdl(OvnIdl):
         the events to make notify work.
         """
         self._chassis_event = ChassisEvent(self.driver)
-        self.notify_handler.watch_events([self._chassis_event])
+        self._portbinding_event = PortBindingChassisEvent(self.driver)
+        self.notify_handler.watch_events([self._chassis_event,
+                                          self._portbinding_event])
 
 
 def _check_and_set_ssl_files(schema_name):

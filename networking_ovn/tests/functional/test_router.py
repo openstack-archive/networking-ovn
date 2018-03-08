@@ -18,16 +18,19 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
 from networking_ovn.tests.functional import base
 
+from neutron.common import utils as n_utils
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3 as l3_apidef
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as n_consts
+from neutron_lib.plugins import directory
 from ovsdbapp.backend.ovs_idl import idlutils
 
 
 class TestRouter(base.TestOVNFunctionalBase):
     def setUp(self):
-        super(TestRouter, self).setUp()
+        super(TestRouter, self).setUp(ovn_worker=True)
         self.chassis1 = self.add_fake_chassis(
             'ovs-host1', physical_nets=['physnet1', 'physnet3'])
         self.chassis2 = self.add_fake_chassis(
@@ -187,12 +190,39 @@ class TestRouter(base.TestOVNFunctionalBase):
             self._set_redirect_chassis_to_invalid_chassis(ovn_client)
             self.l3_plugin.schedule_unhosted_gateways()
 
-            # Check ovn_client._ovn_scheduler.select called for router
-            # create and updates
-            self.assertEqual(3, client_select.call_count)
-            # Check self.l3_plugin.scheduler.select called for
-            # schedule_unhosted_gateways
-            self.assertEqual(3, plugin_select.call_count)
+            # We can't test call_count for these mocks, as we have enabled
+            # ovn_worker which will trigger chassis events and eventually
+            # calling schedule_unhosted_gateways
+            self.assertTrue(client_select.called)
+            self.assertTrue(plugin_select.called)
+
+    def test_router_gateway_port_binding_host_id(self):
+        # Test setting chassis on chassisredirect port in Port_Binding table,
+        # will update host_id of corresponding router gateway port
+        # with this chassis.
+        chassis = idlutils.row_by_value(self.sb_api.idl, 'Chassis',
+                                        'name', self.chassis1)
+        host_id = chassis.hostname
+        ext = self._create_ext_network(
+            'ext1', 'vlan', 'physnet1', 1, "10.0.0.1", "10.0.0.0/24")
+        gw_info = {'network_id': ext['network']['id']}
+        router = self._create_router('router1', gw_info=gw_info)
+        core_plugin = directory.get_plugin()
+        gw_port_id = router.get('gw_port_id')
+
+        # Set chassis on chassisredirect port in Port_Binding table
+        logical_port = 'cr-lrp-%s' % gw_port_id
+        self.sb_api.lsp_bind(logical_port, self.chassis1,
+                             may_exist=True).execute(check_error=True)
+
+        def check_port_binding_host_id(port_id):
+            port = core_plugin.get_ports(
+                self.context, filters={'id': [port_id]})[0]
+            return port[portbindings.HOST_ID] == host_id
+
+        # Test if router gateway port updated with this chassis
+        n_utils.wait_until_true(lambda: check_port_binding_host_id(
+            gw_port_id))
 
     def _validate_router_ipv6_ra_configs(self, lrp_name, expected_ra_confs):
         lrp = idlutils.row_by_value(self.nb_api.idl,
