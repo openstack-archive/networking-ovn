@@ -1477,6 +1477,7 @@ class OVNClient(object):
                         {'network_id': network['id'],
                          'tenant_id': network['project_id'],
                          'device_owner': const.DEVICE_OWNER_DHCP}}
+                # TODO(boden): rehome create_port into neutron-lib
                 p_utils.create_port(self._plugin, context, port)
             elif len(metadata_ports) > 1:
                 LOG.error("More than one metadata ports found for network %s. "

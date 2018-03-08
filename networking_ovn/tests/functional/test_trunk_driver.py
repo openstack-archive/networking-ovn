@@ -16,10 +16,10 @@ import contextlib
 
 from networking_ovn.tests.functional import base
 from neutron.objects import ports as obj_port
-from neutron.plugins.common import utils
 from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk import plugin as trunk_plugin
 from neutron_lib import constants as n_consts
+from neutron_lib.plugins import utils
 from oslo_utils import uuidutils
 
 
