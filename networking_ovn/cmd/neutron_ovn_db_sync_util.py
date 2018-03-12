@@ -12,12 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron_lib.agent import topics
 from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log as logging
 
-from neutron.common import topics
 from neutron.conf.agent import securitygroups_rpc
 from neutron import manager
 from neutron import opts as neutron_options
