@@ -13,3 +13,4 @@ pyOpenSSL>=16.2.0 # Apache-2.0
 tenacity>=3.2.1 # Apache-2.0
 Babel!=2.4.0,>=2.3.4 # BSD
 six>=1.10.0 # MIT
+neutron>=12.0.0  # Apache-2.0
