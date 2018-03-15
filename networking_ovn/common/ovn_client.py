@@ -1383,7 +1383,9 @@ class OVNClient(object):
                 self._remove_subnet_dhcp_options(subnet['id'], txn)
             elif subnet['enable_dhcp'] and ovn_subnet:
                 self._update_subnet_dhcp_options(subnet, network, txn)
-        db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
+
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+            db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
 
     def delete_subnet(self, subnet_id):
         with self._nb_idl.transaction(check_error=True) as txn:
