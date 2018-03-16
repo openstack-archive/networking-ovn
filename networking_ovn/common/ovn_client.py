@@ -23,6 +23,7 @@ from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
+from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.plugins import utils as p_utils
@@ -810,7 +811,7 @@ class OVNClient(object):
         gw_info = self._get_gw_info(context, router)
         gw_port_id = router['gw_port_id']
         port = self._plugin.get_port(context, gw_port_id)
-        self.create_router_port(router_id, port, txn=txn)
+        self._create_lrouter_port(router_id, port, txn=txn)
 
         # TODO(lucasagomes): Remove this check after OVS 2.8.2 is tagged
         # (prior to that, the external_ids column didn't exist in this
@@ -1066,11 +1067,19 @@ class OVNClient(object):
             return extnet.get(pnet.PHYSICAL_NETWORK)
 
     def _gen_router_port_ext_ids(self, port):
-        return {
+        ext_ids = {
             ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(utils.get_revision_number(
-                port, ovn_const.TYPE_ROUTER_PORTS))}
+                port, ovn_const.TYPE_ROUTER_PORTS)),
+            ovn_const.OVN_SUBNET_EXT_IDS_KEY:
+                ' '.join(utils.get_port_subnet_ids(port))}
 
-    def create_router_port(self, router_id, port, txn=None):
+        router_id = port.get('device_id')
+        if router_id:
+            ext_ids[ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY] = router_id
+
+        return ext_ids
+
+    def _create_lrouter_port(self, router_id, port, txn=None):
         """Create a logical router port."""
         lrouter = utils.ovn_name(router_id)
         networks, ipv6_ra_configs = (
@@ -1118,11 +1127,43 @@ class OVNClient(object):
                 port['id'], lrouter_port_name, is_gw_port=is_gw_port,
                 lsp_address=lsp_address)]
         self._transaction(commands, txn=txn)
-        # NOTE(mangelajo): we don't bump the revision here, but we do
-        # in the higher level add_router_interface function, because
-        # we can't consider it done until the Nat rules are updated
 
-    def update_router_port(self, port, bump_db_rev=True, if_exists=False):
+    def create_router_port(self, router_id, router_interface):
+        context = n_context.get_admin_context()
+        port = self._plugin.get_port(context, router_interface['port_id'])
+        with self._nb_idl.transaction(check_error=True) as txn:
+            multi_prefix = False
+            if (len(router_interface.get('subnet_ids', [])) == 1 and
+                    len(port['fixed_ips']) > 1):
+
+                # NOTE(lizk) It's adding a subnet onto an already
+                # existing router interface port, try to update lrouter port
+                # 'networks' column.
+                self._update_lrouter_port(port, txn=txn)
+                multi_prefix = True
+            else:
+                self._create_lrouter_port(router_id, port, txn=txn)
+
+            router = self._l3_plugin.get_router(context, router_id)
+            if router.get(l3.EXTERNAL_GW_INFO):
+                cidr = None
+                for fixed_ip in port['fixed_ips']:
+                    subnet = self._plugin.get_subnet(context,
+                                                     fixed_ip['subnet_id'])
+                    if multi_prefix:
+                        if 'subnet_id' in router_interface:
+                            if subnet['id'] != router_interface['subnet_id']:
+                                continue
+                    if subnet['ip_version'] == 4:
+                        cidr = subnet['cidr']
+
+                if utils.is_snat_enabled(router) and cidr:
+                    self.update_nat_rules(router, networks=[cidr],
+                                          enable_snat=True, txn=txn)
+
+        db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
+
+    def _update_lrouter_port(self, port, if_exists=False, txn=None):
         """Update a logical router port."""
         networks, ipv6_ra_configs = (
             self._get_nets_and_ipv6_ra_confs_for_router_port(
@@ -1143,39 +1184,105 @@ class OVNClient(object):
             # remove this if condition.
             lsp_address = [port['mac_address']]
 
-        lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
+        lrp_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks, 'ipv6_ra_configs': ipv6_ra_configs}
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
             'device_owner')
+        commands = [
+            self._nb_idl.update_lrouter_port(
+                name=lrp_name,
+                external_ids=self._gen_router_port_ext_ids(port),
+                if_exists=if_exists,
+                **update),
+            self._nb_idl.set_lrouter_port_in_lswitch_port(
+                port['id'], lrp_name, is_gw_port=is_gw_port,
+                lsp_address=lsp_address)]
+
+        self._transaction(commands, txn=txn)
+
+    def update_router_port(self, port, if_exists=False):
+        lrp_name = utils.ovn_lrouter_port_name(port['id'])
         check_rev_cmd = self._nb_idl.check_revision_number(
-            lrouter_port_name, port, ovn_const.TYPE_ROUTER_PORTS)
+            lrp_name, port, ovn_const.TYPE_ROUTER_PORTS)
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(check_rev_cmd)
-            txn.add(self._nb_idl.update_lrouter_port(
-                    name=lrouter_port_name,
-                    external_ids=self._gen_router_port_ext_ids(port),
-                    if_exists=if_exists,
-                    **update))
-            txn.add(self._nb_idl.set_lrouter_port_in_lswitch_port(
-                    port['id'], lrouter_port_name, is_gw_port=is_gw_port,
-                    lsp_address=lsp_address))
+            self._update_lrouter_port(port, if_exists=if_exists, txn=txn)
 
-        if bump_db_rev and check_rev_cmd.result == ovn_const.TXN_COMMITTED:
+        if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
-        else:
-            # NOTE(mangelajo): we don't bump the revision here, but we do
-            # in the higher level add_router_interface function, because
-            # we can't consider it done until the Nat rules are updated
-            pass
 
-    def delete_router_port(self, port_id, router_id=None):
+    def _delete_lrouter_port(self, port_id, router_id=None, txn=None):
         """Delete a logical router port."""
-        with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(self._nb_idl.lrp_del(
-                utils.ovn_lrouter_port_name(port_id),
-                utils.ovn_name(router_id) if router_id else None,
-                if_exists=True))
+        commands = [self._nb_idl.lrp_del(
+            utils.ovn_lrouter_port_name(port_id),
+            utils.ovn_name(router_id) if router_id else None,
+            if_exists=True)]
+        self._transaction(commands, txn=txn)
         db_rev.delete_revision(port_id, ovn_const.TYPE_ROUTER_PORTS)
+
+    def delete_router_port(self, port_id, router_id=None, subnet_ids=None):
+        try:
+            ovn_port = self._nb_idl.lookup(
+                'Logical_Router_Port', utils.ovn_lrouter_port_name(port_id))
+        except idlutils.RowNotFound:
+            return
+
+        subnet_ids = subnet_ids or []
+        context = n_context.get_admin_context()
+        port_removed = False
+        with self._nb_idl.transaction(check_error=True) as txn:
+            port = None
+            try:
+                port = self._plugin.get_port(context, port_id)
+                # The router interface port still exists, call ovn to
+                # update it
+                self._update_lrouter_port(port, txn=txn)
+            except n_exc.PortNotFound:
+                # The router interface port doesn't exist any more,
+                # we will call ovn to delete it once we remove the snat
+                # rules in the router itself if we have to
+                port_removed = True
+
+            router_id = router_id or ovn_port.external_ids.get(
+                ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY)
+            if not router_id:
+                router_id = port.get('device_id')
+
+            router = None
+            if router_id:
+                router = self._l3_plugin.get_router(context, router_id)
+
+            if not router.get(l3.EXTERNAL_GW_INFO):
+                if port_removed:
+                    self._delete_lrouter_port(port_id, router_id, txn=txn)
+                return
+
+            if not subnet_ids:
+                subnet_ids = ovn_port.external_ids.get(
+                    ovn_const.OVN_SUBNET_EXT_IDS_KEY, [])
+                subnet_ids = subnet_ids.split()
+            elif port:
+                subnet_ids = utils.get_port_subnet_ids(port)
+
+            cidr = None
+            for sid in subnet_ids:
+                subnet = self._plugin.get_subnet(context, sid)
+                if subnet['ip_version'] == 4:
+                    cidr = subnet['cidr']
+                    break
+
+            if router and utils.is_snat_enabled(router) and cidr:
+                self.update_nat_rules(
+                    router, networks=[cidr], enable_snat=False, txn=txn)
+
+            # NOTE(mangelajo): If the port doesn't exist anymore, we
+            # delete the router port as the last operation and update the
+            # revision database to ensure consistency
+            if port_removed:
+                self._delete_lrouter_port(port_id, router_id, txn=txn)
+            else:
+                # otherwise, we just update the revision database
+                db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
 
     def update_nat_rules(self, router, networks, enable_snat, txn=None):
         """Update the NAT rules in a logical router."""

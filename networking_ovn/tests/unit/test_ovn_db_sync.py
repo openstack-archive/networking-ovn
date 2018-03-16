@@ -609,8 +609,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                     for p in create_router_port_list]
         self.assertEqual(
             len(create_router_port_list),
-            ovn_nb_synchronizer._ovn_client.create_router_port.call_count)
-        ovn_nb_synchronizer._ovn_client.create_router_port.assert_has_calls(
+            ovn_nb_synchronizer._ovn_client._create_lrouter_port.call_count)
+        ovn_nb_synchronizer._ovn_client._create_lrouter_port.assert_has_calls(
             create_router_port_calls,
             any_order=True)
 

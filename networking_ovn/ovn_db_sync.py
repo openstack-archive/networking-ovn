@@ -471,7 +471,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 try:
                     LOG.warning("Creating the router port %s in OVN NB DB",
                                 rrport['id'])
-                    self._ovn_client.create_router_port(
+                    self._ovn_client._create_lrouter_port(
                         rrport['device_id'], rrport)
                 except RuntimeError:
                     LOG.warning("Create router port in OVN "

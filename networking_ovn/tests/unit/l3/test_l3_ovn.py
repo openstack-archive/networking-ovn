@@ -65,7 +65,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'name': 'lrp-router-port-id',
             'may_exist': True,
             'networks': ['10.0.0.100/24'],
-            'external_ids': {ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
+            'external_ids': {
+                ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
         self.fake_router_ports = [self.fake_router_port]
         self.fake_subnet = {'id': 'subnet-id',
                             'ip_version': 4,
@@ -117,7 +119,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'name': 'lrp-gw-port-id',
             'networks': ['192.168.1.1/24'],
             'may_exist': True,
-            'external_ids': {ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
+            'external_ids': {
+                ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'ext-subnet-id',
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'gateway_chassis': ['hv1']}
         self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
                                        'fixed_ip_address': '10.0.0.10'}
@@ -280,7 +284,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             if_exists=False, name='lrp-router-port-id',
             ipv6_ra_configs={},
             networks=['10.0.0.100/24'],
-            external_ids={ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'})
+            external_ids={
+                ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'})
 
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')

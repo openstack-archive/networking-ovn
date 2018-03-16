@@ -361,3 +361,8 @@ def get_system_dns_resolvers(resolver_file=DNS_RESOLVER_FILE):
             if ipv4:
                 resolvers.append(ipv4.group(0))
     return resolvers
+
+
+def get_port_subnet_ids(port):
+    fixed_ips = [ip for ip in port['fixed_ips']]
+    return [f['subnet_id'] for f in fixed_ips]
