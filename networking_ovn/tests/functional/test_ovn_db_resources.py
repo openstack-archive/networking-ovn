@@ -767,7 +767,7 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
                              for f in n1p1['port']['fixed_ips']])
         expected_dns_records = [
             {'external_ids': {'ls_name': n1_lswitch_name},
-             'records': {'n1p1': port_ips, 'n1p1.ovn.test.': port_ips}}
+             'records': {'n1p1': port_ips, 'n1p1.ovn.test': port_ips}}
         ]
 
         self._validate_dns_records(expected_dns_records)
@@ -793,7 +793,7 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
                              for f in n2p1['port']['fixed_ips']])
         expected_dns_records.append(
             {'external_ids': {'ls_name': n2_lswitch_name},
-             'records': {'n2p1': port_ips, 'n2p1.ovn.test.': port_ips}})
+             'records': {'n2p1': port_ips, 'n2p1.ovn.test': port_ips}})
         self._validate_dns_records(expected_dns_records)
         self._validate_ls_dns_records(n1_lswitch_name,
                                       [expected_dns_records[0]])
@@ -809,7 +809,7 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
         port_ips = " ".join([f['ip_address']
                              for f in n1p2['port']['fixed_ips']])
         expected_dns_records[0]['records']['n1p2'] = port_ips
-        expected_dns_records[0]['records']['n1p2.ovn.test.'] = port_ips
+        expected_dns_records[0]['records']['n1p2.ovn.test'] = port_ips
         self._validate_dns_records(expected_dns_records)
         self._validate_ls_dns_records(n1_lswitch_name,
                                       [expected_dns_records[0]])
@@ -824,7 +824,7 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
         self.assertEqual(200, res.status_int)
 
         expected_dns_records[0]['records'].pop('n1p1')
-        expected_dns_records[0]['records'].pop('n1p1.ovn.test.')
+        expected_dns_records[0]['records'].pop('n1p1.ovn.test')
         self._validate_dns_records(expected_dns_records)
         self._validate_ls_dns_records(n1_lswitch_name,
                                       [expected_dns_records[0]])
