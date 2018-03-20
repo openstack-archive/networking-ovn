@@ -205,6 +205,8 @@ class TestMetadataAgent(base.BaseTestCase):
                                return_value=metadata_port),\
                 mock.patch.object(
                     ip_lib, 'device_exists', return_value=False),\
+                mock.patch.object(
+                    ip_lib.IPDevice, 'exists', return_value=False),\
                 mock.patch.object(agent.MetadataAgent, '_get_veth_name',
                                   return_value=['veth_0', 'veth_1']),\
                 mock.patch.object(agent.MetadataAgent, '_get_namespace_name',
