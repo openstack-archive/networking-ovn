@@ -354,13 +354,18 @@ class UpdateLRouterPortCommand(command.BaseCommand):
             msg = _("Logical Router Port %s does not exist") % self.name
             raise RuntimeError(msg)
 
-        if lrouter_port:
-            for col, val in self.columns.items():
-                if col == 'gateway_chassis':
-                    col, val = _add_gateway_chassis(self.api, txn, self.name,
-                                                    val)
-                setattr(lrouter_port, col, val)
-            return
+        # TODO(lucasagomes): Remove this check once we drop the support
+        # for OVS versions <= 2.8
+        ipv6_ra_configs_supported = self.api.is_col_present(
+            'Logical_Router_Port', 'ipv6_ra_configs')
+        for col, val in self.columns.items():
+            if col == 'ipv6_ra_configs' and not ipv6_ra_configs_supported:
+                continue
+
+            if col == 'gateway_chassis':
+                col, val = _add_gateway_chassis(self.api, txn, self.name,
+                                                val)
+            setattr(lrouter_port, col, val)
 
 
 class DelLRouterPortCommand(command.BaseCommand):
