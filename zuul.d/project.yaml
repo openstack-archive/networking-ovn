@@ -20,6 +20,7 @@
         # failures, please reach us on #tripleo IRC channel.
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
+        - openstack-tox-lower-constraints
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -29,6 +30,7 @@
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
+        - openstack-tox-lower-constraints
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master-python3:
