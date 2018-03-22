@@ -482,6 +482,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         result in the deletion of the resource.
         """
         port = context.current
+        port['network'] = context.network.current
         self._ovn_client.create_port(port)
         self._notify_dhcp_updated(port['id'])
 
@@ -533,7 +534,9 @@ class OVNMechanismDriver(api.MechanismDriver):
         state changes that it does not know or care about.
         """
         port = context.current
+        port['network'] = context.network.current
         original_port = context.original
+        original_port['network'] = context.network.current
         self._ovn_client.update_port(port, port_object=original_port)
         self._notify_dhcp_updated(port['id'])
 
@@ -550,6 +553,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         deleted.
         """
         port = context.current
+        port['network'] = context.network.current
         self._ovn_client.delete_port(port['id'], port_object=port)
 
     def bind_port(self, context):
