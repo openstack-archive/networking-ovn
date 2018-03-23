@@ -27,108 +27,82 @@ non-quickstart details in this document also work with TripleO.
 Deployment steps
 ================
 
-1. Follow the `TripleO Quickstart`_ guide until the "--install-deps" step
+#. Follow the `TripleO Quickstart`_ guide until the "--install-deps" step
    (included)
 
-2. Once you're done, run quickstart as follows (3 controller HA + 1 compute):
+#. Clone the tripleo-quickstart and networking-ovn repositories:
 
-.. code-block:: console
+   .. code-block:: console
 
-   bash ./quickstart.sh --teardown all --release master-tripleo-ci \
-     --nodes config/nodes/3ctlr_1comp.yml \
-     --config config/general_config/pacemaker.yml $VIRT_HOST
+      $ git clone https://git.openstack.org/openstack/tripleo-quickstart
+      $ git clone https://git.openstack.org/openstack/networking-ovn
 
-.. note::
-   You can adjust RAM/VCPUs if you want by editing config/nodes/3ctlr_1comp.yml
-   before running the above command. If you have enough memory stick to the
-   defaults.
+#. Once you're done, run quickstart as follows (3 controller HA + 1 compute):
 
-.. note::
-   VIRT_HOST may be 127.0.0.2 in the case of localhost.
+   .. code-block:: console
 
-3. When quickstart has finished you will have 5 VMs ready to be used, 1 for
+      # Exporting the tags is a workaround until the bug
+      # https://bugs.launchpad.net/tripleo/+bug/1737602 is resolved
+
+      $ export ansible_tags="untagged,provision,environment,libvirt,\
+      undercloud-scripts,undercloud-inventory,overcloud-scripts,\
+      undercloud-setup,undercloud-install,undercloud-post-install,\
+      overcloud-prep-config"
+
+      $ bash ./quickstart.sh --tags $ansible_tags --teardown all \
+      --release master-tripleo-ci \
+      --nodes tripleo-quickstart/config/nodes/3ctlr_1comp.yml  \
+      --config networking-ovn/tripleo/ovn.yml \
+      $VIRTHOST
+
+   .. note::
+
+      When deploying directly on ``localhost`` use the loopback address
+      127.0.0.2 as your $VIRTHOST. The loopback address 127.0.0.1 is
+      reserved by ansible. Also make sure that 127.0.0.2 is accessible
+      via public keys::
+
+        $ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+   .. note::
+      You can adjust RAM/VCPUs if you want by editing
+      *config/nodes/3ctlr_1comp.yml* before running the above command. If
+      you have enough memory stick to the defaults. We recommend using 8GB
+      of RAM for the controller nodes.
+
+#. When quickstart has finished you will have 5 VMs ready to be used, 1 for
    the undercloud (TripleO's node to deploy your openstack from), 3 VMs for
    controller nodes and 1 VM for the compute node.
 
-4. Log in into the undercloud:
+#. Log in into the undercloud:
 
-.. code-block:: console
+   .. code-block:: console
 
-   ssh -F ~ /.quickstart/ssh.config.ansible undercloud
+      $ ssh -F ~/.quickstart/ssh.config.ansible undercloud
 
-5. Prepare overcloud container images, you can skip this step if you don't want
-   to deploy a containerized cloud, although containerized is recommended since
-   it's the default (CI) since Queens.
+#. Prepare overcloud container images:
 
-.. code-block:: console
+   .. code-block:: console
 
-    [stack@undercloud ~]$ PREPARE_ARGS="\
-    -e /usr/share/openstack-tripleo-heat-templates/environments/docker.yaml \
-    -e /usr/share/openstack-tripleo-heat-templates/environments/docker-ha.yaml \
-    -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker/neutron-ovn-ha.yaml" \
-    ./overcloud-prep-containers.sh
+       [stack@undercloud ~]$ ./overcloud-prep-containers.sh
 
-6. Open overcloud-deploy.sh and locate the `openstack overcloud deploy` command
-   and add this environment file after all the other environment files:
+#. Run inside the undercloud:
 
-For containerized version (default)
+   .. code-block:: console
 
-.. code-block:: console
+       [stack@undercloud ~]$ ./overcloud-deploy.sh
 
-    -e /usr/share/openstack-tripleo-heat-templates/environments/docker.yaml \
-    -e /usr/share/openstack-tripleo-heat-templates/environments/docker-ha.yaml \
-    -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker/neutron-ovn-ha.yaml \
-    -e containers-default-parameters.yaml
+#. Grab a coffee, that may take around 1 hour (depending on your hardware).
 
-For non containerized version:
-
-.. code-block:: console
-
-    -e /usr/share/openstack-tripleo-heat-templates/environments/neutron-ml2-ovn-ha.yaml
-
-7. Workaround (until `this <https://bugs.launchpad.net/tripleo/+bug/1737602>`_
-   is fixed in quickstart)
-
-.. code-block:: console
-
-   cat > network-environment.yaml <<EOF
-   {
-       "parameter_defaults": {
-           "ControlPlaneDefaultRoute": "192.168.24.1",
-           "ControlPlaneSubnetCidr": "24",
-           "DnsServers": [
-               "192.168.23.1"
-           ],
-           "EC2MetadataIp": "192.168.24.1",
-           "ExternalAllocationPools": [
-               {
-                   "end": "10.0.0.250",
-                   "start": "10.0.0.4"
-               }
-           ],
-           "ExternalNetCidr": "10.0.0.1/24",
-           "NeutronExternalNetworkBridge": ""
-       }
-   }
-   EOF
-
-8. Run inside the undercloud:
-
-.. code-block:: console
-
-   ./overcloud-deploy.sh
-
-9. Grab a coffee, that may take around 1 hour (depending on your hardware).
-
-10. If anything goes wrong, go to IRC on freenode, and ask on #oooq
+#. If anything goes wrong, go to IRC on freenode, and ask on #oooq
 
 Description of the environment
 ==============================
 
 Once deployed, inside the undercloud root directory two files are present:
-stackrc and overcloudrc, which will let you connect to the APIs of the undercloud
-(managing the openstack node), and to the overcloud (where your instances
-would live).
+stackrc and overcloudrc, which will let you connect to the APIs of the
+undercloud (managing the openstack node), and to the overcloud (where
+your instances would live).
 
 We can find out the existing controller/computes this way:
 
