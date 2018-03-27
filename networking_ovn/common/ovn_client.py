@@ -1549,7 +1549,7 @@ class OVNClient(object):
         port_dns_records = {}
         for dns_assignment in port.get('dns_assignment', []):
             hostname = dns_assignment['hostname']
-            fqdn = dns_assignment['fqdn']
+            fqdn = dns_assignment['fqdn'].rstrip('.')
             if hostname not in port_dns_records:
                 port_dns_records[hostname] = dns_assignment['ip_address']
             else:
@@ -1608,8 +1608,9 @@ class OVNClient(object):
         for dns_assignment in port['dns_assignment']:
             if dns_assignment['hostname'] not in hostnames:
                 hostnames.append(dns_assignment['hostname'])
-            if dns_assignment['fqdn'] not in hostnames:
-                hostnames.append(dns_assignment['fqdn'])
+            fqdn = dns_assignment['fqdn'].rstrip('.')
+            if fqdn not in hostnames:
+                hostnames.append(fqdn)
 
         for hostname in hostnames:
             if ls_dns_record.records.get(hostname):

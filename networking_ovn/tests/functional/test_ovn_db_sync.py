@@ -153,7 +153,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                      for f in port['port']['fixed_ips']])
                 hname = 'n1-' + p
                 self.expected_dns_records[0]['records'][hname] = port_ips
-                hname = 'n1-' + p + '.ovn.test.'
+                hname = 'n1-' + p + '.ovn.test'
                 self.expected_dns_records[0]['records'][hname] = port_ips
             if p == 'p1':
                 fake_subnet = {'cidr': '11.11.11.11/24'}
@@ -484,7 +484,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                      for f in port['port']['fixed_ips']])
                 hname = 'n4-' + p
                 self.expected_dns_records[1]['records'][hname] = port_ips
-                hname = 'n4-' + p + '.ovn.test.'
+                hname = 'n4-' + p + '.ovn.test'
                 self.expected_dns_records[1]['records'][hname] = port_ips
 
             n4_port_dict[p] = port['port']['id']
