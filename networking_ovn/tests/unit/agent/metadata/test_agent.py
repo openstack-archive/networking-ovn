@@ -69,16 +69,16 @@ class TestMetadataAgent(base.BaseTestCase):
         with mock.patch.object(
                 self.agent, 'ensure_all_networks_provisioned') as enp,\
                 mock.patch.object(
-                    ip_wrap, 'get_namespaces') as gns,\
+                    ip_lib, 'list_network_namespaces') as lnn,\
                 mock.patch.object(
                     self.agent, 'teardown_datapath') as tdp:
             enp.return_value = ['ovnmeta-1', 'ovnmeta-2']
-            gns.return_value = ['ovnmeta-1', 'ovnmeta-2']
+            lnn.return_value = ['ovnmeta-1', 'ovnmeta-2']
 
             self.agent.sync()
 
             enp.assert_called_once()
-            gns.assert_called_once()
+            lnn.assert_called_once()
             tdp.assert_not_called()
 
     def test_sync_teardown_namespace(self):
@@ -86,17 +86,17 @@ class TestMetadataAgent(base.BaseTestCase):
         with mock.patch.object(
                 self.agent, 'ensure_all_networks_provisioned') as enp,\
                 mock.patch.object(
-                    ip_wrap, 'get_namespaces') as gns,\
+                    ip_lib, 'list_network_namespaces') as lnn,\
                 mock.patch.object(
                     self.agent, 'teardown_datapath') as tdp:
             enp.return_value = ['ovnmeta-1', 'ovnmeta-2']
-            gns.return_value = ['ovnmeta-1', 'ovnmeta-2', 'ovnmeta-3',
+            lnn.return_value = ['ovnmeta-1', 'ovnmeta-2', 'ovnmeta-3',
                                 'ns1', 'ns2']
 
             self.agent.sync()
 
             enp.assert_called_once()
-            gns.assert_called_once()
+            lnn.assert_called_once()
             tdp.assert_called_once_with('3')
 
     def test_ensure_all_networks_provisioned(self):

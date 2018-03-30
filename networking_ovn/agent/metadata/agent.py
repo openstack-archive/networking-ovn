@@ -167,7 +167,7 @@ class MetadataAgent(object):
         which were serving metadata but are no longer needed.
         """
         metadata_namespaces = self.ensure_all_networks_provisioned()
-        system_namespaces = ip_lib.IPWrapper().get_namespaces()
+        system_namespaces = ip_lib.list_network_namespaces()
         unused_namespaces = [ns for ns in system_namespaces if
                              ns.startswith(NS_PREFIX) and
                              ns not in metadata_namespaces]
