@@ -70,7 +70,10 @@ class TestTrunkHandler(base.BaseTestCase):
         binding_profile = {}
         if parent_name and tag:
             binding_profile = {'parent_name': parent_name, 'tag': tag}
-        return {'port': {'binding:profile': binding_profile}}
+        info = {'port': {'binding:profile': binding_profile}}
+        if not tag:
+            info['port']['binding:host_id'] = None
+        return info
 
     def _assert_update_port_calls(self, calls):
         self.assertEqual(len(calls),

@@ -47,6 +47,8 @@ class OVNTrunkHandler(object):
         if parent_port and tag:
             binding_profile = {'parent_name': parent_port, 'tag': tag}
         port = {'port': {'binding:profile': binding_profile}}
+        if not tag:
+            port['port']['binding:host_id'] = None
         try:
             self.plugin_driver._plugin.update_port(context, port_id, port)
         except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
