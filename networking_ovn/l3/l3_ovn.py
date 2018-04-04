@@ -361,14 +361,14 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     def schedule_unhosted_gateways(self):
         port_physnet_dict = self._get_gateway_port_physnet_mapping()
         chassis_physnets = self._sb_ovn.get_chassis_and_physnets()
+        cms = self._sb_ovn.get_gateway_chassis_from_cms_options()
         unhosted_gateways = self._ovn.get_unhosted_gateways(
-            port_physnet_dict, chassis_physnets)
+            port_physnet_dict, chassis_physnets, cms)
         with self._ovn.transaction(check_error=True) as txn:
             for g_name in unhosted_gateways:
                 physnet = port_physnet_dict.get(g_name[len('lrp-'):])
-                candidates = [chassis
-                              for chassis, physnets in chassis_physnets.items()
-                              if physnet and physnet in physnets]
+                candidates = self._ovn_client.get_candidates_for_scheduling(
+                    physnet, cms=cms, chassis_physnets=chassis_physnets)
                 chassis = self.scheduler.select(
                     self._ovn, self._sb_ovn, g_name, candidates=candidates)
                 txn.add(self._ovn.update_lrouter_port(

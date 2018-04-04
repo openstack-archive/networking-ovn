@@ -337,11 +337,14 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets):
+    def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets,
+                              gw_chassis):
         """Return a list of gateways not hosted on chassis
 
         :param port_physnet_dict: Dictionary of gateway ports and their physnet
         :param chassis_physnets:  Dictionary of chassis and physnets
+        :param gw_chassis:        List of gateway chassis provided by admin
+                                  through ovn-cms-options
         :returns:                 List of gateways not hosted on a valid
                                   chassis
         """
@@ -621,6 +624,18 @@ class SbAPI(api.API):
 
         Hostname will be dict key, and a list of physnets will be dict
         value. And hostname and physnets are related to the same host.
+        """
+
+    def get_gateway_chassis_from_cms_options(self):
+        """Get chassis eligible for external connectivity from CMS options.
+
+        When admin wants to enable router gateway on few chassis,
+        he would set the external_ids as
+
+        ovs-vsctl set open .
+           external_ids:ovn-cms-options="enable-chassis-as-gw"
+        In this function, we parse ovn-cms-options and return these chassis
+        :returns:              List with chassis names.
         """
 
     @abc.abstractmethod

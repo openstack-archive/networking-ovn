@@ -243,6 +243,17 @@ primary node. See the :ref:`faq` for more information.
 
 #. Start the ``neutron-server`` service.
 
+#. Configure the chassis to host gateway routers for external connectivity.
+
+   * Set ovn-cms-options with enable-chassis-as-gw in Open_vSwitch table's
+     external_ids column. Then if this chassis has proper bridge mappings,
+     it will be selected for scheduling gateway routers.
+
+     .. code-block:: console
+
+        # ovs-vsctl set open . external-ids:ovn-cms-options=enable-chassis-as-gw
+
+
 Network nodes
 -------------
 

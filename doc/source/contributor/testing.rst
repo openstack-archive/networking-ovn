@@ -513,6 +513,14 @@ to the bridge 'br-provider".
     $ ovs-vsctl set open . \
     external-ids:ovn-bridge-mappings=providernet:br-provider
 
+If you want to enable this chassis to host a gateway router for
+external connectivity, then set ovn-cms-options to enable-chassis-as-gw.
+
+::
+
+    $ ovs-vsctl set open . \
+    external-ids:ovn-cms-options="enable-chassis-as-gw"
+
 Now create a Neutron provider network.
 
 ::

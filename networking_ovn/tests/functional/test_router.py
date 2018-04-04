@@ -85,6 +85,63 @@ class TestRouter(base.TestOVNFunctionalBase):
                 rc = row.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
                 self.assertIn(rc, expected)
 
+    def _check_gateway_chassis_candidates(self, candidates):
+        # In this test, fake_select() is called once from _create_router()
+        # and later from schedule_unhosted_gateways()
+        ovn_client = self.l3_plugin._ovn_client
+        ext1 = self._create_ext_network(
+            'ext1', 'vlan', 'physnet1', 1, "10.0.0.1", "10.0.0.0/24")
+        # mock select function and check if it is called with expected
+        # candidates.
+
+        def fake_select(*args, **kwargs):
+            self.assertItemsEqual(candidates, kwargs['candidates'])
+            # We are not interested in further processing, let us return
+            # INVALID_CHASSIS to avoid erros
+            return [ovn_const.OVN_GATEWAY_INVALID_CHASSIS]
+
+        with mock.patch.object(ovn_client._ovn_scheduler, 'select',
+                               side_effect=fake_select) as client_select,\
+            mock.patch.object(self.l3_plugin.scheduler, 'select',
+                              side_effect=fake_select) as plugin_select:
+            gw_info = {'network_id': ext1['network']['id']}
+            self._create_router('router1', gw_info=gw_info)
+            self.assertFalse(plugin_select.called)
+            self.assertTrue(client_select.called)
+            client_select.reset_mock()
+            plugin_select.reset_mock()
+
+            # set redirect-chassis to neutron-ovn-invalid-chassis, so
+            # that schedule_unhosted_gateways will try to schedule it
+            self._set_redirect_chassis_to_invalid_chassis(ovn_client)
+            self.l3_plugin.schedule_unhosted_gateways()
+            self.assertFalse(client_select.called)
+            self.assertTrue(plugin_select.called)
+
+    def test_gateway_chassis_with_cms_and_bridge_mappings(self):
+        # Both chassis1 and chassis3 are having proper bridge mappings,
+        # but only chassis3 is having enable-chassis-as-gw.
+        # Test if chassis3 is selected as candidate or not.
+        self.chassis3 = self.add_fake_chassis(
+            'ovs-host3', physical_nets=['physnet1'],
+            external_ids={'ovn-cms-options': 'enable-chassis-as-gw'})
+        self._check_gateway_chassis_candidates([self.chassis3])
+
+    def test_gateway_chassis_with_cms_and_no_bridge_mappings(self):
+        # chassis1 is having proper bridge mappings.
+        # chassis3 is having enable-chassis-as-gw, but no bridge mappings.
+        # Test if chassis1 is selected as candidate or not.
+        self.chassis3 = self.add_fake_chassis(
+            'ovs-host3',
+            external_ids={'ovn-cms-options': 'enable-chassis-as-gw'})
+        self._check_gateway_chassis_candidates([self.chassis1])
+
+    def test_gateway_chassis_with_bridge_mappings_and_no_cms(self):
+        # chassis1 is configured with proper bridge mappings,
+        # but none of the chassis having enable-chassis-as-gw.
+        # Test if chassis1 is selected as candidate or not.
+        self._check_gateway_chassis_candidates([self.chassis1])
+
     def test_gateway_chassis_with_bridge_mappings(self):
         ovn_client = self.l3_plugin._ovn_client
         # Create external networks with vlan, flat and geneve network types
