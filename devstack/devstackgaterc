@@ -99,6 +99,11 @@ r="$r|(?:tempest\.api\.compute\.admin\.test_quota*)"
 
 r="$r|(?:tempest\.scenario\.test_volume*)"
 
+# FIXME(lucasagomes): Remove this exclusion when
+# https://bugs.launchpad.net/networking-ovn/+bug/1713835 is fixed
+r="$r|(^neutron_tempest_plugin\.api\.test_routers\.RoutersIpV6Test\.test_router_interface_status)"
+r="$r|(^neutron_tempest_plugin\.api\.test_routers\.RoutersTest\.test_router_interface_status)"
+
 # End list of exclusions.
 r="$r)"
 
