@@ -419,8 +419,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self.assertEqual(
                         tools.UnorderedList(
                             ["22:22:22:22:22:22 2.2.2.2",
-                             port['port']['mac_address'] + ' ' + port_ip
-                             + ' ' + '1.1.1.1']),
+                             port['port']['mac_address'] + ' ' + port_ip +
+                             ' ' + '1.1.1.1']),
                         called_args_dict.get('port_security'))
                     self.assertEqual(
                         tools.UnorderedList(

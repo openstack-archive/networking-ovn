@@ -64,5 +64,9 @@ else
     $install_cmd -U -e ${NEUTRON_PIP_LOCATION}
 fi
 
-$install_cmd -U $*
+# TODO(lucasagomes): Remove the "|| true" after
+# https://review.openstack.org/#/c/561593/ is merged. This is just a
+# workaround to avoid the pip warning "ERROR: You must give at least one
+# requirement to install (see "pip help install")" from breaking the gate
+$install_cmd -U $* || true
 exit $?

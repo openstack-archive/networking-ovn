@@ -19,6 +19,7 @@ import tenacity
 
 from neutron_lib.utils import helpers
 from oslo_utils import uuidutils
+from ovsdbapp.backend import ovs_idl
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
@@ -36,8 +37,6 @@ from networking_ovn.ovsdb import ovsdb_monitor
 
 
 LOG = log.getLogger(__name__)
-
-from ovsdbapp.backend import ovs_idl
 
 
 # This version of Backend doesn't use a class variable for ovsdb_connection
@@ -443,8 +442,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         ret_opts = []
         for row in self._tables['DHCP_Options'].rows.values():
             external_ids = getattr(row, 'external_ids', {})
-            if (external_ids.get('subnet_id') in subnet_ids
-                    and not external_ids.get('port_id')):
+            if (external_ids.get('subnet_id') in subnet_ids and not
+                    external_ids.get('port_id')):
                 ret_opts.append(self._format_dhcp_row(row))
                 if len(ret_opts) == len(subnet_ids):
                     break
