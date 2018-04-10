@@ -49,6 +49,7 @@ ChangeLog
 !/.gitignore
 !/.gitreview
 !/.mailmap
+!/.stestr.conf
 !/.pylintrc
 !/.testr.conf
 !/devstack/lib

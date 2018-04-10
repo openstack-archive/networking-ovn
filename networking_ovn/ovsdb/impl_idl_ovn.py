@@ -415,8 +415,8 @@ class OvsdbNbOvnIdl(Backend, ovn_api.API):
         ret_opts = []
         for row in self._tables['DHCP_Options'].rows.values():
             external_ids = getattr(row, 'external_ids', {})
-            if (external_ids.get('subnet_id') in subnet_ids
-                    and not external_ids.get('port_id')):
+            if (external_ids.get('subnet_id') in subnet_ids and not
+                    external_ids.get('port_id')):
                 ret_opts.append({
                     'cidr': row.cidr, 'options': dict(row.options),
                     'external_ids': dict(external_ids),

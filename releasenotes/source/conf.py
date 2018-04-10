@@ -37,6 +37,9 @@
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
+
+from networking_ovn.version import version_info as ovn_version
+
 extensions = [
     'openstackdocstheme',
     'reno.sphinxext',
@@ -67,8 +70,6 @@ copyright = u'2015, Networking OVN Developers'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-# The short X.Y version.
-from networking_ovn.version import version_info as ovn_version
 # The full version, including alpha/beta/rc tags.
 release = ovn_version.version_string_with_vcs()
 # The short X.Y version.
