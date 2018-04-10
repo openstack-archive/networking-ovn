@@ -21,12 +21,13 @@ Create Date: 2018-01-17 16:10:20.232123
 
 """
 
+from alembic import op
+from sqlalchemy.engine.reflection import Inspector as insp
+
+
 # revision identifiers, used by Alembic.
 revision = '5c198d2723b6'
 down_revision = 'f48286668608'
-
-from alembic import op
-from sqlalchemy.engine.reflection import Inspector as insp
 
 MYSQL_ENGINE = 'mysql'
 OVN_REVISION_NUMBER = 'ovn_revision_numbers'

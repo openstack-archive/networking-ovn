@@ -306,7 +306,20 @@ function install_ovn {
     remove_ovs_packages
     sudo rm -f $OVS_RUNDIR/*
 
-    compile_ovs $OVN_BUILD_MODULES
+    # FIXME(lucasagomes): Horrible hack to avoid OVS
+    # from running "make check-docs". Please remove this after
+    # https://mail.openvswitch.org/pipermail/ovs-dev/2018-April/345936.html
+    # have been merged
+    SPHINX_BUILD_PATH=$(which sphinx-build || echo "")
+    SPHINX_BUILD_PATH_BKP=$SPHINX_BUILD_PATH.bkp
+    if [[ -f $SPHINX_BUILD_PATH ]]; then
+        sudo mv $SPHINX_BUILD_PATH $SPHINX_BUILD_PATH_BKP
+        compile_ovs $OVN_BUILD_MODULES
+        sudo mv $SPHINX_BUILD_PATH_BKP $SPHINX_BUILD_PATH
+    else
+        compile_ovs $OVN_BUILD_MODULES
+    fi
+
     sudo mkdir -p $OVS_RUNDIR
     sudo chown $(whoami) $OVS_RUNDIR
     sudo mkdir -p $OVS_PREFIX/var/log/openvswitch
@@ -400,7 +413,7 @@ function start_ovn {
     echo "Starting OVN"
 
     if is_service_enabled ovn-northd ; then
-        local cmd="$OVS_SCRIPTDIR/ovn-ctl --no-monitor start_northd"
+        local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_northd"
 
         _ovn_run_process ovn-northd "$cmd"
         ovn-nbctl --db=unix:$OVS_RUNDIR/ovnnb_db.sock set-connection ptcp:6641:0.0.0.0 -- set connection . inactivity_probe=60000
@@ -410,7 +423,7 @@ function start_ovn {
     fi
 
     if is_service_enabled ovn-controller ; then
-        local cmd="$OVS_SCRIPTDIR/ovn-ctl --no-monitor start_controller"
+        local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_controller"
 
         _ovn_run_process ovn-controller "$cmd" "$STACK_USER" "root"
     fi

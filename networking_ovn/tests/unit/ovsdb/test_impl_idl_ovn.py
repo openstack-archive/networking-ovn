@@ -661,11 +661,10 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
 
     def test_get_subnets_dhcp_options(self):
         self._load_nb_db()
-        get_row_dict = lambda row: {
-            'cidr': row.cidr,
-            'external_ids': row.external_ids,
-            'options': row.options,
-            'uuid': row.uuid}
+
+        def get_row_dict(row):
+            return {'cidr': row.cidr, 'external_ids': row.external_ids,
+                    'options': row.options, 'uuid': row.uuid}
 
         subnets_options = self.nb_ovn_idl.get_subnets_dhcp_options(
             ['subnet-id-10-0-1-0', 'subnet-id-10-0-2-0'])
