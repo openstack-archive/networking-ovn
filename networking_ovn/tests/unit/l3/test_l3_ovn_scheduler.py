@@ -70,10 +70,10 @@ class TestOVNGatewayScheduler(base.BaseTestCase):
             details.setdefault('Chassis_Bindings', {})
             for chassis in details['Chassis']:
                 details['Chassis_Bindings'].setdefault(chassis, [])
-            for gateway, chassis_list in details['Gateways'].items():
+            for gw, chassis_list in details['Gateways'].items():
                 for chassis in chassis_list:
                     if chassis in details['Chassis_Bindings']:
-                        details['Chassis_Bindings'][chassis].append(gateway)
+                        details['Chassis_Bindings'][chassis].append((gw, 0))
 
     def select(self, chassis_gateway_mapping, gateway_name):
         nb_idl = FakeOVNGatewaySchedulerNbOvnIdl(chassis_gateway_mapping,
@@ -159,3 +159,16 @@ class OVNGatewayLeastLoadedScheduler(TestOVNGatewayScheduler):
         gateway_name = random.choice(list(mapping['Gateways'].keys()))
         chassis = self.select(mapping, gateway_name)
         self.assertEqual(mapping['Gateways'][gateway_name], chassis)
+
+    def test__get_chassis_load_by_prios_several_ports(self):
+        # Adding 5 ports of prio 1 and 5 ports of prio 2
+        chassis_info = []
+        for i in range(1, 6):
+            chassis_info.append(('lrp', 1))
+            chassis_info.append(('lrp', 2))
+        actual = self.l3_scheduler._get_chassis_load_by_prios(chassis_info)
+        expected = {1: 5, 2: 5}
+        self.assertItemsEqual(expected.items(), actual)
+
+    def test__get_chassis_load_by_prios_no_ports(self):
+        self.assertFalse(self.l3_scheduler._get_chassis_load_by_prios([]))

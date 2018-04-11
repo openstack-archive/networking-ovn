@@ -364,23 +364,23 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                                               if_exists)
 
     def _get_logical_router_port_gateway_chassis(self, lrp):
+        """Get the list of chassis hosting this gateway port.
+
+        @param   lrp: logical router port
+        @type    lrp: Logical_Router_Port row
+        @return: List of tuples (chassis_name, priority)
+        """
         # Try retrieving gateway_chassis with new schema. If new schema is not
         # supported or user is using old schema, then use old schema for
         # getting gateway_chassis
         chassis = []
         if self._tables.get('Gateway_Chassis'):
             for gwc in lrp.gateway_chassis:
-                # TODO(anilvenkata): Add to the list based on priority.
-                # Otherwise, if lrp1 is scheduled on c1 with priority 1 and c2
-                # with priority 2. When new port lrp2 is scheduled, it is also
-                # scheduled on c1 with priority 1 and c2 with priority 2.
-                # If we add to the list based on priority then it will be
-                # scheduled on c1 with priority 2 and on c2 with priority 1.
-                chassis.append(gwc.chassis_name)
+                chassis.append((gwc.chassis_name, gwc.priority))
         else:
             rc = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
             if rc:
-                chassis.append(rc)
+                chassis.append((rc, 0))
         return chassis
 
     def get_all_chassis_gateway_bindings(self,
@@ -392,19 +392,20 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             if not lrp.name.startswith('lrp-'):
                 continue
             chassis = self._get_logical_router_port_gateway_chassis(lrp)
-            for chassis_name in chassis:
+            for chassis_name, prio in chassis:
                 if (not chassis_candidate_list or
                         chassis_name in chassis_candidate_list):
                     routers_hosted = chassis_bindings.setdefault(chassis_name,
                                                                  [])
-                    routers_hosted.append(lrp.name)
+                    routers_hosted.append((lrp.name, prio))
         return chassis_bindings
 
     def get_gateway_chassis_binding(self, gateway_name):
         try:
             lrp = idlutils.row_by_value(
                 self.idl, 'Logical_Router_Port', 'name', gateway_name)
-            return self._get_logical_router_port_gateway_chassis(lrp)
+            chassis_list = self._get_logical_router_port_gateway_chassis(lrp)
+            return [chassis for chassis, prio in chassis_list]
         except idlutils.RowNotFound:
             return []
 
@@ -416,8 +417,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             if not lrp.name.startswith('lrp-'):
                 continue
             physnet = port_physnet_dict.get(lrp.name[len('lrp-'):])
-            for chassis_name in self._get_logical_router_port_gateway_chassis(
-                    lrp):
+            chassis_list = self._get_logical_router_port_gateway_chassis(lrp)
+            for chassis_name, prio in chassis_list:
                 # TODO(azbiswas): Handle the case when a chassis is no
                 # longer valid. This may involve moving conntrack states,
                 # so it needs to discussed in the OVN community first.
