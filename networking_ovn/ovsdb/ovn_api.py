@@ -329,11 +329,17 @@ class API(api.API):
 
     @abc.abstractmethod
     def get_gateway_chassis_binding(self, gateway_id):
-        """Return the chassis to which the gateway is bound to
+        """Return the list of chassis to which the gateway is bound to
+
+        As one gateway can be hosted by multiple chassis, this method is
+        returning a list of those chassis ordered by priority. This means
+        that the first element of the list is the chassis hosting the
+        gateway with the highest priority (which will likely be where
+        the router port is going to be active).
 
         :param gateway_id:     The gateway id
         :type gateway_id:      string
-        :returns:              string containing the chassis name
+        :returns:              a list of strings with the chassis names
         """
 
     @abc.abstractmethod
