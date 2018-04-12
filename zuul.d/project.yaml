@@ -3,7 +3,7 @@
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master:
             voting: false
-        - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-tempest-dsvm-ovs-release-centos7
         - networking-ovn-rally-dsvm
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
@@ -22,7 +22,7 @@
         - openstack-tox-lower-constraints
     gate:
       jobs:
-        - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-tempest-dsvm-ovs-release-centos7
         - networking-ovn-rally-dsvm
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
