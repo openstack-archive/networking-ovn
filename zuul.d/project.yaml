@@ -8,8 +8,7 @@
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
-        - networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release:
-            voting: false
+        - networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release
         # TripleO jobs that deploy OVN.
         # Note we don't use a project-template here, so it's easier
         # to disable voting on one specific job if things go wrong.
@@ -28,6 +27,7 @@
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
+        - networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
         - openstack-tox-lower-constraints
