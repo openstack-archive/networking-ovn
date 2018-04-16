@@ -306,20 +306,7 @@ function install_ovn {
     remove_ovs_packages
     sudo rm -f $OVS_RUNDIR/*
 
-    # FIXME(lucasagomes): Horrible hack to avoid OVS
-    # from running "make check-docs". Please remove this after
-    # https://mail.openvswitch.org/pipermail/ovs-dev/2018-April/345936.html
-    # have been merged
-    SPHINX_BUILD_PATH=$(which sphinx-build || echo "")
-    SPHINX_BUILD_PATH_BKP=$SPHINX_BUILD_PATH.bkp
-    if [[ -f $SPHINX_BUILD_PATH ]]; then
-        sudo mv $SPHINX_BUILD_PATH $SPHINX_BUILD_PATH_BKP
-        compile_ovs $OVN_BUILD_MODULES
-        sudo mv $SPHINX_BUILD_PATH_BKP $SPHINX_BUILD_PATH
-    else
-        compile_ovs $OVN_BUILD_MODULES
-    fi
-
+    compile_ovs $OVN_BUILD_MODULES
     sudo mkdir -p $OVS_RUNDIR
     sudo chown $(whoami) $OVS_RUNDIR
     sudo mkdir -p $OVS_PREFIX/var/log/openvswitch
