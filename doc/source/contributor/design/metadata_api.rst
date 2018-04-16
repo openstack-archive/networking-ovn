@@ -168,10 +168,15 @@ In neutron-ovn-metadata-agent.
   to.
 
 * When a new network is created, we must create an OVN *localport* for use
-  as a metadata proxy.
+  as a metadata proxy. This port will be owned by ``network:dhcp`` so that it
+  gets auto deleted upon the removal of the network and it will remain ``DOWN``
+  and not bound to any chassis. The metadata port will be created regardless of
+  the DHCP setting of the subnets within the network as long as the metadata
+  service is enabled.
 
 * When a network is deleted, we must tear down the metadata proxy instance (if
-  present) on the host and delete the corresponding OVN *localport*.
+  present) on the host and delete the corresponding OVN *localport* (which will
+  happen automatically as it's owned by ``network:dhcp``).
 
 Launching a metadata proxy includes:
 
