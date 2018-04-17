@@ -748,8 +748,7 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
         return [r for r in rows if r.chassis and r.chassis[0].name == chassis]
 
     def get_logical_port_chassis_and_datapath(self, name):
-        rows = self.db_list_rows('Port_Binding').execute(check_error=True)
-        for port in rows:
+        for port in self._tables['Port_Binding'].rows.values():
             if port.logical_port == name:
                 datapath = str(port.datapath.uuid)
                 chassis = port.chassis[0].name if port.chassis else None
