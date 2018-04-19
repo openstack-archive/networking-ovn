@@ -9,7 +9,6 @@ Administration Guide
    features
    routing
    tutorial
-   faq
    refarch/refarch
    dpdk
    containers
