@@ -255,6 +255,10 @@ function configure_ovn_plugin {
         else
             populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_metadata_enabled=False
         fi
+
+        if is_service_enabled q-dns neutron-dns ; then
+            iniset $NEUTRON_CONF DEFAULT dns_domain ovngate.local
+        fi
     fi
 
     if is_service_enabled q-dhcp ; then
