@@ -40,6 +40,7 @@ disable_service q-meta
 # Enable services, these services depend on neutron plugin.
 enable_plugin neutron https://git.openstack.org/openstack/neutron
 enable_service q-trunk
+enable_service q-dns
 #enable_service q-qos
 
 # Enable neutron tempest plugin tests

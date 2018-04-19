@@ -34,6 +34,7 @@ ML2_SUPPORTED_API_EXTENSIONS_OVN_L3 = [
     'pagination',
     'sorting',
     'project-id',
+    'dns-integration',
 ]
 ML2_SUPPORTED_API_EXTENSIONS = [
     'address-scope',

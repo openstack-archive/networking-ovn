@@ -39,6 +39,11 @@ services:
   The networking-ovn driver does support VLAN tenant networks when used
   with OVN version 2.11 (or higher).
 
+* DNS
+
+  Native implementation. Since the version 2.8 OVN contains a built-in
+  DNS implementation.
+
 
 The following Neutron API extensions are supported with OVN:
 
@@ -92,4 +97,6 @@ The following Neutron API extensions are supported with OVN:
 | Tag support                      | standard-attr-tag         |
 +----------------------------------+---------------------------+
 | Time Stamp Fields                | standard-attr-timestamp   |
++----------------------------------+---------------------------+
+| Domain Name System (DNS)         | dns_integration           |
 +----------------------------------+---------------------------+
