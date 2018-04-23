@@ -42,6 +42,9 @@ enable_plugin neutron https://git.openstack.org/openstack/neutron
 enable_service q-trunk
 #enable_service q-qos
 
+# Enable neutron tempest plugin tests
+neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin
+
 # Horizon (the web UI) is enabled by default. You may want to disable
 # it here to speed up DevStack a bit.
 enable_service horizon
