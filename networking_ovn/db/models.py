@@ -31,10 +31,10 @@ class OVNRevisionNumbers(model_base.BASEV2):
     resource_type = sa.Column(sa.String(36), nullable=False, primary_key=True)
     revision_number = sa.Column(
         sa.BigInteger().with_variant(sa.Integer(), 'sqlite'),
-        server_default='0', nullable=False)
+        default=0, nullable=False)
     created_at = sa.Column(
         sa.DateTime().with_variant(
             sqlite.DATETIME(truncate_microseconds=True), 'sqlite'),
-        default=sa.func.now())
-    updated_at = sa.Column(sa.TIMESTAMP, server_default=sa.func.now(),
-                           onupdate=sa.func.now())
+        default=sa.func.now(), nullable=False)
+    updated_at = sa.Column(sa.TIMESTAMP, default=sa.func.now(),
+                           onupdate=sa.func.now(), nullable=True)
