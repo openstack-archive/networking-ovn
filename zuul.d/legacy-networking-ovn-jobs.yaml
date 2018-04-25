@@ -85,21 +85,9 @@
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
-      - openstack/tempest
-    nodeset: legacy-ubuntu-xenial-2-node
-
-- job:
-    name: networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release
-    parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/tempest-dsvm-networking-ovn-neutron-api-scenario-ovs-release/run.yaml
-    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-neutron-api-scenario-ovs-release/post.yaml
-    timeout: 7800
-    required-projects:
-      - openstack-infra/devstack-gate
-      - openstack/networking-ovn
-      - openstack/neutron
       - openstack/neutron-tempest-plugin
       - openstack/tempest
+    nodeset: legacy-ubuntu-xenial-2-node
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-master
@@ -110,6 +98,7 @@
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
+      - openstack/neutron-tempest-plugin
       - openstack/tempest
 
 - job:
@@ -121,6 +110,7 @@
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
+      - openstack/neutron-tempest-plugin
       - openstack/tempest
 
 - job:
@@ -133,4 +123,5 @@
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
+      - openstack/neutron-tempest-plugin
       - openstack/tempest
