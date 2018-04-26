@@ -1,6 +1,6 @@
 - hosts: all
-  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-release from old
-    job gate-tempest-dsvm-networking-ovn-ovs-release
+  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-release-centos7
+    from old job gate-tempest-dsvm-networking-ovn-ovs-release
   tasks:
 
     - name: Ensure legacy workspace directory
