@@ -99,11 +99,30 @@ class OVNGatewayLeastLoadedScheduler(OVNGatewayScheduler):
     def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
         return self._schedule_gateway(nb_idl, sb_idl, gateway_name, candidates)
 
+    @staticmethod
+    def _get_chassis_load_by_prios(chassis_info):
+        """Retrieve the amount of ports by priorities hosted in the chassis.
+
+        @param   chassis_info: list of (port, prio) hosted by this chassis
+        @type    chassis_info: []
+        @return: A list of (prio, number_of_ports) tuples.
+        """
+        chassis_load = {}
+        for lrp, prio in chassis_info:
+            chassis_load[prio] = chassis_load.get(prio, 0) + 1
+        return chassis_load.items()
+
+    @staticmethod
+    def _get_chassis_load(chassis):
+        chassis_ports_prios = chassis[1]
+        return sorted(
+            OVNGatewayLeastLoadedScheduler._get_chassis_load_by_prios(
+                chassis_ports_prios), reverse=True)
+
     def _select_gateway_chassis(self, nb_idl, candidates):
         chassis_bindings = nb_idl.get_all_chassis_gateway_bindings(candidates)
-        # Sort on the length of the values in the returned dictionary
-        return [k for k, v in
-                sorted(chassis_bindings.items(), key=lambda x: len(x[1]))]
+        return [chassis for chassis, load in sorted(chassis_bindings.items(),
+                key=OVNGatewayLeastLoadedScheduler._get_chassis_load)]
 
 
 OVN_SCHEDULER_STR_TO_CLASS = {
