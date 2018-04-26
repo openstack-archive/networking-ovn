@@ -7,6 +7,7 @@ VENV=${1:-"dsvm-functional"}
 GATE_DEST=$BASE/new
 NEUTRON_PATH=$GATE_DEST/neutron
 DEVSTACK_PATH=$GATE_DEST/devstack
+NETWORKING_OVN_PATH=$GATE_DEST/networking-ovn
 GATE_STACK_USER=stack
 
 case $VENV in
@@ -42,6 +43,10 @@ case $VENV in
 
     # Make the workspace owned by GATE_STACK_USER
     sudo chown -R $GATE_STACK_USER:$GATE_STACK_USER $BASE
+
+    source $NETWORKING_OVN_PATH/tools/configure_for_func_testing.sh
+
+    configure_host_for_func_testing
     ;;
 
 *)
