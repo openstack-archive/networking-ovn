@@ -40,8 +40,8 @@ def upgrade():
         sa.Column('revision_number', sa.BigInteger, nullable=False, default=0),
         sa.Column('created_at', sa.DateTime, nullable=False,
                   default=sa.func.now()),
-        sa.Column('updated_at', sa.TIMESTAMP, server_default=sa.func.now(),
-                  onupdate=sa.func.now()),
+        sa.Column('updated_at', sa.TIMESTAMP, default=sa.func.now(),
+                  onupdate=sa.func.now(), nullable=True),
         sa.ForeignKeyConstraint(
             ['standard_attr_id'], ['standardattributes.id'],
             ondelete='SET NULL')
