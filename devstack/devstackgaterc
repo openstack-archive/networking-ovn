@@ -107,15 +107,7 @@ r="$r|(^neutron_tempest_plugin\.api\.test_routers\.RoutersTest\.test_router_inte
 # End list of exclusions.
 r="$r)"
 
-if [[ "${OVN_OPTS}" == *"neutron-api-scenario-tests"* ]] ; then
-    r="$r((^neutron_tempest_plugin\.api)|(^neutron_tempest_plugin\.scenario)).*$"
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin"
-    export DEVSTACK_GATE_TEMPEST=1
-    export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
-else
-    # only run tempest.api/scenario/thirdparty tests (part of the default for 'full')
-    r="$r(tempest\.(api|scenario|thirdparty)).*$"
-fi
+r="$r((^neutron_tempest_plugin\.api)|(^neutron_tempest_plugin\.scenario)|(tempest\.(api|scenario|thirdparty))).*$"
 
 if [ -z $DEVSTACK_GATE_GRENADE ]; then
     # Do not run the tempest test cases on grenade jobs. By not setting this,
