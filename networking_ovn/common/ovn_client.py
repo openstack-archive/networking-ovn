@@ -17,7 +17,6 @@ import collections
 import copy
 
 import netaddr
-from neutron.plugins.common import utils as p_utils
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
 from neutron_lib.api.definitions import portbindings
@@ -26,6 +25,7 @@ from neutron_lib import constants as const
 from neutron_lib import context as n_context
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
+from neutron_lib.plugins import utils as p_utils
 from neutron_lib.utils import helpers
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
