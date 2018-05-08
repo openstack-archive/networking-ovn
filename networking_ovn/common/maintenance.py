@@ -224,7 +224,8 @@ class DBInconsistenciesPeriodics(object):
         delete_inconsistencies = db_maint.get_deleted_resources()
         if not any([create_update_inconsistencies, delete_inconsistencies]):
             return
-        LOG.warning('Inconsistencies found in the database!')
+        LOG.debug('Maintenance task: Synchronizing Neutron '
+                  'and OVN databases')
         self._sync_timer.restart()
 
         # Fix the create/update resources inconsistencies
@@ -260,7 +261,7 @@ class DBInconsistenciesPeriodics(object):
                                'res_type': row.resource_type})
 
         self._sync_timer.stop()
-        LOG.info('Maintenance thread synchronization finished '
+        LOG.info('Maintenance task synchronization finished '
                  '(took %.2f seconds)', self._sync_timer.elapsed())
 
     def _create_lrouter_port(self, port):
