@@ -15,6 +15,7 @@ import os
 import netaddr
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
+from neutron_lib.api.definitions import port_security as psec
 from neutron_lib.api import validators
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
@@ -130,6 +131,10 @@ def get_lsp_security_groups(port, skip_trusted_port=True):
 
 def is_snat_enabled(router):
     return router.get(l3.EXTERNAL_GW_INFO, {}).get('enable_snat', True)
+
+
+def is_port_security_enabled(port):
+    return port.get(psec.PORTSECURITY)
 
 
 def validate_and_get_data_from_binding_profile(port):
