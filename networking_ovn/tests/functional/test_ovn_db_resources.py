@@ -713,6 +713,102 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # empty.
         self._verify_dhcp_option_row_for_port(p1['id'], {})
 
+    def _verify_port_acls(self, port_id, expected_acls):
+        port_acls = []
+        for acl in self.nb_api.tables['ACL'].rows.values():
+            ext_ids = getattr(acl, 'external_ids', {})
+            if ext_ids.get('neutron:lport') == port_id:
+                port_acls.append({'match': acl.match,
+                                  'action': acl.action,
+                                  'priority': acl.priority,
+                                  'direction': acl.direction})
+
+        self.assertItemsEqual(expected_acls, port_acls)
+
+    def test_port_port_security(self):
+        n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
+        subnet = self.deserialize(self.fmt, res)['subnet']
+        p = self._make_port(self.fmt, n1['network']['id'],
+                            fixed_ips=[{'subnet_id': subnet['id']}])
+        port_id = p['port']['id']
+        sg_id = p['port']['security_groups'][0].replace('-', '_')
+        expected_acls_with_sg_ps_enabled = [
+            {'match': 'inport == "' + str(port_id) + '" && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'from-lport'},
+            {'match': 'outport == "' + str(port_id) + '" && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'to-lport'},
+            {'match': 'inport == "' + str(port_id) + '" && ip4 && ip4.dst == '
+                      '{255.255.255.255, 10.0.0.0/24} && udp && udp.src == 68 '
+                      '&& udp.dst == 67',
+             'action': 'allow',
+             'priority': 1002,
+             'direction': 'from-lport'},
+            {'match': 'inport == "' + str(port_id) + '" && ip6',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'from-lport'},
+            {'match': 'inport == "' + str(port_id) + '" && ip4',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'from-lport'},
+            {'match': 'outport == "' + str(port_id) + '" && ip4 && '
+                      'ip4.src == $as_ip4_' + str(sg_id),
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'to-lport'},
+            {'match': 'outport == "' + str(port_id) + '" && ip6 && '
+                      'ip6.src == $as_ip6_' + str(sg_id),
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'to-lport'},
+        ]
+        self._verify_port_acls(port_id, expected_acls_with_sg_ps_enabled)
+
+        # clear the security groups.
+        data = {'port': {'security_groups': []}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+
+        # No security groups and port security enabled - > ACLs should be
+        # added to drop the packets.
+        expected_acls_with_no_sg_ps_enabled = [
+            {'match': 'inport == "' + str(port_id) + '" && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'from-lport'},
+            {'match': 'outport == "' + str(port_id) + '" && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'to-lport'},
+        ]
+        self._verify_port_acls(port_id, expected_acls_with_no_sg_ps_enabled)
+
+        # Disable port security
+        data = {'port': {'port_security_enabled': False}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        # No security groups and port security disabled - > No ACLs should be
+        # added (allowing all the traffic).
+        self._verify_port_acls(port_id, [])
+
+        # Enable port security again with no security groups - > ACLs should
+        # be added back to drop the packets.
+        data = {'port': {'port_security_enabled': True}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        self._verify_port_acls(port_id, expected_acls_with_no_sg_ps_enabled)
+
+        # Set security groups back
+        data = {'port': {'security_groups': p['port']['security_groups']}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        self._verify_port_acls(port_id, expected_acls_with_sg_ps_enabled)
+
 
 class TestDNSRecords(base.TestOVNFunctionalBase):
     _extension_drivers = ['port_security', 'dns']

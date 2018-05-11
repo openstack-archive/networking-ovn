@@ -349,7 +349,14 @@ def add_acls(plugin, admin_context, port, sg_cache, subnet_cache, ovn):
 
     sec_groups = utils.get_lsp_security_groups(port)
     if not sec_groups:
-        return acl_list
+        # If it is a trusted port or port security is disabled, allow all
+        # traffic. So don't add any ACLs.
+        if utils.is_lsp_trusted(port) or not utils.is_port_security_enabled(
+                port):
+            return acl_list
+
+        # if port security is enabled, drop all traffic.
+        return drop_all_ip_traffic_for_port(port)
 
     # Drop all IP traffic to and from the logical port by default.
     acl_list += drop_all_ip_traffic_for_port(port)
