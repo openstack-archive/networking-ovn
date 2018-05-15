@@ -48,13 +48,13 @@ class TestMaintenance(test_securitygroup.SecurityGroupsTestCase,
         service_plugins = {
             'router':
             'neutron.tests.unit.extensions.test_l3.TestL3NatServicePlugin'}
-        super(TestMaintenance, self).setUp(plugin=PLUGIN_CLASS,
-                                           service_plugins=service_plugins)
         l3_plugin = test_l3.TestL3NatServicePlugin()
         sec_plugin = test_securitygroup.SecurityGroupTestPlugin()
         ext_mgr = extensions.PluginAwareExtensionManager(
             EXTENSIONS_PATH, {'router': l3_plugin, 'sec': sec_plugin}
         )
+        super(TestMaintenance, self).setUp(plugin=PLUGIN_CLASS,
+                                           service_plugins=service_plugins)
         app = config.load_paste_app('extensions_test_app')
         self.ext_api = extensions.ExtensionMiddleware(app, ext_mgr=ext_mgr)
         self.session = db_api.get_writer_session()

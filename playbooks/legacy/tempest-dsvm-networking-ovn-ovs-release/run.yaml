@@ -1,5 +1,5 @@
 - hosts: all
-  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-release-centos7
+  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-release
     from old job gate-tempest-dsvm-networking-ovn-ovs-release
   tasks:
 

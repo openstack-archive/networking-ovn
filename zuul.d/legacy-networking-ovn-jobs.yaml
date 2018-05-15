@@ -114,12 +114,11 @@
       - openstack/tempest
 
 - job:
-    name: networking-ovn-tempest-dsvm-ovs-release-centos7
+    name: networking-ovn-tempest-dsvm-ovs-release
     parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release-centos7/run.yaml
-    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release-centos7/post.yaml
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/run.yaml
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/post.yaml
     timeout: 7800
-    nodeset: legacy-centos-7
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
