@@ -75,7 +75,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         self.sb_ovn = self.mech_driver._sb_ovn
 
         self.fake_subnet = fakes.FakeSubnet.create_one_subnet().info()
-        self.fake_port_no_sg = fakes.FakePort.create_one_port().info()
 
         self.fake_sg_rule = \
             fakes.FakeSecurityGroupRule.create_one_security_group_rule().info()
@@ -162,9 +161,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     rule['id'], ovn_const.TYPE_SECURITY_GROUP_RULES)
 
     def test_add_acls_no_sec_group(self):
+        fake_port_no_sg = fakes.FakePort.create_one_port().info()
+        expected_acls = ovn_acl.drop_all_ip_traffic_for_port(fake_port_no_sg)
         acls = ovn_acl.add_acls(self.mech_driver._plugin,
                                 mock.Mock(),
-                                self.fake_port_no_sg,
+                                fake_port_no_sg,
+                                {}, {}, self.mech_driver._nb_ovn)
+        self.assertEqual(expected_acls, acls)
+
+    def test_add_acls_no_sec_group_no_port_security(self):
+        fake_port_no_sg_no_ps = fakes.FakePort.create_one_port(
+            attrs={'port_security_enabled': False}).info()
+        acls = ovn_acl.add_acls(self.mech_driver._plugin,
+                                mock.Mock(),
+                                fake_port_no_sg_no_ps,
                                 {}, {}, self.mech_driver._nb_ovn)
         self.assertEqual([], acls)
 
@@ -524,6 +534,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
                                arg_list=('security_groups',),
+                               set_context=True, tenant_id='test',
+                               **kwargs):
+                    self.assertEqual(
+                        1, self.nb_ovn.create_lswitch_port.call_count)
+                    self.assertEqual(2, self.nb_ovn.add_acl.call_count)
+                    self.nb_ovn.update_address_set.assert_not_called()
+
+    def test_create_port_without_security_groups_no_ps(self):
+        kwargs = {'security_groups': [], 'port_security_enabled': False}
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1) as subnet1:
+                with self.port(subnet=subnet1,
+                               arg_list=('security_groups',
+                                         'port_security_enabled'),
                                set_context=True, tenant_id='test',
                                **kwargs):
                     self.assertEqual(

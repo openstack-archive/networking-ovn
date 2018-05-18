@@ -420,8 +420,12 @@ class OVNClient(object):
             is_allowed_ips_updated = (sorted(old_allowed_address_pairs) !=
                                       sorted(new_allowed_address_pairs))
 
+            port_security_changed = utils.is_port_security_enabled(port) != (
+                bool(ovn_port.port_security))
+
             # Refresh ACLs for changed security groups or fixed IPs.
-            if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated:
+            if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated or (
+                    port_security_changed):
                 # Note that update_acls will compare the port's ACLs to
                 # ensure only the necessary ACLs are added and deleted
                 # on the transaction.
