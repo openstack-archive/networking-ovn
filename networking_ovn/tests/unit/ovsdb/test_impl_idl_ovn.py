@@ -400,7 +400,8 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
     @mock.patch.object(impl_idl_ovn, 'get_connection', mock.Mock())
     def test_setting_ovsdb_probe_timeout_default_value(self):
         inst = impl_idl_ovn.OvsdbNbOvnIdl(mock.Mock())
-        inst.idl._session.reconnect.set_probe_interval.assert_called_with(0)
+        inst.idl._session.reconnect.set_probe_interval.assert_called_with(
+            60000)
 
     @mock.patch.object(impl_idl_ovn.OvsdbNbOvnIdl, 'ovsdb_connection', None)
     @mock.patch.object(impl_idl_ovn, 'get_connection', mock.Mock())
@@ -735,7 +736,8 @@ class TestSBImplIdlOvn(TestDBImplIdlOvn):
     @mock.patch.object(impl_idl_ovn, 'get_connection', mock.Mock())
     def test_setting_ovsdb_probe_timeout_default_value(self):
         inst = impl_idl_ovn.OvsdbSbOvnIdl(mock.Mock())
-        inst.idl._session.reconnect.set_probe_interval.assert_called_with(0)
+        inst.idl._session.reconnect.set_probe_interval.assert_called_with(
+            60000)
 
     @mock.patch.object(impl_idl_ovn.OvsdbSbOvnIdl, 'ovsdb_connection', None)
     @mock.patch.object(impl_idl_ovn, 'get_connection', mock.Mock())

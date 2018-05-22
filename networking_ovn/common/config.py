@@ -75,12 +75,12 @@ ovn_opts = [
                       'connection transaction')),
     cfg.IntOpt('ovsdb_probe_interval',
                min=0,
-               default=0,
+               default=60000,
                help=_('The probe interval in for the OVSDB session in '
                       'milliseconds. If this is zero, it disables the '
                       'connection keepalive feature. If non-zero the value '
-                      'will be forced to at least 1000 milliseconds. Probing '
-                      'is disabled by default.')),
+                      'will be forced to at least 1000 milliseconds. Defaults '
+                      'to 60 seconds.')),
     cfg.StrOpt('neutron_sync_mode',
                default='log',
                choices=('off', 'log', 'repair'),
