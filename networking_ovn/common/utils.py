@@ -80,6 +80,21 @@ def ovn_addrset_name(sg_id, ip_version):
     return ('as-%s-%s' % (ip_version, sg_id)).replace('-', '_')
 
 
+def ovn_pg_addrset_name(sg_id, ip_version):
+    # The name of the address set for the given security group id modelled as a
+    # Port Group and ip version. The format is:
+    #   pg-<security group uuid>-<ip version>
+    # with all '-' replaced with '_'. This replacement is necessary
+    # because OVN doesn't support '-' in an address set name.
+    return ('pg-%s-%s' % (sg_id, ip_version)).replace('-', '_')
+
+
+def ovn_port_group_name(sg_id):
+    # The name of the port group for the given security group id.
+    # The format is: pg-<security group uuid>.
+    return ('pg-%s' % sg_id).replace('-', '_')
+
+
 def is_network_device_port(port):
     return port.get('device_owner', '').startswith(
         const.DEVICE_OWNER_PREFIXES)

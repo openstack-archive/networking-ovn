@@ -86,6 +86,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug("Starting OVN-Northbound DB sync process")
 
         ctx = context.get_admin_context()
+        self.migrate_to_port_groups(ctx)
+
         self.sync_address_sets(ctx)
         self.sync_networks_ports_and_dhcp_opts(ctx)
         self.sync_port_dns_records(ctx)
@@ -941,6 +943,80 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             else:
                 txn.add(self.ovn_api.dns_set_records(ls_dns_record.uuid,
                                                      **dns_records))
+
+    def _delete_address_sets(self, ctx):
+        with self.ovn_api.transaction(check_error=True) as txn:
+            for sg in self.core_plugin.get_security_groups(ctx):
+                for ip_version in ['ip4', 'ip6']:
+                    txn.add(self.ovn_api.delete_address_set(
+                        utils.ovn_addrset_name(sg['id'], ip_version)))
+
+    def _delete_acls_from_lswitches(self, ctx):
+        with self.ovn_api.transaction(check_error=True) as txn:
+            for net in self.core_plugin.get_networks(ctx):
+                # Calling acl_del from ovsdbapp with no ACL will delete
+                # all the ACLs belonging to that Logical Switch.
+                txn.add(self.ovn_api.acl_del(utils.ovn_name(net['id'])))
+
+    def _create_default_drop_port_group(self, db_ports):
+        with self.ovn_api.transaction(check_error=True) as txn:
+            pg_name = const.OVN_DROP_PORT_GROUP_NAME
+            if not self.ovn_api.get_port_group(pg_name):
+                # If drop Port Group doesn't exist yet, create it.
+                txn.add(self.ovn_api.pg_add(pg_name, acls=[]))
+                # Add ACLs to this Port Group so that all traffic is dropped.
+                acls = acl_utils.add_acls_for_drop_port_group(pg_name)
+                for acl in acls:
+                    txn.add(self.ovn_api.pg_acl_add(**acl))
+            ports_ids = [port['id'] for port in db_ports]
+            # Add the ports to the default Port Group
+            txn.add(self.ovn_api.pg_add_ports(pg_name, ports_ids))
+
+    def _create_sg_port_groups_and_acls(self, ctx, db_ports):
+        # Create a Port Group per Neutron Security Group
+        with self.ovn_api.transaction(check_error=True) as txn:
+            for sg in self.core_plugin.get_security_groups(ctx):
+                pg_name = utils.ovn_port_group_name(sg['id'])
+                if self.ovn_api.get_port_group(pg_name):
+                    continue
+                ext_ids = {const.OVN_SG_EXT_ID_KEY: sg['id']}
+                txn.add(self.ovn_api.pg_add(
+                    name=pg_name, acls=[], external_ids=ext_ids))
+                acl_utils.add_acls_for_sg_port_group(self.ovn_api, sg, txn)
+            for port in db_ports:
+                for sg in port['security_groups']:
+                    txn.add(self.ovn_api.pg_add_ports(
+                        utils.ovn_port_group_name(sg), port['id']))
+
+    def migrate_to_port_groups(self, ctx):
+        # This routine is responsible for migrating the current Security
+        # Groups and SG Rules to the new Port Groups implementation.
+        # 1. Create the default drop Port Group and add all ports with port
+        #    security enabled to it.
+        # 2. Create a Port Group for every existing Neutron Security Group and
+        #    add all its Security Group Rules as ACLs to that Port Group.
+        # 3. Delete all existing Address Sets in NorthBound database which
+        #    correspond to a Neutron Security Group.
+        # 4. Delete all the ACLs in every Logical Switch (Neutron network).
+        if not self.ovn_api.is_port_groups_supported():
+            return
+
+        LOG.debug('Port Groups Migration task started')
+
+        # Ignore the floating ip ports with device_owner set to
+        # constants.DEVICE_OWNER_FLOATINGIP
+        db_ports = [port for port in
+                    self.core_plugin.get_ports(ctx) if not
+                    utils.is_lsp_ignored(port) and not
+                    utils.is_lsp_trusted(port) and
+                    utils.is_port_security_enabled(port)]
+
+        self._create_default_drop_port_group(db_ports)
+        self._create_sg_port_groups_and_acls(ctx, db_ports)
+        self._delete_address_sets(ctx)
+        self._delete_acls_from_lswitches(ctx)
+
+        LOG.debug('Port Groups Migration task finished')
 
 
 class OvnSbSynchronizer(OvnDbSynchronizer):

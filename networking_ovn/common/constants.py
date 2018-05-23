@@ -48,6 +48,7 @@ MIGRATING_ATTR = 'migrating_to'
 OVN_ROUTER_PORT_OPTION_KEYS = ['router-port', 'nat-addresses']
 OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 OVN_GATEWAY_NAT_ADDRESSES_KEY = 'nat-addresses'
+OVN_DROP_PORT_GROUP_NAME = 'neutron_pg_drop'
 
 OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
 
