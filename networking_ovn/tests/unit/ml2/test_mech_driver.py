@@ -2018,6 +2018,50 @@ class TestOVNMechanismDriverSecurityGroup(
     def _delete_sg_rule(self, rule_id):
         self._delete('security-group-rules', rule_id)
 
+    def test_create_security_group_with_port_group(self):
+        self.mech_driver._nb_ovn.is_port_groups_supported.return_value = True
+        sg = self._create_sg('sg')
+
+        expected_pg_name = ovn_utils.ovn_port_group_name(sg['id'])
+        expected_pg_add_calls = [
+            mock.call(acls=[],
+                      external_ids={'neutron:security_group_id': sg['id']},
+                      name=expected_pg_name),
+        ]
+        self.mech_driver._nb_ovn.pg_add.assert_has_calls(
+            expected_pg_add_calls)
+
+    def test_delete_security_group_with_port_group(self):
+        self.mech_driver._nb_ovn.is_port_groups_supported.return_value = True
+        sg = self._create_sg('sg')
+        self._delete('security-groups', sg['id'])
+
+        expected_pg_name = ovn_utils.ovn_port_group_name(sg['id'])
+        expected_pg_del_calls = [
+            mock.call(name=expected_pg_name),
+        ]
+        self.mech_driver._nb_ovn.pg_del.assert_has_calls(
+            expected_pg_del_calls)
+
+    def test_create_port_with_port_group(self):
+        self.mech_driver._nb_ovn.is_port_groups_supported.return_value = True
+        with self.network() as n, self.subnet(n):
+            sg = self._create_empty_sg('sg')
+            self._make_port(self.fmt, n['network']['id'],
+                            security_groups=[sg['id']])
+
+            # Assert the port has been added to the right security groups
+            expected_pg_name = ovn_utils.ovn_port_group_name(sg['id'])
+            expected_pg_add_ports_calls = [
+                mock.call('neutron_pg_drop', mock.ANY),
+                mock.call(expected_pg_name, mock.ANY)
+            ]
+            self.mech_driver._nb_ovn.pg_add_ports.assert_has_calls(
+                expected_pg_add_ports_calls)
+
+            # Assert add_acl() is not used anymore
+            self.assertFalse(self.mech_driver._nb_ovn.add_acl.called)
+
     def test_create_port_with_sg_default_rules(self):
         with self.network() as n, self.subnet(n):
             sg = self._create_sg('sg')

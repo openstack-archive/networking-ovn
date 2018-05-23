@@ -663,6 +663,17 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def delete_lrouter_ext_gw(self, lrouter_name, if_exists=True):
         return cmd.DeleteLRouterExtGwCommand(self, lrouter_name, if_exists)
 
+    def is_port_groups_supported(self):
+        return self.is_table_present('Port_Group')
+
+    def get_port_group(self, pg_name):
+        if uuidutils.is_uuid_like(pg_name):
+            pg_name = utils.ovn_port_group_name(pg_name)
+
+        for pg in self._tables['Port_Group'].rows.values():
+            if pg.name == pg_name:
+                return pg
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):

@@ -125,7 +125,7 @@ class DBInconsistenciesPeriodics(object):
             },
             ovn_const.TYPE_SECURITY_GROUPS: {
                 'neutron_get': self._ovn_client._plugin.get_security_group,
-                'ovn_get': self._nb_idl.get_address_set,
+                'ovn_get': self._get_security_group,
                 'ovn_create': self._ovn_client.create_security_group,
                 'ovn_delete': self._ovn_client.delete_security_group,
             },
@@ -145,6 +145,10 @@ class DBInconsistenciesPeriodics(object):
                 'ovn_delete': self._ovn_client.delete_router_port,
             },
         }
+
+    def _get_security_group(self, uuid):
+        return (self._nb_idl.get_address_set(uuid) or
+                self._nb_idl.get_port_group(uuid))
 
     @property
     def has_lock(self):

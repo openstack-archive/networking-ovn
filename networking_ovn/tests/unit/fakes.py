@@ -36,6 +36,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.acl_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.dhcp_options_table = FakeOvsdbTable.create_one_ovsdb_table()
         self.nat_table = FakeOvsdbTable.create_one_ovsdb_table()
+        self.port_group_table = FakeOvsdbTable.create_one_ovsdb_table()
         self._tables = {}
         self._tables['Logical_Switch'] = self.lswitch_table
         self._tables['Logical_Switch_Port'] = self.lsp_table
@@ -47,6 +48,7 @@ class FakeOvsdbNbOvnIdl(object):
         self._tables['Address_Set'] = self.addrset_table
         self._tables['DHCP_Options'] = self.dhcp_options_table
         self._tables['NAT'] = self.nat_table
+        self._tables['Port_Group'] = self.port_group_table
         self.transaction = mock.MagicMock()
         self.ls_add = mock.Mock()
         self.set_lswitch_ext_ids = mock.Mock()
@@ -118,6 +120,19 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_lrouter.return_value = None
         self.delete_lrouter_ext_gw = mock.Mock()
         self.delete_lrouter_ext_gw.return_value = None
+        self.is_port_groups_supported = mock.Mock()
+        # TODO(lucasagomes): Flip this return value to True at some point,
+        # port groups should be the default method used by networking-ovn
+        self.is_port_groups_supported.return_value = False
+        self.get_address_set = mock.Mock()
+        self.get_address_set.return_value = None
+        self.pg_acl_add = mock.Mock()
+        self.pg_acl_del = mock.Mock()
+        self.pg_del = mock.Mock()
+        self.pg_add = mock.Mock()
+        self.get_port_group = mock.Mock()
+        self.pg_add_ports = mock.Mock()
+        self.pg_del_ports = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
