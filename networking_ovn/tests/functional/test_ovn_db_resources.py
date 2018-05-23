@@ -720,7 +720,24 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # empty.
         self._verify_dhcp_option_row_for_port(p1['id'], {})
 
-    def _verify_port_acls(self, port_id, expected_acls):
+
+class TestPortSecurity(base.TestOVNFunctionalBase):
+
+    def _get_port_related_acls(self, port_id):
+        ovn_port = self.nb_api.lookup('Logical_Switch_Port', port_id)
+        port_acls = []
+        for pg in self.nb_api.tables['Port_Group'].rows.values():
+            for p in pg.ports:
+                if ovn_port.uuid != p.uuid:
+                    continue
+                for a in pg.acls:
+                    port_acls.append({'match': a.match,
+                                      'action': a.action,
+                                      'priority': a.priority,
+                                      'direction': a.direction})
+        return port_acls
+
+    def _get_port_related_acls_port_group_not_supported(self, port_id):
         port_acls = []
         for acl in self.nb_api.tables['ACL'].rows.values():
             ext_ids = getattr(acl, 'external_ids', {})
@@ -729,10 +746,19 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                                   'action': acl.action,
                                   'priority': acl.priority,
                                   'direction': acl.direction})
+        return port_acls
 
+    def _verify_port_acls(self, port_id, expected_acls):
+        if self.nb_api.is_port_groups_supported():
+            port_acls = self._get_port_related_acls(port_id)
+        else:
+            port_acls = self._get_port_related_acls_port_group_not_supported(
+                port_id)
         self.assertItemsEqual(expected_acls, port_acls)
 
-    def test_port_port_security(self):
+    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl.'
+                'is_port_groups_supported', lambda *args: False)
+    def test_port_security_port_group_not_supported(self):
         n1 = self._make_network(self.fmt, 'n1', True)
         res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
         subnet = self.deserialize(self.fmt, res)['subnet']
@@ -789,6 +815,88 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
              'priority': 1001,
              'direction': 'from-lport'},
             {'match': 'outport == "' + str(port_id) + '" && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'to-lport'},
+        ]
+        self._verify_port_acls(port_id, expected_acls_with_no_sg_ps_enabled)
+
+        # Disable port security
+        data = {'port': {'port_security_enabled': False}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        # No security groups and port security disabled - > No ACLs should be
+        # added (allowing all the traffic).
+        self._verify_port_acls(port_id, [])
+
+        # Enable port security again with no security groups - > ACLs should
+        # be added back to drop the packets.
+        data = {'port': {'port_security_enabled': True}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        self._verify_port_acls(port_id, expected_acls_with_no_sg_ps_enabled)
+
+        # Set security groups back
+        data = {'port': {'security_groups': p['port']['security_groups']}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+        self._verify_port_acls(port_id, expected_acls_with_sg_ps_enabled)
+
+    def test_port_security_port_group(self):
+        if not self.nb_api.is_port_groups_supported():
+            self.skipTest('Port groups is not supported')
+
+        n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
+        subnet = self.deserialize(self.fmt, res)['subnet']
+        p = self._make_port(self.fmt, n1['network']['id'],
+                            fixed_ips=[{'subnet_id': subnet['id']}])
+        port_id = p['port']['id']
+        sg_id = p['port']['security_groups'][0].replace('-', '_')
+        pg_name = utils.ovn_port_group_name(sg_id)
+        expected_acls_with_sg_ps_enabled = [
+            {'match': 'inport == @neutron_pg_drop && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'from-lport'},
+            {'match': 'outport == @neutron_pg_drop && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'to-lport'},
+            {'match': 'inport == @' + pg_name + ' && ip6',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'from-lport'},
+            {'match': 'inport == @' + pg_name + ' && ip4',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'from-lport'},
+            {'match': 'outport == @' + pg_name + ' && ip4 && '
+                      'ip4.src == $' + pg_name + '_ip4',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'to-lport'},
+            {'match': 'outport == @' + pg_name + ' && ip6 && '
+                      'ip6.src == $' + pg_name + '_ip6',
+             'action': 'allow-related',
+             'priority': 1002,
+             'direction': 'to-lport'},
+        ]
+        self._verify_port_acls(port_id, expected_acls_with_sg_ps_enabled)
+
+        # clear the security groups.
+        data = {'port': {'security_groups': []}}
+        port_req = self.new_update_request('ports', data, p['port']['id'])
+        port_req.get_response(self.api)
+
+        # No security groups and port security enabled - > ACLs should be
+        # added to drop the packets.
+        expected_acls_with_no_sg_ps_enabled = [
+            {'match': 'inport == @neutron_pg_drop && ip',
+             'action': 'drop',
+             'priority': 1001,
+             'direction': 'from-lport'},
+            {'match': 'outport == @neutron_pg_drop && ip',
              'action': 'drop',
              'priority': 1001,
              'direction': 'to-lport'},

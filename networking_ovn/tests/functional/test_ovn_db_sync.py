@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+
 from neutron.services.segments import db as segments_db
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
@@ -32,6 +34,10 @@ from networking_ovn import ovn_db_sync
 from networking_ovn.tests.functional import base
 
 
+# TODO(lucasagomes): Write functional tests for the ovn_db_sync.py script
+#                    using Port Groups
+@mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl.'
+            'is_port_groups_supported', lambda *args: False)
 class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     _extension_drivers = ['port_security', 'dns']
