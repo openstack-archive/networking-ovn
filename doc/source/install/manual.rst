@@ -79,14 +79,22 @@ primary node. See the :ref:`faq` for more information.
 
      .. code-block:: console
 
-        # ovs-appctl -t ovsdb-server ovsdb-server/add-remote ptcp:6640:IP_ADDRESS
+        # ovn-nbctl set-connection ptcp:6641:0.0.0.0 -- \
+                    set connection . inactivity_probe=60000
+        # ovn-sbctl set-connection ptcp:6642:0.0.0.0 -- \
+                    set connection . inactivity_probe=60000
+        # if using the VTEP functionality:
+        #   ovs-appctl -t ovsdb-server ovsdb-server/add-remote ptcp:6640:0.0.0.0
 
-     Replace ``IP_ADDRESS`` with the IP address of the management network
-     interface on the controller node.
+     Replace ``0.0.0.0`` with the IP address of the management network
+     interface on the controller node to avoid listening on all interfaces.
 
      .. note::
 
-        Permit remote access to TCP port 6640 on any host firewall.
+        Permit remote access to TCP ports: 6640 (OVS) to VTEPS (if you use vteps),
+        6642 (SBDB) to hosts running neutron-server, gateway nodes that run ovn-controller,
+        and compute node services like ovn-controller an ovn-metadata-agent. 6641 (NBDB) to
+        hosts running neutron-server.
 
 #. Start the ``ovn-northd`` service.
 
