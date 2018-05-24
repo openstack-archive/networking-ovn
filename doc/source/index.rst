@@ -21,6 +21,7 @@ Contents
    faq/index
    admin/index
    install/index
+   install/migration
    configuration/index
    contributor/index
 

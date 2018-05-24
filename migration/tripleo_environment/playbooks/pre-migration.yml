@@ -1,0 +1,17 @@
+# Playbook to create pre migration resources
+
+- name: Create the pre migration resource stack
+  hosts: localhost
+  roles:
+    - resources/create
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"
+  tags:
+    - pre-migration
+
+- name: Validate the pre migration resources
+  hosts: localhost
+  roles:
+    - resources/validate
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"

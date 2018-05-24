@@ -1,0 +1,20 @@
+- name: Delete temp file directory if present
+  file:
+    state: absent
+    path: "{{ ovn_migration_temp_dir }}"
+
+- name : Create temp file directory if not present
+  file:
+    state: directory
+    path: "{{ ovn_migration_temp_dir }}"
+
+- name: Generate neutron resources cleanup script
+  template:
+    src: "{{ delete_neutron_resources_script }}"
+    dest: "{{ ovn_migration_temp_dir }}/delete-neutron-resources.sh"
+    mode: 0744
+
+- name: Deleting the neutron agents
+  shell: >
+    {{ ovn_migration_temp_dir }}/delete-neutron-resources.sh 2>&1 >
+    {{ ovn_migration_temp_dir }}/delete-neutron-resources.sh.log

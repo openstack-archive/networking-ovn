@@ -1,0 +1,9 @@
+---
+prelude: >
+    Support migration from an existing ML2OVS tripleo deployment to ML2OVN
+    tripleo deployment.
+features:
+  - |
+    A migration tool is provided to carry out in-place migration of an existing
+    ML2OVS tripleo deployment to ML2OVN. Please see the relevant documentation
+    section for more information.

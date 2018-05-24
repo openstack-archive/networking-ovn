@@ -1,0 +1,6 @@
+---
+
+tunnel_bridge: "br-tun"
+integration_bridge: "br-int"
+external_bridge: "br-ex"
+activate_ovn_script: activate-ovn.sh.j2

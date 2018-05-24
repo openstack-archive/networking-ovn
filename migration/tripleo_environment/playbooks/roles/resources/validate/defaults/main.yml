@@ -1,0 +1,5 @@
+validate_resources_script: validate-resources.sh.j2
+ovn_migration_temp_dir: "{{ ovn_migration_temp_dir }}"
+server_user_name: "cirros"
+restart_server: false
+resource_suffix: "pre"

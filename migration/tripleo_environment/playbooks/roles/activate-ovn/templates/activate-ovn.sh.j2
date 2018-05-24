@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -x
+
+# Reset OpenFlow protocol version before ovn-controller takes over
+ovs-vsctl set Bridge {{ integration_bridge }} protocols=[]
+ovs-vsctl set Bridge {{ external_bridge }} protocols=[]
+
+# Delete controller from integration bridge
+ovs-vsctl del-controller {{ integration_bridge }}
+
+# Activate ovn-controller by configuring integration bridge
+ovs-vsctl set open . external_ids:ovn-bridge={{ integration_bridge }}
+
+ovn_container_id=`docker ps | grep ovn-controller | awk '{print $1}'`
+docker restart $ovn_container_id
+
+# Delete ovs bridges - br-tun and br-migration
+ovs-vsctl --if-exists del-br {{ tunnel_bridge }}
+ovs-vsctl --if-exists del-br br-migration
+
+# Delete the qr-*, qg-* and ha-* ports from integration bridge
+for p in `ovs-vsctl show | egrep 'qr-|ha-|qg-' | grep Interface | awk '{print $2}'`
+do
+    # p will be having quotes. Eg. "hr-xxxx". So strip the quotes
+    port=`echo "$p" | sed -e 's/^"//' -e 's/"$//'`
+    ovs-vsctl del-port $port
+done
+
+# Delete namespaces
+for i in `ip netns | grep -v ovnmeta`
+do
+    ip netns delete $i
+done
+
+exit 0
