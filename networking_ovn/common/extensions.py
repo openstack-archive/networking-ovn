@@ -59,4 +59,5 @@ ML2_SUPPORTED_API_EXTENSIONS = [
     'tag',
     'timestamp_core',
     'trunk',
+    'quota_details',
 ]
