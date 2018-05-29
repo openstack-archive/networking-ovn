@@ -13,9 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.db import api as db_api
 from neutron.tests.unit.testlib_api import SqlTestCaseLight
 from neutron_lib import context
+from neutron_lib.db import api as db_api
 from sqlalchemy.orm import exc
 
 from networking_ovn.db import models
