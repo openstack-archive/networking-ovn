@@ -66,6 +66,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          False,
                                          group='ovn')
+        ovn_config.cfg.CONF.set_override('dns_servers', ['8.8.8.8'],
+                                         group='ovn')
         super(TestOVNMechanismDriver, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
@@ -957,6 +959,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
                 'server_mac': '01:02:03:04:05:06',
+                'dns_server': '{8.8.8.8}',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}
         ports_dhcp_options = [{
@@ -966,6 +969,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             'cidr': subnet['cidr'], 'options': {
                 'router': '10.0.0.33',
                 'server_id': subnet['gateway_ip'],
+                'dns_server': '{8.8.8.8}',
                 'server_mac': '01:02:03:04:05:06',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}, {
@@ -975,6 +979,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             'cidr': subnet['cidr'], 'options': {
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
+                'dns_server': '{8.8.8.8}',
                 'server_mac': '01:02:03:04:05:06',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1200)}}]
@@ -1110,6 +1115,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'router': '10.0.0.2',
                 'server_id': '10.0.0.2',
                 'server_mac': '01:02:03:04:05:06',
+                'dns_server': '{8.8.8.8}',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}, 'ports': []}
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
@@ -1123,6 +1129,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             'cidr': subnet['cidr'], 'options': {
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
+                'dns_server': '{8.8.8.8}',
                 'server_mac': '01:02:03:04:05:06',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}
@@ -1141,6 +1148,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 'router': subnet['gateway_ip'],
                 'server_id': subnet['gateway_ip'],
                 'server_mac': '01:02:03:04:05:06',
+                'dns_server': '{8.8.8.8}',
                 'lease_time': str(12 * 60 * 60),
                 'mtu': str(1000)}}, 'ports': []}
         self.mech_driver._nb_ovn.get_subnet_dhcp_options.return_value =\
@@ -1336,6 +1344,9 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         cfg.CONF.set_override('vni_ranges',
                               ['1:65536'],
                               group='ml2_type_geneve')
+        ovn_config.cfg.CONF.set_override('dns_servers',
+                                         ['8.8.8.8'],
+                                         group='ovn')
         super(OVNMechanismDriverTestCase, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
@@ -1634,6 +1645,7 @@ class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
                              ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
             'options': {'server_id': '10.0.0.2',
                         'server_mac': '01:02:03:04:05:06',
+                        'dns_server': '{8.8.8.8}',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': '1400',
                         'classless_static_route':
@@ -1962,6 +1974,7 @@ class TestOVNMechanismDriverSecurityGroup(
         cfg.CONF.set_override('mechanism_drivers',
                               ['logger', 'ovn'],
                               'ml2')
+        cfg.CONF.set_override('dns_servers', ['8.8.8.8'], group='ovn')
         super(TestOVNMechanismDriverSecurityGroup, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj

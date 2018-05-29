@@ -146,7 +146,14 @@ ovn_opts = [
                help=_("The log level used for OVSDB")),
     cfg.BoolOpt('ovn_metadata_enabled',
                 default=False,
-                help=_('Whether to use metadata service.'))
+                help=_('Whether to use metadata service.')),
+    cfg.ListOpt('dns_servers',
+                default=[],
+                help=_("Comma-separated list of the DNS servers which will be "
+                       "used as forwarders if a subnet's dns_nameservers "
+                       "field is empty. If both subnet's dns_nameservers and "
+                       "this option is empty, then the DNS resolvers on the "
+                       "host running the neutron server will be used.")),
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -228,6 +235,10 @@ def get_ovn_ovsdb_log_level():
 
 def is_ovn_metadata_enabled():
     return cfg.CONF.ovn.ovn_metadata_enabled
+
+
+def get_dns_servers():
+    return cfg.CONF.ovn.dns_servers
 
 
 def setup_logging():
