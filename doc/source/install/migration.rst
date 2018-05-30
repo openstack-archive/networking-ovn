@@ -37,10 +37,6 @@ a. Administrator steps:
       capable). ovn_geneve_overhead is 58 bytes. VXLAN overhead is 50 bytes. So
       for the typical 1500 MTU tunneling network, we may need to assign 1442.
 
-      The migration tool provides a python script `network_mtu.py``. To lower
-      the MTU, run ``python network_mtu.py update mtu``.
-
-
 b. Automated steps (via ansible)
 
     * Create pre-migration resources (network and VM) to validate final
@@ -78,10 +74,7 @@ Steps for migration
 -------------------
 Carryout the below steps in the undercloud:
 
-1.  Run ``python network_mtu.py update mtu`` to lower the mtu of the pre
-    migration vxlan networks.
-
-2. Create ``overcloud-deploy-ovn.sh`` script  in /home/stack. Make sure the
+1. Create ``overcloud-deploy-ovn.sh`` script  in /home/stack. Make sure the
    below environment files are added in the order mentioned below
 
 * -e /usr/share/openstack-triple-heat-templates/environments/docker.yaml
@@ -93,13 +86,7 @@ Carryout the below steps in the undercloud:
     If compute nodes have external connectivity, then you can use the
     environment file - environments/services-docker/neutron-ovn-dvr-ha.yaml
 
-3. Configure 'dhcp_renewal_time' in
-   /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
-   in all the nodes where DHCP agent is configured.
-
-4. Wait till the new MTU values are propagated to all the pre migration VMs.
-
-5. Check the script ``ovn_migration.sh`` and override the environment variables
+2. Check the script ``ovn_migration.sh`` and override the environment variables
    if desired.
 
    Below are the environment variables
@@ -122,7 +109,21 @@ Carryout the below steps in the undercloud:
     * SERVER_USER_NAME - User name to use for logging to the migration server.
       Default value is 'cirros'.
 
-6. Set the below tripleo heat template parameters to point to the proper
+    * DHCP_RENEWAL_TIME - DHCP renewal time to configure in dhcp agent
+      configuration file. The default value is 30 seconds.
+
+2. Run ``./ovn_migration.sh generate-inventory`` to generate the inventory
+   file - hosts_for_migration. Please review this file for correctness and
+   modify it if desired.
+
+3. Run ``./ovn_migration.sh reduce-mtu``. This lowers the mtu of the pre
+   migration vxlan networks and configures ‘dhcp_renewal_time’ in
+   /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
+   in all the nodes where DHCP agent is running.
+
+4. Wait till the new MTU values are propagated to all the pre migration VMs.
+
+5. Set the below tripleo heat template parameters to point to the proper
    OVN docker images in appropriate environment file
 
     * DockerOvnControllerConfigImage
@@ -138,6 +139,7 @@ Carryout the below steps in the undercloud:
    -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker
    /neutron-ovn-ha.yaml``.
 
-7. Run the script ``ovn_migration.sh``.
+7. Run ``./ovn_migration.sh start-migration`` to kick start the migration
+   process.
 
 Migration is complete !!!

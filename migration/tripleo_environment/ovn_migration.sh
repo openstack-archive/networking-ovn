@@ -37,20 +37,47 @@ LANG=C
 : ${SERVER_USER_NAME:=cirros}
 : ${IS_CONTAINER_DEPLOYMENT:=False}
 : ${VALIDATE_MIGRATION:=True}
+: ${DHCP_RENEWAL_TIME:=30}
 
-# Check if the neutron networks MTU has been updated to geneve MTU size or not.
-# We donot want to proceed if the MTUs are not updated.
-oc_check_network_mtu() {
-    source $OVERCLOUDRC_FILE
-    python network_mtu.py verify mtu
-    if [ "$?" != "0" ]
+
+check_for_necessary_files() {
+    if [ ! -e hosts_for_migration ]
     then
-        echo "Please update the tenant network MTU by running 'python network_mtu.py update mtu' before starting migration"
+        echo "hosts_for_migration ansible inventory file not present"
+        echo "Please run ./ovn_migration.sh generate-inventory"
+        exit 1
+    fi
+
+    # Check if the user has generated overcloud-deploy-ovn.sh file
+    # If it is not generated. Exit
+    if [ ! -e $OVERCLOUD_OVN_DEPLOY_SCRIPT ]
+    then
+        echo "overcloud deploy migration script : $OVERCLOUD_OVN_DEPLOY_SCRIPT\
+ is not present. Please make sure you generate that file before running this"
+        exit 1
+    fi
+
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  neutron-ovn
+    if [ "$?" == "1" ]
+    then
+        echo "OVN t-h-t environment file seems to be missing in \
+$OVERCLOUD_OVN_DEPLOY_SCRIPT. Please check the $OVERCLOUD_OVN_DEPLOY_SCRIPT \
+file again."
+        exit 1
+    fi
+
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  $HOME/ovn-extras.yaml
+    if [ "$?" == "1" ]
+    then
+        echo "ovn-extras.yaml file is missing in $OVERCLOUD_OVN_DEPLOY_SCRIPT.\
+ Please add it as \" -e $HOME/ovn-extras.yaml\""
         exit 1
     fi
 }
 
-generate_ansible_hosts_file() {
+# Generate the inventory file for ansible migration playbook.
+generate_ansible_inventory_file() {
+    echo "Generating the inventory file for ansible-playbook"
     source $STACKRC_FILE
     echo "[ovn-dbs]"  > hosts_for_migration
     ovn_central=True
@@ -96,51 +123,51 @@ validate_migration=$VALIDATE_MIGRATION
 overcloud_ovn_deploy_script=$OVERCLOUD_OVN_DEPLOY_SCRIPT
 overcloudrc=$OVERCLOUDRC_FILE
 EOF
+
+    echo "***************************************"
+    cat hosts_for_migration
+    echo "***************************************"
+    echo "Generated the inventory file - hosts_for_migration"
+    echo "Please review the file before running the next command - reduce-mtu"
 }
 
-# Step 1. Check if the user has generated overcloud-deploy-ovn.sh file
-# If it is not generated. Exit
-if [ ! -e $OVERCLOUD_OVN_DEPLOY_SCRIPT ]
-then
-    echo "overcloud deploy migration script : $OVERCLOUD_OVN_DEPLOY_SCRIPT is not present. Please make sure you generate that file before running this"
-    exit 1
-fi
+# Check if the neutron networks MTU has been updated to geneve MTU size or not.
+# We donot want to proceed if the MTUs are not updated.
+oc_check_network_mtu() {
+    source $OVERCLOUDRC_FILE
+    python network_mtu.py verify mtu
+    return $?
+}
 
-echo "Check if jq and sshpass commands are available or not"
+reduce_network_mtu () {
+    source $OVERCLOUDRC_FILE
+    oc_check_network_mtu
+    if [ "$?" != "0" ]
+    then
+        # Reduce the network mtu
+        python network_mtu.py update mtu
+        rc=$?
 
-which jq
-if [ "$?" != "0" ]
-then
-    echo "Please install jq as it is required during migration"
-    exit 1
-fi
+        if [ "$rc" != "0" ]
+        then
+            echo "Reducing the network mtu's failed. Exiting."
+            exit 1
+        fi
+    fi
 
-which sshpass
-if [ "$?" != "0" ]
-then
-    echo "Please install sshpass as it is required during migration"
-    exit 1
-fi
+    # Run the ansible playbook to reduce the DHCP T1 parameter in
+    # dhcp_agent.ini in all the overcloud nodes where dhcp agent is running.
+    ansible-playbook  $OPT_WORKDIR/playbooks/reduce-dhcp-renewal-time.yml \
+        -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
+        -e renewal_time=$DHCP_RENEWAL_TIME
+    rc=$?
+    return $rc
+}
 
-echo "Checking the tenant network mtu values"
-oc_check_network_mtu
-
-echo "MTU is fine"
-
-cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  $HOME/ovn-extras.yaml
-if [ "$?" == "1" ]
-then
-    echo "ovn-extras.yaml file is missing in $OVERCLOUD_OVN_DEPLOY_SCRIPT. Please add it"
-    exit 1
-fi
-
-# Generate the hosts file for ansible migration playbook.
-echo "Generating the hosts file for ansible-playbook"
-generate_ansible_hosts_file
-
-# Lets kick start the ansible playbook.
-echo "Starting the Migration"
-ansible-playbook  $OPT_WORKDIR/playbooks/ovn-migration.yml \
+start_migration() {
+    source $STACKRC_FILE
+    echo "Starting the Migration"
+    ansible-playbook  $OPT_WORKDIR/playbooks/ovn-migration.yml \
     -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
     -e public_network_name=$PUBLIC_NETWORK_NAME \
     -e image_name=$IMAGE_NAME \
@@ -150,4 +177,46 @@ ansible-playbook  $OPT_WORKDIR/playbooks/ovn-migration.yml \
     -e container_deployment=$IS_CONTAINER_DEPLOYMENT \
     -e validate_migration=$VALIDATE_MIGRATION
 
-echo "Migration complete !!!"
+    rc=$?
+    return $rc
+}
+
+print_usage() {
+    echo "Usage:"
+    echo "Before running this script, please refer the migration guide for \
+complete details. This script needs to be run in 3 steps."
+    echo "Step 1 -> ./ovn_migration.sh generate-inventory : Generates the \
+inventory file"
+    echo "Step 2 -> ./ovn_migration.sh reduce-mtu : Reduces the MTU of the \
+neutron networks and sets the dhcp_renewal_time configuration to 30 seconds."
+    echo "Step 3 -> ./ovn_migration.sh start-migration : Starts the migration \
+to OVN"
+    echo "Before running step 3, wait for all the VMs to catch up with the \
+lowered MTU"
+}
+
+command=$1
+
+ret_val=0
+case $command in
+    generate-inventory)
+        generate_ansible_inventory_file
+        ret_val=$?
+        ;;
+
+    reduce-mtu)
+        check_for_necessary_files
+        reduce_network_mtu
+        ret_val=$?;;
+
+    start-migration)
+        check_for_necessary_files
+        start_migration
+        ret_val=$?
+        ;;
+
+    *)
+        print_usage;;
+esac
+
+exit $ret_val
