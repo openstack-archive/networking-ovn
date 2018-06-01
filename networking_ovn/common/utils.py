@@ -11,8 +11,10 @@
 #    under the License.
 
 import os
+import re
 
 import netaddr
+
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
@@ -25,9 +27,12 @@ from neutron_lib.utils import net as n_utils
 from oslo_utils import netutils
 from oslo_utils import strutils
 
+
 from networking_ovn._i18n import _
 from networking_ovn.common import constants
 from networking_ovn.common import exceptions as ovn_exc
+
+DNS_RESOLVER_FILE = "/etc/resolv.conf"
 
 
 def ovn_name(id):
@@ -324,3 +329,20 @@ def get_lrouter_non_gw_routes(ovn_router):
 
 def is_ovn_l3(l3_plugin):
     return hasattr(l3_plugin, '_ovn_client_inst')
+
+
+def get_system_dns_resolvers(resolver_file=DNS_RESOLVER_FILE):
+    resolvers = []
+    if not os.path.exists(resolver_file):
+        return resolvers
+
+    with open(resolver_file, 'r') as rconf:
+        for line in rconf.readlines():
+            if not line.startswith('nameserver'):
+                continue
+
+            line = line.split('nameserver')[1].strip()
+            ipv4 = re.search(r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}', line)
+            if ipv4:
+                resolvers.append(ipv4.group(0))
+    return resolvers

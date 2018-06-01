@@ -1261,9 +1261,15 @@ class OVNClient(object):
             options['server_mac'] = n_net.get_random_mac(
                 cfg.CONF.base_mac.split(':'))
 
-        if subnet['dns_nameservers']:
-            dns_servers = '{%s}' % ', '.join(subnet['dns_nameservers'])
-            options['dns_server'] = dns_servers
+        dns_servers = (subnet.get('dns_nameservers') or
+                       config.get_dns_servers() or
+                       utils.get_system_dns_resolvers())
+        if dns_servers:
+            options['dns_server'] = '{%s}' % ', '.join(dns_servers)
+        else:
+            LOG.warning("No relevant dns_servers defined for subnet %s. Check "
+                        "the /etc/resolv.conf file",
+                        subnet['id'])
 
         routes = []
         if metadata_port_ip:
@@ -1374,11 +1380,28 @@ class OVNClient(object):
         txn.add(self._nb_idl.add_dhcp_options(subnet['id'], **new_options))
         dhcp_options = self._nb_idl.get_subnet_dhcp_options(
             subnet['id'], with_ports=True)
+
+        # When a subnet dns_nameserver is updated, then we should update
+        # the port dhcp options for ports (with no port specific dns_server
+        # defined).
+        if 'options' in new_options and 'options' in original_options:
+            orig_dns_server = original_options['options'].get('dns_server')
+            new_dns_server = new_options['options'].get('dns_server')
+            dns_server_changed = (orig_dns_server != new_dns_server)
+        else:
+            dns_server_changed = False
+
         for opt in dhcp_options['ports']:
             if not new_options.get('options'):
                 continue
             options = dict(new_options['options'])
+            p_dns_server = opt['options'].get('dns_server')
+            if dns_server_changed and (orig_dns_server == p_dns_server):
+                # If port has its own dns_server option defined, then
+                # orig_dns_server and p_dns_server will not match.
+                opt['options']['dns_server'] = new_dns_server
             options.update(opt['options'])
+
             port_id = opt['external_ids']['port_id']
             txn.add(self._nb_idl.add_dhcp_options(
                 subnet['id'], port_id=port_id, options=options))
