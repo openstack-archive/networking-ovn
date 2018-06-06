@@ -710,6 +710,24 @@ class OVNMechanismDriver(api.MechanismDriver):
             resources.PORT,
             provisioning_blocks.L2_AGENT_ENTITY)
 
+        admin_context = n_context.get_admin_context()
+        try:
+            # NOTE(lucasagomes): Router ports in OVN is never bound
+            # to a host given their decentralized nature. By calling
+            # provisioning_complete() - as above - don't do it for us
+            # becasue the router ports are unbind so, for OVN we are
+            # forcing the status here. Maybe it's something that we can
+            # change in core Neutron in the future.
+            port = self._plugin.get_port(admin_context, port_id)
+            if port.get('device_owner') in (const.DEVICE_OWNER_ROUTER_INTF,
+                                            const.DEVICE_OWNER_DVR_INTERFACE,
+                                            const.DEVICE_OWNER_ROUTER_HA_INTF):
+                self._plugin.update_port_status(admin_context, port_id,
+                                                const.PORT_STATUS_ACTIVE)
+        except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
+            LOG.debug('Port not found during OVN status up report: %s',
+                      port_id)
+
     def set_port_status_down(self, port_id):
         # Port provisioning is required now that OVN has reported that the
         # port is down. Insert a provisioning block and mark the port down
