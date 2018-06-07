@@ -107,11 +107,20 @@ generate_ansible_inventory_file() {
     echo "" >> hosts_for_migration
 
     cat >> hosts_for_migration << EOF
+
+[overcloud-controllers:children]
+ovn-dbs
+
 [overcloud:children]
 ovn-controllers
 ovn-dbs
 
-[overcloud:vars]
+EOF
+    add_group_vars() {
+
+    cat >> hosts_for_migration << EOF
+
+[$1:vars]
 remote_user=heat-admin
 dvr_setup=$IS_DVR_ENABLED
 public_network_name=$PUBLIC_NETWORK_NAME
@@ -123,6 +132,11 @@ validate_migration=$VALIDATE_MIGRATION
 overcloud_ovn_deploy_script=$OVERCLOUD_OVN_DEPLOY_SCRIPT
 overcloudrc=$OVERCLOUDRC_FILE
 EOF
+    }
+
+    add_group_vars overcloud
+    add_group_vars overcloud-controllers
+
 
     echo "***************************************"
     cat hosts_for_migration
