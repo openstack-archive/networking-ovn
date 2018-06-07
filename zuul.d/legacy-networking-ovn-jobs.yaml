@@ -66,17 +66,6 @@
       - openstack/networking-ovn
 
 - job:
-    name: networking-ovn-rally-dsvm
-    parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/rally-dsvm-networking-ovn/run.yaml
-    post-run: playbooks/legacy/rally-dsvm-networking-ovn/post.yaml
-    timeout: 7800
-    required-projects:
-      - openstack-infra/devstack-gate
-      - openstack/networking-ovn
-      - openstack/rally
-
-- job:
     name: networking-ovn-tempest-dsvm-multinode
     parent: legacy-networking-ovn-dsvm-base-multinode
     run: playbooks/legacy/tempest-dsvm-networking-ovn-multinode/run.yaml
