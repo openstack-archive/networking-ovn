@@ -18,7 +18,7 @@ import sys
 
 from openstack import connection
 
-
+# TODO(dalvarez): support also GRE
 GENEVE_TO_VXLAN_OVERHEAD = 8
 
 
@@ -49,8 +49,8 @@ def verify_network_mtu():
     if success:
         print("All the networks are set to expected mtu value")
     else:
-        print("Please run : \"python network_mtu.py update mtu\" before"
-              " starting the migration to OVN")
+        print("Please run : \"%s update mtu\" before starting the migration "
+              "migration to OVN" % sys.argv[0])
     return success
 
 
@@ -60,16 +60,16 @@ def update_network_mtu():
     for network in conn.network.networks():
         try:
             if network.provider_physical_network is None and (
-                network.provider_network_type == 'vxlan') and (
-                    'adapted_mtu' not in network.tags):
-                    print("Updating the mtu and the tag 'adapted_mtu"
-                          " of the network - " + str(network.name))
-                    new_tags = list(network.tags)
-                    new_tags.append('adapted_mtu')
-                    conn.network.update_network(
-                        network,
-                        mtu=int(network.mtu) - GENEVE_TO_VXLAN_OVERHEAD)
-                    conn.network.set_tags(network, new_tags)
+                    network.provider_network_type == 'vxlan') and (
+                        'adapted_mtu' not in network.tags):
+                print("Updating the mtu and the tag 'adapted_mtu"
+                      " of the network - " + str(network.name))
+                new_tags = list(network.tags)
+                new_tags.append('adapted_mtu')
+                conn.network.update_network(
+                    network,
+                    mtu=int(network.mtu) - GENEVE_TO_VXLAN_OVERHEAD)
+                conn.network.set_tags(network, new_tags)
         except Exception as e:
             print("Exception occured while updating the MTU:" + str(e))
             return False
@@ -78,22 +78,26 @@ def update_network_mtu():
 
 def print_usage():
     print('Invalid options:')
-    print('Usage: python network_mtu.py verify mtu')
-    print('Usage: python network_mtu.py update mtu')
+    print('Usage: %s <update|verify> mtu' % sys.argv[0])
 
 
-if len(sys.argv) < 3:
-    print_usage()
-    sys.exit(1)
+def main():
+    if len(sys.argv) < 3:
+        print_usage()
+        sys.exit(1)
 
-retval = 1
-if sys.argv[1] == "update" and sys.argv[2] == "mtu":
-    if update_network_mtu():
-        retval = 0
-elif sys.argv[1] == "verify" and sys.argv[2] == "mtu":
-    if verify_network_mtu():
-        retval = 0
-else:
-    print_usage()
+    retval = 1
+    if sys.argv[1] == "update" and sys.argv[2] == "mtu":
+        if update_network_mtu():
+            retval = 0
+    elif sys.argv[1] == "verify" and sys.argv[2] == "mtu":
+        if verify_network_mtu():
+            retval = 0
+    else:
+        print_usage()
 
-sys.exit(retval)
+    sys.exit(retval)
+
+
+if __name__ == "__main__":
+    main()

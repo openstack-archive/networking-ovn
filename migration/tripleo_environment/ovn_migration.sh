@@ -135,7 +135,7 @@ EOF
 # We donot want to proceed if the MTUs are not updated.
 oc_check_network_mtu() {
     source $OVERCLOUDRC_FILE
-    python network_mtu.py verify mtu
+    networking-ovn-migration-mtu verify mtu
     return $?
 }
 
@@ -145,7 +145,7 @@ reduce_network_mtu () {
     if [ "$?" != "0" ]
     then
         # Reduce the network mtu
-        python network_mtu.py update mtu
+        networking-ovn-migration-mtu update mtu
         rc=$?
 
         if [ "$rc" != "0" ]
