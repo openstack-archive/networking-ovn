@@ -231,7 +231,7 @@ start_migration() {
     -e server_user_name=$SERVER_USER_NAME        \
     -e overcloudrc=$OVERCLOUDRC_FILE             \
     -e container_deployment=$IS_CONTAINER_DEPLOYMENT \
-    -e validate_migration=$VALIDATE_MIGRATION
+    -e validate_migration=$VALIDATE_MIGRATION $*
 
     rc=$?
     return $rc
@@ -297,7 +297,8 @@ case $command in
 
     start-migration)
         check_for_necessary_files
-        start_migration
+        shift
+        start_migration $*
         ret_val=$?
         ;;
 
