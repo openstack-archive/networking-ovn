@@ -9,18 +9,10 @@ source $TOP_DIR/openrc admin admin
 
 OVN_TEST_NETWORK=ovn-test-net
 
-function early_create {
-    :
-}
-
 function create {
     local net_id
     net_id=$(openstack network create $OVN_TEST_NETWORK -f value -c id)
     resource_save ovn net_id $net_id
-}
-
-function verify_noapi {
-    :
 }
 
 function verify {
@@ -34,19 +26,12 @@ function verify {
 function destroy {
     local net_id
     net_id=$(resource_get ovn net_id)
-
     openstack network delete $net_id
 }
 
 case $1 in
-    "early_create")
-        early_create
-        ;;
     "create")
         create
-        ;;
-    "verify_noapi")
-        verify_noapi
         ;;
     "verify")
         verify

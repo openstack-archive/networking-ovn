@@ -35,17 +35,6 @@
       - openstack/tempest
 
 - job:
-    name: networking-ovn-grenade-dsvm
-    parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/grenade-dsvm-networking-ovn/run.yaml
-    post-run: playbooks/legacy/grenade-dsvm-networking-ovn/post.yaml
-    timeout: 9000
-    required-projects:
-      - openstack-dev/grenade
-      - openstack-infra/devstack-gate
-      - openstack/networking-ovn
-
-- job:
     name: networking-ovn-dsvm-functional
     parent: legacy-networking-ovn-dsvm-base
     run: playbooks/legacy/networking-ovn-dsvm-functional/run.yaml
@@ -109,6 +98,28 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/post.yaml
     timeout: 7800
     required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/neutron-tempest-plugin
+      - openstack/tempest
+
+- job:
+    name: networking-ovn-dsvm-grenade
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/grenade-dsvm-networking-ovn/run.yaml
+    post-run: playbooks/legacy/grenade-dsvm-networking-ovn/post.yaml
+    timeout: 9000
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+      - ^vagrant/.*$
+    required-projects:
+      - openstack-dev/grenade
       - openstack-infra/devstack-gate
       - openstack/networking-ovn
       - openstack/neutron-tempest-plugin

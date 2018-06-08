@@ -1,8 +1,15 @@
 register_project_for_upgrade networking-ovn
 
-devstack_localrc base disable_service ovn-northd ovn-controller
-devstack_localrc base enable_service q-agt q-meta q-metering s-account s-container s-object s-proxy
+# NOTE(lucasagomes): This is a hack to upgrade before neutron.
+# Otherwise, neutron-db-migrate picks our old version and fail.
+# bug/1648176
+UPGRADE_PROJECTS="networking-ovn ${UPGRADE_PROJECTS/ networking-ovn/}"
+
+devstack_localrc base enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn $BASE_DEVSTACK_BRANCH
 devstack_localrc target enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn
-devstack_localrc target PUBLIC_BRIDGE=br-ex
-devstack_localrc target enable_service s-account s-container s-object s-proxy
-devstack_localrc target disable_service q-agt
+
+# Common options for both base and target DevStack
+for i in base target; do
+    devstack_localrc $i enable_service q-svc ovn-northd ovn-controller networking-ovn-metadata-agent
+    devstack_localrc $i disable_service q-agt q-l3 q-dhcp q-meta n-net
+done

@@ -27,12 +27,32 @@
         cmd: |
           set -e
           set -x
-          export PROJECTS="openstack-dev/grenade openstack/networking-ovn $PROJECTS"
+          cat << 'EOF' >>"/tmp/dg-local.conf"
+          [[local|localrc]]
+          enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin
+
+          EOF
+        executable: /bin/bash
+        chdir: '{{ ansible_user_dir }}/workspace'
+      environment: '{{ zuul | zuul_legacy_vars }}'
+
+    - shell:
+        cmd: |
+          set -e
+          set -x
           export PYTHONUNBUFFERED=true
-          export DEVSTACK_GATE_TEMPEST=1
-          export DEVSTACK_GATE_GRENADE=pullup
+          # Because we are testing a non standard project, add
+          # our project repository. This makes zuul do the right
+          # reference magic for testing changes.
+          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin openstack-dev/grenade $PROJECTS"
+
           export GRENADE_PLUGINRC="enable_grenade_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn"
+          export DEVSTACK_GATE_GRENADE=pullup
+
           export DEVSTACK_GATE_NEUTRON=1
+          export DEVSTACK_GATE_TEMPEST=1
+          export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
+
           export BRANCH_OVERRIDE=default
           if [ "$BRANCH_OVERRIDE" != "default" ] ; then
               export OVERRIDE_ZUUL_BRANCH=$BRANCH_OVERRIDE

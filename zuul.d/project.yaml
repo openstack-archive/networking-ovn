@@ -20,6 +20,9 @@
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
             voting: false
         - openstack-tox-lower-constraints
+        - networking-ovn-dsvm-grenade:
+            branches: ^(?!stable/(ocata|pike|queens)).*$
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -33,9 +36,6 @@
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master-python3:
             voting: false
-        - networking-ovn-grenade-dsvm:
-            voting: false
-            branches: ^(?!(driverfixes|stable/(mitaka|newton))).*$
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
             branches: ^(?!stable/newton).*$

@@ -104,10 +104,4 @@ r="$r)"
 
 r="$r((^neutron_tempest_plugin\.api)|(^neutron_tempest_plugin\.scenario)|(tempest\.(api|scenario|thirdparty))).*$"
 
-if [ -z $DEVSTACK_GATE_GRENADE ]; then
-    # Do not run the tempest test cases on grenade jobs. By not setting this,
-    # we still do run the tempest smoke tests. The pre-upgraded stack too runs
-    # just the smoke tests. This is how openstack/neutron runs its post-upgrade
-    # tempest tests.
-    export DEVSTACK_GATE_TEMPEST_REGEX="$r"
-fi
+export DEVSTACK_GATE_TEMPEST_REGEX="$r"
