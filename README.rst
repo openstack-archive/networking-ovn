@@ -19,3 +19,6 @@ Team and repository tags
 
 .. image:: https://governance.openstack.org/tc/badges/networking-ovn.svg
     :target: https://governance.openstack.org/tc/reference/tags/index.html
+
+* Release notes for the project can be found at:
+  https://docs.openstack.org/releasenotes/networking-ovn/
