@@ -25,11 +25,11 @@ a. Administrator steps:
 
     * Waiting for at least dhcp_lease_duration (see /etc/neutron/neutron.conf
       or /etc/neutron/dhcp_agent.ini) time (default is 86400 seconds =
-      24hours), that way all instances will grab the new new lease renewal time
-      and start checking with the dhcp server periodically based on the T1
-      parameter.
+      24 hours), that way all instances will grab the new new lease renewal
+      time and start checking with the dhcp server periodically based on the
+      T1 parameter.
 
-    * Lowering the MTU of all vxlan or gre based networks down to
+    * Lowering the MTU of all VXLAN or GRE based networks down to
       make sure geneve works (a tool will be provided for that). The mtu
       must be set to "max_tunneling_network_mtu - ovn_geneve_overhead", that's
       generally "1500 - ovn_geneve_overhead", unless your network and any
@@ -116,14 +116,71 @@ Carryout the below steps in the undercloud:
    file - hosts_for_migration. Please review this file for correctness and
    modify it if desired.
 
-3. Run ``./ovn_migration.sh reduce-mtu``. This lowers the mtu of the pre
-   migration vxlan networks and configures ‘dhcp_renewal_time’ in
+4. Run ``./ovn_migration.sh setup-mtu-t1``. This lowers the T1 parameter
+   of the internal neutron DHCP servers configuring the ‘dhcp_renewal_time’ in
    /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
    in all the nodes where DHCP agent is running.
 
-4. Wait till the new MTU values are propagated to all the pre migration VMs.
+5. After the previous step we need to wait at least 24h before continuing
+   if you are using VXLAN or GRE tenant networking. This will allow VMs to
+   catch up with the new MTU size of the next step.
 
-5. Set the below tripleo heat template parameters to point to the proper
+    .. warning::
+
+        This step is very important, never skip it if you are using VXLAN
+        or GRE tenant networks. If you are using VLAN tenant networks you don't
+        need to wait.
+
+    .. warning::
+
+        If you have any instance with static IP assignation on VXLAN or
+        GRE tenant networks, you will need to manually modify the
+        configuration of those instances to configure the new geneve MTU,
+        which is current VXLAN MTU minus 8 bytes, that is 1442 when VXLAN
+        based MTU was 1450.
+
+    .. note::
+
+        24h is the time based on default configuration, it actually depends on
+        /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
+        dhcp_renewal_time and
+        /var/lib/config-data/puppet-generated/neutron/etc/neutron/neutron.conf
+        dhcp_lease_duration parameters. (defaults to 86400 seconds)
+
+    .. note::
+
+        Please note that migrating a VLAN deployment is not recommended at
+        this time because of a bug in core ovn, full support is being worked
+        out here:
+        https://mail.openvswitch.org/pipermail/ovs-dev/2018-May/347594.html
+
+   One way of verifying that the T1 parameter has propated to existing VMs
+   is going to one of the compute nodes, and run tcpdump over one of the
+   VM taps attached to a tenant network,  we should see that requests happen
+   around every 30 seconds.
+
+    .. code-block:: console
+
+        [heat-admin@overcloud-novacompute-0 ~]$ sudo tcpdump -i tap52e872c2-e6 port 67 or port 68 -n
+        tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+        listening on tap52e872c2-e6, link-type EN10MB (Ethernet), capture size 262144 bytes
+        13:17:28.954675 IP 192.168.99.5.bootpc > 192.168.99.3.bootps: BOOTP/DHCP, Request from fa:16:3e:6b:41:3d, length 300
+        13:17:28.961321 IP 192.168.99.3.bootps > 192.168.99.5.bootpc: BOOTP/DHCP, Reply, length 355
+        13:17:56.241156 IP 192.168.99.5.bootpc > 192.168.99.3.bootps: BOOTP/DHCP, Request from fa:16:3e:6b:41:3d, length 300
+        13:17:56.249899 IP 192.168.99.3.bootps > 192.168.99.5.bootpc: BOOTP/DHCP, Reply, length 355
+
+    .. note::
+
+        This verification is not possible with cirros VMs, due to cirros
+        udhcpc implementation which won't obey DHCP option 58 (T1), if you have
+        any cirros based instances you will need to reboot them.
+
+6. Run ``./ovn_migration.sh reduce-mtu``. This lowers the MTU of the pre
+   migration VXLAN and GRE networks. You can skip this step if you use VLAN
+   tenant networks. It will be safe to execute in such case, because the
+   tool will ignore non-VXLAN/GRE networks.
+
+7. Set the below tripleo heat template parameters to point to the proper
    OVN docker images in appropriate environment file
 
     * DockerOvnControllerConfigImage
@@ -139,7 +196,7 @@ Carryout the below steps in the undercloud:
    -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker
    /neutron-ovn-ha.yaml``.
 
-7. Run ``./ovn_migration.sh start-migration`` to kick start the migration
+8. Run ``./ovn_migration.sh start-migration`` to kick start the migration
    process.
 
 Migration is complete !!!

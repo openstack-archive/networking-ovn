@@ -139,6 +139,16 @@ oc_check_network_mtu() {
     return $?
 }
 
+setup_mtu_t1() {
+    # Run the ansible playbook to reduce the DHCP T1 parameter in
+    # dhcp_agent.ini in all the overcloud nodes where dhcp agent is running.
+    ansible-playbook  $OPT_WORKDIR/playbooks/reduce-dhcp-renewal-time.yml \
+        -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
+        -e renewal_time=$DHCP_RENEWAL_TIME
+    rc=$?
+    return $rc
+}
+
 reduce_network_mtu () {
     source $OVERCLOUDRC_FILE
     oc_check_network_mtu
@@ -155,12 +165,6 @@ reduce_network_mtu () {
         fi
     fi
 
-    # Run the ansible playbook to reduce the DHCP T1 parameter in
-    # dhcp_agent.ini in all the overcloud nodes where dhcp agent is running.
-    ansible-playbook  $OPT_WORKDIR/playbooks/reduce-dhcp-renewal-time.yml \
-        -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
-        -e renewal_time=$DHCP_RENEWAL_TIME
-    rc=$?
     return $rc
 }
 
@@ -182,17 +186,41 @@ start_migration() {
 }
 
 print_usage() {
-    echo "Usage:"
-    echo "Before running this script, please refer the migration guide for \
-complete details. This script needs to be run in 3 steps."
-    echo "Step 1 -> ./ovn_migration.sh generate-inventory : Generates the \
-inventory file"
-    echo "Step 2 -> ./ovn_migration.sh reduce-mtu : Reduces the MTU of the \
-neutron networks and sets the dhcp_renewal_time configuration to 30 seconds."
-    echo "Step 3 -> ./ovn_migration.sh start-migration : Starts the migration \
-to OVN"
-    echo "Before running step 3, wait for all the VMs to catch up with the \
-lowered MTU"
+
+cat << EOF
+
+Usage:
+
+  Before running this script, please refer to the migration guide for
+complete details. This script needs to be run in 5 steps.
+
+ Step 1 -> ovn_migration.sh generate-inventory
+
+           Generates the inventory file
+
+ Step 2 -> ovn_migration.sh setup-mtu-t1
+
+           Sets the DHCP renewal T1 to 30 seconds. After this step you will
+           need to wait at least 24h for the change to be propagated to all
+           VMs. This step is only necessary for VXLAN or GRE based tenant
+           networking.
+
+ Step 3 -> You need to wait at least 24h based on the default configuration
+           of neutron for the DHCP T1 parameter to be propagated, please
+           refer to documentation. WARNING: this is very important if you
+           are using VXLAN or GRE tenant networks.
+
+ Step 4 -> ovn_migration.sh reduce-mtu
+
+           Reduces the MTU of the neutron tenant networks networks. This
+           step is only necessary for VXLAN or GRE based tenant networking.
+
+ Step 5 -> ovn_migration.sh start-migration
+
+           Starts the migration to OVN.
+
+EOF
+
 }
 
 command=$1
@@ -203,6 +231,11 @@ case $command in
         generate_ansible_inventory_file
         ret_val=$?
         ;;
+
+    setup-mtu-t1)
+        check_for_necessary_files
+        setup_mtu_t1
+        ret_val=$?;;
 
     reduce-mtu)
         check_for_necessary_files
