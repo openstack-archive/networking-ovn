@@ -56,8 +56,12 @@ OVN_NEUTRON_OWNER_TO_PORT_TYPE = {const.DEVICE_OWNER_DHCP: 'localport'}
 
 # Agent extension constants
 OVN_AGENT_DESC_KEY = 'neutron:description'
+OVN_AGENT_METADATA_SB_CFG_KEY = 'neutron:ovn-metadata-sb-cfg'
+OVN_AGENT_METADATA_DESC_KEY = 'neutron:description-metadata'
+OVN_AGENT_METADATA_ID_KEY = 'neutron:ovn-metadata-id'
 OVN_CONTROLLER_AGENT = 'OVN Controller agent'
 OVN_CONTROLLER_GW_AGENT = 'OVN Controller Gateway agent'
+OVN_METADATA_AGENT = 'OVN Metadata agent'
 
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it
