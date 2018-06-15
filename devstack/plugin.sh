@@ -62,6 +62,22 @@ if is_service_enabled q-svc || is_service_enabled ovn-northd || is_service_enabl
     fi
 fi
 
+if is_service_enabled ovn-octavia; then
+    if [[ "$1" == "stack" && "$2" == "install" ]]; then
+        echo_summary "Installing octavia with ovn provider driver"
+        install_ovn_octavia
+    elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
+        echo_summary "Configuring octavia with ovn provider driver"
+        configure_ovn_octavia
+    elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
+        start_ovn_octavia
+    fi
+
+    if [[ "$1" == "unstack" ]]; then
+        echo_summary "Uninstalling octavia with ovn provider driver"
+        stop_ovn_octavia
+    fi
+fi
 # Restore xtrace
 $_XTRACE_OVN_PLUGIN
 

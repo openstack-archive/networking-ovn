@@ -26,7 +26,9 @@ from neutron_lib.plugins import directory
 from neutron_lib.utils import net as n_utils
 from oslo_utils import netutils
 from oslo_utils import strutils
-
+from ovs.db import idl
+from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants
@@ -366,3 +368,13 @@ def get_system_dns_resolvers(resolver_file=DNS_RESOLVER_FILE):
 def get_port_subnet_ids(port):
     fixed_ips = [ip for ip in port['fixed_ips']]
     return [f['subnet_id'] for f in fixed_ips]
+
+
+def get_ovsdb_connection(connection_string, schema, timeout, tables=None):
+    helper = idlutils.get_schema_helper(connection_string, schema)
+    if tables:
+        for table in tables:
+            helper.register_table(table)
+    else:
+        helper.register_all()
+    return connection.Connection(idl.Idl(connection_string, helper), timeout)

@@ -32,6 +32,10 @@
           [[local|localrc]]
           enable_plugin networking-ovn git://git.openstack.org/openstack/networking-ovn
           enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin
+          enable_plugin octavia git://git.openstack.org/openstack/octavia
+          enable_service ovn-octavia
+          enable_service o-api
+          enable_service o-hk
           OVN_DBS_LOG_LEVEL="dbg"
 
           EOF
@@ -54,7 +58,7 @@
           # Because we are testing a non standard project, add
           # our project repository. This makes zuul do the right
           # reference magic for testing changes.
-          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin $PROJECTS"
+          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin openstack/octavia $PROJECTS"
 
           # Keep localrc to be able to set some vars in pre_test_hook
           export KEEP_LOCALRC=1

@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Support OVN provider driver for octavia. The OVN provider driver is
+    implemented as per the specification -
+    https://docs.openstack.org/octavia/latest/contributor/guides/providers.html.
+    OVN provider driver provides load balancer features using
+    the L4 native load balancer of OVN. This driver doesn't support L7 load
+    balancers.
