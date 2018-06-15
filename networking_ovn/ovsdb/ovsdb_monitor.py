@@ -26,6 +26,7 @@ from ovsdbapp import event
 
 from networking_ovn.agent import stats
 from networking_ovn.common import config as ovn_config
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 
 LOG = log.getLogger(__name__)
@@ -41,8 +42,24 @@ class ChassisAgentEvent(row_event.RowEvent):
     def run(self, event, row, old):
         if event != self.ROW_DELETE:
             stats.AgentStats.add_stat(row.uuid, row.nb_cfg)
+
+            # Update the metadata agent stats
+            metadata_nb_cfg = row.external_ids.get(
+                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, None)
+            if event == self.ROW_UPDATE and metadata_nb_cfg:
+                try:
+                    old_metadata_nb_cfg = old.external_ids.get(
+                        ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, None)
+                except AttributeError:
+                    return
+
+                if metadata_nb_cfg != old_metadata_nb_cfg:
+                    stats.AgentStats.add_stat(
+                        utils.ovn_metadata_name(row.uuid),
+                        int(metadata_nb_cfg))
         else:
             stats.AgentStats.del_agent(row.uuid)
+            stats.AgentStats.del_agent(utils.ovn_metadata_name(row.uuid))
 
 
 class ChassisEvent(row_event.RowEvent):

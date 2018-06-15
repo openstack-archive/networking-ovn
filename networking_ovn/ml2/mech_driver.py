@@ -862,37 +862,71 @@ class OVNMechanismDriver(api.MechanismDriver):
                             " networking-ovn-metadata-agent status/logs.",
                             port_id)
 
-    def agent_alive(self, chassis):
-        if self._nb_ovn.nb_global.nb_cfg == chassis.nb_cfg:
+    def agent_alive(self, chassis, type_):
+        nb_cfg = chassis.nb_cfg
+        id_ = chassis.uuid
+        if type_ == ovn_const.OVN_METADATA_AGENT:
+            id_ = utils.ovn_metadata_name(chassis.uuid)
+            nb_cfg = int(chassis.external_ids.get(
+                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, 0))
+
+        if self._nb_ovn.nb_global.nb_cfg == nb_cfg:
             return True
         now = timeutils.utcnow()
-        updated_at = stats.AgentStats.get_stat(chassis.uuid).updated_at
+        updated_at = stats.AgentStats.get_stat(id_).updated_at
         if (now - updated_at).total_seconds() < cfg.CONF.agent_down_time:
             return True
         return False
 
-    def agent_from_chassis(self, chassis):
-        agent_type = ovn_const.OVN_CONTROLLER_AGENT
-        if ('enable-chassis-as-gw' in
-                chassis.external_ids.get('ovn-cms-options', [])):
-            agent_type = ovn_const.OVN_CONTROLLER_GW_AGENT
+    def _format_agent_info(self, chassis, binary, agent_id, type_,
+                           description, alive):
         return {
-            'binary': "ovn-controller",
+            'binary': binary,
             'host': chassis.hostname,
             'heartbeat_timestamp': timeutils.utcnow(),
             'availability_zone': 'n/a',
             'topic': 'n/a',
-            'description':
-                chassis.external_ids.get(ovn_const.OVN_AGENT_DESC_KEY, ''),
+            'description': description,
             'configurations': {
                 'chassis_name': chassis.name,
                 'bridge-mappings':
                     chassis.external_ids.get('ovn-bridge-mappings', '')},
             'start_flag': True,
-            'agent_type': agent_type,
-            'id': str(chassis.uuid),
-            'alive': self.agent_alive(chassis),
+            'agent_type': type_,
+            'id': agent_id,
+            'alive': alive,
             'admin_state_up': True}
+
+    def agents_from_chassis(self, chassis):
+        agent_dict = {}
+
+        # Check for ovn-controller / ovn-controller gateway
+        agent_type = ovn_const.OVN_CONTROLLER_AGENT
+        agent_id = str(chassis.uuid)
+        if ('enable-chassis-as-gw' in
+                chassis.external_ids.get('ovn-cms-options', [])):
+            agent_type = ovn_const.OVN_CONTROLLER_GW_AGENT
+
+        alive = self.agent_alive(chassis, agent_type)
+        description = chassis.external_ids.get(
+            ovn_const.OVN_AGENT_DESC_KEY, '')
+        agent_dict[agent_id] = self._format_agent_info(
+            chassis, 'ovn-controller', agent_id, agent_type, description,
+            alive)
+
+        # Check for the metadata agent
+        metadata_agent_id = chassis.external_ids.get(
+            ovn_const.OVN_AGENT_METADATA_ID_KEY)
+        if metadata_agent_id:
+            agent_type = ovn_const.OVN_METADATA_AGENT
+            alive = self.agent_alive(chassis, agent_type)
+            description = chassis.external_ids.get(
+                ovn_const.OVN_AGENT_METADATA_DESC_KEY, '')
+            agent_dict[metadata_agent_id] = self._format_agent_info(
+                chassis, 'networking-ovn-metadata-agent',
+                metadata_agent_id, agent_type, description, alive)
+
+        return agent_dict
 
     def patch_plugin_merge(self, method_name, new_fn, op=operator.add):
         old_method = getattr(self._plugin, method_name)
@@ -926,22 +960,35 @@ class OVNMechanismDriver(api.MechanismDriver):
 def get_agents(self, context, filters=None, fields=None, _driver=None):
     _driver.ping_chassis()
     filters = filters or {}
-    agents = []
-    for c in _driver._sb_ovn.tables['Chassis'].rows.values():
-        a = _driver.agent_from_chassis(c)
-        if all(a[k] in v for k, v in filters.items()):
-            agents.append(a)
-    return agents
+    agent_list = []
+    for ch in _driver._sb_ovn.tables['Chassis'].rows.values():
+        for agent in _driver.agents_from_chassis(ch).values():
+            if all(agent[k] in v for k, v in filters.items()):
+                agent_list.append(agent)
+    return agent_list
 
 
 def get_agent(self, context, id, fields=None, _driver=None):
-    _driver.ping_chassis()
-    c = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
-    return _driver.agent_from_chassis(c)
+    chassis = None
+    try:
+        chassis = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
+    except KeyError:
+        # If the UUID is not found, check for the metadata agent ID
+        for ch in _driver._sb_ovn.tables['Chassis'].rows.values():
+            metadata_agent_id = ch.external_ids.get(
+                ovn_const.OVN_AGENT_METADATA_ID_KEY)
+            if id == metadata_agent_id:
+                chassis = ch
+                break
+        else:
+            raise
+    return _driver.agents_from_chassis(chassis)[id]
 
 
 def update_agent(self, context, id, agent, _driver=None):
-    chassis = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
+    ovn_agent = get_agent(self, None, id, _driver=_driver)
+    chassis_name = ovn_agent['configurations']['chassis_name']
+    agent_type = ovn_agent['agent_type']
     agent = agent['agent']
     # neutron-client always passes admin_state_up, openstack client doesn't
     # and we can just fall through to raising in the case that admin_state_up
@@ -950,16 +997,17 @@ def update_agent(self, context, id, agent, _driver=None):
         pass
     elif 'description' in agent:
         _driver._sb_ovn.set_chassis_neutron_description(
-            chassis.name, agent['description']).execute(check_error=True)
-        return _driver.agent_from_chassis(chassis)
+            chassis_name, agent['description'],
+            agent_type).execute(check_error=True)
+        return agent
     else:
         # admin_state_up=True w/o description
-        return _driver.agent_from_chassis(chassis)
+        return agent
     raise n_exc.BadRequest(resource='agent',
                            msg='OVN agent status cannot be updated')
 
 
 def delete_agent(self, context, id, _driver=None):
-    c = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]  # noqa
+    get_agent(self, None, id, _driver=_driver)
     raise n_exc.BadRequest(resource='agent',
                            msg='OVN agents cannot be deleted')

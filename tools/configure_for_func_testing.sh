@@ -98,7 +98,43 @@ function _install_base_deps {
     install_package $PACKAGES
 }
 
+# Set up the rootwrap sudoers for neutron to target the rootwrap
+# configuration deployed in the venv.
+function _install_rootwrap_sudoers {
+    echo_summary "Installing rootwrap sudoers file"
 
+    PROJECT_VENV=$REPO_BASE/$PROJECT_NAME/.tox/$VENV
+    ROOTWRAP_SUDOER_CMD="$PROJECT_VENV/bin/neutron-rootwrap $PROJECT_VENV/etc/neutron/rootwrap.conf *"
+    ROOTWRAP_DAEMON_SUDOER_CMD="$PROJECT_VENV/bin/neutron-rootwrap-daemon $PROJECT_VENV/etc/neutron/rootwrap.conf"
+    TEMPFILE=$(mktemp)
+
+    SECURE_PATH="$PROJECT_VENV/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+    cat << EOF > $TEMPFILE
+# A bug in oslo.rootwrap [1] prevents commands executed with 'ip netns
+# exec' from being automatically qualified with a prefix from
+# rootwrap's configured exec_dirs.  To work around this problem, add
+# the venv bin path to a user-specific secure_path.
+#
+# While it might seem preferable to set a command-specific
+# secure_path, this would only ensure the correct path for 'ip netns
+# exec' and the command targeted for execution in the namespace would
+# not inherit the path.
+#
+# 1: https://bugs.launchpad.net/oslo.rootwrap/+bug/1417331
+#
+Defaults:$STACK_USER  secure_path="$SECURE_PATH"
+$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_SUDOER_CMD
+$STACK_USER ALL=(root) NOPASSWD: $ROOTWRAP_DAEMON_SUDOER_CMD
+EOF
+    chmod 0440 $TEMPFILE
+    sudo chown root:root $TEMPFILE
+    # Name the functional testing rootwrap to ensure that it will be
+    # loaded after the devstack rootwrap (50_stack_sh if present) so
+    # that the functional testing secure_path (a superset of what
+    # devstack expects) will not be overwritten.
+    sudo mv $TEMPFILE /etc/sudoers.d/60-neutron-func-test-rootwrap
+}
 
 # _install_databases [install_pg]
 function _install_databases {
@@ -162,6 +198,7 @@ EOF
 function _install_post_devstack {
     echo_summary "Performing post-devstack installation"
     _install_databases
+    _install_rootwrap_sudoers
 }
 
 

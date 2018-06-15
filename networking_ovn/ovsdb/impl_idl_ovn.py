@@ -758,10 +758,13 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
             self, chassis, {'neutron-metadata-proxy-networks': nets},
             if_exists=True)
 
-    def set_chassis_neutron_description(self, chassis, description):
+    def set_chassis_neutron_description(self, chassis, description,
+                                        agent_type):
+        desc_key = (ovn_const.OVN_AGENT_METADATA_DESC_KEY
+                    if agent_type == ovn_const.OVN_METADATA_AGENT else
+                    ovn_const.OVN_AGENT_DESC_KEY)
         return cmd.UpdateChassisExtIdsCommand(
-            self, chassis, {ovn_const.OVN_AGENT_DESC_KEY: description},
-            if_exists=False)
+            self, chassis, {desc_key: description}, if_exists=False)
 
     def get_network_port_bindings_by_ip(self, network, ip_address):
         rows = self.db_list_rows('Port_Binding').execute(check_error=True)
@@ -770,6 +773,12 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
         return [r for r in rows
                 if (r.mac and str(r.datapath.uuid) == network) and
                 ip_address in r.mac[0].split(' ')]
+
+    def update_metadata_health_status(self, chassis, nb_cfg):
+        return cmd.UpdateChassisExtIdsCommand(
+            self, chassis,
+            {ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: str(nb_cfg)},
+            if_exists=True)
 
     def set_port_cidrs(self, name, cidrs):
         # TODO(twilson) add if_exists to db commands

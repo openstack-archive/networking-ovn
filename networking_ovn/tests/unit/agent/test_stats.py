@@ -27,4 +27,4 @@ class AgentStatsTest(base.TestCase):
         self.assertEqual(nb_cfg, got.nb_cfg)
         self.assertTrue(got.updated_at)
         stats.AgentStats.del_agent(uid)
-        self.assertRaises(KeyError, stats.AgentStats.del_agent, uid)
+        self.assertNotIn(uid, stats.AgentStats._agents)
