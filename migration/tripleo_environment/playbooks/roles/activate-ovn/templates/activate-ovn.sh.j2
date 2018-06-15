@@ -19,18 +19,4 @@ docker restart $ovn_container_id
 ovs-vsctl --if-exists del-br {{ tunnel_bridge }}
 ovs-vsctl --if-exists del-br br-migration
 
-# Delete the qr-*, qg-* and ha-* ports from integration bridge
-for p in `ovs-vsctl show | egrep 'qr-|ha-|qg-' | grep Interface | awk '{print $2}'`
-do
-    # p will be having quotes. Eg. "hr-xxxx". So strip the quotes
-    port=`echo "$p" | sed -e 's/^"//' -e 's/"$//'`
-    ovs-vsctl del-port $port
-done
-
-# Delete namespaces
-for i in `ip netns | grep -v ovnmeta`
-do
-    ip netns delete $i
-done
-
 exit 0
