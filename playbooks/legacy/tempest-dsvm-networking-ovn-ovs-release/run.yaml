@@ -32,6 +32,7 @@
           [[local|localrc]]
           enable_plugin networking-ovn git://git.openstack.org/openstack/networking-ovn
           enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin
+          OVN_DBS_LOG_LEVEL="dbg"
 
           EOF
         executable: /bin/bash

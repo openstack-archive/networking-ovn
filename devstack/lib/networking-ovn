@@ -94,6 +94,9 @@ OVN_NEUTRON_SYNC_MODE=${OVN_NEUTRON_SYNC_MODE:-log}
 # default OVN L3 scheduler is leastloaded
 OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 
+# The log level of the OVN databases (north and south)
+OVN_DBS_LOG_LEVEL=${OVN_DBS_LOG_LEVEL:-info}
+
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
@@ -405,8 +408,8 @@ function start_ovn {
         _ovn_run_process ovn-northd "$cmd"
         ovn-nbctl --db=unix:$OVS_RUNDIR/ovnnb_db.sock set-connection ptcp:6641:0.0.0.0 -- set connection . inactivity_probe=60000
         ovn-sbctl --db=unix:$OVS_RUNDIR/ovnsb_db.sock set-connection ptcp:6642:0.0.0.0 -- set connection . inactivity_probe=60000
-        sudo ovs-appctl -t $OVS_RUNDIR/ovnnb_db.ctl vlog/set console:off syslog:info file:info
-        sudo ovs-appctl -t $OVS_RUNDIR/ovnsb_db.ctl vlog/set console:off syslog:info file:info
+        sudo ovs-appctl -t $OVS_RUNDIR/ovnnb_db.ctl vlog/set console:off syslog:$OVN_DBS_LOG_LEVEL file:$OVN_DBS_LOG_LEVEL
+        sudo ovs-appctl -t $OVS_RUNDIR/ovnsb_db.ctl vlog/set console:off syslog:$OVN_DBS_LOG_LEVEL file:$OVN_DBS_LOG_LEVEL
     fi
 
     if is_service_enabled ovn-controller ; then
