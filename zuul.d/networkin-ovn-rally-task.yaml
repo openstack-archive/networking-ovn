@@ -19,6 +19,7 @@
         br-int-flows: true
         q-dhcp: false
         q-l3: false
+        q-agt: false
       devstack_local_confg:
         HYSICAL_NETWORK: public
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
