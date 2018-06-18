@@ -77,11 +77,11 @@ Carryout the below steps in the undercloud:
 1. Create ``overcloud-deploy-ovn.sh`` script  in /home/stack. Make sure the
    below environment files are added in the order mentioned below
 
-* -e /usr/share/openstack-triple-heat-templates/environments/docker.yaml
-* -e /usr/share/openstack-triple-heat-templates/environments/docker-ha.yaml
-* -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker/
-  neutron-ovn-ha.yaml
-* -e /home/stack/ovn-extras.yaml
+  .. code-block:: console
+
+     -e /usr/share/openstack-tripleo-heat-templates/environments/docker-ha.yaml \
+     -e /usr/share/openstack-tripleo-heat-templates/environments/services/neutron-ovn-ha.yaml \
+     -e /home/stack/ovn-extras.yaml
 
     If compute nodes have external connectivity, then you can use the
     environment file - environments/services-docker/neutron-ovn-dvr-ha.yaml
@@ -191,10 +191,13 @@ Carryout the below steps in the undercloud:
     * DockerOvnDbsImage
     * DockerOvnDbsConfigImage
 
-   Eg: Run ``openstack overcloud container image prepare ..
-   --env-file=/home/stack/docker-images.yaml
-   -e /usr/share/openstack-tripleo-heat-templates/environments/services-docker
-   /neutron-ovn-ha.yaml``.
+   This can be done running the next command:
+
+   .. code-block:: console
+
+       PREPARE_ARGS="-e /usr/share/openstack-tripleo-heat-templates/environments/docker.yaml \
+                     -e /usr/share/openstack-tripleo-heat-templates/environments/services/neutron-ovn-ha.yaml" \
+          ~/overcloud-prep-containers.sh
 
 8. Run ``./ovn_migration.sh start-migration`` to kick start the migration
    process.
