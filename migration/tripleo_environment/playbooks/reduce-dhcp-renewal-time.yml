@@ -1,6 +1,6 @@
 ---
 
-- hosts: overcloud
+- hosts: overcloud-controllers
   tasks:
   - name: Update dhcp_agent configuration file option 'dhcp_renewal_time'
     ini_file:
