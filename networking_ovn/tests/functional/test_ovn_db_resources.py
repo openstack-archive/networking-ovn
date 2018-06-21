@@ -143,6 +143,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 options = {'server_id': cidr.replace('0/24', '1'),
                            'server_mac': dhcp_mac[subnet['id']],
                            'lease_time': str(12 * 60 * 60),
+                           'dns_server': '{10.10.10.10}',
                            'mtu': str(n1['network']['mtu']),
                            'router': subnet['gateway_ip']}
             else:
@@ -290,6 +291,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 'options': {'server_id': '10.0.0.1',
                             'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
+                            'dns_server': '{10.10.10.10}',
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
             subnet_v6['id']: {
@@ -321,6 +323,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'dns_server': '{10.10.10.10}',
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
                         'ntp_server': '8.8.8.8'}}
@@ -414,6 +417,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'dns_server': '{10.10.10.10}',
                         'mtu': str(n1['network']['mtu']),
                         'router': subnet['gateway_ip'],
                         'tftp_server': '100.0.0.100'}}
@@ -590,6 +594,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 'options': {'server_id': '10.0.0.1',
                             'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
+                            'dns_server': '{10.10.10.10}',
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
             subnet_v6['id']: {
@@ -620,6 +625,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'dns_server': '{10.10.10.10}',
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
                         'ntp_server': '8.8.8.8'}}
@@ -676,6 +682,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'dns_server': '{10.10.10.10}',
                         'mtu': '1200',
                         'router': subnet['gateway_ip'],
                         'tftp_server': '8.8.8.8'}}
