@@ -146,6 +146,12 @@ function ovn_base_setup_bridge {
     ovs-vsctl --no-wait br-set-external-id $bridge bridge-id $bridge
 }
 
+function _start_process {
+    $SYSTEMCTL daemon-reload
+    $SYSTEMCTL enable $1
+    $SYSTEMCTL restart $1
+}
+
 function _ovn_run_process {
     local service=$1
     local cmd="$2"
@@ -169,9 +175,7 @@ function _ovn_run_process {
         iniset -sudo $unit_file "Service" "ExecStop" "$stop_cmd"
     fi
 
-    $SYSTEMCTL daemon-reload
-    $SYSTEMCTL enable $systemd_service
-    $SYSTEMCTL restart $systemd_service
+    _start_process $systemd_service
 
     local testcmd="test -e $OVS_RUNDIR/$service.pid"
     test_with_retry "$testcmd" "$service did not start" $SERVICE_TIMEOUT 1
@@ -186,7 +190,8 @@ function _ovn_run_process {
 # runs that a clean run would need to clean up
 function cleanup_ovn {
     local _pwd=$(pwd)
-    cd $DEST/$OVN_REPO_NAME
+    local ovs_path=${1:-$DEST/$OVN_REPO_NAME}
+    cd $ovs_path
     sudo make uninstall
     sudo make distclean
     cd $_pwd
@@ -350,9 +355,14 @@ function start_ovs {
         enable_service ovsdb-server
         enable_service ovs-vswitchd
 
-        ovsdb-tool create $OVS_DATADIR/conf.db $OVS_SHAREDIR/vswitch.ovsschema
+        if [ ! -f $OVS_DATADIR/conf.db ]; then
+            ovsdb-tool create $OVS_DATADIR/conf.db $OVS_SHAREDIR/vswitch.ovsschema
+        fi
+
         if is_service_enabled ovn-controller-vtep; then
-            ovsdb-tool create $OVS_DATADIR/vtep.db $OVS_SHAREDIR/vtep.ovsschema
+            if [ ! -f $OVS_DATADIR/vtep.db ]; then
+                ovsdb-tool create $OVS_DATADIR/vtep.db $OVS_SHAREDIR/vtep.ovsschema
+            fi
         fi
 
         local dbcmd="$OVS_SBINDIR/ovsdb-server --remote=punix:$OVS_RUNDIR/db.sock --pidfile --detach --log-file"
@@ -465,20 +475,46 @@ function stop_ovn {
     if is_service_enabled ovs-vtep ; then
         stop_process ovs-vtep
     fi
-    if is_service_enabled ovs-vswitchd ; then
-        stop_process ovs-vswitchd
+
+    stop_process ovs-vswitchd
+    stop_process ovsdb-server
+}
+
+function start_ovn_services {
+    _start_process "devstack@ovsdb-server.service"
+    _start_process "devstack@ovs-vswitchd.service"
+
+    if is_service_enabled ovs-vtep ; then
+        _start_process "devstack@ovs-vtep.service"
     fi
-    if is_service_enabled ovsdb-server ; then
-        stop_process ovsdb-server
+    if is_service_enabled ovn-northd ; then
+        _start_process "devstack@ovn-northd.service"
+    fi
+    if is_service_enabled ovn-controller ; then
+        _start_process "devstack@ovn-controller.service"
+    fi
+    if is_service_enabled ovn-controller-vtep ; then
+        _start_process "devstack@ovn-controller-vtep.service"
+    fi
+    if is_service_enabled networking-ovn-metadata-agent; then
+        _start_process "devstack@networking-ovn-metadata-agent.service"
+    fi
+}
+
+function is_kernel_module_loaded {
+    if lsmod | grep $1 >& /dev/null; then
+        return 0
+    else
+        return 1
     fi
 }
 
 # stop_ovs_dp() - Stop OVS datapath
 function stop_ovs_dp {
     sudo ovs-dpctl dump-dps | sudo xargs -n1 ovs-dpctl del-dp
-    sudo rmmod vport_geneve
-    sudo rmmod vport_vxlan
-    sudo rmmod openvswitch
+    is_kernel_module_loaded vport_geneve && sudo rmmod vport_geneve
+    is_kernel_module_loaded vport_vxlan && sudo rmmod vport_vxlan
+    is_kernel_module_loaded openvswitch && sudo rmmod openvswitch
 }
 
 function disable_libvirt_apparmor {
