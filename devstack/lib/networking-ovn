@@ -149,8 +149,9 @@ function ovn_base_setup_bridge {
 function _ovn_run_process {
     local service=$1
     local cmd="$2"
-    local group=$3
-    local user=${4:-$STACK_USER}
+    local stop_cmd="$3"
+    local group=$4
+    local user=${5:-$STACK_USER}
 
     local systemd_service="devstack@$service.service"
     local unit_file="$SYSTEMD_DIR/$systemd_service"
@@ -164,6 +165,9 @@ function _ovn_run_process {
     iniset -sudo $unit_file "Service" "KillMode" "mixed"
     iniset -sudo $unit_file "Service" "LimitNOFILE" "65536"
     iniset -sudo $unit_file "Service" "Environment" "$environment"
+    if [ -n "$stop_cmd" ]; then
+        iniset -sudo $unit_file "Service" "ExecStop" "$stop_cmd"
+    fi
 
     $SYSTEMCTL daemon-reload
     $SYSTEMCTL enable $systemd_service
@@ -375,7 +379,7 @@ function start_ovs {
         ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
         local ovscmd="$OVS_SBINDIR/ovs-vswitchd --log-file --pidfile --detach"
-        _ovn_run_process ovs-vswitchd "$ovscmd" "$STACK_USER" "root"
+        _ovn_run_process ovs-vswitchd "$ovscmd" "" "$STACK_USER" "root"
 
         if is_provider_network || [[ $Q_USE_PROVIDERNET_FOR_PUBLIC == "True" ]]; then
             ovn_base_setup_bridge $OVS_PHYSICAL_BRIDGE
@@ -389,7 +393,7 @@ function start_ovs {
 
             enable_service ovs-vtep
             local vtepcmd="$OVS_SCRIPTDIR/ovs-vtep --log-file --pidfile --detach br-v"
-            _ovn_run_process ovs-vtep "$vtepcmd" "$STACK_USER" "root"
+            _ovn_run_process ovs-vtep "$vtepcmd" "" "$STACK_USER" "root"
 
             vtep-ctl set-manager tcp:$HOST_IP:6640
         fi
@@ -404,8 +408,9 @@ function start_ovn {
 
     if is_service_enabled ovn-northd ; then
         local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_northd"
+        local stop_cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl stop_northd"
 
-        _ovn_run_process ovn-northd "$cmd"
+        _ovn_run_process ovn-northd "$cmd" "$stop_cmd"
         ovn-nbctl --db=unix:$OVS_RUNDIR/ovnnb_db.sock set-connection ptcp:6641:0.0.0.0 -- set connection . inactivity_probe=60000
         ovn-sbctl --db=unix:$OVS_RUNDIR/ovnsb_db.sock set-connection ptcp:6642:0.0.0.0 -- set connection . inactivity_probe=60000
         sudo ovs-appctl -t $OVS_RUNDIR/ovnnb_db.ctl vlog/set console:off syslog:$OVN_DBS_LOG_LEVEL file:$OVN_DBS_LOG_LEVEL
@@ -414,14 +419,15 @@ function start_ovn {
 
     if is_service_enabled ovn-controller ; then
         local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_controller"
+        local stop_cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl stop_controller"
 
-        _ovn_run_process ovn-controller "$cmd" "$STACK_USER" "root"
+        _ovn_run_process ovn-controller "$cmd" "$stop_cmd" "$STACK_USER" "root"
     fi
 
     if is_service_enabled ovn-controller-vtep ; then
         local cmd="$OVS_BINDIR/ovn-controller-vtep --log-file --pidfile --detach --ovnsb-db=$OVN_SB_REMOTE"
 
-        _ovn_run_process ovn-controller-vtep "$cmd" "$STACK_USER" "root"
+        _ovn_run_process ovn-controller-vtep "$cmd" "" "$STACK_USER" "root"
     fi
 
     if is_service_enabled networking-ovn-metadata-agent; then
