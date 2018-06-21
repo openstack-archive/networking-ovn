@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    The ovsdb_probe_interval configuration option was changed from
+    0 (disabled) to 60 seconds.
+fixes:
+  - |
+    In a HA environment, when OVSDB server fails over to a different
+    controller, the connection change is not detected by neither
+    neutron-server nor ovn-metadata-agent. In order to fix this issue,
+    a 60 seconds interval probe (by default) is now sent by OVSDB
+    server clients.
