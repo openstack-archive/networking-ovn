@@ -15,7 +15,7 @@
   - block:
     - name: Get the neutron dhcp agent docker id
       shell:
-        docker ps | grep neutron-dhcp-agent | awk '{print $1}'
+        docker ps | grep neutron_dhcp | awk '{print $1}'
       register: dhcp_agent_docker_id
       ignore_errors: yes
 
