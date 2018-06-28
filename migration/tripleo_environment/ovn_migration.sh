@@ -88,6 +88,30 @@ get_role_hosts() {
     echo $HOSTS
 }
 
+# Generate the ansible.cfg file
+generate_ansible_config_file() {
+
+  cat > ansible.cfg <<-EOF
+[defaults]
+forks=50
+become=True
+callback_whitelist = profile_tasks
+host_key_checking = False
+gathering = smart
+fact_caching = jsonfile
+fact_caching_connection = ./ansible_facts_cache
+fact_caching_timeout = 0
+
+#roles_path = roles:...
+
+[ssh_connection]
+control_path = %(directory)s/%%h-%%r
+ssh_args = -o ControlMaster=auto -o ControlPersist=270s -o ServerAliveInterval=30 -o GSSAPIAuthentication=no
+retries = 3
+
+EOF
+}
+
 # Generate the inventory file for ansible migration playbook.
 generate_ansible_inventory_file() {
     echo "Generating the inventory file for ansible-playbook"
@@ -170,7 +194,7 @@ oc_check_network_mtu() {
 setup_mtu_t1() {
     # Run the ansible playbook to reduce the DHCP T1 parameter in
     # dhcp_agent.ini in all the overcloud nodes where dhcp agent is running.
-    ansible-playbook  $OPT_WORKDIR/playbooks/reduce-dhcp-renewal-time.yml \
+    ansible-playbook  -vv $OPT_WORKDIR/playbooks/reduce-dhcp-renewal-time.yml \
         -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
         -e renewal_time=$DHCP_RENEWAL_TIME
     rc=$?
@@ -199,7 +223,7 @@ reduce_network_mtu () {
 start_migration() {
     source $STACKRC_FILE
     echo "Starting the Migration"
-    ansible-playbook  $OPT_WORKDIR/playbooks/ovn-migration.yml \
+    ansible-playbook  -vv $OPT_WORKDIR/playbooks/ovn-migration.yml \
     -i hosts_for_migration -e working_dir=$OPT_WORKDIR \
     -e public_network_name=$PUBLIC_NETWORK_NAME \
     -e image_name=$IMAGE_NAME \
@@ -257,6 +281,7 @@ ret_val=0
 case $command in
     generate-inventory)
         generate_ansible_inventory_file
+        generate_ansible_config_file
         ret_val=$?
         ;;
 
