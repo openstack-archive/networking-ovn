@@ -150,18 +150,25 @@ Backwards compatibility considerations
 - If the schema doesn't include the ``Port_Group`` table, keep the old
   behavior(Address Sets) for backwards compatibility.
 
-- If when updating a port/adding new ACLs, it belongs to some Security
-  Group which is still modelled as an Address Set, then we'll keep the
-  old behavior (ie. applying the ACLs to its Logical Switch) for that
-  Security Group.
+- If the schema supports Port Groups, then a migration task will be performed
+  from an OvnWorker. This way we'll ensure that it'll happen only once across
+  the cloud thanks the OVSDB lock. This will be done right at the beginning of
+  the ovn_db_sync process to make sure that when neutron-server starts,
+  everything is in place to work with Port Groups. This migration process will
+  perform the following steps:
 
-- When a port is deleted, if it still belongs to some Security Group being
-  modelled as an Address Set, we'll have to remove it.
+  * Create the default drop Port Group and add all ports with port
+    security enabled to it.
+  * Create a Port Group for every subnet to allow DHCP traffic.
+    and add the relevant ports to them.
+  * Create a Port Group for every existing Neutron Security Group and
+    add all its Security Group Rules as ACLs to that Port Group.
+  * Delete all existing Address Sets in NorthBound database which correspond to
+    a Neutron Security Group.
+  * Delete all the ACLs in every Logical Switch (Neutron network).
 
-We can eventually remove the backwards compatibility code by requiring
-from networking-ovn OVS >= 2.10  but we should provide some means to migrate
-existing Address Sets into Port Groups (for example, migrating those in
-batches from the maintenance thread and eventually drop this code).
+We should eventually remove the backwards compatibility and migration path. At
+that point we should require OVS >= 2.10 from networking-ovn.
 
 Special cases
 -------------
@@ -195,7 +202,7 @@ Ports with no security groups
 When a port doesn't belong to any Security Group and port security is enabled,
 we, by default, drop all the traffic to/from that port. In order to implement
 this through Port Groups, we'll create a special Port Group with a fixed name
-(``pg-drop``) which holds the ACLs to drop all the traffic.
+(``neutron_pg_drop``) which holds the ACLs to drop all the traffic.
 
 This PG will be created automatically when we first need it, avoiding the need
 to create it beforehand or during deployment.
