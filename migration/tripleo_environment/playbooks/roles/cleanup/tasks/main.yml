@@ -3,7 +3,7 @@
     for p in `ovs-vsctl show | egrep 'qr-|ha-|qg-|rfp-' | grep Interface | awk '{print $2}'`
     do
       # p will be having quotes. Eg. "hr-xxxx". So strip the quotes
-      port=`echo "$p" | sed -e 's/^"//' -e 's/"$//'`
+      p=`echo $p | sed -e 's/"//g'`
       ovs-vsctl clear Interface $p external-ids
       ovs-vsctl set Interface $p admin-state=down
     done
