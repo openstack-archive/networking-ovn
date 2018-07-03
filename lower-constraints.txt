@@ -56,8 +56,8 @@ msgpack-python==0.4.0
 munch==2.1.0
 netaddr==0.7.18
 netifaces==0.10.4
-neutron==12.0.0
-neutron-lib==1.14.0
+neutron==13.0.0.0b2
+neutron-lib==1.17.0
 openstackdocstheme==1.18.1
 openstacksdk==0.11.2
 os-client-config==1.28.0
@@ -130,7 +130,7 @@ six==1.10.0
 snowballstemmer==1.2.1
 Sphinx==1.6.2
 sphinxcontrib-websupport==1.0.1
-SQLAlchemy==1.0.10
+SQLAlchemy==1.2.0
 sqlalchemy-migrate==0.11.0
 sqlparse==0.2.2
 statsd==3.2.1

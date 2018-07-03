@@ -104,8 +104,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_net = self._find_network_row_by_name(name)
 
         ovn_revision = ovn_net.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(2), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(neutron_net['revision_number']), ovn_revision)
 
     def test_update_network(self):
@@ -115,8 +114,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_net = self._find_network_row_by_name(new_name)
 
         ovn_revision = ovn_net.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(3), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(updated_net['revision_number']), ovn_revision)
 
     def test_create_port(self):
@@ -126,8 +124,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_port = self._find_port_row_by_name(name)
 
         ovn_revision = ovn_port.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(5), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(neutron_port['revision_number']), ovn_revision)
 
     def test_update_port(self):
@@ -138,8 +135,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
         ovn_port = self._find_port_row_by_name(new_name)
 
         ovn_revision = ovn_port.external_ids[ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(6), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(updated_port['revision_number']), ovn_revision)
 
     def test_create_router(self):
@@ -149,8 +145,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
 
         ovn_revision = ovn_router.external_ids[
             ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(0), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(neutron_router['revision_number']), ovn_revision)
 
     def test_update_router(self):
@@ -162,8 +157,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
 
         ovn_revision = ovn_router.external_ids[
             ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(1), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(updated_router['revision_number']), ovn_revision)
 
     def test_create_subnet(self):
@@ -173,8 +167,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
 
         ovn_revision = ovn_subnet.external_ids[
             ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(0), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(neutron_subnet['revision_number']), ovn_revision)
 
     def test_update_subnet(self):
@@ -186,8 +179,7 @@ class TestRevisionNumbers(base.TestOVNFunctionalBase):
 
         ovn_revision = ovn_subnet.external_ids[
             ovn_const.OVN_REV_NUM_EXT_ID_KEY]
-        self.assertEqual(str(1), ovn_revision)
-        # Assert it also matches with the newest returned by neutron API
+        # Assert it matches with the newest returned by neutron API
         self.assertEqual(str(updated_subnet['revision_number']), ovn_revision)
 
     # TODO(lucasagomes): Add a test for floating IPs here when we get
