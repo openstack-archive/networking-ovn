@@ -244,6 +244,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.sb_api.ovsdb_connection = None
 
         self._start_ovsdb_server_and_idls()
+        self._start_ovn_northd()
 
     def add_fake_chassis(self, host, physical_nets=None, external_ids=None):
         physical_nets = physical_nets or []
