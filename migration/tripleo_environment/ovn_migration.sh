@@ -75,14 +75,29 @@ file again."
     fi
 }
 
+get_role_hosts() {
+    inventory_file=$1
+    role_name=$2
+    roles=`jq -r  \.$role_name\.children\[\] $inventory_file`
+    for role in $roles; do
+        hosts=`jq -r --arg role "$role" 'to_entries[] | select(.key == $role) | .value.children[]' $inventory_file`
+        for host in $hosts; do
+           HOSTS="$HOSTS `jq -r --arg host "$host" 'to_entries[] | select(.key == $host) | .value.hosts[0]' $inventory_file`"
+        done
+    done
+    echo $HOSTS
+}
+
 # Generate the inventory file for ansible migration playbook.
 generate_ansible_inventory_file() {
     echo "Generating the inventory file for ansible-playbook"
     source $STACKRC_FILE
     echo "[ovn-dbs]"  > hosts_for_migration
     ovn_central=True
-    CONTROLLERS=`openstack server list -c Name -c Networks | grep controller | awk  '{ split($4, net, "="); print net[2] }'`
-    for node_ip in $CONTROLLERS
+    /usr/bin/tripleo-ansible-inventory --list > /tmp/ansible-inventory.txt
+    # We want to run ovn_dbs where neutron_api is running
+    OVN_DBS=$(get_role_hosts /tmp/ansible-inventory.txt neutron_api)
+    for node_ip in $OVN_DBS
     do
         if [ "$ovn_central" == "True" ]
         then
@@ -94,16 +109,14 @@ generate_ansible_inventory_file() {
 
     echo "" >> hosts_for_migration
     echo "[ovn-controllers]" >> hosts_for_migration
-    for node_ip in $CONTROLLERS
+
+    # We want to run ovn-controller where OVS agent was running before the migration
+    OVN_CONTROLLERS=$(get_role_hosts /tmp/ansible-inventory.txt neutron_ovs_agent)
+    for node_ip in $OVN_CONTROLLERS
     do
         echo $node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
     done
-
-    for node_ip in `openstack server list -c Name -c Networks | grep compute | awk  '{ split($4, net, "="); print net[2] }'`
-    do
-        echo $node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
-    done
-
+    rm -f /tmp/ansible-inventory.txt
     echo "" >> hosts_for_migration
 
     cat >> hosts_for_migration << EOF
