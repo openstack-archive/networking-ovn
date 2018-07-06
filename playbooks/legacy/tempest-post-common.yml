@@ -23,6 +23,17 @@
     - ovnsb_db
   when: ovnsb_file.stat.exists
 
+- name: Copy OVN database logs
+  copy:
+    remote_src: true
+    src: '/opt/stack/new/{{ item }}.log'
+    dest: '{{ ansible_user_dir }}/workspace/logs/ovs_dbs/{{ item }}.log.txt'
+  with_items:
+    - ovsdb-server-nb
+    - ovsdb-server-sb
+  when: ovnsb_file.stat.exists
+  become: true
+
 - name: Compress OVN databases in individual files
   shell: gzip -9 {{ ansible_user_dir }}/workspace/logs/ovs_dbs/*
   when: ovnsb_file.stat.exists
@@ -43,4 +54,3 @@
       - --include=*/
       - --exclude=*
       - --prune-empty-dirs
-
