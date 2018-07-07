@@ -10,6 +10,11 @@
   roles:
    - activate-ovn
 
+- name: Cleanup Neutron dataplane resources
+  hosts: ovn-controllers
+  roles:
+   - cleanup
+
 - name: Delete Neutron resources
   hosts: localhost
   roles:

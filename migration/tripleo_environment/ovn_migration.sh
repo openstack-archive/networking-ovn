@@ -144,6 +144,7 @@ container_deployment=$IS_CONTAINER_DEPLOYMENT
 validate_migration=$VALIDATE_MIGRATION
 overcloud_ovn_deploy_script=$OVERCLOUD_OVN_DEPLOY_SCRIPT
 overcloudrc=$OVERCLOUDRC_FILE
+ovn_migration_backups=/var/lib/ovn-migration-backup
 EOF
     }
 

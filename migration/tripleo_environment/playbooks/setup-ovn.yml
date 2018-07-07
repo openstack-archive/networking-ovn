@@ -1,4 +1,8 @@
 ---
+- name: Backup tripleo container config files on the nodes
+  hosts: ovn-controllers
+  roles:
+    - backup
 
 - name: Set up OVN and configure it using tripleo
   hosts: localhost
