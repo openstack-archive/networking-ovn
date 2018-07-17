@@ -20,8 +20,8 @@
         q-dhcp: false
         q-l3: false
         q-agt: false
-      devstack_local_confg:
-        HYSICAL_NETWORK: public
+      devstack_localrc:
+        PHYSICAL_NETWORK: public
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
