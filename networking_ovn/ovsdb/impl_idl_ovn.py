@@ -39,6 +39,11 @@ from networking_ovn.ovsdb import ovsdb_monitor
 LOG = log.getLogger(__name__)
 
 
+class OvnNbTransaction(idl_trans.Transaction):
+    def pre_commit(self, txn):
+        self.api.nb_global.increment('nb_cfg')
+
+
 # This version of Backend doesn't use a class variable for ovsdb_connection
 # and therefor allows networking-ovn to manage connection scope on its own
 class Backend(ovs_idl.Backend):
@@ -144,6 +149,15 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         super(OvsdbNbOvnIdl, self).__init__(connection)
         self.idl._session.reconnect.set_probe_interval(
             cfg.get_ovn_ovsdb_probe_interval())
+
+    @property
+    def nb_global(self):
+        return next(iter(self.tables['NB_Global'].rows.values()))
+
+    def create_transaction(self, check_error=False, log_errors=True):
+        return OvnNbTransaction(
+            self, self.ovsdb_connection, self.ovsdb_connection.timeout,
+            check_error, log_errors)
 
     @contextlib.contextmanager
     def transaction(self, *args, **kwargs):
@@ -727,6 +741,11 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
         return cmd.UpdateChassisExtIdsCommand(
             self, chassis, {'neutron-metadata-proxy-networks': nets},
             if_exists=True)
+
+    def set_chassis_neutron_description(self, chassis, description):
+        return cmd.UpdateChassisExtIdsCommand(
+            self, chassis, {ovn_const.OVN_AGENT_DESC_KEY: description},
+            if_exists=False)
 
     def get_network_port_bindings_by_ip(self, network, ip_address):
         rows = self.db_list_rows('Port_Binding').execute(check_error=True)

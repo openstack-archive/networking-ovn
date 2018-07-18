@@ -50,6 +50,11 @@ OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
 
 OVN_NEUTRON_OWNER_TO_PORT_TYPE = {const.DEVICE_OWNER_DHCP: 'localport'}
 
+# Agent extension constants
+OVN_AGENT_DESC_KEY = 'neutron:description'
+OVN_CONTROLLER_AGENT = 'OVN Controller agent'
+OVN_CONTROLLER_GW_AGENT = 'OVN Controller Gateway agent'
+
 # OVN ACLs have priorities.  The highest priority ACL that matches is the one
 # that takes effect.  Our choice of priority numbers is arbitrary, but it
 # leaves room above and below the ACLs we create.  We only need two priorities.

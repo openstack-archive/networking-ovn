@@ -12,7 +12,12 @@
 #    under the License.
 #
 
+import datetime
+import functools
+import operator
 import threading
+import types
+import uuid
 
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
@@ -176,6 +181,12 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._ovn_client_inst = None
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
                                                                trigger)
+        # Override agents API methods
+        self.patch_plugin_merge("get_agents", get_agents)
+        self.patch_plugin_choose("get_agent", get_agent)
+        self.patch_plugin_choose("update_agent", update_agent)
+        self.patch_plugin_choose("delete_agent", delete_agent)
+
         # Now IDL connections can be safely used.
         self._post_fork_event.set()
 
@@ -807,3 +818,91 @@ class OVNMechanismDriver(api.MechanismDriver):
                 LOG.warning("Metadata service is not ready for port %s, check"
                             " networking-ovn-metadata-agent status/logs.",
                             port_id)
+
+    def agent_from_chassis(self, chassis):
+        agent_type = ovn_const.OVN_CONTROLLER_AGENT
+        if ('enable-chassis-as-gw' in
+                chassis.external_ids.get('ovn-cms-options', [])):
+            agent_type = ovn_const.OVN_CONTROLLER_GW_AGENT
+        alive = self._nb_ovn.nb_global.nb_cfg == chassis.nb_cfg
+        return {
+            'binary': "ovn-controller",
+            'host': chassis.hostname,
+            'heartbeat_timestamp': datetime.datetime.utcnow(),
+            'availability_zone': 'n/a',
+            'topic': 'n/a',
+            'description':
+                chassis.external_ids.get(ovn_const.OVN_AGENT_DESC_KEY, ''),
+            'configurations': {
+                'chassis_name': chassis.name,
+                'bridge-mappings':
+                    chassis.external_ids.get('ovn-bridge-mappings', '')},
+            'start_flag': True,
+            'agent_type': agent_type,
+            'id': str(chassis.uuid),
+            'alive': alive,
+            'admin_state_up': True}
+
+    def patch_plugin_merge(self, method_name, new_fn, op=operator.add):
+        old_method = getattr(self._plugin, method_name)
+
+        @functools.wraps(old_method)
+        def fn(slf, *args, **kwargs):
+            new_method = types.MethodType(new_fn, self._plugin)
+            results = old_method(*args, **kwargs)
+            return op(results, new_method(*args, _driver=self, **kwargs))
+
+        setattr(self._plugin, method_name, types.MethodType(fn, self._plugin))
+
+    def patch_plugin_choose(self, method_name, new_fn):
+        old_method = getattr(self._plugin, method_name)
+
+        @functools.wraps(old_method)
+        def fn(slf, *args, **kwargs):
+            new_method = types.MethodType(new_fn, self._plugin)
+            try:
+                return new_method(*args, _driver=self, **kwargs)
+            except KeyError:
+                return old_method(*args, **kwargs)
+
+        setattr(self._plugin, method_name, types.MethodType(fn, self._plugin))
+
+
+def get_agents(self, context, filters=None, fields=None, _driver=None):
+    filters = filters or {}
+    agents = []
+    for c in _driver._sb_ovn.tables['Chassis'].rows.values():
+        a = _driver.agent_from_chassis(c)
+        if all(a[k] in v for k, v in filters.items()):
+            agents.append(a)
+    return agents
+
+
+def get_agent(self, context, id, fields=None, _driver=None):
+    c = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
+    return _driver.agent_from_chassis(c)
+
+
+def update_agent(self, context, id, agent, _driver=None):
+    chassis = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
+    agent = agent['agent']
+    # neutron-client always passes admin_state_up, openstack client doesn't
+    # and we can just fall through to raising in the case that admin_state_up
+    # is being set to False, otherwise the end-state will be fine
+    if not agent.get('admin_state_up', True):
+        pass
+    elif 'description' in agent:
+        _driver._sb_ovn.set_chassis_neutron_description(
+            chassis.name, agent['description']).execute(check_error=True)
+        return _driver.agent_from_chassis(chassis)
+    else:
+        # admin_state_up=True w/o description
+        return _driver.agent_from_chassis(chassis)
+    raise n_exc.BadRequest(resource='agent',
+                           msg='OVN agent status cannot be updated')
+
+
+def delete_agent(self, context, id, _driver=None):
+    c = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]  # noqa
+    raise n_exc.BadRequest(resource='agent',
+                           msg='OVN agents cannot be deleted')
