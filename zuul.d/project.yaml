@@ -28,8 +28,6 @@
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
-        - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
-            voting: false
         - openstack-tox-lower-constraints
     experimental:
       jobs:
