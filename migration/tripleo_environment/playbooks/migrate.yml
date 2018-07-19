@@ -1,4 +1,9 @@
 ---
+- name: Ensure ovn_controller is stopped on all nodes before syncing DB
+  hosts: ovn-controllers
+  tasks:
+    - name: "Stop ovn_controller before syncing DB to avoid gARP issues on FIPs"
+      shell: docker stop ovn_controller
 
 - name: Sync Neutron and OVN DBs
   hosts: ovn-dbs

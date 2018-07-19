@@ -12,8 +12,7 @@ ovs-vsctl del-controller {{ integration_bridge }}
 # Activate ovn-controller by configuring integration bridge
 ovs-vsctl set open . external_ids:ovn-bridge={{ integration_bridge }}
 
-ovn_container_id=`docker ps | grep ovn-controller | awk '{print $1}'`
-docker restart $ovn_container_id
+docker start ovn_controller
 
 # Delete ovs bridges - br-tun and br-migration
 ovs-vsctl --if-exists del-br {{ tunnel_bridge }}
