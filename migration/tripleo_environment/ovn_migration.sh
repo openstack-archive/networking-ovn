@@ -57,7 +57,7 @@ check_for_necessary_files() {
         exit 1
     fi
 
-    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  neutron-ovn
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  neutron-ovn >/dev/null
     if [ "$?" == "1" ]
     then
         echo "OVN t-h-t environment file seems to be missing in \
@@ -66,7 +66,7 @@ file again."
         exit 1
     fi
 
-    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  $HOME/ovn-extras.yaml
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  $HOME/ovn-extras.yaml >/dev/null
     if [ "$?" == "1" ]
     then
         echo "ovn-extras.yaml file is missing in $OVERCLOUD_OVN_DEPLOY_SCRIPT.\
@@ -75,15 +75,36 @@ file again."
     fi
 }
 
+get_host_ip() {
+    inventory_file=$1
+    host_name=$2
+    ip=`jq -r --arg role _meta --arg hostname $host_name 'to_entries[] | select(.key == $role) | .value.hostvars[$hostname].management_ip' $inventory_file`
+    if [[ "x$ip" == "x" ]] || [[ "x$ip" == "xnull" ]]; then
+        # This file does not provide translation from the hostname to the IP, or
+        # we already have an IP (Queens backwards compatibility)
+        echo $host_name
+    else
+        echo $ip
+    fi
+}
+
 get_role_hosts() {
     inventory_file=$1
     role_name=$2
     roles=`jq -r  \.$role_name\.children\[\] $inventory_file`
     for role in $roles; do
-        hosts=`jq -r --arg role "$role" 'to_entries[] | select(.key == $role) | .value.children[]' $inventory_file`
-        for host in $hosts; do
-           HOSTS="$HOSTS `jq -r --arg host "$host" 'to_entries[] | select(.key == $host) | .value.hosts[0]' $inventory_file`"
-        done
+        # During the rocky cycle the format changed to have .value.hosts
+        hosts=`jq -r --arg role "$role" 'to_entries[] | select(.key == $role) | .value.hosts[]' $inventory_file`
+        if [[ "x$hosts" == "x" ]]; then
+            # But we keep backwards compatibility with nested childrens (Queens)
+            hosts=`jq -r --arg role "$role" 'to_entries[] | select(.key == $role) | .value.children[]' $inventory_file`
+
+            for host in $hosts; do
+               HOSTS="$HOSTS `jq -r --arg host "$host" 'to_entries[] | select(.key == $host) | .value.hosts[0]' $inventory_file`"
+            done
+        else
+            HOSTS="${hosts} ${HOSTS}"
+        fi
     done
     echo $HOSTS
 }
@@ -121,14 +142,16 @@ generate_ansible_inventory_file() {
     /usr/bin/tripleo-ansible-inventory --list > /tmp/ansible-inventory.txt
     # We want to run ovn_dbs where neutron_api is running
     OVN_DBS=$(get_role_hosts /tmp/ansible-inventory.txt neutron_api)
-    for node_ip in $OVN_DBS
+    for node_name in $OVN_DBS
     do
+        node_ip=$(get_host_ip /tmp/ansible-inventory.txt $node_name)
+        node="$node_name ansible_host=$node_ip"
         if [ "$ovn_central" == "True" ]
         then
             ovn_central=False
-            node_ip="$node_ip ovn_central=true"
+            node="$node_name ansible_host=$node_ip ovn_central=true"
         fi
-        echo $node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
+        echo $node ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
     done
 
     echo "" >> hosts_for_migration
@@ -136,9 +159,10 @@ generate_ansible_inventory_file() {
 
     # We want to run ovn-controller where OVS agent was running before the migration
     OVN_CONTROLLERS=$(get_role_hosts /tmp/ansible-inventory.txt neutron_ovs_agent)
-    for node_ip in $OVN_CONTROLLERS
+    for node_name in $OVN_CONTROLLERS
     do
-        echo $node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
+        node_ip=$(get_host_ip /tmp/ansible-inventory.txt $node_name)
+        echo $node_name ansible_host=$node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
     done
     rm -f /tmp/ansible-inventory.txt
     echo "" >> hosts_for_migration
