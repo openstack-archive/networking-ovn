@@ -171,11 +171,18 @@ class _TestMaintenanceHelper(base.TestOVNFunctionalBase):
                     ovn_const.OVN_SG_RULE_EXT_ID_KEY) == sgr_id):
                 return row
 
-    def _add_router_interface(self, router_id, port_id):
-        req = self.new_action_request('routers', {'port_id': port_id},
-                                      router_id, 'add_router_interface')
+    def _process_router_interface(self, action, router_id, subnet_id):
+        req = self.new_action_request(
+            'routers', {'subnet_id': subnet_id}, router_id,
+            '%s_router_interface' % action)
         res = req.get_response(self.api)
         return self.deserialize(self.fmt, res)
+
+    def _add_router_interface(self, router_id, subnet_id):
+        return self._process_router_interface('add', router_id, subnet_id)
+
+    def _remove_router_interface(self, router_id, subnet_id):
+        return self._process_router_interface('remove', router_id, subnet_id)
 
     def _find_router_port_row_by_port_id(self, port_id):
         for row in self.nb_api._tables['Logical_Router_Port'].rows.values():
@@ -496,3 +503,41 @@ class TestMaintenance(_TestMaintenanceHelper):
         # FIXME(lucasagomes): Maintenance thread fixing deleted
         # security group rules is currently broken due to:
         # https://bugs.launchpad.net/networking-ovn/+bug/1756123
+
+    def test_router_port(self):
+        neutron_net = self._create_network('networktest', external=True)
+        neutron_subnet = self._create_subnet('subnettest', neutron_net['id'])
+        neutron_router = self._create_router('routertest')
+
+        with mock.patch.object(self._l3_ovn_client, 'create_router_port'):
+            with mock.patch('networking_ovn.db.revision.bump_revision'):
+                neutron_obj = self._add_router_interface(neutron_router['id'],
+                                                         neutron_subnet['id'])
+
+        # Assert the router port doesn't exist in OVN
+        self.assertIsNone(
+            self._find_router_port_row_by_port_id(neutron_obj['port_id']))
+
+        # Call the maintenance thread to fix the problem
+        self.maint.check_for_inconsistencies()
+
+        # Assert the router port was now created
+        self.assertIsNotNone(
+            self._find_router_port_row_by_port_id(neutron_obj['port_id']))
+
+        # > Delete
+
+        with mock.patch.object(self._l3_ovn_client, 'delete_router_port'):
+            self._remove_router_interface(neutron_router['id'],
+                                          neutron_subnet['id'])
+
+        # Assert the router port still exists in OVNDB
+        self.assertIsNotNone(
+            self._find_router_port_row_by_port_id(neutron_obj['port_id']))
+
+        # Call the maintenance thread to fix the problem
+        self.maint.check_for_inconsistencies()
+
+        # Assert the router port is now deleted from OVNDB
+        self.assertIsNone(
+            self._find_router_port_row_by_port_id(neutron_obj['port_id']))
