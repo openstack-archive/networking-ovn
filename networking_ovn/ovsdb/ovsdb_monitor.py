@@ -24,10 +24,25 @@ from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp import event
 
+from networking_ovn.agent import stats
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import utils
 
 LOG = log.getLogger(__name__)
+
+
+class ChassisAgentEvent(row_event.RowEvent):
+    def __init__(self):
+        table = 'Chassis'
+        events = (self.ROW_CREATE, self.ROW_UPDATE, self.ROW_DELETE)
+        super(ChassisAgentEvent, self).__init__(events, table, None)
+        self.event_name = 'ChassisAgentEvent'
+
+    def run(self, event, row, old):
+        if event != self.ROW_DELETE:
+            stats.AgentStats.add_stat(row.uuid, row.nb_cfg)
+        else:
+            stats.AgentStats.del_agent(row.uuid)
 
 
 class ChassisEvent(row_event.RowEvent):
@@ -183,6 +198,11 @@ class BaseOvnIdl(connection.OvsdbIdl):
 
 
 class BaseOvnSbIdl(connection.OvsdbIdl):
+    def __init__(self, remote, schema):
+        super(BaseOvnSbIdl, self).__init__(remote, schema)
+        self.notify_handler = event.RowEventHandler()
+        self.notify_handler.watch_event(ChassisAgentEvent())
+
     @classmethod
     def from_server(cls, connection_string, schema_name):
         _check_and_set_ssl_files(schema_name)
@@ -192,6 +212,9 @@ class BaseOvnSbIdl(connection.OvsdbIdl):
         helper.register_table('Port_Binding')
         helper.register_table('Datapath_Binding')
         return cls(connection_string, helper)
+
+    def notify(self, event, row, updates=None):
+        self.notify_handler.notify(event, row, updates)
 
 
 class OvnIdl(BaseOvnIdl):

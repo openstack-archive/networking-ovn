@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_utils import timeutils
 from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import idlutils
 
@@ -83,6 +84,19 @@ def _add_gateway_chassis(api, txn, lrp_name, val):
     else:
         chassis = {ovn_const.OVN_GATEWAY_CHASSIS_KEY: val[0]}
         return 'options', chassis
+
+
+class CheckLivenessCommand(command.BaseCommand):
+    def __init__(self, api):
+        super(CheckLivenessCommand, self).__init__(api)
+
+    def run_idl(self, txn):
+        # txn.pre_commit responsible for updating nb_global.nb_cfg, but
+        # python-ovs will not update nb_cfg if no other changes are made
+        self.api.nb_global.setkey('external_ids',
+                                  ovn_const.OVN_LIVENESS_CHECK_EXT_ID_KEY,
+                                  str(timeutils.utcnow(with_timezone=True)))
+        self.result = self.api.nb_global.nb_cfg
 
 
 class LSwitchSetExternalIdsCommand(command.BaseCommand):

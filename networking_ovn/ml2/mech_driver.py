@@ -12,7 +12,6 @@
 #    under the License.
 #
 
-import datetime
 import functools
 import operator
 import threading
@@ -32,12 +31,14 @@ from neutron_lib.services.qos import constants as qos_consts
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
+from oslo_utils import timeutils
 
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _
+from networking_ovn.agent import stats
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
@@ -861,16 +862,24 @@ class OVNMechanismDriver(api.MechanismDriver):
                             " networking-ovn-metadata-agent status/logs.",
                             port_id)
 
+    def agent_alive(self, chassis):
+        if self._nb_ovn.nb_global.nb_cfg == chassis.nb_cfg:
+            return True
+        now = timeutils.utcnow()
+        updated_at = stats.AgentStats.get_stat(chassis.uuid).updated_at
+        if (now - updated_at).total_seconds() < cfg.CONF.agent_down_time:
+            return True
+        return False
+
     def agent_from_chassis(self, chassis):
         agent_type = ovn_const.OVN_CONTROLLER_AGENT
         if ('enable-chassis-as-gw' in
                 chassis.external_ids.get('ovn-cms-options', [])):
             agent_type = ovn_const.OVN_CONTROLLER_GW_AGENT
-        alive = self._nb_ovn.nb_global.nb_cfg == chassis.nb_cfg
         return {
             'binary': "ovn-controller",
             'host': chassis.hostname,
-            'heartbeat_timestamp': datetime.datetime.utcnow(),
+            'heartbeat_timestamp': timeutils.utcnow(),
             'availability_zone': 'n/a',
             'topic': 'n/a',
             'description':
@@ -882,7 +891,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             'start_flag': True,
             'agent_type': agent_type,
             'id': str(chassis.uuid),
-            'alive': alive,
+            'alive': self.agent_alive(chassis),
             'admin_state_up': True}
 
     def patch_plugin_merge(self, method_name, new_fn, op=operator.add):
@@ -909,8 +918,13 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         setattr(self._plugin, method_name, types.MethodType(fn, self._plugin))
 
+    def ping_chassis(self):
+        """Update NB_Global.nb_cfg so that Chassis.nb_cfg will increment"""
+        self._nb_ovn.check_liveness().execute(check_error=True)
+
 
 def get_agents(self, context, filters=None, fields=None, _driver=None):
+    _driver.ping_chassis()
     filters = filters or {}
     agents = []
     for c in _driver._sb_ovn.tables['Chassis'].rows.values():
@@ -921,6 +935,7 @@ def get_agents(self, context, filters=None, fields=None, _driver=None):
 
 
 def get_agent(self, context, id, fields=None, _driver=None):
+    _driver.ping_chassis()
     c = _driver._sb_ovn.tables['Chassis'].rows[uuid.UUID(id)]
     return _driver.agent_from_chassis(c)
 
