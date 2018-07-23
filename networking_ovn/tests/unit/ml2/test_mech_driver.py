@@ -12,6 +12,9 @@
 #    under the License.
 #
 
+import datetime
+import uuid
+
 import mock
 from webob import exc
 
@@ -29,6 +32,7 @@ from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_serialization import jsonutils
+from oslo_utils import timeutils
 
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
@@ -38,6 +42,7 @@ from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron.tests.unit.plugins.ml2 import test_security_group
 
+from networking_ovn.agent import stats
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
@@ -1344,6 +1349,30 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         mock_update_port.assert_called_once_with(
             fake_port, port_object=fake_ctx.original)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
+
+    def _add_chassis_agent(self, nb_cfg, updated_at=None):
+        chassis = mock.Mock()
+        chassis.nb_cfg = nb_cfg
+        chassis.uuid = uuid.uuid4()
+        stats.AgentStats.add_stat(chassis.uuid, nb_cfg, updated_at)
+        return chassis
+
+    def test_agent_alive_true(self):
+        self.mech_driver._nb_ovn.nb_global.nb_cfg = 5
+        chassis = self._add_chassis_agent(5)
+        self.assertTrue(self.mech_driver.agent_alive(chassis))
+
+    def test_agent_alive_not_timed_out(self):
+        self.mech_driver._nb_ovn.nb_global.nb_cfg = 5
+        chassis = self._add_chassis_agent(4)
+        self.assertTrue(self.mech_driver.agent_alive(chassis))
+
+    def test_agent_alive_timed_out(self):
+        self.mech_driver._nb_ovn.nb_global.nb_cfg = 5
+        now = timeutils.utcnow()
+        updated_at = now - datetime.timedelta(cfg.CONF.agent_down_time + 1)
+        chassis = self._add_chassis_agent(4, updated_at)
+        self.assertFalse(self.mech_driver.agent_alive(chassis))
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
