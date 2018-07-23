@@ -1190,6 +1190,34 @@ class OVNClient(object):
         qos_update_required = self._is_qos_update_required(network)
         check_rev_cmd = self._nb_idl.check_revision_number(
             lswitch_name, network, ovn_const.TYPE_NETWORKS)
+
+        # TODO(numans) - When a network's dns domain name is updated, we need
+        # to update the DNS records for this network in DNS OVN NB DB table.
+        # (https://bugs.launchpad.net/networking-ovn/+bug/1777978)
+        # Eg. if the network n1's dns domain name was "test1" and if it has
+        # 2 bound ports - p1 and p2, we would have created the below dns
+        # records
+        # ===========================
+        # p1 = P1_IP
+        # p1.test1 = P1_IP
+        # p1.default_domain = P1_IP
+        # p2 = P2_IP
+        # p2.test1 = P2_IP
+        # p2.default_domain = P2_IP
+        # ===========================
+        # if the network n1's dns domain name is updated to test2, then we need
+        # to delete the below DNS records
+        # ===========================
+        # p1.test1 = P1_IP
+        # p2.test1 = P2_IP
+        # ===========================
+        # and add the new ones
+        # ===========================
+        # p1.test2 = P1_IP
+        # p2.test2 = P2_IP
+        # ===========================
+        # in the DNS row for this network.
+
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(check_rev_cmd)
             ext_ids = self._gen_network_external_ids(network)
@@ -1574,14 +1602,24 @@ class OVNClient(object):
 
     def get_port_dns_records(self, port):
         port_dns_records = {}
+        net = port.get('network', {})
+        net_dns_domain = net.get('dns_domain', '').rstrip('.')
+
         for dns_assignment in port.get('dns_assignment', []):
             hostname = dns_assignment['hostname']
             fqdn = dns_assignment['fqdn'].rstrip('.')
+            net_dns_fqdn = hostname + '.' + net_dns_domain
             if hostname not in port_dns_records:
                 port_dns_records[hostname] = dns_assignment['ip_address']
+                if net_dns_domain and net_dns_fqdn != fqdn:
+                    port_dns_records[net_dns_fqdn] = (
+                        dns_assignment['ip_address'])
             else:
                 port_dns_records[hostname] += " " + (
                     dns_assignment['ip_address'])
+                if net_dns_domain and net_dns_fqdn != fqdn:
+                    port_dns_records[hostname + '.' + net_dns_domain] += (
+                        " " + dns_assignment['ip_address'])
 
             if fqdn not in port_dns_records:
                 port_dns_records[fqdn] = dns_assignment['ip_address']
@@ -1631,11 +1669,19 @@ class OVNClient(object):
         if ls_dns_record is None:
             return
 
+        net = port.get('network', {})
+        net_dns_domain = net.get('dns_domain', '').rstrip('.')
+
         hostnames = []
         for dns_assignment in port['dns_assignment']:
-            if dns_assignment['hostname'] not in hostnames:
-                hostnames.append(dns_assignment['hostname'])
+            hostname = dns_assignment['hostname']
             fqdn = dns_assignment['fqdn'].rstrip('.')
+            if hostname not in hostnames:
+                hostnames.append(hostname)
+                net_dns_fqdn = hostname + '.' + net_dns_domain
+                if net_dns_domain and net_dns_fqdn != fqdn:
+                    hostnames.append(net_dns_fqdn)
+
             if fqdn not in hostnames:
                 hostnames.append(fqdn)
 

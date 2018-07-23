@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Networking-ovn was not supporting the network's dns_domain option.
+    This is now supported during network's creation. Updating 'dns_domain'
+    during network update is not completely supported. All the existing ports
+    are not updated with the new network's dns_domain in OVN Northbound db.
