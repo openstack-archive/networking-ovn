@@ -153,6 +153,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         acl_list = list(itertools.chain(*acl_dict.values()))
         acl_list_dict = {}
         for acl in acl_list:
+            acl = acl_utils.filter_acl_dict(
+                acl, extra_fields=['lport', 'lswitch'])
             key = acl['lport']
             if key in acl_list_dict:
                 acl_list_dict[key].append(acl)
