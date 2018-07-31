@@ -403,3 +403,10 @@ def acl_port_ips(port):
     ip_list = [x['ip_address'] for x in port.get('fixed_ips', [])]
     ip_list.extend(utils.get_allowed_address_pairs_ip_addresses(port))
     return utils.sort_ips_by_version(ip_list)
+
+
+def filter_acl_dict(acl, extra_fields=None):
+    if extra_fields is None:
+        extra_fields = []
+    extra_fields.extend(ovn_const.ACL_EXPECTED_COLUMNS_NBDB)
+    return {k: acl[k] for k in extra_fields}

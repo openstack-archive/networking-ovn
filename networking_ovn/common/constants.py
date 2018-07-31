@@ -99,6 +99,10 @@ DB_MAX_RETRY_INTERVAL = 1
 TXN_COMMITTED = 'committed'
 INITIAL_REV_NUM = -1
 
+ACL_EXPECTED_COLUMNS_NBDB = (
+    'external_ids', 'direction', 'log', 'priority',
+    'name', 'action', 'severity', 'match')
+
 # Resource types
 TYPE_NETWORKS = 'networks'
 TYPE_PORTS = 'ports'

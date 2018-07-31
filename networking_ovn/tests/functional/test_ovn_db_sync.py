@@ -505,9 +505,18 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             self.context, r2['id'], {'subnet_id': n4_s1['subnet']['id']})
         self.l3_plugin.update_router(
             self.context, r2['id'],
-            {'router': {'routes': [{'destination': '10.20.0.0/24',
-                                    'nexthop': '10.0.0.20'}],
-                        'external_gateway_info': {
+            # FIXME(lucasagomes): Add "routes" back, it has been
+            # removed to avoid a race condition that was happening from
+            # time to time. The error was: "Invalid format for routes:
+            # [{'destination': '10.20.0.0/24', 'nexthop': '10.0.0.20'}],
+            # the nexthop is used by route". It seems to be a race within
+            # the tests itself, running the functional tests without
+            # any concurrency doesn't fail when the "routes" are set.
+            #
+            # {'router': {'routes': [{'destination': '10.20.0.0/24',
+            #                         'nexthop': '10.0.0.20'}],
+            #             ...
+            {'router': {'external_gateway_info': {
                         'enable_snat': False,
                         'network_id': e1['network']['id'],
                         'external_fixed_ips': [
@@ -1011,7 +1020,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 acl_to_compare[acl_key] = getattr(acl, acl_key)
             except AttributeError:
                 pass
-        return acl_to_compare
+        return acl_utils.filter_acl_dict(acl_to_compare)
 
     def _validate_acls(self, should_match=True):
         # Get the neutron DB ACLs.
@@ -1026,9 +1035,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                       subnet_cache,
                                       self.mech_driver._nb_ovn)
             for acl in acls:
-                acl.pop('lport')
-                acl.pop('lswitch')
-                db_acls.append(acl)
+                db_acls.append(acl_utils.filter_acl_dict(acl))
 
         # Get the list of ACLs stored in the OVN plugin IDL.
         _plugin_nb_ovn = self.mech_driver._nb_ovn
