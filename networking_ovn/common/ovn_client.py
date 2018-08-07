@@ -1422,6 +1422,29 @@ class OVNClient(object):
 
         return dhcp_options
 
+    def _process_global_dhcp_opts(self, options, ip_version):
+        if ip_version == 4:
+            global_options = config.get_global_dhcpv4_opts()
+        else:
+            global_options = config.get_global_dhcpv6_opts()
+
+        for option, value in global_options.items():
+            if option in ovn_const.GLOBAL_DHCP_OPTS_BLACKLIST[ip_version]:
+                # This option is not allowed to be set with a global setting
+                LOG.debug('DHCP option %s is not permitted to be set in '
+                          'global options. This option will be ignored.')
+                continue
+            # If the value is null (i.e. config ntp_server:), treat it as
+            # a request to remove the option
+            if value:
+                options[option] = value
+            else:
+                try:
+                    del(options[option])
+                except KeyError:
+                    # Option not present, job done
+                    pass
+
     def _get_ovn_dhcpv4_opts(self, subnet, network, server_mac=None):
         metadata_port_ip = self._find_metadata_port_ip(
             n_context.get_admin_context(), subnet)
@@ -1479,6 +1502,8 @@ class OVNClient(object):
 
             options['classless_static_route'] = '{' + ', '.join(routes) + '}'
 
+        self._process_global_dhcp_opts(options, ip_version=4)
+
         return options
 
     def _get_ovn_dhcpv6_opts(self, subnet, server_id=None):
@@ -1495,6 +1520,8 @@ class OVNClient(object):
 
         if subnet.get('ipv6_address_mode') == const.DHCPV6_STATELESS:
             dhcpv6_opts[ovn_const.DHCPV6_STATELESS_OPT] = 'true'
+
+        self._process_global_dhcp_opts(dhcpv6_opts, ip_version=6)
 
         return dhcpv6_opts
 

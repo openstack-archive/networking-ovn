@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Added config options ovn_dhcp4_global_option and ovn_dhcp6_global_options.
+    These options allow configuring DHCP options that will be enforced on all
+    subnets controlled by networking_ovn.
+upgrade:
+  - |
+    If ovn_dhcp4_global_option or ovn_dhcp6_global_options is set, all
+    existing subnets will be checked and updated when Neutron is started.

@@ -15,10 +15,12 @@
 
 import mock
 
+from futurist import periodics
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_securitygroup
 
+from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import maintenance
 from networking_ovn.common import utils
@@ -97,13 +99,38 @@ class _TestMaintenanceHelper(base.TestOVNFunctionalBase):
                     ovn_const.OVN_PORT_NAME_EXT_ID_KEY) == name):
                 return row
 
-    def _create_subnet(self, name, net_id):
+    def _set_global_dhcp_opts(self, ip_version, opts):
+        opt_string = ','.join(['{0}:{1}'.format(key, value)
+                               for key, value
+                               in opts.items()])
+        if ip_version == 6:
+            ovn_config.cfg.CONF.set_override('ovn_dhcp6_global_options',
+                                             opt_string,
+                                             group='ovn')
+        if ip_version == 4:
+            ovn_config.cfg.CONF.set_override('ovn_dhcp4_global_options',
+                                             opt_string,
+                                             group='ovn')
+
+    def _unset_global_dhcp_opts(self, ip_version):
+        if ip_version == 6:
+            ovn_config.cfg.CONF.clear_override('ovn_dhcp6_global_options',
+                                               group='ovn')
+        if ip_version == 4:
+            ovn_config.cfg.CONF.clear_override('ovn_dhcp4_global_options',
+                                               group='ovn')
+
+    def _create_subnet(self, name, net_id, ip_version=4):
         data = {'subnet': {'name': name,
                            'tenant_id': self._tenant_id,
                            'network_id': net_id,
-                           'cidr': '10.0.0.0/24',
-                           'ip_version': 4,
+                           'ip_version': ip_version,
                            'enable_dhcp': True}}
+        if ip_version == 4:
+            data['subnet']['cidr'] = '10.0.0.0/24'
+        else:
+            data['subnet']['cidr'] = 'eef0::/64'
+
         req = self.new_create_request('subnets', data, self.fmt)
         res = req.get_response(self.api)
         return self.deserialize(self.fmt, res)['subnet']
@@ -324,6 +351,108 @@ class TestMaintenance(_TestMaintenanceHelper):
 
         # Assert the revision number no longer exists
         self.assertIsNone(db_rev.get_revision_row(neutron_obj['id']))
+
+    def test_subnet_global_dhcp4_opts(self):
+        obj_name = 'globaltestsubnet'
+        options = {'ntp_server': '1.2.3.4'}
+        neutron_net = self._create_network('network1')
+
+        # Create a subnet without global options
+        neutron_sub = self._create_subnet(obj_name, neutron_net['id'])
+
+        # Assert that the option is not set
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertIsNone(ovn_obj.options.get('ntp_server', None))
+
+        # Set some global DHCP Options
+        self._set_global_dhcp_opts(ip_version=4, opts=options)
+
+        # Run the maintenance task to add the new options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was added
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertEqual(
+            ovn_obj.options.get('ntp_server', None),
+            '1.2.3.4')
+
+        # Change the global option
+        new_options = {'ntp_server': '4.3.2.1'}
+        self._set_global_dhcp_opts(ip_version=4, opts=new_options)
+
+        # Run the maintenance task to update the options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was changed
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertEqual(
+            ovn_obj.options.get('ntp_server', None),
+            '4.3.2.1')
+
+        # Change the global option to null
+        new_options = {'ntp_server': ''}
+        self._set_global_dhcp_opts(ip_version=4, opts=new_options)
+
+        # Run the maintenance task to update the options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was removed
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertIsNone(ovn_obj.options.get('ntp_server', None))
+
+    def test_subnet_global_dhcp6_opts(self):
+        obj_name = 'globaltestsubnet'
+        options = {'ntp_server': '1.2.3.4'}
+        neutron_net = self._create_network('network1')
+
+        # Create a subnet without global options
+        neutron_sub = self._create_subnet(obj_name, neutron_net['id'], 6)
+
+        # Assert that the option is not set
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertIsNone(ovn_obj.options.get('ntp_server', None))
+
+        # Set some global DHCP Options
+        self._set_global_dhcp_opts(ip_version=6, opts=options)
+
+        # Run the maintenance task to add the new options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was added
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertEqual(
+            ovn_obj.options.get('ntp_server', None),
+            '1.2.3.4')
+
+        # Change the global option
+        new_options = {'ntp_server': '4.3.2.1'}
+        self._set_global_dhcp_opts(ip_version=6, opts=new_options)
+
+        # Run the maintenance task to update the options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was changed
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertEqual(
+            ovn_obj.options.get('ntp_server', None),
+            '4.3.2.1')
+
+        # Change the global option to null
+        new_options = {'ntp_server': ''}
+        self._set_global_dhcp_opts(ip_version=6, opts=new_options)
+
+        # Run the maintenance task to update the options
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_global_dhcp_opts)
+
+        # Assert that the option was removed
+        ovn_obj = self._find_subnet_row_by_id(neutron_sub['id'])
+        self.assertIsNone(ovn_obj.options.get('ntp_server', None))
 
     def test_subnet(self):
         obj_name = 'subnettest'
