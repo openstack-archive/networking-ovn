@@ -12,3 +12,4 @@
       ovn_bridge: br-migration
   tags:
     - ovn-setup
+  become: false

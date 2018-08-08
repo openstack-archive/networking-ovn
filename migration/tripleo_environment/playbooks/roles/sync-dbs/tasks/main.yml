@@ -16,4 +16,6 @@
                neutron-ovn-db-sync-util --config-file /etc/neutron/neutron.conf
                --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
                --ovn-neutron_sync_mode repair
+    - name: Pause and let ovn-controllers settle before doing the final activation (1 minute)
+      pause: minutes=5
   when: ovn_central is defined

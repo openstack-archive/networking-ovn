@@ -1,9 +1,8 @@
 ---
-- name: Ensure ovn_controller is stopped on all nodes before syncing DB
+- name: "Clone stuff in br-int to br-migration and create false bridge-mappings"
   hosts: ovn-controllers
-  tasks:
-    - name: "Stop ovn_controller before syncing DB to avoid gARP issues on FIPs"
-      shell: docker stop ovn_controller
+  roles:
+   - clone-dataplane
 
 - name: Sync Neutron and OVN DBs
   hosts: ovn-dbs
