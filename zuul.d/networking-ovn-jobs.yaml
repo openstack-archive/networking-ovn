@@ -391,3 +391,96 @@
       subnode:
         devstack_localrc:
           OVN_BRANCH: master
+
+- job:
+    name: networking-ovn-octavia-dsvm-base
+    parent: devstack-tempest
+    timeout: 7800
+    required-projects:
+      - openstack/devstack-gate
+      - openstack/networking-ovn
+      - openstack/neutron
+      - openstack/octavia
+      - openstack/octavia-lib
+      - openstack/octavia-tempest-plugin
+      - openstack/python-octaviaclient
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^api-ref/.*$
+      - ^doc/.*$
+      - ^etc/.*$
+      - ^releasenotes/.*$
+    vars:
+      devstack_localrc:
+        USE_PYTHON3: True
+        TEMPEST_PLUGINS: '/opt/stack/octavia-tempest-plugin'
+        OCTAVIA_NODE: api
+        DISABLE_AMP_IMAGE_BUILD: true
+        OVN_L3_CREATE_PUBLIC_NETWORK: true
+        Q_USE_PROVIDERNET_FOR_PUBLIC: true
+        PHYSICAL_NETWORK: public
+        ENABLE_CHASSIS_AS_GW: true
+        OVN_DBS_LOG_LEVEL: dbg
+      devstack_local_conf:
+        post-config:
+          $OCTAVIA_CONF:
+            api_settings:
+              enabled_provider_drivers: 'ovn:OVN provider driver'
+              default_provider_driver: 'ovn'
+        test-config:
+          "$TEMPEST_CONFIG":
+            load_balancer:
+              provider: 'ovn'
+              test_with_ipv6: False
+            loadbalancer-feature-enabled:
+              health_monitor_enabled: False
+              pool_algorithms_enabled: False
+              l7_protocol_enabled: False
+              l4_protocol: "TCP"
+              session_persistence_enabled: False
+      devstack_services:
+        c-bak: false
+        ceilometer-acentral: false
+        ceilometer-acompute: false
+        ceilometer-alarm-evaluator: false
+        ceilometer-alarm-notifier: false
+        ceilometer-anotification: false
+        ceilometer-api: false
+        ceilometer-collector: false
+        c-sch: false
+        c-api: false
+        c-vol: false
+        cinder: false
+        q-dhcp: false
+        q-agt: false
+        q-meta: false
+        q-l3: false
+        ovn-northd: true
+        ovn-controller: true
+        ovn-octavia: true
+        networking-ovn-metadata-agent: true
+        octavia: true
+        o-api: true
+        o-da: true
+        o-hk: true
+        o-cw: false
+        o-hm: false
+        swift: false
+        s-account: false
+        s-container: false
+        s-object: false
+        s-proxy: false
+        tempest: true
+        etcd: false
+      devstack_plugins:
+        octavia: https://opendev.org/openstack/octavia.git
+        octavia-tempest-plugin: https://opendev.org/openstack/octavia-tempest-plugin.git
+        networking-ovn: https://opendev.org/openstack/networking-ovn
+
+- job:
+    name: networking-ovn-octavia-v2-dsvm-scenario
+    parent: networking-ovn-octavia-dsvm-base
+    vars:
+      tempest_test_regex: ^octavia_tempest_plugin.tests.scenario.v2
+      tempest_concurrency: 2
+      tox_envlist: all
