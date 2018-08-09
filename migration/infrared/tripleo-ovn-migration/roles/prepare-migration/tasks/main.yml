@@ -1,0 +1,163 @@
+
+- name: Copy overcloud deploy script to overcloud-deploy-ovn.sh
+  block:
+      - name: Check if overcloud_deploy.sh is present or not
+        stat:
+            path: ~/overcloud_deploy.sh
+        register: deploy_file
+
+      - name: Set the ml2ovs overcloud deploy script file name
+        set_fact:
+            overcloud_deploy_script: '~/overcloud_deploy.sh'
+        when: deploy_file.stat.exists|bool
+
+      - name: Check if overcloud-deploy.sh is present
+        stat:
+            path: ~/overcloud-deploy.sh
+        register: deploy_file_2
+        when: not deploy_file.stat.exists|bool
+
+      - name: Set the ml2ovs overcloud deploy script file name
+        set_fact:
+            overcloud_deploy_script: '~/overcloud-deploy.sh'
+        when:
+            - not deploy_file.stat.exists|bool
+            - deploy_file_2.stat.exists|bool
+
+      - name: Copy overcloud deploy script to overcloud-deploy-ovn.sh
+        shell:
+            cp -f {{ overcloud_deploy_script }}  ~/overcloud-deploy-ovn.sh
+        when: infrared_deployment|bool
+
+- name: set overcloud deploy ovn script
+  set_fact:
+      overcloud_deploy_ovn_script: '~/overcloud-deploy-ovn.sh'
+
+- name: Set docker images environment file
+  set_fact:
+      output_env_file: /home/stack/docker-images-ovn.yaml
+
+- name: Get the proper neutron-ovn-ha.yaml path
+  stat:
+      path: /usr/share/openstack-tripleo-heat-templates/environments/services/neutron-ovn-ha.yaml
+  register: ovn_env_path
+
+- name: Set the neutron-ovn-dvr-ha.yaml file path if dvr
+  set_fact:
+      neutron_ovn_env_path: /usr/share/openstack-tripleo-heat-templates/environments/services/neutron-ovn-dvr-ha.yaml
+  when: is_dvr|bool
+
+- name: Set the neutron-ovn-ha.yaml file path if not dvr
+  set_fact:
+      neutron_ovn_env_path: /usr/share/openstack-tripleo-heat-templates/environments/services/neutron-ovn-ha.yaml
+  when: not is_dvr|bool
+
+- name: Construct overcloud-deploy-ovn.sh script for infrared deployments
+  lineinfile:
+      dest: "{{ overcloud_deploy_ovn_script }}"
+      line: "{{ item }} \\"
+      insertbefore: "^--log-file.*"
+  with_items:
+      - "-e {{ neutron_ovn_env_path }}"
+      - "-e /home/stack/ovn-extras.yaml"
+      - "-e {{ output_env_file }}"
+  when:
+      - infrared_deployment|bool
+
+- name: Construct overcloud-deploy-ovn.sh script for tripleo deployments
+  template:
+      src: templates/overcloud-deploy-ovn.sh.j2
+      dest: ~/overcloud-deploy-ovn.sh
+      mode: 0744
+  when:
+      - not infrared_deployment|bool
+
+- name: Set image tag (infrared deployment)
+  block:
+      - name: Get puddle version
+        shell: cat ~/core_puddle_version
+        ignore_error: True
+        register: core_puddle_version
+
+      - name: Set image tag from puddle version
+        set_fact:
+            docker_image_tag: "{{ (core_puddle_version.stdout != '') | ternary(core_puddle_version.stdout, image_tag) }}"
+
+      - debug:
+          msg: "{{ core_puddle_version.stdout }}"
+
+      - debug:
+          msg: "{{ docker_image_tag }}"
+
+  when: infrared_deployment|bool
+
+- name: Set image tag (tripleo deployment)
+  set_fact:
+      docker_image_tag: "{{ image_tag }}"
+  when:
+      - not infrared_deployment|bool
+
+
+- name: Generate ovn container images
+  shell: |
+      echo "container_images:" > ~/ovn_container_images.yaml
+
+- name: Add ovn container images to ovn_container_images.yaml
+  lineinfile:
+      dest: ~/ovn_container_images.yaml
+      line: "- imagename: {{ registry_namespace }}/{{ image_prefix }}-{{ item }}:{{ docker_image_tag }}"
+  with_items:
+      - "ovn-northd"
+      - "ovn-controller"
+      - "neutron-server-ovn"
+      - "neutron-metadata-agent-ovn"
+
+- name: Set the local namespace
+  block:
+     - name: Extract the local namespace
+       shell: |
+           set -exo pipefail
+           source ~/stackrc
+           openstack overcloud plan export overcloud
+           mkdir -p /tmp/oc_plan
+           mv overcloud.tar.gz /tmp/oc_plan/
+           cd /tmp/oc_plan
+           tar xvf overcloud.tar.gz
+           reg=`cat /tmp/oc_plan/plan-environment.yaml  | grep DockerNeutronApiImage | awk '{ split($2, image , "/"); print image[1] }'`
+           namespace=`cat /tmp/oc_plan/plan-environment.yaml  | grep DockerNeutronApiImage | awk '{ split($2, image , "/"); print image[2] }'`
+           img=`cat plan-environment.yaml  | grep DockerNeutronApiImage | awk '{ split($2, image, "/"); print image[3] }'`
+           echo $reg/$namespace > /tmp/_reg_namespace
+           rm -rf /tmp/oc_plan
+
+     - name: Get the local namespace
+       shell: cat /tmp/_reg_namespace
+       register: local_ns
+
+     - name: Set the local registry
+       set_fact:
+           local_registry: "{{ local_ns.stdout }}"
+  when:
+      - local_namespace == ''
+
+- name: Set the local namespace
+  set_fact:
+      local_registry: "{{ local_namespace }}"
+  when:
+      - local_namespace != ''
+
+- name: Generate docker images environment file
+  shell: |
+      set -exo pipefail
+      openstack overcloud container image prepare \
+      --namespace={{ local_registry }} \
+      --tag={{ docker_image_tag }} \
+      --prefix={{ image_prefix }} \
+      --output-env-file={{ output_env_file }} \
+      -e /usr/share/openstack-tripleo-heat-templates/environments/docker.yaml \
+      -e /usr/share/openstack-tripleo-heat-templates/environments/docker-ha.yaml \
+      -e {{ neutron_ovn_env_path }}
+
+- name: Upload the ovn docker images to the local registry
+  shell: |
+      source ~/stackrc
+      openstack overcloud container image upload --verbose --config-file ~/ovn_container_images.yaml
