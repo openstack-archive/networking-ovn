@@ -27,17 +27,16 @@ telemetry_args: >-
    -e {{ overcloud_templates_path }}/environments/disable-telemetry.yaml
    {% endif %}
 
-# TODO(numans) - Change to neutron-ml2-ovn-ha.yaml once OVN bundle
-# pacemaker support is ready.
 extra_args: >-
   --ntp-server pool.ntp.org
   -e {{ overcloud_templates_path }}/environments/docker.yaml
-  -e {{ overcloud_templates_path }}/environments/services-docker/neutron-ovn-ha.yaml
+  -e {{ overcloud_templates_path }}/environments/docker-ha.yaml
+  -e {{ overcloud_templates_path }}/environments/services/neutron-ovn-ha.yaml
 
 prepare_service_env_args: >-
   -e {{ overcloud_templates_path }}/environments/docker.yaml
   -e {{ overcloud_templates_path }}/environments/docker-ha.yaml
-  -e {{ overcloud_templates_path }}/environments/services-docker/neutron-ovn-ha.yaml
+  -e {{ overcloud_templates_path }}/environments/services/neutron-ovn-ha.yaml
 
 # If `run_tempest` is `true`, run tempests tests, otherwise do not
 # run them.
