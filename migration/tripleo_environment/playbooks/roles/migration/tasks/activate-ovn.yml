@@ -1,8 +1,7 @@
 ---
-
 - name: Generate OVN activation script
   template:
-    src: "{{ activate_ovn_script }}"
+    src: "activate-ovn.sh.j2"
     dest: "/tmp/activate-ovn.sh"
     mode: 0744
 
