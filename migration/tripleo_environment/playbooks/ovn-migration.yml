@@ -1,25 +1,94 @@
 # This is the playbook used by ovn-migration.sh.
-# This is the start of the migration
-- import_playbook: pre-migration.yml
+
+#
+# Pre migration and validation tasks will make sure that the initial cloud
+# is functional, and will create resources which will be checked after
+# migration.
+#
+
+- name: Pre migration and validation tasks
+  hosts: localhost
+  roles:
+    - pre-migration
   tags:
     - pre-migration
-  when: validate_migration|bool
 
-- import_playbook: setup-ovn.yml
+#
+# This step is executed before migration, and will backup some config
+# files related to containers before those get lost.
+#
+
+- name: Backup tripleo container config files on the nodes
+  hosts: ovn-controllers
+  roles:
+    - backup
   tags:
     - setup
 
-- import_playbook: migrate.yml
-  tags:
-    - migrate
+#
+# TripleO / Director is executed to deploy ovn using "br-migration" for the
+# dataplane, while br-int is left intact to avoid dataplane disruption.
+#
 
-- import_playbook: post-migration.yml
+- name: Set up OVN and configure it using tripleo
+  hosts: localhost
+  roles:
+    - tripleo-update
+  vars:
+      ovn_bridge: br-migration
+  tags:
+    - setup
+  become: false
+
+#
+# Once everything is migrated prepare everything by syncing the neutron DB
+# into the OVN NB database, and then switching the dataplane to br-int
+# letting ovn-controller take control, afterwards any remaining neutron
+# resources, namespaces or processes which are not needed anymore are
+# cleaned up.
+#
+
+- name: Do the DB sync and dataplane switch
+  hosts: ovn-controllers, ovn-dbs
+  roles:
+    - migration
+  vars:
+      ovn_bridge: br-int
+  tags:
+    - migration
+
+#
+# Verify that the initial resources are still reachable, remove them,
+# and afterwards create new resources and repeat the connectivity tests.
+#
+
+- name: Post migration
+  hosts: localhost
+  roles:
+    - post-migration
   tags:
     - post-migration
-  when: validate_migration|bool
+
+#
+# Final step to make sure tripleo knows about OVNIntegrationBridge == br-int.
+#
+
+- name: Rerun the stack update to reset the OVNIntegrationBridge to br-int
+  include_role:
+    name: tripleo-update
+  vars:
+    ovn_bridge: "br-int"
+  tags:
+    - ovn-setup
+  become: false
+
+#
+# Announce that it's done and ready.
+#
 
 - hosts: localhost
   tasks:
   - name: Migration successful.
     debug:
       msg: Migration from ML2OVS to OVN is now complete.
+

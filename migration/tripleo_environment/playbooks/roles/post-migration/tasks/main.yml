@@ -1,0 +1,47 @@
+---
+
+#
+# Validate pre-migration resources and then clean those up
+#
+
+- name: Validate pre migration resources after migration
+  include_role:
+    name: resources/validate
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"
+      restart_server: true
+  when: validate_migration|bool
+
+- name: Delete the pre migration resources
+  include_role:
+    name: resources/cleanup
+  tags:
+    - post-migration
+  vars:
+      ovn_migration_temp_dir: "{{ working_dir }}/pre_migration_resources"
+  when: validate_migration|bool
+
+#
+# Create post-migration resources, validate, and then clean up
+#
+
+- name: Create post-migration resources
+  include_role:
+    name: resources/create
+  vars:
+      resource_suffix: "post"
+  when: validate_migration|bool
+
+- name: Validate post migration resources
+  include_role:
+    name: resources/validate
+  when: validate_migration|bool
+
+- name: Delete the post migration resources
+  include_role:
+    name: resources/cleanup
+  tags:
+    - post-migration
+  vars:
+      resource_suffix: "post"
+  when: validate_migration|bool
