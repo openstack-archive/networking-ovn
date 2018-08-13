@@ -1,0 +1,3 @@
+---
+
+ovn_migration_temp_dir: "{{ working_dir }}/post_migration_resources"
