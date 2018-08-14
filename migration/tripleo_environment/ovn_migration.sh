@@ -29,8 +29,6 @@ LANG=C
 # overcloud deploy script for OVN migration.
 : ${OVERCLOUD_OVN_DEPLOY_SCRIPT:=~/overcloud-deploy-ovn.sh}
 
-# Is the present deployment DVR or HA. Lets assume it's HA
-: ${IS_DVR_ENABLED:=False}
 : ${OPT_WORKDIR:=$PWD}
 : ${PUBLIC_NETWORK_NAME:=public}
 : ${IMAGE_NAME:=cirros}
@@ -182,7 +180,6 @@ EOF
 
 [$1:vars]
 remote_user=heat-admin
-dvr_setup=$IS_DVR_ENABLED
 public_network_name=$PUBLIC_NETWORK_NAME
 image_name=$IMAGE_NAME
 working_dir=$OPT_WORKDIR
@@ -204,6 +201,29 @@ EOF
     echo "Generated the inventory file - hosts_for_migration"
     echo "Please review the file before running the next command - reduce-mtu"
 }
+
+# Check if the public network exists, and if it has floating ips available
+
+oc_check_public_network() {
+
+    source $OVERCLOUDRC_FILE
+    openstack network show $PUBLIC_NETWORK_NAME 1>/dev/null || {
+        echo "ERROR: PUBLIC_NETWORK_NAME=${PUBLIC_NETWORK_NAME} can't be accessed by the"
+        echo "       admin user, please fix that before continuing."
+        exit 1
+    }
+
+    ID=$(openstack floating ip create $PUBLIC_NETWORK_NAME -c id -f value) || {
+        echo "ERROR: PUBLIC_NETWORK_NAME=${PUBLIC_NETWORK_NAME} doesn't have available"
+        echo "       floating ips. Make sure that your public network has at least one"
+        echo "       floating ip available for the admin user."
+        exit 1
+    }
+
+    openstack floating ip delete $ID 2>/dev/null 1>/dev/null
+    return $?
+}
+
 
 # Check if the neutron networks MTU has been updated to geneve MTU size or not.
 # We donot want to proceed if the MTUs are not updated.
@@ -301,6 +321,7 @@ command=$1
 ret_val=0
 case $command in
     generate-inventory)
+        oc_check_public_network
         generate_ansible_inventory_file
         generate_ansible_config_file
         ret_val=$?
@@ -317,6 +338,7 @@ case $command in
         ret_val=$?;;
 
     start-migration)
+        oc_check_public_network
         check_for_necessary_files
         shift
         start_migration $*
