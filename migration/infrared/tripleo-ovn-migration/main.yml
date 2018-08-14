@@ -198,7 +198,7 @@
               template:
                   src: templates/start-ovn-migration.sh.j2
                   dest: "{{ ovn_migration_working_dir }}/start-ovn-migration.sh"
-              mode: 0744
+                  mode: 0755
 
             - name: Generate inventory file for ovn migration
               shell:
