@@ -15,10 +15,10 @@
 import contextlib
 
 from networking_ovn.tests.functional import base
-from neutron.objects import ports as obj_port
 from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk import plugin as trunk_plugin
 from neutron_lib import constants as n_consts
+from neutron_lib.objects import registry as obj_reg
 from neutron_lib.plugins import utils
 from oslo_utils import uuidutils
 
@@ -72,7 +72,7 @@ class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
                                           'parent_port_id': [trunk['port_id']],
                                           'tag': [subport['segmentation_id']]})
             # Check that the subport has the binding is active.
-            binding = obj_port.PortBinding.get_object(
+            binding = obj_reg.load_class('PortBinding').get_object(
                 self.context, port_id=subport['port_id'], host='')
             self.assertEqual(n_consts.PORT_STATUS_ACTIVE, binding['status'])
 
