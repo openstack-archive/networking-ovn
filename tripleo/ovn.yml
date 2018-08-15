@@ -16,6 +16,9 @@ containerized_overcloud: true
 # to the configured public-vip and admin-vip.
 undercloud_generate_service_certificate: true
 
+# List of ntp servers to use in the undercloud
+undercloud_undercloud_ntp_servers: pool.ntp.org
+
 # This enables the deployment of the overcloud with SSL.
 ssl_overcloud: false
 
