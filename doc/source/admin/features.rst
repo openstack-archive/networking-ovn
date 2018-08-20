@@ -76,7 +76,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | RBAC Policies                    | rbac-policies             |
 +----------------------------------+---------------------------+
-| Resource revision numbers        | revisions                 |
+| Resource revision numbers        | standard-attr-revisions   |
 +----------------------------------+---------------------------+
 | security-group                   | security-group            |
 +----------------------------------+---------------------------+
@@ -84,7 +84,7 @@ The following Neutron API extensions are supported with OVN:
 +----------------------------------+---------------------------+
 | Subnet Allocation                | subnet_allocation         |
 +----------------------------------+---------------------------+
-| Tag support                      | tag                       |
+| Tag support                      | standard-attr-tag         |
 +----------------------------------+---------------------------+
-| Time Stamp Fields                | timestamp_core            |
+| Time Stamp Fields                | standard-attr-timestamp   |
 +----------------------------------+---------------------------+
