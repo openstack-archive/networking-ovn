@@ -283,41 +283,59 @@ class OVNClient(object):
             # The lport_name *must* be neutron port['id'].  It must match the
             # iface-id set in the Interfaces table of the Open_vSwitch
             # database which nova sets to be the port ID.
-            txn.add(self._nb_idl.create_lswitch_port(
-                    lport_name=port['id'],
-                    lswitch_name=lswitch_name,
-                    addresses=port_info.addresses,
-                    external_ids=external_ids,
-                    parent_name=port_info.parent_name,
-                    tag=port_info.tag,
-                    enabled=port.get('admin_state_up'),
-                    options=port_info.options,
-                    type=port_info.type,
-                    port_security=port_info.port_security,
-                    dhcpv4_options=dhcpv4_options,
-                    dhcpv6_options=dhcpv6_options))
+            port_cmd = txn.add(self._nb_idl.create_lswitch_port(
+                lport_name=port['id'],
+                lswitch_name=lswitch_name,
+                addresses=port_info.addresses,
+                external_ids=external_ids,
+                parent_name=port_info.parent_name,
+                tag=port_info.tag,
+                enabled=port.get('admin_state_up'),
+                options=port_info.options,
+                type=port_info.type,
+                port_security=port_info.port_security,
+                dhcpv4_options=dhcpv4_options,
+                dhcpv6_options=dhcpv6_options))
 
-            acls_new = ovn_acl.add_acls(self._plugin, admin_context,
-                                        port, sg_cache, subnet_cache,
-                                        self._nb_idl)
-            for acl in acls_new:
-                txn.add(self._nb_idl.add_acl(**acl))
-
+            # Handle ACL's for this port. If we're not using Port Groups
+            # because either the schema doesn't support it or we didn't
+            # migrate old SGs from Address Sets to Port Groups, then we
+            # keep the old behavior. For those SGs this port belongs to
+            # that are modelled as a Port Group, we'll use it.
             sg_ids = utils.get_lsp_security_groups(port)
-            if port.get('fixed_ips') and sg_ids:
-                addresses = ovn_acl.acl_port_ips(port)
-                # NOTE(rtheis): Fail port creation if the address set doesn't
-                # exist. This prevents ports from being created on any security
-                # groups out-of-sync between neutron and OVN.
-                for sg_id in sg_ids:
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_idl.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id,
-                                                            ip_version),
-                                addrs_add=addresses[ip_version],
-                                addrs_remove=None,
-                                if_exists=False))
+            if self._nb_idl.is_port_groups_supported():
+                # If this is not a trusted port or port security is enabled,
+                # add it to the default drop Port Group so that all traffic
+                # is dropped by default.
+                if not utils.is_lsp_trusted(port) or port_info.port_security:
+                    self._add_port_to_drop_port_group(port_cmd, txn)
+                # For SGs modelled as OVN Port Groups, just add the port to
+                # its Port Group.
+                for sg in sg_ids:
+                    txn.add(self._nb_idl.pg_add_ports(
+                        utils.ovn_port_group_name(sg), port_cmd))
+            else:
+                # SGs modelled as Port Groups:
+                acls_new = ovn_acl.add_acls(self._plugin, admin_context,
+                                            port, sg_cache, subnet_cache,
+                                            self._nb_idl)
+                for acl in acls_new:
+                    txn.add(self._nb_idl.add_acl(**acl))
+
+                if port.get('fixed_ips') and sg_ids:
+                    addresses = ovn_acl.acl_port_ips(port)
+                    # NOTE(rtheis): Fail port creation if the address set
+                    # doesn't exist. This prevents ports from being created on
+                    # any security groups out-of-sync between neutron and OVN.
+                    for sg_id in sg_ids:
+                        for ip_version in addresses:
+                            if addresses[ip_version]:
+                                txn.add(self._nb_idl.update_address_set(
+                                    name=utils.ovn_addrset_name(sg_id,
+                                                                ip_version),
+                                    addrs_add=addresses[ip_version],
+                                    addrs_remove=None,
+                                    if_exists=False))
 
             if self.is_dns_required_for_port(port):
                 self.add_txns_to_sync_port_dns_records(txn, port)
@@ -424,63 +442,84 @@ class OVNClient(object):
             port_security_changed = utils.is_port_security_enabled(port) != (
                 bool(ovn_port.port_security))
 
-            # Refresh ACLs for changed security groups or fixed IPs.
-            if detached_sg_ids or attached_sg_ids or is_fixed_ips_updated or (
-                    port_security_changed):
-                # Note that update_acls will compare the port's ACLs to
-                # ensure only the necessary ACLs are added and deleted
-                # on the transaction.
-                acls_new = ovn_acl.add_acls(self._plugin,
-                                            admin_context,
-                                            port,
-                                            sg_cache,
-                                            subnet_cache,
-                                            self._nb_idl)
-                txn.add(self._nb_idl.update_acls([port['network_id']],
-                                                 [port],
-                                                 {port['id']: acls_new},
-                                                 need_compare=True))
+            if self._nb_idl.is_port_groups_supported():
+                for sg in detached_sg_ids:
+                    txn.add(self._nb_idl.pg_del_ports(
+                        utils.ovn_port_group_name(sg), port['id']))
+                for sg in attached_sg_ids:
+                    txn.add(self._nb_idl.pg_add_ports(
+                        utils.ovn_port_group_name(sg), port['id']))
+                if (not utils.is_lsp_trusted(port) and
+                        utils.is_port_security_enabled(port)):
+                    self._add_port_to_drop_port_group(port['id'], txn)
+                # If the port doesn't belong to any security group and
+                # port_security is disabled, allow all traffic
+                elif (not new_sg_ids and
+                      not utils.is_port_security_enabled(port)):
+                    self._del_port_from_drop_port_group(port['id'], txn)
+            else:
+                # Refresh ACLs for changed security groups or fixed IPs.
+                if (detached_sg_ids or attached_sg_ids or
+                        is_fixed_ips_updated or port_security_changed):
+                    # Note that update_acls will compare the port's ACLs to
+                    # ensure only the necessary ACLs are added and deleted
+                    # on the transaction.
+                    acls_new = ovn_acl.add_acls(self._plugin,
+                                                admin_context,
+                                                port,
+                                                sg_cache,
+                                                subnet_cache,
+                                                self._nb_idl)
+                    txn.add(self._nb_idl.update_acls([port['network_id']],
+                                                     [port],
+                                                     {port['id']: acls_new},
+                                                     need_compare=True))
 
-            # Refresh address sets for changed security groups or fixed IPs.
-            if len(old_fixed_ips) != 0 or len(new_fixed_ips) != 0:
-                addresses = ovn_acl.acl_port_ips(port)
-                addresses_old = utils.sort_ips_by_version(
-                    utils.get_ovn_port_addresses(ovn_port))
-                # Add current addresses to attached security groups.
-                for sg_id in attached_sg_ids:
-                    for ip_version in addresses:
-                        if addresses[ip_version]:
-                            txn.add(self._nb_idl.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=addresses[ip_version],
-                                addrs_remove=None))
-                # Remove old addresses from detached security groups.
-                for sg_id in detached_sg_ids:
-                    for ip_version in addresses_old:
-                        if addresses_old[ip_version]:
-                            txn.add(self._nb_idl.update_address_set(
-                                name=utils.ovn_addrset_name(sg_id, ip_version),
-                                addrs_add=None,
-                                addrs_remove=addresses_old[ip_version]))
-
-                if is_fixed_ips_updated or is_allowed_ips_updated:
-                    # We have refreshed address sets for attached and detached
-                    # security groups, so now we only need to take care of
-                    # unchanged security groups.
-                    unchanged_sg_ids = new_sg_ids & old_sg_ids
-                    for sg_id in unchanged_sg_ids:
+                # Refresh address sets for changed security groups or fixed
+                # IPs.
+                if len(old_fixed_ips) != 0 or len(new_fixed_ips) != 0:
+                    addresses = ovn_acl.acl_port_ips(port)
+                    addresses_old = utils.sort_ips_by_version(
+                        utils.get_ovn_port_addresses(ovn_port))
+                    # Add current addresses to attached security groups.
+                    for sg_id in attached_sg_ids:
                         for ip_version in addresses:
-                            addr_add = (set(addresses[ip_version]) -
-                                        set(addresses_old[ip_version])) or None
-                            addr_remove = (set(addresses_old[ip_version]) -
-                                           set(addresses[ip_version])) or None
-
-                            if addr_add or addr_remove:
+                            if addresses[ip_version]:
                                 txn.add(self._nb_idl.update_address_set(
-                                        name=utils.ovn_addrset_name(
-                                            sg_id, ip_version),
-                                        addrs_add=addr_add,
-                                        addrs_remove=addr_remove))
+                                    name=utils.ovn_addrset_name(sg_id,
+                                        ip_version),
+                                    addrs_add=addresses[ip_version],
+                                    addrs_remove=None))
+                    # Remove old addresses from detached security groups.
+                    for sg_id in detached_sg_ids:
+                        for ip_version in addresses_old:
+                            if addresses_old[ip_version]:
+                                txn.add(self._nb_idl.update_address_set(
+                                    name=utils.ovn_addrset_name(sg_id,
+                                        ip_version),
+                                    addrs_add=None,
+                                    addrs_remove=addresses_old[ip_version]))
+
+                    if is_fixed_ips_updated or is_allowed_ips_updated:
+                        # We have refreshed address sets for attached and
+                        # detached security groups, so now we only need to take
+                        # care of unchanged security groups.
+                        unchanged_sg_ids = new_sg_ids & old_sg_ids
+                        for sg_id in unchanged_sg_ids:
+                            for ip_version in addresses:
+                                addr_add = ((set(addresses[ip_version]) -
+                                             set(addresses_old[ip_version])) or
+                                            None)
+                                addr_remove = (
+                                    (set(addresses_old[ip_version]) -
+                                     set(addresses[ip_version])) or None)
+
+                                if addr_add or addr_remove:
+                                    txn.add(self._nb_idl.update_address_set(
+                                            name=utils.ovn_addrset_name(
+                                                sg_id, ip_version),
+                                            addrs_add=addr_add,
+                                            addrs_remove=addr_remove))
 
             if self.is_dns_required_for_port(port):
                 self.add_txns_to_sync_port_dns_records(
@@ -505,20 +544,22 @@ class OVNClient(object):
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(self._nb_idl.delete_lswitch_port(
                 port_id, network_id))
-            txn.add(self._nb_idl.delete_acl(network_id, port_id))
 
-            addresses = utils.sort_ips_by_version(
-                utils.get_ovn_port_addresses(ovn_port))
-            sec_groups = self._get_lsp_backward_compat_sgs(
-                ovn_port, port_object=port_object, skip_trusted_port=False)
-            for sg_id in sec_groups:
-                for ip_version, addr_list in addresses.items():
-                    if not addr_list:
-                        continue
-                    txn.add(self._nb_idl.update_address_set(
-                        name=utils.ovn_addrset_name(sg_id, ip_version),
-                        addrs_add=None,
-                        addrs_remove=addr_list))
+            if not self._nb_idl.is_port_groups_supported():
+                txn.add(self._nb_idl.delete_acl(network_id, port_id))
+
+                addresses = utils.sort_ips_by_version(
+                    utils.get_ovn_port_addresses(ovn_port))
+                sec_groups = self._get_lsp_backward_compat_sgs(
+                    ovn_port, port_object=port_object, skip_trusted_port=False)
+                for sg_id in sec_groups:
+                    for ip_version, addr_list in addresses.items():
+                        if not addr_list:
+                            continue
+                        txn.add(self._nb_idl.update_address_set(
+                            name=utils.ovn_addrset_name(sg_id, ip_version),
+                            addrs_add=None,
+                            addrs_remove=addr_list))
 
             if port_object and self.is_dns_required_for_port(port_object):
                 self.add_txns_to_remove_port_dns_records(txn, port_object)
@@ -1547,7 +1588,28 @@ class OVNClient(object):
                 self.update_metadata_port(context, network['id'])
 
             self._add_subnet_dhcp_options(subnet, network)
+
+            if self._nb_idl.is_port_groups_supported():
+                with self._nb_idl.transaction(check_error=True) as txn:
+                    self._create_subnet_port_group(subnet, txn)
+
         db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
+
+    def _create_subnet_port_group(self, subnet, txn):
+        pg_name = utils.ovn_port_group_name(subnet['id'])
+        if self._nb_idl.get_port_group(pg_name):
+            return
+        # Create subnet Port Group.
+        txn.add(self._nb_idl.pg_add(pg_name, acls=[]))
+        # Add ACLs to this Port Group.
+        acls = ovn_acl.add_acls_for_subnet_port_group(
+            self._nb_idl, pg_name, subnet)
+        for acl in acls:
+            txn.add(self._nb_idl.pg_acl_add(**acl))
+
+    def _delete_subnet_port_group(self, subnet_id, txn):
+        pg_name = utils.ovn_port_group_name(subnet_id)
+        txn.add(self._nb_idl.pg_del(pg_name, if_exists=True))
 
     def update_subnet(self, subnet, network):
         ovn_subnet = self._nb_idl.get_subnet_dhcp_options(
@@ -1563,8 +1625,12 @@ class OVNClient(object):
             txn.add(check_rev_cmd)
             if subnet['enable_dhcp'] and not ovn_subnet:
                 self._enable_subnet_dhcp_options(subnet, network, txn)
+                if self._nb_idl.is_port_groups_supported():
+                    self._create_subnet_port_group(subnet, txn)
             elif not subnet['enable_dhcp'] and ovn_subnet:
                 self._remove_subnet_dhcp_options(subnet['id'], txn)
+                if self._nb_idl.is_port_groups_supported():
+                    self._delete_subnet_port_group(subnet, txn)
             elif subnet['enable_dhcp'] and ovn_subnet:
                 self._update_subnet_dhcp_options(subnet, network, txn)
 
@@ -1574,22 +1640,69 @@ class OVNClient(object):
     def delete_subnet(self, subnet_id):
         with self._nb_idl.transaction(check_error=True) as txn:
             self._remove_subnet_dhcp_options(subnet_id, txn)
+            if self._nb_idl.is_port_groups_supported():
+                self._delete_subnet_port_group(subnet_id, txn)
         db_rev.delete_revision(subnet_id, ovn_const.TYPE_FLOATINGIPS)
 
     def create_security_group(self, security_group):
+        # If the OVN schema supports Port Groups, we'll model security groups
+        # as such. Otherwise, for backwards compatibility, we'll keep creating
+        # two Address Sets for each Neutron SG (one for IPv4 and one for
+        # IPv6).
         with self._nb_idl.transaction(check_error=True) as txn:
-            for ip_version in ('ip4', 'ip6'):
-                name = utils.ovn_addrset_name(security_group['id'], ip_version)
-                ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: security_group['id']}
-                txn.add(self._nb_idl.create_address_set(
-                    name=name, external_ids=ext_ids))
+            ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: security_group['id']}
+            if self._nb_idl.is_port_groups_supported():
+                name = utils.ovn_port_group_name(security_group['id'])
+                txn.add(self._nb_idl.pg_add(
+                    name=name, acls=[], external_ids=ext_ids))
+                # When a SG is created, it comes with some default rules,
+                # so we'll apply them to the Port Group.
+                ovn_acl.add_acls_for_sg_port_group(self._nb_idl,
+                                                   security_group, txn)
+            else:
+                for ip_version in ('ip4', 'ip6'):
+                    name = utils.ovn_addrset_name(security_group['id'],
+                                                  ip_version)
+                    txn.add(self._nb_idl.create_address_set(
+                        name=name, external_ids=ext_ids))
         db_rev.bump_revision(security_group, ovn_const.TYPE_SECURITY_GROUPS)
+
+    def create_default_drop_port_group(self, ports=None):
+        pg_name = ovn_const.OVN_DROP_PORT_GROUP_NAME
+        with self._nb_idl.transaction(check_error=True) as txn:
+            if not self._nb_idl.get_port_group(pg_name):
+                # If drop Port Group doesn't exist yet, create it.
+                txn.add(self._nb_idl.pg_add(pg_name, acls=[]))
+                # Add ACLs to this Port Group so that all traffic is dropped.
+                acls = ovn_acl.add_acls_for_drop_port_group(pg_name)
+                for acl in acls:
+                    txn.add(self._nb_idl.pg_acl_add(**acl))
+
+            if ports:
+                ports_ids = [port['id'] for port in ports]
+                # Add the ports to the default Port Group
+                txn.add(self._nb_idl.pg_add_ports(pg_name, ports_ids))
+
+    def _add_port_to_drop_port_group(self, port, txn):
+        self.create_default_drop_port_group()
+        txn.add(self._nb_idl.pg_add_ports(ovn_const.OVN_DROP_PORT_GROUP_NAME,
+                port))
+
+    def _del_port_from_drop_port_group(self, port, txn):
+        pg_name = ovn_const.OVN_DROP_PORT_GROUP_NAME
+        if self._nb_idl.get_port_group(pg_name):
+            txn.add(self._nb_idl.pg_del_ports(pg_name, port))
 
     def delete_security_group(self, security_group_id):
         with self._nb_idl.transaction(check_error=True) as txn:
-            for ip_version in ('ip4', 'ip6'):
-                name = utils.ovn_addrset_name(security_group_id, ip_version)
-                txn.add(self._nb_idl.delete_address_set(name=name))
+            if self._nb_idl.is_port_groups_supported():
+                name = utils.ovn_port_group_name(security_group_id)
+                txn.add(self._nb_idl.pg_del(name=name))
+            else:
+                for ip_version in ('ip4', 'ip6'):
+                    name = utils.ovn_addrset_name(security_group_id,
+                                                  ip_version)
+                    txn.add(self._nb_idl.delete_address_set(name=name))
         db_rev.delete_revision(security_group_id,
                                ovn_const.TYPE_SECURITY_GROUPS)
 

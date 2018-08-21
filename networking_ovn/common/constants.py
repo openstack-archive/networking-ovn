@@ -46,6 +46,7 @@ OVN_PORT_BINDING_PROFILE_PARAMS = [{'parent_name': six.string_types,
 OVN_ROUTER_PORT_OPTION_KEYS = ['router-port', 'nat-addresses']
 OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 OVN_GATEWAY_NAT_ADDRESSES_KEY = 'nat-addresses'
+OVN_DROP_PORT_GROUP_NAME = 'neutron_pg_drop'
 
 OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
 

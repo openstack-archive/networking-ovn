@@ -145,6 +145,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
 
         if revision_number < 0:
             self.fake_ovn_client._nb_idl.get_address_set.return_value = None
+            self.fake_ovn_client._nb_idl.get_port_group.return_value = None
         else:
             self.fake_ovn_client._nb_idl.get_address_set.return_value = (
                 mock.sentinel.AddressSet)
