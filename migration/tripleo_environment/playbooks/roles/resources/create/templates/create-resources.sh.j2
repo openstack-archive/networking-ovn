@@ -120,7 +120,7 @@ do
 done
 
 ssh -i {{ ovn_migration_temp_dir }}/ovn_migration_ssh_key -o StrictHostKeyChecking=no \
--o UserKnownHostsFile=/dev/null  cirros@$server_ip /sbin/ip a
+-o UserKnownHostsFile=/dev/null  cirros@$server_ip date
 
 rc=$?
 
