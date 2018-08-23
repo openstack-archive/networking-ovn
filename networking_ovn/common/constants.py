@@ -132,3 +132,7 @@ MAINTENANCE_CREATE_UPDATE_TYPE_ORDER = {
 # task: Leaf ones first and roots at the end.
 MAINTENANCE_DELETE_TYPE_ORDER = {
     t: n for n, t in enumerate(reversed(_TYPES_PRIORITY_ORDER), 1)}
+
+# The addresses field to set in the logical switch port which has a
+# peer router port (connecting to the logical router).
+DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'

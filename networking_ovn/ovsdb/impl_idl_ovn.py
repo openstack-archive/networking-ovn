@@ -335,11 +335,13 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         return cmd.DelLRouterPortCommand(self, name, lrouter,
                                          if_exists)
 
-    def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port,
-                                         is_gw_port=False, if_exists=True):
+    def set_lrouter_port_in_lswitch_port(
+            self, lswitch_port, lrouter_port, is_gw_port=False, if_exists=True,
+            lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER):
         return cmd.SetLRouterPortInLSwitchPortCommand(self, lswitch_port,
                                                       lrouter_port, is_gw_port,
-                                                      if_exists)
+                                                      if_exists,
+                                                      lsp_address)
 
     def add_acl(self, lswitch, lport, **columns):
         return cmd.AddACLCommand(self, lswitch, lport, **columns)
