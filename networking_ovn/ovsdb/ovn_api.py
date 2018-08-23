@@ -15,6 +15,8 @@ import abc
 from ovsdbapp import api
 import six
 
+from networking_ovn.common import constants as ovn_const
+
 
 @six.add_metaclass(abc.ABCMeta)
 class API(api.API):
@@ -168,8 +170,9 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def set_lrouter_port_in_lswitch_port(self, lswitch_port, lrouter_port,
-                                         is_gw_port=False, if_exists=True):
+    def set_lrouter_port_in_lswitch_port(
+            self, lswitch_port, lrouter_port, is_gw_port=False, if_exists=True,
+            lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER):
         """Create a command to set lswitch_port as lrouter_port
 
         :param lswitch_port: The name of logical switch port
@@ -180,6 +183,8 @@ class API(api.API):
         :type is_gw_port:    bool
         :param if_exists:    Do not fail if the lswitch port does not exist
         :type if_exists:     bool
+        :param lsp_address:  logical switch port's addresses to set
+        :type lsp_address:   string or list of strings
         :returns:            :class:`Command` with no result
         """
 

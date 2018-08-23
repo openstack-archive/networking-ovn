@@ -688,14 +688,14 @@ class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=idlutils.RowNotFound):
             cmd = commands.SetLRouterPortInLSwitchPortCommand(
-                self.ovn_api, 'fake-lsp', 'fake-lrp', False, if_exists=False)
+                self.ovn_api, 'fake-lsp', 'fake-lrp', False, False, 'router')
             self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
 
     def test_lswitch_port_no_exist_do_not_fail(self):
         with mock.patch.object(idlutils, 'row_by_value',
                                side_effect=idlutils.RowNotFound):
             cmd = commands.SetLRouterPortInLSwitchPortCommand(
-                self.ovn_api, 'fake-lsp', 'fake-lrp', False, if_exists=True)
+                self.ovn_api, 'fake-lsp', 'fake-lrp', False, True, 'router')
             cmd.run_idl(self.transaction)
 
     def test_lswitch_port_router_update(self):
@@ -704,7 +704,7 @@ class TestSetLRouterPortInLSwitchPortCommand(TestBaseCommand):
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lsp):
             cmd = commands.SetLRouterPortInLSwitchPortCommand(
-                self.ovn_api, fake_lsp.name, lrp_name, True, if_exists=True)
+                self.ovn_api, fake_lsp.name, lrp_name, True, True, 'router')
             cmd.run_idl(self.transaction)
             self.assertEqual({'router-port': lrp_name,
                              'nat-addresses': 'router'}, fake_lsp.options)
