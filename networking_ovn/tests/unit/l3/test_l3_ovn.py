@@ -216,8 +216,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_router_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id',
-                                    is_gw_port=False)
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=False,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.bump_rev_p.assert_called_once_with(self.fake_router_port,
                                                 ovn_const.TYPE_ROUTER_PORTS)
 
@@ -254,8 +255,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertItemsEqual(fake_rtr_intf_networks,
                               called_args_dict.get('networks', []))
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id',
-                                    is_gw_port=False)
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=False,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     def test_remove_router_interface(self, getp):
@@ -406,8 +408,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                           ovn_const.OVN_ROUTER_IS_EXT_GW: 'true',
                           ovn_const.OVN_SUBNET_EXT_ID_KEY: 'ext-subnet-id'})]
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('gw-port-id', 'lrp-gw-port-id',
-                                    is_gw_port=True)
+            assert_called_once_with(
+                'gw-port-id', 'lrp-gw-port-id', is_gw_port=True,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_static_route.assert_has_calls(expected_calls)
 
         bump_rev_calls = [mock.call(self.fake_ext_gw_port,
@@ -451,8 +454,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_router_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id',
-                                    is_gw_port=False)
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=False,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', logical_ip='10.0.0.0/24',
             external_ip='192.168.1.1', type='snat')
@@ -481,8 +485,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_router_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('router-port-id', 'lrp-router-port-id',
-                                    is_gw_port=False)
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=False,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_not_called()
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
@@ -528,8 +533,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_ext_gw_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('gw-port-id', 'lrp-gw-port-id',
-                                    is_gw_port=True)
+            assert_called_once_with(
+                'gw-port-id', 'lrp-gw-port-id', is_gw_port=True,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_static_route.assert_called_once_with(
             'neutron-router-id', ip_prefix='0.0.0.0/0',
             external_ids={ovn_const.OVN_ROUTER_IS_EXT_GW: 'true',
@@ -582,8 +588,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_ext_gw_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('gw-port-id', 'lrp-gw-port-id',
-                                    is_gw_port=True)
+            assert_called_once_with(
+                'gw-port-id', 'lrp-gw-port-id', is_gw_port=True,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_static_route.assert_called_once_with(
             'neutron-router-id', ip_prefix='0.0.0.0/0',
             nexthop='192.168.1.254',
@@ -631,8 +638,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **self.fake_ext_gw_port_assert)
         self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
-            assert_called_once_with('gw-port-id', 'lrp-gw-port-id',
-                                    is_gw_port=True)
+            assert_called_once_with(
+                'gw-port-id', 'lrp-gw-port-id', is_gw_port=True,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_static_route.assert_called_once_with(
             'neutron-router-id', ip_prefix='0.0.0.0/0',
             nexthop='192.168.1.254',
