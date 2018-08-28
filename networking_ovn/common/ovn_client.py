@@ -1098,18 +1098,6 @@ class OVNClient(object):
         lsp_address = ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER
         if ipv6_ra_configs:
             columns['ipv6_ra_configs'] = ipv6_ra_configs
-            # TODO(numans)
-            # If we set router port's peer logical switch port with
-            # addresses=ovn_const.DEFAULT_ADDRESS_FOR_LSP_WITH_PEER_ROUTER_PORT
-            # ovn-northd is adding IPv6 Neighbor Adv flow in the logical switch
-            # pipeline using the 'nd_na' action.
-            # 'nd_na' action doesn't set the Router bit in the 'flags' field
-            # of the Neigh Adv packet in response to the Neigh Solicitation
-            # packet for the router IPv6 address. See bug #1788684.
-            # Until it is fixed in core OVN, set lsp_address to the mac_address
-            # of port so that we don't set addresses=router. Once that is fixed
-            # remove the below line.
-            lsp_address = [port['mac_address']]
 
         commands = [
             self._nb_idl.add_lrouter_port(
@@ -1167,20 +1155,6 @@ class OVNClient(object):
                 port['fixed_ips']))
 
         lsp_address = ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER
-        if ipv6_ra_configs:
-            # TODO(numans)
-            # If we set router port's peer logical switch port with
-            # addresses=ovn_const.DEFAULT_ADDRESS_FOR_LSP_WITH_PEER_ROUTER_PORT
-            # ovn-northd is adding IPv6 Neighbor Adv flow in the logical switch
-            # pipeline using the 'nd_na' action.
-            # 'nd_na' action doesn't set the Router bit in the 'flags' field
-            # of the Neigh Adv packet in response to the Neigh Solicitation
-            # packet for the router IPv6 address. See bug #1788684.
-            # Until it is fixed in core OVN, set lsp_address to the mac_address
-            # of port so that we don't set addresses=router. Once that is fixed
-            # remove this if condition.
-            lsp_address = [port['mac_address']]
-
         lrp_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks, 'ipv6_ra_configs': ipv6_ra_configs}
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
