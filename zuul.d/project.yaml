@@ -1,4 +1,10 @@
 - project:
+    templates:
+      - openstack-python-jobs-neutron
+      - publish-openstack-sphinx-docs
+      - release-notes-jobs
+      - check-requirements
+      - openstack-python35-jobs-neutron
     check:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master:
@@ -23,6 +29,10 @@
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -40,3 +50,9 @@
             voting: false
             branches: ^(?!stable/newton).*$
         - kuryr-kubernetes-tempest-ovn
+    periodic:
+      jobs:
+        - openstack-tox-py35-with-ovsdbapp-master:
+            required-projects:
+              - openstack/neutron
+
