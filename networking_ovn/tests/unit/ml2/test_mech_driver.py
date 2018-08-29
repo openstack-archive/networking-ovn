@@ -694,8 +694,11 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                       tenant_id='test') as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
                        'provisioning_complete') as pc, \
+            mock.patch.object(
+                self.mech_driver,
+                '_update_subport_host_if_needed') as upd_subport, \
             mock.patch.object(self.mech_driver,
-                              '_update_subport_host_if_needed') as upd_subport:
+                              '_update_dnat_entry_if_needed') as ude:
                 self.mech_driver.set_port_status_up(port1['port']['id'])
                 pc.assert_called_once_with(
                     mock.ANY,
@@ -704,6 +707,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
                 upd_subport.assert_called_once_with(port1['port']['id'])
+                ude.assert_called_once_with(port1['port']['id'])
 
     def test_set_port_status_down(self):
         with self.network(set_context=True, tenant_id='test') as net1, \
@@ -711,7 +715,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             self.port(subnet=subnet1, set_context=True,
                       tenant_id='test') as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
-                       'add_provisioning_component') as apc:
+                       'add_provisioning_component') as apc, \
+            mock.patch.object(self.mech_driver,
+                              '_update_dnat_entry_if_needed') as ude:
                 self.mech_driver.set_port_status_down(port1['port']['id'])
                 apc.assert_called_once_with(
                     mock.ANY,
@@ -719,10 +725,13 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     resources.PORT,
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
+                ude.assert_called_once_with(port1['port']['id'], False)
 
     def test_set_port_status_down_not_found(self):
         with mock.patch('neutron.db.provisioning_blocks.'
-                        'add_provisioning_component') as apc:
+                        'add_provisioning_component') as apc, \
+            mock.patch.object(self.mech_driver,
+                              '_update_dnat_entry_if_needed'):
             self.mech_driver.set_port_status_down('foo')
             apc.assert_not_called()
 
@@ -734,7 +743,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                       tenant_id='test') as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
                        'add_provisioning_component',
-                       side_effect=exc) as apc:
+                       side_effect=exc) as apc, \
+            mock.patch.object(self.mech_driver,
+                              '_update_dnat_entry_if_needed') as ude:
                 self.mech_driver.set_port_status_down(port1['port']['id'])
                 apc.assert_called_once_with(
                     mock.ANY,
@@ -742,6 +753,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     resources.PORT,
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
+                ude.assert_called_once_with(port1['port']['id'], False)
 
     def test__update_subport_host_if_needed(self):
         """Check that a subport is updated with parent's host_id."""
