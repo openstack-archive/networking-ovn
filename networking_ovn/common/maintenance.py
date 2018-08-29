@@ -251,4 +251,4 @@ class DBInconsistenciesPeriodics(object):
         admin_context = n_context.get_admin_context()
         router_id = port['device_id']
         self._ovn_client._l3_plugin.add_router_interface(
-            admin_context, router_id, {'port_id': port['id']})
+            admin_context, router_id, {'port_id': port['id']}, may_exist=True)
