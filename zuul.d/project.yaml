@@ -1,4 +1,10 @@
 - project:
+    templates:
+      - openstack-python-jobs-neutron
+      - publish-openstack-sphinx-docs
+      - release-notes-jobs
+      - check-requirements
+      - openstack-python35-jobs-neutron
     check:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master:
@@ -21,6 +27,10 @@
         # failures, please reach us on #tripleo IRC channel.
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -41,3 +51,9 @@
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
             branches: ^(?!stable/newton).*$
+    periodic:
+      jobs:
+        - openstack-tox-py35-with-ovsdbapp-master:
+            required-projects:
+              - openstack/neutron
+
