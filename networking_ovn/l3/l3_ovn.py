@@ -293,12 +293,25 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return port_physnet_dict
 
     def update_router_gateway_port_bindings(self, router, host):
+        status = (n_const.PORT_STATUS_ACTIVE if host
+                  else n_const.PORT_STATUS_DOWN)
         context = n_context.get_admin_context()
         filters = {'device_id': [router],
                    'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW]}
         for port in self._plugin.get_ports(context, filters=filters):
-            self._plugin.update_port(
-                context, port['id'], {'port': {portbindings.HOST_ID: host}})
+            # FIXME(lucasagomes): Ideally here we would use only
+            # one database transaction for the status and binding the
+            # host but, even tho update_port_status() receives a "host"
+            # parameter apparently it doesn't work for ports which the
+            # device owner is router_gateway. We need to look into it and
+            # fix the problem in Neutron before updating it here.
+            if host:
+                self._plugin.update_port(
+                    context, port['id'],
+                    {'port': {portbindings.HOST_ID: host}})
+
+            if port['status'] != status:
+                self._plugin.update_port_status(context, port['id'], status)
 
     def schedule_unhosted_gateways(self):
         port_physnet_dict = self._get_gateway_port_physnet_mapping()
