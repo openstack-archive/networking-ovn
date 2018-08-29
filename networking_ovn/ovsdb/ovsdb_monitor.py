@@ -74,16 +74,18 @@ class PortBindingChassisEvent(row_event.RowEvent):
         self.event_name = 'PortBindingChassisEvent'
 
     def run(self, event, row, old):
-        chassis = getattr(row, 'chassis', [])
+        if not utils.is_ovn_l3(self.l3_plugin):
+            return
+        router = host = None
+        chassis = getattr(row, 'chassis', None)
         if chassis:
             router = row.datapath.external_ids.get('name', '').replace(
                 'neutron-', '')
             host = chassis[0].hostname
             LOG.info("Router %(router)s is bound to host %(host)s",
                      {'router': router, 'host': host})
-            if ovn_config.is_ovn_l3():
-                self.l3_plugin.update_router_gateway_port_bindings(
-                    router, host)
+        self.l3_plugin.update_router_gateway_port_bindings(
+            router, host)
 
 
 class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):
