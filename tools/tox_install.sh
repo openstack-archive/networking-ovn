@@ -64,5 +64,10 @@ else
     $install_cmd -U -e ${NEUTRON_PIP_LOCATION}
 fi
 
+if [ -z "$@" ]; then
+    echo "No packages to be installed."
+    exit 0
+fi
+
 $install_cmd -U $*
 exit $?
