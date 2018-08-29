@@ -706,12 +706,49 @@ class OVNMechanismDriver(api.MechanismDriver):
                 LOG.debug("Error trying to set host_id %s for subport %s",
                           host_id, port_id)
 
+    def _update_dnat_entry_if_needed(self, port_id, up=True):
+        """Update DNAT entry if using distributed floating ips."""
+        if not config.is_ovn_distributed_floating_ip():
+            return
+
+        if not self._nb_ovn:
+            self._nb_ovn = self._ovn_client._nb_idl
+
+        nat = self._nb_ovn.db_find('NAT',
+                                   ('logical_port', '=', port_id),
+                                   ('type', '=', 'dnat_and_snat')).execute()
+        if not nat:
+            return
+        # We take first entry as one port can only have one FIP
+        nat = nat[0]
+        # If the external_id doesn't exist, let's create at this point.
+        # TODO(dalvarez): Remove this code in T cycle when we're sure that
+        # all DNAT entries have the external_id.
+        if not nat['external_ids'].get(ovn_const.OVN_FIP_EXT_MAC_KEY):
+            self._nb_ovn.db_set('NAT', nat['_uuid'],
+                                ('external_ids',
+                                {ovn_const.OVN_FIP_EXT_MAC_KEY:
+                                 nat['external_mac']})).execute()
+
+        if up:
+            mac = nat['external_ids'][ovn_const.OVN_FIP_EXT_MAC_KEY]
+            LOG.debug("Setting external_mac of port %s to %s",
+                      port_id, mac)
+            self._nb_ovn.db_set(
+                'NAT', nat['_uuid'],
+                ('external_mac', mac)).execute(check_error=True)
+        else:
+            LOG.debug("Clearing up external_mac of port %s", port_id, mac)
+            self._nb_ovn.db_clear(
+                'NAT', nat['_uuid'], 'external_mac').execute(check_error=True)
+
     def set_port_status_up(self, port_id):
         # Port provisioning is complete now that OVN has reported that the
         # port is up. Any provisioning block (possibly added during port
         # creation or when OVN reports that the port is down) must be removed.
         LOG.info("OVN reports status up for port: %s", port_id)
 
+        self._update_dnat_entry_if_needed(port_id)
         self._wait_for_metadata_provisioned_if_needed(port_id)
 
         # If this port is a subport, we need to update the host_id and set it
@@ -750,6 +787,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # to prevent another entity from bypassing the block with its own
         # port status update.
         LOG.info("OVN reports status down for port: %s", port_id)
+        self._update_dnat_entry_if_needed(port_id, False)
         admin_context = n_context.get_admin_context()
         try:
             port = self._plugin.get_port(admin_context, port_id)

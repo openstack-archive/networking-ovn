@@ -788,10 +788,39 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
-                self.fake_floating_ip['router_id'])}
+                self.fake_floating_ip['router_id']),
+            ovn_const.OVN_FIP_EXT_MAC_KEY: '00:01:02:03:04:05'}
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-router-id', type='dnat_and_snat', logical_ip='10.0.0.10',
             external_ip='192.168.0.10', external_mac='00:01:02:03:04:05',
+            logical_port='port_id',
+            external_ids=expected_ext_ids)
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin._get_floatingip')
+    def test_create_floatingip_distributed_logical_port_down(self, gf, gp):
+        # Check that when the port is down, the external_mac field is not
+        # populated. This falls back to centralized routing for ports that
+        # are not bound to a chassis.
+        self.l3_inst._ovn.is_col_present.return_value = True
+        self.l3_inst._ovn.lsp_get_up.return_value.execute.return_value = (
+            False)
+        gp.return_value = {'mac_address': '00:01:02:03:04:05'}
+        gf.return_value = {'floating_port_id': 'fip-port-id'}
+        config.cfg.CONF.set_override(
+            'enable_distributed_floating_ip', True, group='ovn')
+        self.l3_inst.create_floatingip(self.context, 'floatingip')
+        expected_ext_ids = {
+            ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
+            ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
+            ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
+                self.fake_floating_ip['port_id'],
+            ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
+                self.fake_floating_ip['router_id']),
+            ovn_const.OVN_FIP_EXT_MAC_KEY: '00:01:02:03:04:05'}
+        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', type='dnat_and_snat', logical_ip='10.0.0.10',
+            external_ip='192.168.0.10',
             logical_port='port_id',
             external_ids=expected_ext_ids)
 
@@ -929,7 +958,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             ovn_const.OVN_FIP_PORT_EXT_ID_KEY:
                 self.fake_floating_ip_new['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
-                self.fake_floating_ip_new['router_id'])}
+                self.fake_floating_ip_new['router_id']),
+            ovn_const.OVN_FIP_EXT_MAC_KEY: '00:01:02:03:04:05'}
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
             'neutron-new-router-id', type='dnat_and_snat',
             logical_ip='10.10.10.10', external_ip='192.168.0.10',
