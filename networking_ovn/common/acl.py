@@ -316,10 +316,7 @@ def acl_remote_group_id(r, ip_version, ovn=None):
         return ''
 
     src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-    # Check if the remote group is modelled as a Port Group or not as the
-    # name of the Address Set differs.
-    if (ovn and ovn.is_port_groups_supported() and
-            not ovn.get_address_set(r['security_group_id'])):
+    if (ovn and ovn.is_port_groups_supported()):
         addrset_name = utils.ovn_pg_addrset_name(r['remote_group_id'],
                                                  ip_version)
     else:
