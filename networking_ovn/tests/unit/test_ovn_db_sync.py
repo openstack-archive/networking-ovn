@@ -12,12 +12,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
+
 import mock
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import ovn_client
 from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.ml2 import test_mech_driver
+
+
+OvnPortInfo = collections.namedtuple('OvnPortInfo', ['name'])
 
 
 @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._sb_ovn', mock.Mock())
@@ -104,6 +109,23 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                        'security_group_id': 'sg2'}],
              'name': 'all-tcpe'}]
 
+        self.port_groups_ovn = [mock.Mock(), mock.Mock(), mock.Mock()]
+        self.port_groups_ovn[0].configure_mock(
+            name='pg_sg1',
+            external_ids={ovn_const.OVN_SG_EXT_ID_KEY: 'sg1'},
+            ports=[],
+            acls=[])
+        self.port_groups_ovn[1].configure_mock(
+            name='pg_unknown_del',
+            external_ids={ovn_const.OVN_SG_EXT_ID_KEY: 'sg2'},
+            ports=[],
+            acls=[])
+        self.port_groups_ovn[2].configure_mock(
+            name='neutron_pg_drop',
+            external_ids=[],
+            ports=[],
+            acls=[])
+
         self.ports = [
             {'id': 'p1n1',
              'device_owner': 'compute:None',
@@ -159,6 +181,11 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                  [{'subnet_id': 'ext-subnet',
                    'ip_address': '90.0.0.10'}],
              'network_id': 'ext-net'}]
+
+        self.ports_ovn = [OvnPortInfo('p1n1'), OvnPortInfo('p1n2'),
+                          OvnPortInfo('p2n1'), OvnPortInfo('p2n2'),
+                          OvnPortInfo('p3n1'), OvnPortInfo('p3n3')]
+
         self.acls_ovn = {
             'lport1':
             # ACLs need to be removed by the sync tool
@@ -363,6 +390,10 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_nb_synchronizer.get_address_sets = mock.Mock()
         ovn_nb_synchronizer.get_address_sets.return_value =\
             self.address_sets_ovn
+        get_port_groups = mock.MagicMock()
+        get_port_groups.execute.return_value = self.port_groups_ovn
+        ovn_api.db_list_rows.return_value = get_port_groups
+        ovn_api.lsp_list.execute.return_value = self.ports_ovn
         # end of acl-sync block
 
         # The following block is used for router and router port syncing tests
@@ -495,21 +526,66 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                  add_address_set_list, del_address_set_list,
                                  update_address_set_list,
                                  add_subnet_dhcp_options_list,
-                                 delete_dhcp_options_list):
+                                 delete_dhcp_options_list,
+                                 add_port_groups_list,
+                                 del_port_groups_list,
+                                 port_groups_supported=False):
         self._test_mocks_helper(ovn_nb_synchronizer)
 
         core_plugin = ovn_nb_synchronizer.core_plugin
         ovn_api = ovn_nb_synchronizer.ovn_api
+        ovn_api.is_port_groups_supported.return_value = port_groups_supported
         mock.patch("networking_ovn.ovsdb.impl_idl_ovn.get_connection").start()
 
         ovn_nb_synchronizer.do_sync()
 
-        get_security_group_calls = [mock.call(mock.ANY, sg['id'])
-                                    for sg in self.security_groups]
-        self.assertEqual(len(self.security_groups),
-                         core_plugin.get_security_group.call_count)
-        core_plugin.get_security_group.assert_has_calls(
-            get_security_group_calls, any_order=True)
+        if not ovn_api.is_port_groups_supported():
+            get_security_group_calls = [mock.call(mock.ANY, sg['id'])
+                                        for sg in self.security_groups]
+            self.assertEqual(len(self.security_groups),
+                             core_plugin.get_security_group.call_count)
+            core_plugin.get_security_group.assert_has_calls(
+                get_security_group_calls, any_order=True)
+
+        create_address_set_calls = [mock.call(**a)
+                                    for a in add_address_set_list]
+        self.assertEqual(
+            len(add_address_set_list),
+            ovn_api.create_address_set.call_count)
+        ovn_api.create_address_set.assert_has_calls(
+            create_address_set_calls, any_order=True)
+
+        del_address_set_calls = [mock.call(**d)
+                                 for d in del_address_set_list]
+        self.assertEqual(
+            len(del_address_set_list),
+            ovn_api.delete_address_set.call_count)
+        ovn_api.delete_address_set.assert_has_calls(
+            del_address_set_calls, any_order=True)
+
+        update_address_set_calls = [mock.call(**u)
+                                    for u in update_address_set_list]
+        self.assertEqual(
+            len(update_address_set_list),
+            ovn_api.update_address_set.call_count)
+        ovn_api.update_address_set.assert_has_calls(
+            update_address_set_calls, any_order=True)
+
+        create_port_groups_calls = [mock.call(**a)
+                                    for a in add_port_groups_list]
+        self.assertEqual(
+            len(add_port_groups_list),
+            ovn_api.pg_add.call_count)
+        ovn_api.pg_add.assert_has_calls(
+            create_port_groups_calls, any_order=True)
+
+        del_port_groups_calls = [mock.call(d)
+                                 for d in del_port_groups_list]
+        self.assertEqual(
+            len(del_port_groups_list),
+            ovn_api.pg_del.call_count)
+        ovn_api.pg_del.assert_has_calls(
+            del_port_groups_calls, any_order=True)
 
         self.assertEqual(
             len(create_network_list),
@@ -639,30 +715,6 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.delete_lrouter_port.assert_has_calls(
             delete_lrouter_port_calls, any_order=True)
 
-        create_address_set_calls = [mock.call(**a)
-                                    for a in add_address_set_list]
-        self.assertEqual(
-            len(add_address_set_list),
-            ovn_api.create_address_set.call_count)
-        ovn_api.create_address_set.assert_has_calls(
-            create_address_set_calls, any_order=True)
-
-        del_address_set_calls = [mock.call(**d)
-                                 for d in del_address_set_list]
-        self.assertEqual(
-            len(del_address_set_list),
-            ovn_api.delete_address_set.call_count)
-        ovn_api.delete_address_set.assert_has_calls(
-            del_address_set_calls, any_order=True)
-
-        update_address_set_calls = [mock.call(**u)
-                                    for u in update_address_set_list]
-        self.assertEqual(
-            len(update_address_set_list),
-            ovn_api.update_address_set.call_count)
-        ovn_api.update_address_set.assert_has_calls(
-            update_address_set_calls, any_order=True)
-
         self.assertEqual(
             len(add_subnet_dhcp_options_list),
             ovn_nb_synchronizer._ovn_client._add_subnet_dhcp_options.
@@ -681,7 +733,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         ovn_api.delete_dhcp_options.assert_has_calls(
             delete_dhcp_options_calls, any_order=True)
 
-    def test_ovn_nb_sync_mode_repair(self):
+    def _test_ovn_nb_sync_mode_repair_helper(self, port_groups_supported=True):
+
         create_network_list = [{'net': {'id': 'n2', 'mtu': 1450},
                                 'ext_ids': {}}]
         del_network_list = ['neutron-n3']
@@ -758,18 +811,37 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         update_router_port_list[0].update(
             {'networks': self.lrport_networks})
 
-        add_address_set_list = [
-            {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'sg1'},
-             'name': 'as_ip6_sg1',
-             'addresses': ['fd79:e1c:a55::816:eff:eff:ff2']}]
-        del_address_set_list = [{'name': 'as_ip4_del'}]
-        update_address_set_list = [
-            {'addrs_remove': [],
-             'addrs_add': ['10.0.0.4'],
-             'name': 'as_ip4_sg2'},
-            {'addrs_remove': ['fd79:e1c:a55::816:eff:eff:ff3'],
-             'addrs_add': [],
-             'name': 'as_ip6_sg2'}]
+        if not port_groups_supported:
+            add_address_set_list = [
+                {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'sg1'},
+                 'name': 'as_ip6_sg1',
+                 'addresses': ['fd79:e1c:a55::816:eff:eff:ff2']}]
+            del_address_set_list = [{'name': 'as_ip4_del'}]
+            update_address_set_list = [
+                {'addrs_remove': [],
+                 'addrs_add': ['10.0.0.4'],
+                 'name': 'as_ip4_sg2'},
+                {'addrs_remove': ['fd79:e1c:a55::816:eff:eff:ff3'],
+                 'addrs_add': [],
+                 'name': 'as_ip6_sg2'}]
+            # If Port Groups are not supported, we don't expect any of those
+            # to be created/deleted.
+            add_port_groups_list = []
+            del_port_groups_list = []
+        else:
+            add_port_groups_list = [
+                {'external_ids': {ovn_const.OVN_SG_EXT_ID_KEY: 'sg2'},
+                 'name': 'pg_sg2',
+                 'acls': []}]
+            del_port_groups_list = ['pg_unknown_del']
+            # If using Port Groups, no Address Set shall be created/updated
+            # and all the existing ones have to be removed.
+            add_address_set_list = []
+            update_address_set_list = []
+            del_address_set_list = [{'name': 'as_ip4_sg1'},
+                                    {'name': 'as_ip4_sg2'},
+                                    {'name': 'as_ip6_sg2'},
+                                    {'name': 'as_ip4_del'}]
 
         add_subnet_dhcp_options_list = [(self.subnets[2], self.networks[1]),
                                         (self.subnets[1], self.networks[0])]
@@ -800,9 +872,18 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       del_address_set_list,
                                       update_address_set_list,
                                       add_subnet_dhcp_options_list,
-                                      delete_dhcp_options_list)
+                                      delete_dhcp_options_list,
+                                      add_port_groups_list,
+                                      del_port_groups_list,
+                                      port_groups_supported)
 
-    def test_ovn_nb_sync_mode_log(self):
+    def test_ovn_nb_sync_mode_repair_no_pgs(self):
+        self._test_ovn_nb_sync_mode_repair_helper(port_groups_supported=False)
+
+    def test_ovn_nb_sync_mode_repair_pgs(self):
+        self._test_ovn_nb_sync_mode_repair_helper(port_groups_supported=True)
+
+    def _test_ovn_nb_sync_mode_log_helper(self, port_groups_supported=True):
         create_network_list = []
         create_port_list = []
         create_provnet_port_list = []
@@ -824,6 +905,8 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         update_address_set_list = []
         add_subnet_dhcp_options_list = []
         delete_dhcp_options_list = []
+        add_port_groups_list = []
+        del_port_groups_list = []
 
         ovn_nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
             self.plugin, self.mech_driver._nb_ovn, self.mech_driver._sb_ovn,
@@ -850,7 +933,16 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
                                       del_address_set_list,
                                       update_address_set_list,
                                       add_subnet_dhcp_options_list,
-                                      delete_dhcp_options_list)
+                                      delete_dhcp_options_list,
+                                      add_port_groups_list,
+                                      del_port_groups_list,
+                                      port_groups_supported)
+
+    def test_ovn_nb_sync_mode_log_pgs(self):
+        self._test_ovn_nb_sync_mode_log_helper(port_groups_supported=True)
+
+    def test_ovn_nb_sync_mode_log_no_pgs(self):
+        self._test_ovn_nb_sync_mode_log_helper(port_groups_supported=False)
 
 
 class TestOvnSbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
