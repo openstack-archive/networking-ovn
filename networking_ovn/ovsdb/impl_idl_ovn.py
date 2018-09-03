@@ -691,6 +691,22 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def pg_get(self, pg):
         return cmd.PgGetCommand(self, pg)
 
+    def get_port_groups(self):
+        port_groups = {}
+        for row in self._tables['Port_Group'].rows.values():
+            name = getattr(row, 'name')
+            if not (ovn_const.OVN_SG_EXT_ID_KEY in row.external_ids or
+               name == ovn_const.OVN_DROP_PORT_GROUP_NAME):
+                continue
+            data = {}
+            for row_key in getattr(row, "_data", {}):
+                data[row_key] = getattr(row, row_key)
+            port_groups[name] = data
+        return port_groups
+
+    def check_liveness(self):
+        return cmd.CheckLivenessCommand(self)
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):
