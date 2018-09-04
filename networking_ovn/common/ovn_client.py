@@ -1673,7 +1673,7 @@ class OVNClient(object):
             self._remove_subnet_dhcp_options(subnet_id, txn)
             if self._nb_idl.is_port_groups_supported():
                 self._delete_subnet_port_group(subnet_id, txn)
-        db_rev.delete_revision(subnet_id, ovn_const.TYPE_FLOATINGIPS)
+        db_rev.delete_revision(subnet_id, ovn_const.TYPE_SUBNETS)
 
     def create_security_group(self, security_group):
         # If the OVN schema supports Port Groups, we'll model security groups
