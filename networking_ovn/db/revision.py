@@ -102,6 +102,17 @@ def _ensure_revision_row_exist(session, resource, resource_type):
 
 
 @_wrap_db_retry
+def get_revision_row(resource_uuid):
+    try:
+        session = db_api.get_reader_session()
+        with session.begin():
+            return session.query(models.OVNRevisionNumbers).filter_by(
+                resource_uuid=resource_uuid).one()
+    except exc.NoResultFound:
+        pass
+
+
+@_wrap_db_retry
 def bump_revision(resource, resource_type):
     session = db_api.get_writer_session()
     revision_number = utils.get_revision_number(resource, resource_type)

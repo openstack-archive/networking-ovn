@@ -1440,7 +1440,7 @@ class OVNClient(object):
     def delete_subnet(self, subnet_id):
         with self._nb_idl.transaction(check_error=True) as txn:
             self._remove_subnet_dhcp_options(subnet_id, txn)
-        db_rev.delete_revision(subnet_id, ovn_const.TYPE_FLOATINGIPS)
+        db_rev.delete_revision(subnet_id, ovn_const.TYPE_SUBNETS)
 
     def create_security_group(self, security_group):
         with self._nb_idl.transaction(check_error=True) as txn:
