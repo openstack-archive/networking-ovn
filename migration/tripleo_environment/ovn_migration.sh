@@ -35,7 +35,6 @@ LANG=C
 : ${PUBLIC_NETWORK_NAME:=public}
 : ${IMAGE_NAME:=cirros}
 : ${SERVER_USER_NAME:=cirros}
-: ${IS_CONTAINER_DEPLOYMENT:=False}
 : ${VALIDATE_MIGRATION:=True}
 : ${DHCP_RENEWAL_TIME:=30}
 
@@ -162,7 +161,7 @@ generate_ansible_inventory_file() {
     for node_name in $OVN_CONTROLLERS
     do
         node_ip=$(get_host_ip /tmp/ansible-inventory.txt $node_name)
-        echo $node_name ansible_host=$node_ip ansible_ssh_user=heat-admin ansible_become=true >> hosts_for_migration
+        echo $node_name ansible_host=$node_ip ansible_ssh_user=heat-admin ansible_become=true ovn_controller=true >> hosts_for_migration
     done
     rm -f /tmp/ansible-inventory.txt
     echo "" >> hosts_for_migration
@@ -188,7 +187,6 @@ public_network_name=$PUBLIC_NETWORK_NAME
 image_name=$IMAGE_NAME
 working_dir=$OPT_WORKDIR
 server_user_name=$SERVER_USER_NAME
-container_deployment=$IS_CONTAINER_DEPLOYMENT
 validate_migration=$VALIDATE_MIGRATION
 overcloud_ovn_deploy_script=$OVERCLOUD_OVN_DEPLOY_SCRIPT
 overcloudrc=$OVERCLOUDRC_FILE
@@ -254,7 +252,6 @@ start_migration() {
     -e overcloud_ovn_deploy_script=$OVERCLOUD_OVN_DEPLOY_SCRIPT \
     -e server_user_name=$SERVER_USER_NAME        \
     -e overcloudrc=$OVERCLOUDRC_FILE             \
-    -e container_deployment=$IS_CONTAINER_DEPLOYMENT \
     -e validate_migration=$VALIDATE_MIGRATION $*
 
     rc=$?

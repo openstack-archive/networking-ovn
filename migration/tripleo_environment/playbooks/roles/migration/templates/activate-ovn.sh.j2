@@ -12,7 +12,7 @@ ovs-vsctl remove open . external_ids ovn-bridge-mappings-back
 ovn_bms=$(echo $ovn_orig_bm | sed 's/\"//g' | sed 's/,/ /g')
 
 # Reset OpenFlow protocol version before ovn-controller takes over
-ovs-vsctl set Bridge {{ integration_bridge }} protocols=[]
+ovs-vsctl set Bridge {{ ovn_bridge }} protocols=[]
 
 for bm in $ovn_bms; do
    parts=($(echo $bm | sed 's/:/ /g'))
@@ -21,10 +21,10 @@ for bm in $ovn_bms; do
 done
 
 # Delete controller from integration bridge
-ovs-vsctl del-controller {{ integration_bridge }}
+ovs-vsctl del-controller {{ ovn_bridge }}
 
 # Activate ovn-controller by configuring integration bridge
-ovs-vsctl set open . external_ids:ovn-bridge={{ integration_bridge }}
+ovs-vsctl set open . external_ids:ovn-bridge={{ ovn_bridge }}
 
 docker start ovn_controller
 

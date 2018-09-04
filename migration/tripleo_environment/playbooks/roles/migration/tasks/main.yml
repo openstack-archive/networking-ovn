@@ -1,0 +1,18 @@
+---
+- include_tasks: clone-dataplane.yml
+
+- include_tasks: sync-dbs.yml
+  when: ovn_central is defined
+
+- include_tasks: activate-ovn.yml
+
+- include_tasks: cleanup-dataplane.yml
+  when: ovn_controller is defined
+  tags:
+    - cleanup-dataplane
+
+- include_tasks: delete-neutron-resources.yml
+  delegate_to: localhost
+  when: ovn_central is defined
+  tags:
+    - cleanup-neutron-resources

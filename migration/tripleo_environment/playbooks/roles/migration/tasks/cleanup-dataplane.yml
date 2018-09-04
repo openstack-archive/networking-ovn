@@ -1,3 +1,4 @@
+---
 - name: Quickly disable neutron router and dhcp interfaces
   shell: |
     for p in `ovs-vsctl show | egrep 'qr-|ha-|qg-|rfp-' | grep Interface | awk '{print $2}'`
