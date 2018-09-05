@@ -32,7 +32,7 @@ case $VENV in
     remove_ovs_packages
     # compile_ovs expects "DEST" to be defined
     DEST=$GATE_DEST
-    compile_ovs True /usr/local /var
+    compile_ovs False /usr/local /var
 
     # Make the workspace owned by GATE_STACK_USER
     sudo chown -R $GATE_STACK_USER:$GATE_STACK_USER $BASE
