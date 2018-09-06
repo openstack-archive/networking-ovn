@@ -966,34 +966,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             # Add the ports to the default Port Group
             txn.add(self.ovn_api.pg_add_ports(pg_name, ports_ids))
 
-    def _create_subnets_port_group(self, ctx, db_ports):
-        filters = {'enable_dhcp': [1]}
-        db_subnets = {}
-        for subnet in self.core_plugin.get_subnets(ctx, filters=filters):
-            if subnet['ip_version'] == constants.IP_VERSION_6 and (
-                    subnet.get('ipv6_address_mode') == constants.IPV6_SLAAC):
-                continue
-            db_subnets[subnet['id']] = subnet
-
-        with self.ovn_api.transaction(check_error=True) as txn:
-            for subnet_id, subnet in db_subnets.items():
-                pg_name = utils.ovn_port_group_name(subnet_id)
-                if not self.ovn_api.get_port_group(pg_name):
-                    # If subnet Port Group doesn't exist yet, create it.
-                    txn.add(self.ovn_api.pg_add(pg_name, acls=[]))
-                    # Add ACLs to this Port Group.
-                    acls = acl_utils.add_acls_for_subnet_port_group(
-                        self.ovn_api, pg_name, subnet)
-                    for acl in acls:
-                        txn.add(self.ovn_api.pg_acl_add(**acl))
-            # Add ports to the relevant subnet Port Groups
-            for port in db_ports:
-                for ip in port['fixed_ips']:
-                    if ip['subnet_id'] in db_subnets:
-                        txn.add(self.ovn_api.pg_add_ports(
-                            utils.ovn_port_group_name(ip['subnet_id']),
-                                port['id']))
-
     def _create_sg_port_groups_and_acls(self, ctx, db_ports):
         # Create a Port Group per Neutron Security Group
         with self.ovn_api.transaction(check_error=True) as txn:
@@ -1015,13 +987,11 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         # Groups and SG Rules to the new Port Groups implementation.
         # 1. Create the default drop Port Group and add all ports with port
         #    security enabled to it.
-        # 2. Create a Port Group for every subnet to allow DHCP traffic.
-        #    and add the relevant ports to them.
-        # 3. Create a Port Group for every existing Neutron Security Group and
+        # 2. Create a Port Group for every existing Neutron Security Group and
         #    add all its Security Group Rules as ACLs to that Port Group.
-        # 4. Delete all existing Address Sets in NorthBound database which
+        # 3. Delete all existing Address Sets in NorthBound database which
         #    correspond to a Neutron Security Group.
-        # 5. Delete all the ACLs in every Logical Switch (Neutron network).
+        # 4. Delete all the ACLs in every Logical Switch (Neutron network).
         if not self.ovn_api.is_port_groups_supported():
             return
 
@@ -1036,7 +1006,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     utils.is_port_security_enabled(port)]
 
         self._create_default_drop_port_group(db_ports)
-        self._create_subnets_port_group(ctx, db_ports)
         self._create_sg_port_groups_and_acls(ctx, db_ports)
         self._delete_address_sets(ctx)
         self._delete_acls_from_lswitches(ctx)
