@@ -27,8 +27,17 @@ non-quickstart details in this document also work with TripleO.
 Deployment steps
 ================
 
-#. Follow the `TripleO Quickstart`_ guide until the "--install-deps" step
-   (included)
+#. Download the quickstart.sh script with curl:
+
+   .. code-block:: console
+
+      $ curl -O https://raw.githubusercontent.com/openstack/tripleo-quickstart/master/quickstart.sh
+
+#. Install the necessary dependencies by running:
+
+   .. code-block:: console
+
+      $ bash quickstart.sh --install-deps
 
 #. Clone the tripleo-quickstart and networking-ovn repositories:
 
