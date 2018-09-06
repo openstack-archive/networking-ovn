@@ -159,8 +159,6 @@ Backwards compatibility considerations
 
   * Create the default drop Port Group and add all ports with port
     security enabled to it.
-  * Create a Port Group for every subnet to allow DHCP traffic.
-    and add the relevant ports to them.
   * Create a Port Group for every existing Neutron Security Group and
     add all its Security Group Rules as ACLs to that Port Group.
   * Delete all existing Address Sets in NorthBound database which correspond to
@@ -172,29 +170,6 @@ that point we should require OVS >= 2.10 from networking-ovn.
 
 Special cases
 -------------
-
-DHCP ACL rules
-~~~~~~~~~~~~~~
-In order to allow DHCP traffic por a port, the following rules prior to this
-feature were added (one per port)::
-
-  _uuid               : 06796bba-27f1-4ab7-bcd0-fd70d7408e55
-  action              : allow
-  direction           : from-lport
-  external_ids        : {"neutron:lport"="8f7f523d-3d97-4113-961b-0253b2f4e220"}
-  log                 : false
-  match               : "inport == \"8f7f523d-3d97-4113-961b-0253b2f4e220\" && ip4 && ip4.dst == {255.255.255.255, 10.0.0.0/26} && udp && udp.src == 68 && udp.dst == 67"
-  name                : []
-  priority            : 1002
-  severity            : []
-
-We don't want to add this kind of rules to a Port Group since they are
-specific to a subnet and not to a Security Group. To overcome this, we will
-create a Port Group every time a subnet gets created (pg-sub-<subnet_uuid>)
-and add the ACL to it.
-
-When the port is created/updated, we'll add it to those subnet Port Groups
-that the port belongs to.
 
 Ports with no security groups
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

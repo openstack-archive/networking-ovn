@@ -315,7 +315,7 @@ class OVNClient(object):
                     txn.add(self._nb_idl.pg_add_ports(
                         utils.ovn_port_group_name(sg), port_cmd))
             else:
-                # SGs modelled as Port Groups:
+                # SGs modelled as Address Sets:
                 acls_new = ovn_acl.add_acls(self._plugin, admin_context,
                                             port, sg_cache, subnet_cache,
                                             self._nb_idl)
@@ -1623,28 +1623,7 @@ class OVNClient(object):
                 self.update_metadata_port(context, network['id'])
 
             self._add_subnet_dhcp_options(subnet, network)
-
-            if self._nb_idl.is_port_groups_supported():
-                with self._nb_idl.transaction(check_error=True) as txn:
-                    self._create_subnet_port_group(subnet, txn)
-
         db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
-
-    def _create_subnet_port_group(self, subnet, txn):
-        pg_name = utils.ovn_port_group_name(subnet['id'])
-        if self._nb_idl.get_port_group(pg_name):
-            return
-        # Create subnet Port Group.
-        txn.add(self._nb_idl.pg_add(pg_name, acls=[]))
-        # Add ACLs to this Port Group.
-        acls = ovn_acl.add_acls_for_subnet_port_group(
-            self._nb_idl, pg_name, subnet)
-        for acl in acls:
-            txn.add(self._nb_idl.pg_acl_add(**acl))
-
-    def _delete_subnet_port_group(self, subnet_id, txn):
-        pg_name = utils.ovn_port_group_name(subnet_id)
-        txn.add(self._nb_idl.pg_del(pg_name, if_exists=True))
 
     def update_subnet(self, subnet, network):
         ovn_subnet = self._nb_idl.get_subnet_dhcp_options(
@@ -1660,12 +1639,8 @@ class OVNClient(object):
             txn.add(check_rev_cmd)
             if subnet['enable_dhcp'] and not ovn_subnet:
                 self._enable_subnet_dhcp_options(subnet, network, txn)
-                if self._nb_idl.is_port_groups_supported():
-                    self._create_subnet_port_group(subnet, txn)
             elif not subnet['enable_dhcp'] and ovn_subnet:
                 self._remove_subnet_dhcp_options(subnet['id'], txn)
-                if self._nb_idl.is_port_groups_supported():
-                    self._delete_subnet_port_group(subnet, txn)
             elif subnet['enable_dhcp'] and ovn_subnet:
                 self._update_subnet_dhcp_options(subnet, network, txn)
 
@@ -1675,8 +1650,6 @@ class OVNClient(object):
     def delete_subnet(self, subnet_id):
         with self._nb_idl.transaction(check_error=True) as txn:
             self._remove_subnet_dhcp_options(subnet_id, txn)
-            if self._nb_idl.is_port_groups_supported():
-                self._delete_subnet_port_group(subnet_id, txn)
         db_rev.delete_revision(subnet_id, ovn_const.TYPE_SUBNETS)
 
     def create_security_group(self, security_group):
