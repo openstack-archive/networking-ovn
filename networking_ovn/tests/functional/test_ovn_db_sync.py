@@ -1104,7 +1104,6 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 mac_address = ''
                 fip_port = ''
                 if fip['id'] in fip_macs:
-                    mac_address = fip_macs[fip['id']]
                     fip_port = fip['port_id']
                 db_nats[fip['router_id']].append(
                     fip['floating_ip_address'] + fip['fixed_ip_address'] +
