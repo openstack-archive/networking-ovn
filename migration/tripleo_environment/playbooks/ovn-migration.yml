@@ -74,12 +74,13 @@
 #
 
 - name: Rerun the stack update to reset the OVNIntegrationBridge to br-int
-  include_role:
-    name: tripleo-update
+  hosts: localhost
+  roles:
+    - tripleo-update
   vars:
-    ovn_bridge: "br-int"
+      ovn_bridge: br-int
   tags:
-    - ovn-setup
+    - setup
   become: false
 
 #
