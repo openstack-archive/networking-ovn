@@ -37,7 +37,7 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
                                        self.session)
         self.net['revision_number'] = 123
         db_rev.bump_revision(self.net, constants.TYPE_NETWORKS)
-        row = self.get_revision_row(self.net['id'])
+        row = db_rev.get_revision_row(self.net['id'])
         self.assertEqual(123, row.revision_number)
 
     def test_bump_older_revision(self):
@@ -46,7 +46,7 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
         self.net['revision_number'] = 1
         db_rev.bump_revision(self.net, constants.TYPE_NETWORKS)
         # Assert the revision number wasn't bumped
-        row = self.get_revision_row(self.net['id'])
+        row = db_rev.get_revision_row(self.net['id'])
         self.assertEqual(123, row.revision_number)
 
     @mock.patch.object(db_rev.LOG, 'warning')
@@ -54,7 +54,7 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
         self.net['revision_number'] = 123
         db_rev.bump_revision(self.net, constants.TYPE_NETWORKS)
         # Assert the revision number wasn't bumped
-        row = self.get_revision_row(self.net['id'])
+        row = db_rev.get_revision_row(self.net['id'])
         self.assertEqual(123, row.revision_number)
         self.assertIn('No revision row found for', mock_log.call_args[0][0])
 
@@ -62,5 +62,5 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
         db_rev.create_initial_revision(self.net['id'], constants.TYPE_NETWORKS,
                                        self.session)
         db_rev.delete_revision(self.net['id'], constants.TYPE_NETWORKS)
-        row = self.get_revision_row(self.net['id'])
+        row = db_rev.get_revision_row(self.net['id'])
         self.assertIsNone(row)

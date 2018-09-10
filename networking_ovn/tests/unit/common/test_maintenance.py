@@ -59,7 +59,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         db_rev.create_initial_revision(
             self.net['id'], constants.TYPE_NETWORKS, self.session,
             revision_number=ovn_rev)
-        row = self.get_revision_row(self.net['id'])
+        row = db_rev.get_revision_row(self.net['id'])
         self.assertEqual(ovn_rev, row.revision_number)
 
         if ovn_rev < 0:
@@ -99,7 +99,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         db_rev.create_initial_revision(
             self.port['id'], constants.TYPE_PORTS, self.session,
             revision_number=ovn_rev)
-        row = self.get_revision_row(self.port['id'])
+        row = db_rev.get_revision_row(self.port['id'])
         self.assertEqual(ovn_rev, row.revision_number)
 
         if ovn_rev < 0:
@@ -140,7 +140,7 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         db_rev.create_initial_revision(
             sg['id'], constants.TYPE_SECURITY_GROUPS, self.session,
             revision_number=revision_number)
-        row = self.get_revision_row(sg['id'])
+        row = db_rev.get_revision_row(sg['id'])
         self.assertEqual(revision_number, row.revision_number)
 
         if revision_number < 0:

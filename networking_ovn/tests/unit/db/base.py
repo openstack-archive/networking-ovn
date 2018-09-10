@@ -15,8 +15,6 @@
 
 from neutron.tests.unit.testlib_api import SqlTestCaseLight
 from neutron_lib import context
-from neutron_lib.db import api as db_api
-from sqlalchemy.orm import exc
 
 from networking_ovn.db import models
 
@@ -30,12 +28,3 @@ class DBTestCase(SqlTestCaseLight):
     def tearDown(self):
         super(DBTestCase, self).tearDown()
         self.session.query(models.OVNRevisionNumbers).delete()
-
-    def get_revision_row(self, resource_uuid):
-        try:
-            session = db_api.get_reader_session()
-            with session.begin():
-                return session.query(models.OVNRevisionNumbers).filter_by(
-                    resource_uuid=resource_uuid).one()
-        except exc.NoResultFound:
-            pass
