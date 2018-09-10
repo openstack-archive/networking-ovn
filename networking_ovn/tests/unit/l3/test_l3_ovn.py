@@ -20,6 +20,7 @@ from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import resources
 from neutron_lib import constants
@@ -1022,6 +1023,43 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                                   **kwargs)
 
         update_rp_mock.assert_called_once_with(kwargs['port'], if_exists=True)
+
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin.update_port_status')
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin.update_port')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    def test_update_router_gateway_port_bindings_active(
+            self, mock_get_port, mock_updt_port, mock_updt_status):
+        fake_host = 'fake-host'
+        fake_router = 'fake-router'
+        fake_port_id = 'fake-port-id'
+        mock_get_port.return_value = [{
+            'id': fake_port_id,
+            'status': constants.PORT_STATUS_DOWN}]
+        self.l3_inst.update_router_gateway_port_bindings(
+            fake_router, fake_host)
+
+        # Assert that the port is being bound
+        expected_update = {'port': {portbindings.HOST_ID: fake_host}}
+        mock_updt_port.assert_called_once_with(
+            mock.ANY, fake_port_id, expected_update)
+
+        # Assert that the port status is being set to ACTIVE
+        mock_updt_status.assert_called_once_with(
+            mock.ANY, fake_port_id, constants.PORT_STATUS_ACTIVE)
+
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin.update_port_status')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    def test_update_router_gateway_port_bindings_down(
+            self, mock_get_port, mock_updt_status):
+        fake_port_id = 'fake-port-id'
+        mock_get_port.return_value = [{
+            'id': fake_port_id,
+            'status': constants.PORT_STATUS_ACTIVE}]
+        self.l3_inst.update_router_gateway_port_bindings(None, None)
+
+        # Assert that the port status is being set to DOWN
+        mock_updt_status.assert_called_once_with(
+            mock.ANY, fake_port_id, constants.PORT_STATUS_DOWN)
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
