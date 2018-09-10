@@ -57,12 +57,15 @@ def is_sg_enabled():
     return cfg.CONF.SECURITYGROUP.enable_security_group
 
 
-def acl_direction(r, port):
+def acl_direction(r, port=None, port_group=None):
     if r['direction'] == 'ingress':
         portdir = 'outport'
     else:
         portdir = 'inport'
-    return '%s == "%s"' % (portdir, port['id'])
+
+    if port:
+        return '%s == "%s"' % (portdir, port['id'])
+    return '%s == @%s' % (portdir, port_group)
 
 
 def acl_ethertype(r):
@@ -135,6 +138,55 @@ def acl_protocol_and_ports(r, icmp):
     return match
 
 
+def add_acls_for_drop_port_group(pg_name):
+    acl_list = []
+    for direction, p in (('from-lport', 'inport'),
+                         ('to-lport', 'outport')):
+        acl = {"port_group": pg_name,
+               "priority": ovn_const.ACL_PRIORITY_DROP,
+               "action": ovn_const.ACL_ACTION_DROP,
+               "log": False,
+               "name": [],
+               "severity": [],
+               "direction": direction,
+               "match": '%s == @%s && ip' % (p, pg_name)}
+        acl_list.append(acl)
+    return acl_list
+
+
+def add_acls_for_subnet_port_group(ovn, pg_name, subnet, ovn_dhcp=True):
+    # Allow DHCP requests for OVN native DHCP service, while responses are
+    # allowed in ovn-northd.
+    # Allow both DHCP requests and responses to pass for other DHCP services.
+    # We do this even if DHCP isn't enabled for the subnet
+    acl_list = []
+    if not ovn_dhcp:
+        acl = {"port_group": pg_name,
+               "priority": ovn_const.ACL_PRIORITY_ALLOW,
+               "action": ovn_const.ACL_ACTION_ALLOW,
+               "log": False,
+               "name": [],
+               "severity": [],
+               "direction": 'to-lport',
+               "match": ('outport == @%s && ip4 && ip4.src == %s && '
+                         'udp && udp.src == 67 && udp.dst == 68'
+                         ) % (pg_name, subnet['cidr'])}
+        acl_list.append(acl)
+    acl = {"port_group": pg_name,
+           "priority": ovn_const.ACL_PRIORITY_ALLOW,
+           "action": ovn_const.ACL_ACTION_ALLOW,
+           "log": False,
+           "name": [],
+           "severity": [],
+           "direction": 'from-lport',
+           "match": ('inport == @%s && ip4 && '
+                     'ip4.dst == {255.255.255.255, %s} && '
+                     'udp && udp.src == 68 && udp.dst == 67'
+                     ) % (pg_name, subnet['cidr'])}
+    acl_list.append(acl)
+    return acl_list
+
+
 def drop_all_ip_traffic_for_port(port):
     acl_list = []
     for direction, p in (('from-lport', 'inport'),
@@ -170,6 +222,23 @@ def add_sg_rule_acl_for_port(port, r, match):
            "match": match,
            "external_ids": {'neutron:lport': port['id'],
                             ovn_const.OVN_SG_RULE_EXT_ID_KEY: r['id']}}
+    return acl
+
+
+def add_sg_rule_acl_for_port_group(port_group, r, match):
+    dir_map = {
+        'ingress': 'to-lport',
+        'egress': 'from-lport',
+    }
+    acl = {"port_group": port_group,
+           "priority": ovn_const.ACL_PRIORITY_ALLOW,
+           "action": ovn_const.ACL_ACTION_ALLOW_RELATED,
+           "log": False,
+           "name": [],
+           "severity": [],
+           "direction": dir_map[r['direction']],
+           "match": match,
+           ovn_const.OVN_SG_RULE_EXT_ID_KEY: r['id']}
     return acl
 
 
@@ -242,13 +311,17 @@ def _get_sg_from_cache(plugin, admin_context, sg_cache, sg_id):
         return sg
 
 
-def acl_remote_group_id(r, ip_version):
+def acl_remote_group_id(r, ip_version, ovn=None):
     if not r['remote_group_id']:
         return ''
 
     src_or_dst = 'src' if r['direction'] == 'ingress' else 'dst'
-    addrset_name = utils.ovn_addrset_name(r['remote_group_id'],
-                                          ip_version)
+    if (ovn and ovn.is_port_groups_supported()):
+        addrset_name = utils.ovn_pg_addrset_name(r['remote_group_id'],
+                                                 ip_version)
+    else:
+        addrset_name = utils.ovn_addrset_name(r['remote_group_id'],
+                                              ip_version)
     return ' && %s.%s == $%s' % (ip_version, src_or_dst, addrset_name)
 
 
@@ -275,9 +348,39 @@ def _add_sg_rule_acl_for_port(port, r):
     return add_sg_rule_acl_for_port(port, r, match)
 
 
+def _add_sg_rule_acl_for_port_group(port_group, r, ovn):
+    # Update the match based on which direction this rule is for (ingress
+    # or egress).
+    match = acl_direction(r, port_group=port_group)
+
+    # Update the match for IPv4 vs IPv6.
+    ip_match, ip_version, icmp = acl_ethertype(r)
+    match += ip_match
+
+    # Update the match if an IPv4 or IPv6 prefix was specified.
+    match += acl_remote_ip_prefix(r, ip_version)
+
+    # Update the match if remote group id was specified.
+    match += acl_remote_group_id(r, ip_version, ovn)
+
+    # Update the match for the protocol (tcp, udp, icmp) and port/type
+    # range if specified.
+    match += acl_protocol_and_ports(r, icmp)
+
+    # Finally, create the ACL entry for the direction specified.
+    return add_sg_rule_acl_for_port_group(port_group, r, match)
+
+
 def _acl_columns_name_severity_supported(nb_idl):
     columns = list(nb_idl._tables['ACL'].columns)
     return ('name' in columns) and ('severity' in columns)
+
+
+def add_acls_for_sg_port_group(ovn, security_group, txn):
+    for r in security_group['security_group_rules']:
+        acl = _add_sg_rule_acl_for_port_group(
+            utils.ovn_port_group_name(security_group['id']), r, ovn)
+        txn.add(ovn.pg_acl_add(**acl))
 
 
 def update_acls_for_security_group(plugin,
@@ -287,8 +390,31 @@ def update_acls_for_security_group(plugin,
                                    security_group_rule,
                                    sg_ports_cache=None,
                                    is_add_acl=True):
+
     # Skip ACLs if security groups aren't enabled
     if not is_sg_enabled():
+        return
+
+    # Check if ACL log name and severity supported or not
+    keep_name_severity = _acl_columns_name_severity_supported(ovn)
+
+    # If we're using a Port Group for this SG, just update it.
+    # Otherwise, keep the old behavior.
+    if (ovn.is_port_groups_supported() and
+            not ovn.get_address_set(security_group_id)):
+        acl = _add_sg_rule_acl_for_port_group(
+            utils.ovn_port_group_name(security_group_id),
+            security_group_rule, ovn)
+        # Remove ACL log name and severity if not supported
+        if is_add_acl:
+            if not keep_name_severity:
+                acl.pop('name')
+                acl.pop('severity')
+            ovn.pg_acl_add(**acl).execute(check_error=True)
+        else:
+            ovn.pg_acl_del(acl['port_group'], acl['direction'],
+                           acl['priority'], acl['match']).execute(
+                check_error=True)
         return
 
     # Get the security group ports.
@@ -309,8 +435,6 @@ def update_acls_for_security_group(plugin,
     acl_new_values_dict = {}
     update_port_list = []
 
-    # Check if ACL log name and severity supported or not
-    keep_name_severity = _acl_columns_name_severity_supported(ovn)
     # NOTE(lizk): We can directly locate the affected acl records,
     # so no need to compare new acl values with existing acl objects.
     for port in port_list:
