@@ -190,7 +190,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # Now IDL connections can be safely used.
         self._post_fork_event.set()
 
-        if trigger.im_class == ovsdb_monitor.OvnWorker:
+        if utils.get_method_class(trigger) == ovsdb_monitor.OvnWorker:
             # Call the synchronization task if its ovn worker
             # This sync neutron DB to OVN-NB DB only in inconsistent states
             self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
@@ -210,7 +210,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             )
             self.sb_synchronizer.sync()
 
-        if trigger.im_class == maintenance.MaintenanceWorker:
+        if utils.get_method_class(trigger) == maintenance.MaintenanceWorker:
             self._maintenance_thread = maintenance.MaintenanceThread()
             self._maintenance_thread.add_periodics(
                 maintenance.DBInconsistenciesPeriodics(self._ovn_client))

@@ -117,8 +117,9 @@ def get_ovn_idls(driver, trigger):
         wait=tenacity.wait_exponential(max=180),
         reraise=True)
     def get_ovn_idl_retry(cls):
+        trigger_class = utils.get_method_class(trigger)
         LOG.info('Getting %(cls)s for %(trigger)s with retry',
-                 {'cls': cls.__name__, 'trigger': trigger.im_class.__name__})
+                 {'cls': cls.__name__, 'trigger': trigger_class.__name__})
         return cls(get_connection(cls, trigger, driver))
 
     vlog.use_python_logger(max_level=cfg.get_ovn_ovsdb_log_level())
@@ -134,7 +135,7 @@ def get_connection(db_class, trigger=None, driver=None):
         args = (cfg.get_ovn_sb_connection(), 'OVN_Southbound')
         cls = ovsdb_monitor.OvnSbIdl
 
-    if trigger and trigger.im_class == ovsdb_monitor.OvnWorker:
+    if trigger and utils.get_method_class(trigger) == ovsdb_monitor.OvnWorker:
         idl_ = cls.from_server(*args, driver=driver)
     else:
         if db_class == OvsdbSbOvnIdl:

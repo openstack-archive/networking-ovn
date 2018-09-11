@@ -204,16 +204,20 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 num_attempts += 1
                 time.sleep(1)
 
-        trigger = mock.MagicMock()
+        class TriggerCls(mock.MagicMock):
+            def trigger(self):
+                pass
+
+        trigger_cls = TriggerCls()
         if self.ovn_worker:
-            trigger.im_class = ovsdb_monitor.OvnWorker
+            trigger_cls.trigger.__self__.__class__ = ovsdb_monitor.OvnWorker
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
-        trigger.im_class.__name__ = 'trigger'
 
         self.addCleanup(self.stop)
 
         # mech_driver.post_fork_initialize creates the IDL connections
-        self.mech_driver.post_fork_initialize(mock.ANY, mock.ANY, trigger)
+        self.mech_driver.post_fork_initialize(
+            mock.ANY, mock.ANY, trigger_cls.trigger)
 
     def stop(self):
         if self.ovn_worker:

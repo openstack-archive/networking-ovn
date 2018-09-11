@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import inspect
 import os
 import re
 
@@ -378,3 +379,9 @@ def get_ovsdb_connection(connection_string, schema, timeout, tables=None):
     else:
         helper.register_all()
     return connection.Connection(idl.Idl(connection_string, helper), timeout)
+
+
+def get_method_class(method):
+    if not inspect.ismethod(method):
+        return
+    return method.__self__.__class__
