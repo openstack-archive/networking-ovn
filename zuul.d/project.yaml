@@ -10,6 +10,7 @@
         - networking-ovn-tempest-dsvm-ovs-master:
             voting: false
         - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-tempest-dsvm-ovs-release-python3
         - networking-ovn-rally-task
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
@@ -36,6 +37,7 @@
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
+        - networking-ovn-tempest-dsvm-ovs-release-python3
         - networking-ovn-rally-task
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:

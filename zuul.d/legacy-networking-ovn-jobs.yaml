@@ -104,6 +104,19 @@
       - openstack/tempest
 
 - job:
+    name: networking-ovn-tempest-dsvm-ovs-release-python3
+    parent: legacy-networking-ovn-dsvm-base
+    run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release-python3/run.yaml
+    post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release-python3/post.yaml
+    timeout: 7800
+    required-projects:
+      - openstack-infra/devstack-gate
+      - openstack/networking-ovn
+      - openstack/neutron-tempest-plugin
+      - openstack/octavia
+      - openstack/tempest
+
+- job:
     name: networking-ovn-dsvm-grenade
     parent: legacy-networking-ovn-dsvm-base
     run: playbooks/legacy/grenade-dsvm-networking-ovn/run.yaml

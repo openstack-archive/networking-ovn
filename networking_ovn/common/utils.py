@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import inspect
 import os
 import re
 
@@ -371,3 +372,9 @@ def get_port_subnet_ids(port):
 def ovn_metadata_name(id_):
     """Return the OVN metadata name based on an id."""
     return 'metadata-%s' % id_
+
+
+def get_method_class(method):
+    if not inspect.ismethod(method):
+        return
+    return method.__self__.__class__
