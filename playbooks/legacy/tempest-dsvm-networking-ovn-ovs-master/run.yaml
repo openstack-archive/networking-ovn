@@ -37,6 +37,7 @@
           enable_service o-api
           enable_service o-hk
           OVN_DBS_LOG_LEVEL="dbg"
+          USE_PYTHON3=True
 
           EOF
         executable: /bin/bash
