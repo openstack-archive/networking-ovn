@@ -13,7 +13,6 @@
 #
 
 from neutron_lib.api.definitions import external_net
-from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -175,12 +174,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             # itself, a get_router_interface() method in the main class
             # would be handy
             port = self._plugin.get_port(context, interface_info['port_id'])
-            fixed_ips = [ip for ip in port['fixed_ips']]
-            subnets = []
-            for fixed_ip in fixed_ips:
-                subnets.append(self._ovn_client._plugin.get_subnet(
-                    context, fixed_ip['subnet_id']))
-
+            subnets = [self._plugin.get_subnet(context, s)
+                       for s in utils.get_port_subnet_ids(port)]
             router_interface_info = (
                 self._make_router_interface_info(
                     router_id, port['tenant_id'], port['id'],
@@ -193,111 +188,29 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
                              may_exist=False):
         router_interface_info = self._add_neutron_router_interface(
             context, router_id, interface_info, may_exist=may_exist)
-        port = self._plugin.get_port(context, router_interface_info['port_id'])
+        try:
+            self._ovn_client.create_router_port(router_id,
+                                                router_interface_info)
+        except Exception:
+            with excutils.save_and_reraise_exception():
+                super(OVNL3RouterPlugin, self).remove_router_interface(
+                    context, router_id, router_interface_info)
 
-        multi_prefix = False
-        if (len(router_interface_info['subnet_ids']) == 1 and
-                len(port['fixed_ips']) > 1):
-            # NOTE(lizk) It's adding a subnet onto an already existing router
-            # interface port, try to update lrouter port 'networks' column.
-            self._ovn_client.update_router_port(port,
-                                                bump_db_rev=False)
-            multi_prefix = True
-        else:
-            self._ovn_client.create_router_port(router_id, port)
-
-        router = self.get_router(context, router_id)
-        if not router.get(l3.EXTERNAL_GW_INFO):
-            db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
-            return router_interface_info
-
-        cidr = None
-        for fixed_ip in port['fixed_ips']:
-            subnet = self._plugin.get_subnet(context, fixed_ip['subnet_id'])
-            if multi_prefix:
-                if 'subnet_id' in interface_info:
-                    if subnet['id'] is not interface_info['subnet_id']:
-                        continue
-            if subnet['ip_version'] == 4:
-                cidr = subnet['cidr']
-
-        if utils.is_snat_enabled(router) and cidr:
-            try:
-                self._ovn_client.update_nat_rules(router, networks=[cidr],
-                                                  enable_snat=True)
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    self._ovn.delete_lrouter_port(
-                        utils.ovn_lrouter_port_name(port['id']),
-                        utils.ovn_name(router_id)).execute(check_error=True)
-                    super(OVNL3RouterPlugin, self).remove_router_interface(
-                        context, router_id, router_interface_info)
-                    LOG.error('Error updating snat for subnet %(subnet)s in '
-                              'router %(router)s',
-                              {'subnet': router_interface_info['subnet_id'],
-                               'router': router_id})
-
-        db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
         router_interface_info = \
             super(OVNL3RouterPlugin, self).remove_router_interface(
                 context, router_id, interface_info)
-        router = self.get_router(context, router_id)
-        port_id = router_interface_info['port_id']
-        multi_prefix = False
-        port_removed = False
         try:
-            port = self._plugin.get_port(context, port_id)
-            # The router interface port still exists, call ovn to update it.
-            self._ovn_client.update_router_port(port,
-                                                bump_db_rev=False)
-            multi_prefix = True
-        except n_exc.PortNotFound:
-            # The router interface port doesn't exist any more,
-            # we will call ovn to delete it once we remove the snat
-            # rules in the router itself if we have to
-            port_removed = True
-
-        if not router.get(l3.EXTERNAL_GW_INFO):
-            if port_removed:
-                self._ovn_client.delete_router_port(port_id, router_id)
-            return router_interface_info
-
-        try:
-            cidr = None
-            if multi_prefix:
-                subnet = self._plugin.get_subnet(context,
-                                                 interface_info['subnet_id'])
-                if subnet['ip_version'] == 4:
-                    cidr = subnet['cidr']
-            else:
-                subnet_ids = router_interface_info.get('subnet_ids')
-                for subnet_id in subnet_ids:
-                    subnet = self._plugin.get_subnet(context, subnet_id)
-                    if subnet['ip_version'] == 4:
-                        cidr = subnet['cidr']
-                        break
-
-            if utils.is_snat_enabled(router) and cidr:
-                self._ovn_client.update_nat_rules(
-                    router, networks=[cidr], enable_snat=False)
+            port_id = router_interface_info['port_id']
+            subnet_ids = router_interface_info.get('subnet_ids')
+            self._ovn_client.delete_router_port(port_id, router_id=router_id,
+                                                subnet_ids=subnet_ids)
         except Exception:
             with excutils.save_and_reraise_exception():
                 super(OVNL3RouterPlugin, self).add_router_interface(
                     context, router_id, interface_info)
-                LOG.error('Error is deleting snat')
-
-        # NOTE(mangelajo): If the port doesn't exist anymore, we delete the
-        # router port as the last operation and update the revision database
-        # to ensure consistency
-        if port_removed:
-            self._ovn_client.delete_router_port(port_id, router_id)
-        else:
-            # otherwise, we just update the revision database
-            db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
-
         return router_interface_info
 
     def create_floatingip_precommit(self, resource, event, trigger, context,
