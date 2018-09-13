@@ -1088,8 +1088,22 @@ class OVNClient(object):
                 candidates=candidates)
             if selected_chassis:
                 columns['gateway_chassis'] = selected_chassis
+
+        lsp_address = ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER
         if ipv6_ra_configs:
             columns['ipv6_ra_configs'] = ipv6_ra_configs
+            # TODO(numans)
+            # If we set router port's peer logical switch port with
+            # addresses=ovn_const.DEFAULT_ADDRESS_FOR_LSP_WITH_PEER_ROUTER_PORT
+            # ovn-northd is adding IPv6 Neighbor Adv flow in the logical switch
+            # pipeline using the 'nd_na' action.
+            # 'nd_na' action doesn't set the Router bit in the 'flags' field
+            # of the Neigh Adv packet in response to the Neigh Solicitation
+            # packet for the router IPv6 address. See bug #1788684.
+            # Until it is fixed in core OVN, set lsp_address to the mac_address
+            # of port so that we don't set addresses=router. Once that is fixed
+            # remove the below line.
+            lsp_address = [port['mac_address']]
 
         commands = [
             self._nb_idl.add_lrouter_port(
@@ -1101,7 +1115,8 @@ class OVNClient(object):
                 external_ids=self._gen_router_port_ext_ids(port),
                 **columns),
             self._nb_idl.set_lrouter_port_in_lswitch_port(
-                port['id'], lrouter_port_name, is_gw_port=is_gw_port)]
+                port['id'], lrouter_port_name, is_gw_port=is_gw_port,
+                lsp_address=lsp_address)]
         self._transaction(commands, txn=txn)
         # NOTE(mangelajo): we don't bump the revision here, but we do
         # in the higher level add_router_interface function, because
@@ -1112,6 +1127,21 @@ class OVNClient(object):
         networks, ipv6_ra_configs = (
             self._get_nets_and_ipv6_ra_confs_for_router_port(
                 port['fixed_ips']))
+
+        lsp_address = ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER
+        if ipv6_ra_configs:
+            # TODO(numans)
+            # If we set router port's peer logical switch port with
+            # addresses=ovn_const.DEFAULT_ADDRESS_FOR_LSP_WITH_PEER_ROUTER_PORT
+            # ovn-northd is adding IPv6 Neighbor Adv flow in the logical switch
+            # pipeline using the 'nd_na' action.
+            # 'nd_na' action doesn't set the Router bit in the 'flags' field
+            # of the Neigh Adv packet in response to the Neigh Solicitation
+            # packet for the router IPv6 address. See bug #1788684.
+            # Until it is fixed in core OVN, set lsp_address to the mac_address
+            # of port so that we don't set addresses=router. Once that is fixed
+            # remove this if condition.
+            lsp_address = [port['mac_address']]
 
         lrouter_port_name = utils.ovn_lrouter_port_name(port['id'])
         update = {'networks': networks, 'ipv6_ra_configs': ipv6_ra_configs}
@@ -1127,7 +1157,8 @@ class OVNClient(object):
                     if_exists=if_exists,
                     **update))
             txn.add(self._nb_idl.set_lrouter_port_in_lswitch_port(
-                    port['id'], lrouter_port_name, is_gw_port=is_gw_port))
+                    port['id'], lrouter_port_name, is_gw_port=is_gw_port,
+                    lsp_address=lsp_address))
 
         if bump_db_rev and check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             db_rev.bump_revision(port, ovn_const.TYPE_ROUTER_PORTS)
