@@ -118,6 +118,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_lrouter.return_value = None
         self.delete_lrouter_ext_gw = mock.Mock()
         self.delete_lrouter_ext_gw.return_value = None
+        self.lsp_get_up = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):

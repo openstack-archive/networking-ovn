@@ -579,16 +579,19 @@ class OVNClient(object):
                    'logical_ip': floatingip['fixed_ip_address'],
                    'external_ip': floatingip['floating_ip_address']}
 
+        if config.is_ovn_distributed_floating_ip():
+            port = self._plugin.get_port(
+                context, fip_db['floating_port_id'])
+            columns['logical_port'] = floatingip['port_id']
+            ext_ids[ovn_const.OVN_FIP_EXT_MAC_KEY] = port['mac_address']
+            if self._nb_idl.lsp_get_up(floatingip['port_id']).execute():
+                columns['external_mac'] = port['mac_address']
+
         # TODO(dalvarez): remove this check once the minimum OVS required
         # version contains the column (when OVS 2.8.2 is released).
         if self._nb_idl.is_col_present('NAT', 'external_ids'):
             columns['external_ids'] = ext_ids
 
-        if config.is_ovn_distributed_floating_ip():
-            port = self._plugin.get_port(
-                context, fip_db['floating_port_id'])
-            columns['external_mac'] = port['mac_address']
-            columns['logical_port'] = floatingip['port_id']
         commands.append(func(*nat_rule_args, **columns))
         self._transaction(commands, txn=txn)
 
