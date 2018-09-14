@@ -1179,6 +1179,7 @@ class OVNClient(object):
         check_rev_cmd = self._nb_idl.check_revision_number(
             lrp_name, port, ovn_const.TYPE_ROUTER_PORTS)
         with self._nb_idl.transaction(check_error=True) as txn:
+            txn.add(check_rev_cmd)
             self._update_lrouter_port(port, if_exists=if_exists, txn=txn)
 
         if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
