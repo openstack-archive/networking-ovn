@@ -104,3 +104,9 @@
       devstack_localrc:
         OVN_BRANCH: branch-2.10
         USE_PYTHON3: False
+
+- job:
+    name: networking-ovn-tempest-dsvm-ovs-master-fedora
+    description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
+    parent: networking-ovn-tempest-dsvm-ovs-master
+    nodeset: fedora-latest
