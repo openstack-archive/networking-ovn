@@ -1249,6 +1249,13 @@ class OvnProviderDriver(driver_base.ProviderDriver):
     # Member
     def member_create(self, member):
         admin_state_up = member.admin_state_up
+        if isinstance(member.subnet_id, o_datamodels.UnsetType):
+            msg = _('Subnet is required for Member creation'
+                    ' with OVN Provider Driver')
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+
         if isinstance(admin_state_up, o_datamodels.UnsetType):
             admin_state_up = True
         request_info = {'id': member.member_id,

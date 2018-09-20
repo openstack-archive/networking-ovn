@@ -97,7 +97,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         m_member.member_id = uuidutils.generate_uuid()
         m_member.pool_id = pool_id
-        m_member.subnet_id = subnet_id
+        if subnet_id:
+            m_member.subnet_id = subnet_id
         m_member.address = address
         m_member.admin_state_up = admin_state_up
         return m_member
@@ -697,8 +698,14 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         subnet30 = net30_info[1]
         self._create_member_and_validate(lb_data, pool_id, subnet30, net30,
                                          '30.0.0.6')
-
         self._delete_member_and_validate(lb_data, pool_id, net20, '20.0.0.6')
+
+        # Test creating Member without subnet
+        m_member = self._create_member_model(pool_id,
+                                             None,
+                                             '30.0.0.7', 80)
+        self.assertRaises(o_exceptions.UnsupportedOptionError,
+                          self.ovn_driver.member_create, m_member)
 
         # Deleting the pool should also delete the members.
         self._delete_pool_and_validate(lb_data, "p1")
