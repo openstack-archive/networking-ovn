@@ -1,6 +1,6 @@
 - hosts: all
-  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-master-python3 from
-    old job gate-tempest-dsvm-networking-ovn-ovs-master-python3-nv
+  name: Autoconverted job legacy-tempest-dsvm-networking-ovn-ovs-release-python2
+    from old job gate-tempest-dsvm-networking-ovn-ovs-release
   tasks:
 
     - name: Ensure legacy workspace directory
@@ -32,6 +32,12 @@
           [[local|localrc]]
           enable_plugin networking-ovn git://git.openstack.org/openstack/networking-ovn
           enable_plugin neutron-tempest-plugin git://git.openstack.org/openstack/neutron-tempest-plugin
+          enable_plugin octavia git://git.openstack.org/openstack/octavia
+          enable_service ovn-octavia
+          enable_service o-api
+          enable_service o-hk
+          OVN_DBS_LOG_LEVEL="dbg"
+          USE_PYTHON3=False
 
           EOF
         executable: /bin/bash
@@ -43,8 +49,6 @@
           set -e
           set -x
           export PYTHONUNBUFFERED=true
-          # Enable PYTHON 3
-          export DEVSTACK_GATE_USE_PYTHON3=True
           export DEVSTACK_GATE_NEUTRON=1
           export DEVSTACK_GATE_TEMPEST=1
           export DEVSTACK_GATE_TEMPEST_ALL_PLUGINS=1
@@ -55,7 +59,7 @@
           # Because we are testing a non standard project, add
           # our project repository. This makes zuul do the right
           # reference magic for testing changes.
-          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin $PROJECTS"
+          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin openstack/octavia $PROJECTS"
 
           # Keep localrc to be able to set some vars in pre_test_hook
           export KEEP_LOCALRC=1
@@ -74,7 +78,7 @@
           }
           export -f post_test_hook
 
-          export DEVSTACK_GATE_SETTINGS="/opt/stack/new/networking-ovn/devstack/devstackgaterc master"
+          export DEVSTACK_GATE_SETTINGS="/opt/stack/new/networking-ovn/devstack/devstackgaterc latest-release"
 
           cp devstack-gate/devstack-vm-gate-wrap.sh ./safe-devstack-vm-gate-wrap.sh
           ./safe-devstack-vm-gate-wrap.sh

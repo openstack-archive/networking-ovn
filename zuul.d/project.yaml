@@ -11,7 +11,7 @@
         - networking-ovn-tempest-dsvm-ovs-master:
             voting: false
         - networking-ovn-tempest-dsvm-ovs-release
-        - networking-ovn-tempest-dsvm-ovs-release-python3
+        - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
@@ -38,7 +38,7 @@
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
-        - networking-ovn-tempest-dsvm-ovs-release-python3
+        - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
@@ -47,8 +47,6 @@
         - openstack-tox-lower-constraints
     experimental:
       jobs:
-        - networking-ovn-tempest-dsvm-ovs-master-python3:
-            voting: false
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
             branches: ^(?!stable/newton).*$
