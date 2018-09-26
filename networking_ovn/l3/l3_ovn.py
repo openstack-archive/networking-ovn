@@ -349,7 +349,7 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW],
             'fixed_ips': {'subnet_id': [orig['id']]},
         })
-        router_ids = set([port['device_id'] for port in gw_ports])
+        router_ids = {port['device_id'] for port in gw_ports}
         remove = [{'destination': '0.0.0.0/0', 'nexthop': orig_gw_ip}
                   ] if orig_gw_ip else []
         add = [{'destination': '0.0.0.0/0', 'nexthop': current_gw_ip}

@@ -53,7 +53,13 @@ disable=
  too-many-locals,
  too-many-public-methods,
  too-many-return-statements,
- too-many-statements
+ too-many-statements,
+ inconsistent-return-statements,
+ useless-object-inheritance,
+ too-many-nested-blocks,
+ too-many-boolean-expressions,
+ not-callable
+
 
 [BASIC]
 # Variable names can be 1 to 31 characters long, with lowercase and underscores

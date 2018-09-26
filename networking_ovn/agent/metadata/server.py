@@ -25,7 +25,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import encodeutils
 import six
-import six.moves.urllib.parse as urlparse
+from six.moves import urllib
 import webob
 
 from networking_ovn._i18n import _
@@ -100,7 +100,7 @@ class MetadataProxyHandler(object):
                                     self.conf.nova_metadata_port)
         LOG.debug('Request to Nova at %s', nova_host_port)
         LOG.debug(headers)
-        url = urlparse.urlunsplit((
+        url = urllib.parse.urlunsplit((
             self.conf.nova_metadata_protocol,
             nova_host_port,
             req.path_info,

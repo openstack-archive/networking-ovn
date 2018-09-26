@@ -102,7 +102,8 @@ pycparser==2.18
 pyflakes==0.8.1
 Pygments==2.2.0
 pyinotify==0.9.6
-pylint==1.4.5
+pylint==1.9.3;python_version=='2.7'
+pylint==2.1.1;python_version>='3.0'
 pyOpenSSL==17.1.0
 pyparsing==2.1.0
 pyperclip==1.5.27

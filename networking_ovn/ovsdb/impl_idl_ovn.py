@@ -797,7 +797,7 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def set_port_cidrs(self, name, cidrs):
         # TODO(twilson) add if_exists to db commands
         return self.db_set('Port_Binding', name, 'external_ids',
-                           {'neutron-port-cidrs': cidrs}, if_exists=True)
+                           {'neutron-port-cidrs': cidrs})
 
     def get_ports_on_chassis(self, chassis):
         # TODO(twilson) Some day it would be nice to stop passing names around
