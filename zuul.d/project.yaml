@@ -25,8 +25,7 @@
         # If you need any support to debug these jobs in case of
         # failures, please reach us on #tripleo IRC channel.
         - tripleo-ci-centos-7-scenario007-multinode-oooq
-        - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
-            voting: false
+        - tripleo-ci-centos-7-scenario007-multinode-oooq-container
         - openstack-tox-lower-constraints
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
@@ -44,6 +43,7 @@
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
+        - tripleo-ci-centos-7-scenario007-multinode-oooq-container
         - openstack-tox-lower-constraints
     experimental:
       jobs:
