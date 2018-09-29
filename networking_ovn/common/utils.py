@@ -385,3 +385,8 @@ def get_method_class(method):
     if not inspect.ismethod(method):
         return
     return method.__self__.__class__
+
+
+def ovn_metadata_name(id_):
+    """Return the OVN metadata name based on an id."""
+    return 'metadata-%s' % id_

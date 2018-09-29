@@ -23,14 +23,14 @@ class _AgentStats(object):
     def __init__(self):
         self._agents = {}
 
-    def add_stat(self, uuid, nb_cfg, updated_at=None):
-        self._agents[uuid] = Stats(nb_cfg, updated_at or timeutils.utcnow())
+    def add_stat(self, id_, nb_cfg, updated_at=None):
+        self._agents[id_] = Stats(nb_cfg, updated_at or timeutils.utcnow())
 
-    def get_stat(self, uuid):
-        return self._agents[uuid]
+    def get_stat(self, id_):
+        return self._agents[id_]
 
-    def del_agent(self, uuid):
-        del self._agents[uuid]
+    def del_agent(self, id_):
+        self._agents.pop(id_, None)
 
 
 AgentStats = _AgentStats()
