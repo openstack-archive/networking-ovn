@@ -13,6 +13,7 @@
 #    under the License.
 
 import atexit
+import copy
 import threading
 
 from six.moves import queue as Queue
@@ -583,7 +584,7 @@ class OvnProviderHelper(object):
             lb_enabled = loadbalancer['admin_state_up']
 
             ovn_lb = self._find_ovn_lb(loadbalancer['id'])
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             if ovn_lb.external_ids['enabled'] != str(lb_enabled):
                 commands = []
                 enable_info = {'enabled': str(lb_enabled)}
@@ -615,7 +616,7 @@ class OvnProviderHelper(object):
             vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
             vip += ':' + str(listener['protocol_port'])
 
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             listener_key = self._get_listener_key(
                 listener['id'], is_enabled=listener['admin_state_up'])
 
@@ -662,7 +663,7 @@ class OvnProviderHelper(object):
             ovn_lb = self._find_ovn_lb(listener['loadbalancer_id'])
             vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
             vip += ':' + str(listener['protocol_port'])
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             listener_key = self._get_listener_key(listener['id'])
 
             if listener_key in external_ids:
@@ -712,7 +713,7 @@ class OvnProviderHelper(object):
             l_key_when_disabled = self._get_listener_key(
                 listener['id'], is_enabled=False)
 
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
 
             if 'admin_state_up' not in listener and (
                     'default_pool_id' not in listener):
@@ -787,20 +788,18 @@ class OvnProviderHelper(object):
     def pool_create(self, pool):
         try:
             ovn_lb = self._find_ovn_lb(pool['loadbalancer_id'])
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             pool_key = self._get_pool_key(pool['id'],
                                           is_enabled=pool['admin_state_up'])
             external_ids[pool_key] = ''
-
             if pool['listener_id']:
                 listener_key = self._get_listener_key(pool['listener_id'])
-                if listener_key in external_ids:
-                    external_ids[listener_key] = self._get_pool_key(pool['id'])
-
-            ovn_lb = self.ovn_nbdb_api.db_add(
+                if listener_key in ovn_lb.external_ids:
+                    external_ids[listener_key] = str(
+                        external_ids[listener_key]) + str(pool_key)
+            self.ovn_nbdb_api.db_set(
                 'Load_Balancer', ovn_lb.uuid,
-                'external_ids', external_ids).execute(check_error=True)
-
+                ('external_ids', external_ids)).execute(check_error=True)
             operating_status = constants.ONLINE
             if not pool.get('admin_state_up', True):
                 operating_status = constants.OFFLINE
@@ -813,7 +812,7 @@ class OvnProviderHelper(object):
                                    "provisioning_status": constants.ACTIVE}]}
             if pool['listener_id']:
                 listener_status = [{'id': pool['listener_id'],
-                                   'provisioning_status': constants.ACTIVE}]
+                                    'provisioning_status': constants.ACTIVE}]
                 status['listeners'] = listener_status
         except Exception:
             LOG.exception('Exception during pool create')
@@ -839,10 +838,21 @@ class OvnProviderHelper(object):
                     self.ovn_nbdb_api.db_remove('Load_Balancer', ovn_lb.uuid,
                                                 'external_ids', (pool_key))
                 )
-                external_ids = dict(ovn_lb.external_ids)
+                external_ids = copy.deepcopy(ovn_lb.external_ids)
                 del external_ids[pool_key]
                 commands.extend(
                     self._refresh_lb_vips(ovn_lb.uuid, external_ids))
+            # Remove Pool from Listener if it is associated
+            listener_id = None
+            for key, value in ovn_lb.external_ids.items():
+                if key.startswith(
+                    LB_EXT_IDS_LISTENER_PREFIX) and pool_key in value:
+                    external_ids[key] = value.split(':')[0] + ':'
+                    commands.append(
+                        self.ovn_nbdb_api.db_set(
+                            'Load_Balancer', ovn_lb.uuid,
+                            ('external_ids', external_ids)))
+                    listener_id = key.split('_')[1]
 
             pool_key_when_disabled = self._get_pool_key(pool['id'],
                                                         is_enabled=False)
@@ -860,6 +870,10 @@ class OvnProviderHelper(object):
                            "provisioning_status": constants.DELETED}],
                 'loadbalancers': [{"id": pool['loadbalancer_id'],
                                    "provisioning_status": constants.ACTIVE}]}
+            if listener_id:
+                status['listeners'] = [{
+                    'id': listener_id,
+                    'provisioning_status': constants.ACTIVE}]
         except Exception as e:
             LOG.exception('Exception during pool delete')
             print("NUMS : exception in pool_delete : " + str(e))
@@ -887,7 +901,7 @@ class OvnProviderHelper(object):
             p_key_when_disabled = self._get_pool_key(pool['id'],
                                                      is_enabled=False)
 
-            external_ids = dict(ovn_lb.external_ids)
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             p_key_to_remove = None
             p_key_to_add = {}
             if pool['admin_state_up']:
@@ -945,7 +959,7 @@ class OvnProviderHelper(object):
         return status
 
     def _add_member(self, member, ovn_lb, pool_key):
-        external_ids = dict(ovn_lb.external_ids)
+        external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key]
         member_info = member['address'] + ":" + str(
             member['protocol_port'])
@@ -1010,7 +1024,7 @@ class OvnProviderHelper(object):
         return status
 
     def _remove_member(self, member, ovn_lb, pool_key):
-        external_ids = dict(ovn_lb.external_ids)
+        external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key].split(",")
         member_info = member['address'] + ":" + str(
             member['protocol_port'])
@@ -1184,7 +1198,6 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def pool_update(self, old_pool, new_pool):
-        LOG.info("SIDD : OVN pool_update dude entered")
         request_info = {'id': new_pool.pool_id,
                         'loadbalancer_id': old_pool.loadbalancer_id}
 
