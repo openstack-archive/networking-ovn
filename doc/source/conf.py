@@ -91,10 +91,11 @@ _config_generator_config_files = [
 ]
 
 def _get_config_generator_config_definition(config_file):
-    config_file_path = '../../etc/oslo-config-generator/%s' % conf
+    config_file_path = '../../etc/oslo-config-generator/%s' % config_file
     # oslo_config.sphinxconfiggen appends '.conf.sample' to the filename,
     # strip file extentension (.conf or .ini).
-    output_file_path = '_static/config_samples/%s' % conf.rsplit('.', 1)[0]
+    output_file_path = '_static/config_samples/%s' % config_file.rsplit('.',
+                                                                        1)[0]
     return (config_file_path, output_file_path)
 
 
