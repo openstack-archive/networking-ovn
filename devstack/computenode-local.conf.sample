@@ -75,4 +75,6 @@ VNCSERVER_PROXYCLIENT_ADDRESS=$VNCSERVER_LISTEN
 # external connectivity, then set ENABLE_CHASSIS_AS_GW to True.
 # Then devstack will set ovn-cms-options with enable-chassis-as-gw
 # in Open_vSwitch table's external_ids column.
+# If this option is not set on any chassis, all the of them with bridge
+# mappings configured will be eligible to host a gateway.
 #ENABLE_CHASSIS_AS_GW=False
