@@ -477,6 +477,21 @@ class OvnProviderHelper(object):
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb_uuid,
                                          ('vips', vip_ips))]
 
+    def _is_listener_in_lb(self, lb):
+        for key in list(lb.external_ids):
+            if key.startswith(LB_EXT_IDS_LISTENER_PREFIX):
+                return True
+        return False
+
+    def check_lb_protocol(self, lb_id, listener_protocol):
+        ovn_lb = self._find_ovn_lb(lb_id)
+        if not ovn_lb:
+            return False
+        elif not self._is_listener_in_lb(ovn_lb):
+            return True
+        else:
+            return str(listener_protocol).lower() in ovn_lb.protocol
+
     def lb_create(self, loadbalancer):
         try:
             # Get the port id of the vip and store it in the external_ids.
@@ -675,7 +690,12 @@ class OvnProviderHelper(object):
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
                                          ('external_ids', listener_info))
             )
-
+            if not self._is_listener_in_lb(ovn_lb):
+                commands.append(
+                    self.ovn_nbdb_api.db_set(
+                        'Load_Balancer', ovn_lb.uuid,
+                        ('protocol', str(listener['protocol']).lower()))
+                )
             commands.extend(
                 self._refresh_lb_vips(ovn_lb.uuid, external_ids)
             )
@@ -1165,7 +1185,8 @@ class OvnProviderHelper(object):
 
 class OvnProviderDriver(driver_base.ProviderDriver):
     def __init__(self):
-        self.ovn_native_protocols = [constants.PROTOCOL_TCP]
+        self.ovn_native_protocols = [constants.PROTOCOL_TCP,
+                                     constants.PROTOCOL_UDP]
         self._ovn_helper = OvnProviderHelper()
 
     def _check_for_supported_protocols(self, protocol):
@@ -1235,6 +1256,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def pool_update(self, old_pool, new_pool):
+        self._check_for_supported_protocols(new_pool.protocol)
         request_info = {'id': new_pool.pool_id,
                         'loadbalancer_id': old_pool.loadbalancer_id}
 
@@ -1245,12 +1267,25 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     # Listener
-    def listener_create(self, listener):
+    def _check_listener_protocol(self, listener):
         self._check_for_supported_protocols(listener.protocol)
+        if not self._ovn_helper.check_lb_protocol(
+            listener.loadbalancer_id, listener.protocol):
+            msg = (_('The loadbalancer %(lb)s does not support %(proto)s '
+                     'protocol') % {
+                'lb': listener.loadbalancer_id,
+                'proto': listener.protocol})
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+
+    def listener_create(self, listener):
+        self._check_listener_protocol(listener)
         admin_state_up = listener.admin_state_up
         if isinstance(admin_state_up, o_datamodels.UnsetType):
             admin_state_up = True
         request_info = {'id': listener.listener_id,
+                        'protocol': listener.protocol,
                         'loadbalancer_id': listener.loadbalancer_id,
                         'protocol_port': listener.protocol_port,
                         'default_pool_id': listener.default_pool_id,
@@ -1268,6 +1303,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def listener_update(self, old_listener, new_listener):
+        self._check_listener_protocol(new_listener)
         request_info = {'id': new_listener.listener_id,
                         'loadbalancer_id': old_listener.loadbalancer_id,
                         'protocol_port': old_listener.protocol_port}
