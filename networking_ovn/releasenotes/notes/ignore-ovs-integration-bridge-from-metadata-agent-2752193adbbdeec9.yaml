@@ -1,0 +1,12 @@
+---
+fixes:
+  - |
+    The configuration option ``ovs_integration_bridge`` used by networking-ovn
+    metadata agent can only lead to problems as the bridge used by
+    ``ovn-controller`` to install the flows is stored in OVSDB.
+    The metadata agent will now use OVSDB instead of the configuration option
+    to plug its ports, as a mismatch between both will break metadata.
+    There is no real use case for this option to exist and systems currently
+    using it will *not* be impacted by this change.
+    For more information see bug `1799216
+    <https://bugs.launchpad.net/networking-ovn/+bug/1799216>`_.

@@ -21,6 +21,7 @@ from neutron.common import utils
 from neutron_lib import constants as n_const
 from oslo_concurrency import lockutils
 from oslo_log import log
+from oslo_utils import excutils
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import vlog
@@ -153,6 +154,7 @@ class MetadataAgent(object):
         # Open the connection to OVS database
         self.ovs_idl = ovsdb.MetadataAgentOvsIdl().start()
         self.chassis = self._get_own_chassis_name()
+        self.ovn_bridge = self._get_ovn_bridge()
 
         # Open the connection to OVN SB database.
         self.sb_idl = ovsdb.MetadataAgentOvnSbIdl(
@@ -184,6 +186,22 @@ class MetadataAgent(object):
         ext_ids = self.ovs_idl.db_get(
             'Open_vSwitch', '.', 'external_ids').execute()
         return ext_ids['system-id']
+
+    def _get_ovn_bridge(self):
+        """Return the external_ids:ovn-bridge value of the Open_vSwitch table.
+
+        This is the OVS bridge used to plug the metadata ports to.
+        If the key doesn't exist, this method will return 'br-int' as default.
+        """
+        ext_ids = self.ovs_idl.db_get(
+            'Open_vSwitch', '.', 'external_ids').execute()
+        try:
+            ovn_bridge = ext_ids['ovn-bridge']
+        except KeyError:
+            LOG.warning("Can't read ovn-bridge external-id from OVSDB. Using "
+                        "br-int instead.")
+            return 'br-int'
+        return ovn_bridge
 
     @_sync_lock
     def sync(self):
@@ -234,8 +252,7 @@ class MetadataAgent(object):
             self._process_monitor, datapath, self.conf, namespace)
 
         veth_name = self._get_veth_name(datapath)
-        self.ovs_idl.del_port(
-            veth_name[0], bridge=self.conf.ovs_integration_bridge).execute()
+        self.ovs_idl.del_port(veth_name[0]).execute()
         if ip_lib.device_exists(veth_name[0]):
             ip_lib.IPWrapper().del_veth(veth_name[0])
 
@@ -342,9 +359,26 @@ class MetadataAgent(object):
             if utils.get_ip_version(ipaddr) == 4:
                 ip2.addr.add(ipaddr)
 
+        # Check that this port is not attached to any other OVS bridge. This
+        # can happen when the OVN bridge changes (for example, during a
+        # migration from ML2/OVS).
+        ovs_bridges = set(self.ovs_idl.list_br().execute())
+        try:
+            ovs_bridges.remove(self.ovn_bridge)
+        except KeyError:
+            with excutils.save_and_reraise_exception():
+                LOG.exception("Configured OVN bridge %s cannot be found in "
+                              "the system.", self.ovn_bridge)
+
+        if ovs_bridges:
+            with self.ovs_idl.transaction() as txn:
+                for br in ovs_bridges:
+                    txn.add(self.ovs_idl.del_port(veth_name[0], bridge=br,
+                                                  if_exists=True))
+
         # Configure the OVS port and add external_ids:iface-id so that it
         # can be tracked by OVN.
-        self.ovs_idl.add_port(self.conf.ovs_integration_bridge,
+        self.ovs_idl.add_port(self.ovn_bridge,
                               veth_name[0]).execute()
         self.ovs_idl.db_set(
             'Interface', veth_name[0],
