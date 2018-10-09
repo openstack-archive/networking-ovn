@@ -1386,6 +1386,20 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             chassis = self._add_chassis_agent(4, agent_type, updated_at)
             self.assertFalse(self.mech_driver.agent_alive(chassis, agent_type))
 
+    def test_agent_not_found(self):
+        agent_type = ovn_const.OVN_CONTROLLER_AGENT
+        chassis = self._add_chassis_agent(1, agent_type)
+        self.mech_driver._nb_ovn.nb_global.nb_cfg = 1
+
+        # Assert that the agent has been registered and is alive
+        self.assertTrue(self.mech_driver.agent_alive(chassis, agent_type))
+        self.mech_driver._nb_ovn.nb_global.nb_cfg = 2
+        # Delete the agent from the stats tracker
+        stats.AgentStats.del_agent(chassis.uuid)
+        # Assert that subsequently calls checking the status of the agent
+        # shows it as "dead" instead of blowing up with an exception
+        self.assertFalse(self.mech_driver.agent_alive(chassis, agent_type))
+
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['logger', 'ovn']

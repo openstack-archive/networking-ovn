@@ -42,6 +42,7 @@ from networking_ovn.agent import stats
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import maintenance
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
@@ -873,7 +874,12 @@ class OVNMechanismDriver(api.MechanismDriver):
         if self._nb_ovn.nb_global.nb_cfg == nb_cfg:
             return True
         now = timeutils.utcnow()
-        updated_at = stats.AgentStats.get_stat(id_).updated_at
+
+        try:
+            updated_at = stats.AgentStats.get_stat(id_).updated_at
+        except ovn_exc.AgentStatsNotFound:
+            return False
+
         if (now - updated_at).total_seconds() < cfg.CONF.agent_down_time:
             return True
         return False
