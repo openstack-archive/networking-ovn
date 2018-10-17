@@ -203,8 +203,12 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         n_utils.wait_until_true(
             lambda: update_loadbalancer_status.call_count == call_count,
             timeout=10)
-        self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
-            expected_calls, any_order=True)
+        try:
+            self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
+                expected_calls, any_order=True)
+        except Exception:
+            raise Exception(
+                self._o_driver_lib.update_loadbalancer_status.mock_calls)
         expected_lbs = self._make_expected_lbs(lb_data)
         self._validate_loadbalancers(expected_lbs)
 
@@ -267,14 +271,34 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         self._wait_for_status_and_validate(lb_data, [expected_status])
 
-    def _delete_load_balancer_and_validate(self, lb_data):
+    def _delete_load_balancer_and_validate(self, lb_data, cascade=False):
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
-        self.ovn_driver.loadbalancer_delete(lb_data['model'])
+        self.ovn_driver.loadbalancer_delete(lb_data['model'], cascade)
         expected_status = {
             'loadbalancers': [{"id": lb_data['model'].loadbalancer_id,
                                "provisioning_status": "DELETED",
                                "operating_status": "OFFLINE"}]
         }
+        if cascade:
+            expected_status['pools'] = []
+            expected_status['members'] = []
+            expected_status['listeners'] = []
+            for pool in lb_data['pools']:
+                expected_status['pools'].append({
+                    'id': pool.pool_id,
+                    'provisioning_status': 'DELETED'})
+                for member in pool.members:
+                    expected_status['members'].append({
+                        "id": member.member_id,
+                        "provisioning_status": "DELETED"})
+            for listener in lb_data['listeners']:
+                expected_status['listeners'].append({
+                    "id": listener.listener_id,
+                    "provisioning_status": "DELETED",
+                    "operating_status": "OFFLINE"})
+            expected_status = {
+                key: value for key, value in expected_status.items() if value}
+
         lb = lb_data['model']
         del lb_data['model']
         self._wait_for_status_and_validate(lb_data, [expected_status])
@@ -300,7 +324,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             for m in p.members:
                 if not m.admin_state_up:
                     continue
-                m_info = m.address + ":" + str(m.protocol_port)
+                m_info = 'member_' + m.member_id + '_' + m.address
+                m_info += ":" + str(m.protocol_port)
                 if p_members:
                     p_members += "," + m_info
                 else:
@@ -328,8 +353,10 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                 vip_k = lb_data['model'].vip_address + ":" + str(
                     l.protocol_port)
                 if not isinstance(l.default_pool_id,
-                                  octavia_data_model.UnsetType):
-                    expected_vips[vip_k] = pool_info[l.default_pool_id]
+                                  octavia_data_model.UnsetType) and pool_info[
+                                      l.default_pool_id]:
+                    expected_vips[vip_k] = self._extract_member_info(
+                        pool_info[l.default_pool_id])
             else:
                 listener_k += ':D'
             external_ids[listener_k] = str(l.protocol_port) + ":"
@@ -345,6 +372,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                          'vips': expected_vips,
                          'external_ids': external_ids}]
         return expected_lbs
+
+    def _extract_member_info(self, member):
+        mem_info = ''
+        if member:
+            for item in member.split(','):
+                mem_info += item.split('_')[2] + ","
+        return mem_info[:-1]
 
     def _create_pool_and_validate(self, lb_data, pool_name,
                                   listener_id=None):
@@ -726,6 +760,31 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         self._delete_listener_and_validate(lb_data, 82)
         self._delete_listener_and_validate(lb_data, 80)
+
+    def _test_cascade_delete(self, pool=True, listener=True, member=True):
+        lb_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'vip_network',
+             'cidr': '10.0.0.0/24'})
+        if pool:
+            self._create_pool_and_validate(lb_data, "p1")
+            pool_id = lb_data['pools'][0].pool_id
+            if member:
+                self._create_member_and_validate(
+                    lb_data, pool_id, lb_data['vip_net_info'][1],
+                    lb_data['vip_net_info'][0], '10.0.0.10')
+            if listener:
+                self._create_listener_and_validate(lb_data, pool_id, 80)
+
+        self._delete_load_balancer_and_validate(lb_data, cascade=True)
+
+    def test_lb_listener_pools_cascade(self):
+        self._test_cascade_delete(member=False)
+
+    def test_lb_pool_cascade(self):
+        self._test_cascade_delete(member=False, listener=False)
+
+    def test_cascade_delete(self):
+        self._test_cascade_delete()
 
     def test_for_unsupported_options(self):
         lb_data = self._create_load_balancer_and_validate(

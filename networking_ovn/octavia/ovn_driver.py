@@ -116,7 +116,8 @@ _uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
 external_ids  : {
     lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
     ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 2}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"="10.0.0.107:80",
+    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"=
+    "member_579c0c9f-d37d-4ba5-beed-cabf6331032d_10.0.0.107:80",
     neutron:vip="10.0.0.10",
     neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
 name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
@@ -134,7 +135,9 @@ external_ids  : {
     lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
     ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 2,
               \"neutron-12c42705-3e15-4e2d-8fc0-070d1b80b9ef\": 1}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"="10.0.0.107:80,20.0.0.107:80",
+    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"=
+    "member_579c0c9f-d37d-4ba5-beed-cabf6331032d_10.0.0.107:80,
+     member_d100f2ed-9b55-4083-be78-7f203d095561_20.0.0.107:80",
     neutron:vip="10.0.0.10",
     neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
 name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
@@ -185,6 +188,7 @@ LB_EXT_IDS_LS_REFS_KEY = 'ls_refs'
 LB_EXT_IDS_LR_REF_KEY = 'lr_ref'
 LB_EXT_IDS_POOL_PREFIX = 'pool_'
 LB_EXT_IDS_LISTENER_PREFIX = 'listener_'
+LB_EXT_IDS_MEMBER_PREFIX = 'member_'
 LB_EXT_IDS_VIP_KEY = 'neutron:vip'
 LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
@@ -402,6 +406,18 @@ class OvnProviderHelper(object):
             pool_key += ':' + DISABLED_RESOURCE_SUFFIX
         return pool_key
 
+    def _extract_member_info(self, member):
+        mem_info = ''
+        if member:
+            for mem in member.split(','):
+                mem_info += str(mem.split('_')[2]) + ','
+        return mem_info[:-1]  # Remove the last ','
+
+    def _get_member_key(self, member):
+        member_info = LB_EXT_IDS_MEMBER_PREFIX + member['id'] + "_"
+        member_info += member['address'] + ":" + str(member['protocol_port'])
+        return member_info
+
     def _make_listener_key_value(self, listener_port, pool_id):
         return str(listener_port) + ':' + pool_id
 
@@ -449,7 +465,7 @@ class OvnProviderHelper(object):
             if pool_id not in lb_external_ids or not lb_external_ids[pool_id]:
                 continue
 
-            ips = lb_external_ids[pool_id]
+            ips = self._extract_member_info(lb_external_ids[pool_id])
             vip_ips[lb_vip + ':' + vip_port] = ips
 
         return vip_ips
@@ -527,6 +543,34 @@ class OvnProviderHelper(object):
             if not ovn_lb:
                 return status
 
+            if loadbalancer['cascade']:
+                status['members'] = []
+                status['pools'] = []
+                status['listeners'] = []
+                # Delete all pools
+                for key, value in ovn_lb.external_ids.items():
+                    if key.startswith(LB_EXT_IDS_POOL_PREFIX):
+                        pool_id = key.split('_')[1]
+                        # Delete all members in the pool
+                        if value and len(value.split(',')) > 0:
+                            for mem_info in value.split(','):
+                                status['members'].append({
+                                    'id': mem_info.split('_')[1],
+                                    'provisioning_status': constants.DELETED})
+                        status['pools'].append(
+                            {"id": pool_id,
+                             "provisioning_status": constants.DELETED})
+
+                    if key.startswith(LB_EXT_IDS_LISTENER_PREFIX):
+                        status['listeners'].append({
+                            'id': key.split('_')[1],
+                            'provisioning_status': constants.DELETED,
+                            'operating_status': constants.OFFLINE})
+                # Clear the status dict of any key having [] value
+                # Python 3.6 doesnt allow deleting an element in a
+                # dict while iterating over it. So first get a list of keys.
+                # https://cito.github.io/blog/never-iterate-a-changing-dict/
+                status = {key: value for key, value in status.items() if value}
             ls_refs = ovn_lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY, {})
             if ls_refs:
                 try:
@@ -613,8 +657,6 @@ class OvnProviderHelper(object):
     def listener_create(self, listener):
         try:
             ovn_lb = self._find_ovn_lb(listener['loadbalancer_id'])
-            vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
-            vip += ':' + str(listener['protocol_port'])
 
             external_ids = copy.deepcopy(ovn_lb.external_ids)
             listener_key = self._get_listener_key(
@@ -661,8 +703,6 @@ class OvnProviderHelper(object):
     def listener_delete(self, listener):
         try:
             ovn_lb = self._find_ovn_lb(listener['loadbalancer_id'])
-            vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
-            vip += ':' + str(listener['protocol_port'])
             external_ids = copy.deepcopy(ovn_lb.external_ids)
             listener_key = self._get_listener_key(listener['id'])
 
@@ -874,9 +914,8 @@ class OvnProviderHelper(object):
                 status['listeners'] = [{
                     'id': listener_id,
                     'provisioning_status': constants.ACTIVE}]
-        except Exception as e:
+        except Exception:
             LOG.exception('Exception during pool delete')
-            print("NUMS : exception in pool_delete : " + str(e))
             status = {
                 'pools': [{"id": pool['id'],
                            "provisioning_status": constants.ERROR}],
@@ -961,8 +1000,7 @@ class OvnProviderHelper(object):
     def _add_member(self, member, ovn_lb, pool_key):
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key]
-        member_info = member['address'] + ":" + str(
-            member['protocol_port'])
+        member_info = self._get_member_key(member)
         if member_info in existing_members.split(','):
             # member already present. No need to do anything.
             return
@@ -1026,8 +1064,7 @@ class OvnProviderHelper(object):
     def _remove_member(self, member, ovn_lb, pool_key):
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key].split(",")
-        member_info = member['address'] + ":" + str(
-            member['protocol_port'])
+        member_info = self._get_member_key(member)
         if member_info in existing_members:
             commands = []
             existing_members.remove(member_info)
