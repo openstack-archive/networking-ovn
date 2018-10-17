@@ -154,39 +154,6 @@ def add_acls_for_drop_port_group(pg_name):
     return acl_list
 
 
-def add_acls_for_subnet_port_group(ovn, pg_name, subnet, ovn_dhcp=True):
-    # Allow DHCP requests for OVN native DHCP service, while responses are
-    # allowed in ovn-northd.
-    # Allow both DHCP requests and responses to pass for other DHCP services.
-    # We do this even if DHCP isn't enabled for the subnet
-    acl_list = []
-    if not ovn_dhcp:
-        acl = {"port_group": pg_name,
-               "priority": ovn_const.ACL_PRIORITY_ALLOW,
-               "action": ovn_const.ACL_ACTION_ALLOW,
-               "log": False,
-               "name": [],
-               "severity": [],
-               "direction": 'to-lport',
-               "match": ('outport == @%s && ip4 && ip4.src == %s && '
-                         'udp && udp.src == 67 && udp.dst == 68'
-                         ) % (pg_name, subnet['cidr'])}
-        acl_list.append(acl)
-    acl = {"port_group": pg_name,
-           "priority": ovn_const.ACL_PRIORITY_ALLOW,
-           "action": ovn_const.ACL_ACTION_ALLOW,
-           "log": False,
-           "name": [],
-           "severity": [],
-           "direction": 'from-lport',
-           "match": ('inport == @%s && ip4 && '
-                     'ip4.dst == {255.255.255.255, %s} && '
-                     'udp && udp.src == 68 && udp.dst == 67'
-                     ) % (pg_name, subnet['cidr'])}
-    acl_list.append(acl)
-    return acl_list
-
-
 def drop_all_ip_traffic_for_port(port):
     acl_list = []
     for direction, p in (('from-lport', 'inport'),
