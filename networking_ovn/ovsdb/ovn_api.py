@@ -428,6 +428,13 @@ class API(api.API):
         """
 
     @abc.abstractmethod
+    def get_port_groups(self):
+        """Gets all port groups in the OVN_Northbound DB
+
+        :returns: dictionary indexed by name, DB columns as values
+        """
+
+    @abc.abstractmethod
     def get_router_port_options(self, lsp_name):
         """Get options set for lsp of type router
 
