@@ -86,7 +86,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         LOG.debug("Starting OVN-Northbound DB sync process")
 
         ctx = context.get_admin_context()
-        self.migrate_to_port_groups(ctx)
 
         self.sync_address_sets(ctx)
         self.sync_networks_ports_and_dhcp_opts(ctx)
@@ -992,7 +991,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         # 3. Delete all existing Address Sets in NorthBound database which
         #    correspond to a Neutron Security Group.
         # 4. Delete all the ACLs in every Logical Switch (Neutron network).
-        if not self.ovn_api.is_port_groups_supported():
+
+        # If Port Groups are not supported or we've already migrated, return
+        if (not self.ovn_api.is_port_groups_supported() or
+                not self.ovn_api.get_address_sets()):
             return
 
         LOG.debug('Port Groups Migration task started')

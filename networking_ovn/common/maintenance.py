@@ -27,6 +27,7 @@ from oslo_utils import timeutils
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
+from networking_ovn import ovn_db_sync
 
 LOG = log.getLogger(__name__)
 
@@ -215,6 +216,33 @@ class DBInconsistenciesPeriodics(object):
             self._ovn_client.create_subnet(sn_db_obj, n_db_obj)
         else:
             self._ovn_client.update_subnet(sn_db_obj, n_db_obj)
+
+    # The migration will run just once per neutron-server instance. If the lock
+    # is held by some other neutron-server instance in the cloud, we'll attempt
+    # to perform the migration every 10 seconds until completed.
+    @periodics.periodic(spacing=10, run_immediately=True)
+    def migrate_to_port_groups(self):
+        """Perform the migration from Address Sets to Port Groups. """
+        # TODO(dalvarez): Remove this in U cycle when we're sure that all
+        # versions are running using Port Groups (and OVS >= 2.10).
+
+        # If Port Groups are not supported or we've already migrated, we don't
+        # need to attempt to migrate again.
+        if (not self._nb_idl.is_port_groups_supported() or
+                not self._nb_idl.get_address_sets()):
+            raise periodics.NeverAgain()
+
+        # Only the worker holding a valid lock within OVSDB will perform the
+        # migration.
+        if not self.has_lock:
+            return
+
+        admin_context = n_context.get_admin_context()
+        nb_sync = ovn_db_sync.OvnNbSynchronizer(
+            self._ovn_client._plugin, self._nb_idl, self._ovn_client._sb_idl,
+            None, None)
+        nb_sync.migrate_to_port_groups(admin_context)
+        raise periodics.NeverAgain()
 
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
