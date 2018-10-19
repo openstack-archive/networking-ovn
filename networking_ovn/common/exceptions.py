@@ -30,3 +30,7 @@ class UnknownResourceType(n_exc.NeutronException):
 
 class StandardAttributeIDNotFound(n_exc.NeutronException):
     message = _('Standard attribute ID not found for %(resource_uuid)s')
+
+
+class AgentStatsNotFound(n_exc.NeutronException):
+    _message = _('The stats for agent %(agent_id)s could not be found')
