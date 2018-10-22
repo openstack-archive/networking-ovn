@@ -13,8 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import threading
+
 import mock
 from oslo_config import fixture as fixture_config
+from ovsdbapp.backend.ovs_idl import event
+from ovsdbapp import event as ovsdb_event
 
 from networking_ovn.agent.metadata import agent
 from networking_ovn.agent.metadata import ovsdb
@@ -24,10 +28,37 @@ from networking_ovn.conf.agent.metadata import config as meta
 from networking_ovn.tests.functional import base
 
 
+class MetadataAgentHealthEvent(event.RowEvent):
+    event_name = 'MetadataAgentHealthEvent'
+    ONETIME = True
+
+    def __init__(self, chassis, sb_cfg, timeout=5):
+        self.chassis = chassis
+        self.sb_cfg = sb_cfg
+        self.event = threading.Event()
+        self.timeout = timeout
+        super(MetadataAgentHealthEvent, self).__init__(
+            (self.ROW_UPDATE,), 'Chassis', (('name', '=', self.chassis),))
+
+    def matches(self, event, row, old=None):
+        if not super(MetadataAgentHealthEvent, self).matches(event, row, old):
+            return False
+        return int(row.external_ids.get(
+            ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, 0)) >= self.sb_cfg
+
+    def run(self, event, row, old):
+        self.event.set()
+
+    def wait(self):
+        return self.event.wait(self.timeout)
+
+
 class TestMetadataAgent(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestMetadataAgent, self).setUp()
+        self.handler = ovsdb_event.RowEventHandler()
+        self.sb_api.idl.notify = self.handler.notify
         self._start_metadata_agent()
 
     def _start_metadata_agent(self):
@@ -78,13 +109,12 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         # and make ovn-controller copy it over to SB_Global. Upon this event,
         # Metadata agent will update the external_ids on its Chassis row to
         # signal that it's healthy.
+        row_event = MetadataAgentHealthEvent(self.chassis_name, 2)
+        self.handler.watch_event(row_event)
         self._make_network(self.fmt, 'n1', True)
 
-        chassis_row = self.sb_api.db_find(
-            'Chassis', ('name', '=', self.chassis_name)).execute(
-            check_error=True)[0]
-
-        # Assert that the metadata agent now populated the external_ids
-        # from the chassis with the nb_cfg
-        self.assertEqual(int(chassis_row['external_ids'][
-            ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY]), 2)
+        # If we do not time out waiting for the event, then we are assured
+        # that the metadata agent has populated the external_ids from the
+        # chassis with the nb_cfg, 2 revisions, one for the network transaction
+        # and another one for the port
+        self.assertTrue(row_event.wait())
