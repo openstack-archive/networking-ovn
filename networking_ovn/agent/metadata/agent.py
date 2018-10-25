@@ -21,6 +21,7 @@ from neutron.common import utils
 from neutron_lib import constants as n_const
 from oslo_concurrency import lockutils
 from oslo_log import log
+from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import vlog
 import six
@@ -120,6 +121,21 @@ class ChassisCreateEvent(row_event.RowEvent):
             self.agent.sync()
 
 
+class SbGlobalUpdateEvent(row_event.RowEvent):
+    """Row update event on SB_Global table."""
+
+    def __init__(self, metadata_agent):
+        self.agent = metadata_agent
+        table = 'SB_Global'
+        events = (self.ROW_UPDATE)
+        super(SbGlobalUpdateEvent, self).__init__(events, table, None)
+        self.event_name = 'SbGlobalUpdateEvent'
+
+    def run(self, event, row, old):
+        self.agent.sb_idl.update_metadata_health_status(
+            self.agent.chassis, row.nb_cfg).execute()
+
+
 class MetadataAgent(object):
 
     def __init__(self, conf):
@@ -130,7 +146,6 @@ class MetadataAgent(object):
             resource_type='metadata')
 
     def start(self):
-
         # Launch the server that will act as a proxy between the VM's and Nova.
         proxy = metadata_server.UnixDomainMetadataProxy(self.conf)
         proxy.run()
@@ -141,12 +156,24 @@ class MetadataAgent(object):
 
         # Open the connection to OVN SB database.
         self.sb_idl = ovsdb.MetadataAgentOvnSbIdl(
-            [PortBindingChassisEvent(self), ChassisCreateEvent(self)]).start()
+            [PortBindingChassisEvent(self), ChassisCreateEvent(self),
+                SbGlobalUpdateEvent(self)]).start()
 
         # Do the initial sync.
         self.sync()
 
+        # Register the agent with its corresponding Chassis
+        self._register_metadata_agent()
+
         proxy.wait()
+
+    def _register_metadata_agent(self):
+        # NOTE(lucasagomes): db_add() will not overwrite the UUID if
+        # it's already set.
+        ext_ids = {
+            ovn_const.OVN_AGENT_METADATA_ID_KEY: uuidutils.generate_uuid()}
+        self.sb_idl.db_add('Chassis', self.chassis, 'external_ids',
+                           ext_ids).execute(check_error=True)
 
     def _get_own_chassis_name(self):
         """Return the external_ids:system-id value of the Open_vSwitch table.
