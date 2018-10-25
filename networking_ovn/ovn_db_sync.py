@@ -88,6 +88,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         ctx = context.get_admin_context()
 
         self.sync_address_sets(ctx)
+        self.sync_port_groups(ctx)
         self.sync_networks_ports_and_dhcp_opts(ctx)
         self.sync_port_dns_records(ctx)
         self.sync_acls(ctx)
@@ -166,6 +167,74 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
     def get_address_sets(self):
         return self.ovn_api.get_address_sets()
 
+    def sync_port_groups(self, ctx):
+        """Sync Port Groups between neutron and NB.
+
+        @param ctx: neutron_lib.context
+        @type  ctx: object of type neutron_lib.context.Context
+        """
+        if not self.ovn_api.is_port_groups_supported():
+            return
+
+        neutron_sgs = {}
+        neutron_pgs = set()
+        with ctx.session.begin(subtransactions=True):
+            for sg in self.core_plugin.get_security_groups(ctx):
+                pg_name = utils.ovn_port_group_name(sg['id'])
+                neutron_pgs.add(pg_name)
+                neutron_sgs[pg_name] = sg['id']
+            neutron_pgs.add(const.OVN_DROP_PORT_GROUP_NAME)
+
+        ovn_pgs = set()
+        port_groups = self.ovn_api.db_list_rows('Port_Group').execute() or []
+        for pg in port_groups:
+            ovn_pgs.add(pg.name)
+
+        add_pgs = neutron_pgs.difference(ovn_pgs)
+        remove_pgs = ovn_pgs.difference(neutron_pgs)
+
+        LOG.debug('Port Groups added %d, removed %d',
+                  len(add_pgs), len(remove_pgs))
+
+        if self.mode == SYNC_MODE_REPAIR:
+            LOG.debug('Port-Group-SYNC: transaction started @ %s',
+                      str(datetime.now()))
+            if add_pgs:
+                db_ports = self.core_plugin.get_ports(ctx)
+                ovn_ports = set(p.name for p in
+                                self.ovn_api.lsp_list().execute())
+            with self.ovn_api.transaction(check_error=True) as txn:
+                pg = const.OVN_DROP_PORT_GROUP_NAME
+                # Process default drop port group first
+                if pg in add_pgs:
+                    txn.add(self.ovn_api.pg_add(name=pg, acls=[]))
+                    add_pgs.remove(pg)
+                    # Add ports to the drop port group. Only add those that
+                    # already exists in OVN. The rest will be added during the
+                    # ports sync operation later.
+                    for n_port in db_ports:
+                        if ((n_port['security_groups'] or
+                                n_port['port_security_enabled']) and
+                                n_port['id'] in ovn_ports):
+                            txn.add(self.ovn_api.pg_add_ports(
+                                pg, n_port['id']))
+
+                for pg in add_pgs:
+                    # If it's a security group PG, add the ext id
+                    ext_ids = {const.OVN_SG_EXT_ID_KEY: neutron_sgs[pg]}
+                    txn.add(self.ovn_api.pg_add(name=pg, acls=[],
+                                                external_ids=ext_ids))
+                    # Add the ports belonging to the SG to this port group
+                    for n_port in db_ports:
+                        if (neutron_sgs[pg] in n_port['security_groups'] and
+                                n_port['id'] in ovn_ports):
+                            txn.add(self.ovn_api.pg_add_ports(
+                                pg, n_port['id']))
+                for pg in remove_pgs:
+                    txn.add(self.ovn_api.pg_del(pg))
+            LOG.debug('Port-Group-SYNC: transaction finished @ %s',
+                      str(datetime.now()))
+
     def sync_address_sets(self, ctx):
         """Sync Address Sets between neutron and NB.
 
@@ -175,32 +244,39 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         """
         LOG.debug('Address-Set-SYNC: started @ %s' % str(datetime.now()))
 
-        neutron_sgs = {}
-        with ctx.session.begin(subtransactions=True):
-            db_sgs = self.core_plugin.get_security_groups(ctx)
-            db_ports = self.core_plugin.get_ports(ctx)
-
-        for sg in db_sgs:
-            for ip_version in ['ip4', 'ip6']:
-                name = utils.ovn_addrset_name(sg['id'], ip_version)
-                neutron_sgs[name] = {
-                    'name': name, 'addresses': [],
-                    'external_ids': {const.OVN_SG_EXT_ID_KEY: sg['id']}}
-
-        for port in db_ports:
-            sg_ids = utils.get_lsp_security_groups(port)
-            if port.get('fixed_ips') and sg_ids:
-                addresses = acl_utils.acl_port_ips(port)
-                for sg_id in sg_ids:
-                    for ip_version in addresses:
-                        name = utils.ovn_addrset_name(sg_id, ip_version)
-                        neutron_sgs[name]['addresses'].extend(
-                            addresses[ip_version])
-
+        sgnames_to_add = sgnames_to_delete = []
+        sgs_to_update = {}
         nb_sgs = self.get_address_sets()
 
-        sgnames_to_add, sgnames_to_delete, sgs_to_update =\
-            self.compute_address_set_difference(neutron_sgs, nb_sgs)
+        if self.ovn_api.is_port_groups_supported():
+            # If Port Groups are supported, we just need to delete all Address
+            # Sets from NB database.
+            sgnames_to_delete = nb_sgs.keys()
+        else:
+            neutron_sgs = {}
+            with ctx.session.begin(subtransactions=True):
+                db_sgs = self.core_plugin.get_security_groups(ctx)
+                db_ports = self.core_plugin.get_ports(ctx)
+
+            for sg in db_sgs:
+                for ip_version in ['ip4', 'ip6']:
+                    name = utils.ovn_addrset_name(sg['id'], ip_version)
+                    neutron_sgs[name] = {
+                        'name': name, 'addresses': [],
+                        'external_ids': {const.OVN_SG_EXT_ID_KEY: sg['id']}}
+
+            for port in db_ports:
+                sg_ids = utils.get_lsp_security_groups(port)
+                if port.get('fixed_ips') and sg_ids:
+                    addresses = acl_utils.acl_port_ips(port)
+                    for sg_id in sg_ids:
+                        for ip_version in addresses:
+                            name = utils.ovn_addrset_name(sg_id, ip_version)
+                            neutron_sgs[name]['addresses'].extend(
+                                addresses[ip_version])
+
+            sgnames_to_add, sgnames_to_delete, sgs_to_update =\
+                self.compute_address_set_difference(neutron_sgs, nb_sgs)
 
         LOG.debug('Address_Sets added %d, removed %d, updated %d',
                   len(sgnames_to_add), len(sgnames_to_delete),
@@ -220,8 +296,85 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             LOG.debug('Address-Set-SYNC: transaction finished @ %s' %
                       str(datetime.now()))
 
-    def sync_acls(self, ctx):
-        """Sync ACLs between neutron and NB.
+    def _get_acls_from_port_groups(self):
+        ovn_acls = []
+        port_groups = self.ovn_api.db_list_rows('Port_Group').execute()
+        for pg in port_groups:
+            acls = getattr(pg, 'acls', [])
+            for acl in acls:
+                acl_string = {}
+                acl_string['port_group'] = pg.name
+                for acl_key in getattr(acl, "_data", {}):
+                    acl_string[acl_key] = getattr(acl, acl_key)
+                acl_string.pop('meter')
+                acl_string.pop('external_ids')
+                ovn_acls.append(acl_string)
+        return ovn_acls
+
+    def _sync_acls_port_groups(self, ctx):
+        # If Port Groups are supported, the ACLs in the system will equal
+        # the number of SG rules plus the default drop rules as OVN would
+        # allow all traffic by default if those are not added.
+        neutron_acls = []
+        for sgr in self.core_plugin.get_security_group_rules(ctx):
+            pg_name = utils.ovn_port_group_name(sgr['security_group_id'])
+            neutron_acls.append(acl_utils._add_sg_rule_acl_for_port_group(
+                pg_name, sgr, self.ovn_api))
+        neutron_acls += acl_utils.add_acls_for_drop_port_group(
+            const.OVN_DROP_PORT_GROUP_NAME)
+
+        ovn_acls = self._get_acls_from_port_groups()
+
+        # We need to remove also all the ACLs applied to Logical Switches
+        def get_num_acls(ovn_acls):
+            return len([item for sublist in ovn_acls for item in sublist[1]])
+
+        ovn_acls_from_ls = [(row.name, row.acls) for row in (
+            self.ovn_api._tables['Logical_Switch'].rows.values())]
+        num_acls_to_remove_from_ls = get_num_acls(ovn_acls_from_ls)
+
+        # Remove the common ones
+        for na in list(neutron_acls):
+            for ovn_a in ovn_acls:
+                if all(item in na.items() for item in ovn_a.items()):
+                    neutron_acls.remove(na)
+                    ovn_acls.remove(ovn_a)
+                    break
+
+        num_acls_to_add = len(neutron_acls)
+        num_acls_to_remove = len(ovn_acls) + num_acls_to_remove_from_ls
+        if 0 != num_acls_to_add or 0 != num_acls_to_remove:
+            LOG.warning('ACLs-to-be-added %(add)d '
+                        'ACLs-to-be-removed %(remove)d',
+                        {'add': num_acls_to_add,
+                         'remove': num_acls_to_remove})
+
+        if self.mode == SYNC_MODE_REPAIR:
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for acla in neutron_acls:
+                    LOG.warning('ACL found in Neutron but not in '
+                                'OVN DB for port group %s', acla['port_group'])
+                    txn.add(self.ovn_api.pg_acl_add(**acla))
+
+            with self.ovn_api.transaction(check_error=True) as txn:
+                for aclr in ovn_acls:
+                    LOG.warning('ACLs found in OVN DB but not in '
+                                'Neutron for port group %s',
+                                aclr['port_group'])
+                    txn.add(self.ovn_api.pg_acl_del(aclr['port_group'],
+                                                    aclr['direction'],
+                                                    aclr['priority'],
+                                                    aclr['match']))
+                for aclr in ovn_acls_from_ls:
+                    # Remove all the ACLs from any Logical Switch if they have
+                    # any. Elements are (lswitch_name, list_of_acls).
+                    if len(aclr[1]) > 0:
+                        LOG.warning('Removing ACLs from OVN from Logical '
+                                    'Switch %s', aclr[0])
+                        txn.add(self.ovn_api.acl_del(aclr[0]))
+
+    def _sync_acls(self, ctx):
+        """Sync ACLs between neutron and NB when not using Port Groups.
 
         @param ctx: neutron_lib.context
         @type  ctx: object of type neutron_lib.context.Context
@@ -233,9 +386,6 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         @var   subnet_cache: cache for subnets
         @return: Nothing
         """
-        LOG.debug('ACL-SYNC: started @ %s' %
-                  str(datetime.now()))
-
         db_ports = {}
         for port in self.core_plugin.get_ports(ctx):
             db_ports[port['id']] = port
@@ -290,6 +440,21 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                         need_compare=False,
                         is_add_acl=False
                     ))
+
+    def sync_acls(self, ctx):
+        """Sync ACLs between neutron and NB.
+
+        @param ctx: neutron_lib.context
+        @type  ctx: object of type neutron_lib.context.Context
+        @return: Nothing
+        """
+        LOG.debug('ACL-SYNC: started @ %s' %
+                  str(datetime.now()))
+
+        if self.ovn_api.is_port_groups_supported():
+            self._sync_acls_port_groups(ctx)
+        else:
+            self._sync_acls(ctx)
 
         LOG.debug('ACL-SYNC: finished @ %s' %
                   str(datetime.now()))
