@@ -134,6 +134,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.pg_add_ports = mock.Mock()
         self.pg_del_ports = mock.Mock()
         self.lsp_get_up = mock.Mock()
+        self.nb_global = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):

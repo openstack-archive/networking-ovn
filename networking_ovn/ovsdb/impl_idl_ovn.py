@@ -676,6 +676,9 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             if pg.name == pg_name:
                 return pg
 
+    def check_liveness(self):
+        return cmd.CheckLivenessCommand(self)
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):

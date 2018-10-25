@@ -1,0 +1,7 @@
+---
+prelude: >
+    Support the Neutron Agent API
+features:
+  - |
+    Networking-ovn will now expose ovn-controller status via the Neutron Agent
+    API.
