@@ -90,8 +90,6 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_router_port_options.return_value = {}
         self.add_nat_rule_in_lrouter = mock.Mock()
         self.delete_nat_rule_in_lrouter = mock.Mock()
-        self.add_nat_ip_to_lrport_peer_options = mock.Mock()
-        self.delete_nat_ip_from_lrport_peer_options = mock.Mock()
         self.get_lrouter_nat_rules = mock.Mock()
         self.get_lrouter_nat_rules.return_value = []
         self.set_nat_rule_in_lrouter = mock.Mock()

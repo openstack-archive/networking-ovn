@@ -475,28 +475,6 @@ class API(api.API):
         """
 
     @abc.abstractmethod
-    def add_nat_ip_to_lrport_peer_options(self, lport, nat_ip):
-        """Add nat address in peer port of lrouter port
-
-        :param lport:   The unique name of the lswitch port
-        :type lport:    string
-        :param nat_ip:  nat ip to be added
-        :type nat_ip:   string
-        :returns:       :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
-    def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
-        """Delete nat address from peer port of lrouter port
-
-        :param lport:   The unique name of the lswitch port
-        :type lport:    string
-        :param nat_ip:  nat ip to be removed
-        :type nat_ip:   string
-        :returns:       :class:`Command` with no result
-        """
-
-    @abc.abstractmethod
     def get_lrouter_nat_rules(self, lrouter):
         """Returns the nat rules of a router
 

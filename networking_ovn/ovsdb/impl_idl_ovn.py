@@ -567,12 +567,6 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         return cmd.SetNATRuleInLRouterCommand(self, lrouter, nat_rule_uuid,
                                               **columns)
 
-    def add_nat_ip_to_lrport_peer_options(self, lport, nat_ip):
-        return cmd.AddNatIpToLRPortPeerOptionsCommand(self, lport, nat_ip)
-
-    def delete_nat_ip_from_lrport_peer_options(self, lport, nat_ip):
-        return cmd.DeleteNatIpFromLRPortPeerOptionsCommand(self, lport, nat_ip)
-
     def get_lswitch_port(self, lsp_name):
         try:
             return self.lookup('Logical_Switch_Port', lsp_name)
