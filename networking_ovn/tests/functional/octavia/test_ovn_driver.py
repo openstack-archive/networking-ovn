@@ -588,7 +588,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
     def _create_listener_and_validate(self, lb_data, pool_id=None,
                                       protocol_port=80,
-                                      admin_state_up=True):
+                                      admin_state_up=True, protocol='TCP'):
         if pool_id:
             pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
             loadbalancer_id = pool.loadbalancer_id
@@ -598,6 +598,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             pool_id = None
         m_listener = self._create_listener_model(loadbalancer_id,
                                                  pool_id, protocol_port,
+                                                 protocol=protocol,
                                                  admin_state_up=admin_state_up)
         lb_data['listeners'].append(m_listener)
 
@@ -613,7 +614,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._wait_for_status_and_validate(lb_data, [expected_status])
 
     def _update_listener_and_validate(self, lb_data, protocol_port,
-                                      admin_state_up=None):
+                                      admin_state_up=None, protocol='TCP'):
         m_listener = self._get_listener_from_lb_data(lb_data, protocol_port)
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         old_admin_state_up = m_listener.admin_state_up
@@ -622,6 +623,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             m_listener.admin_state_up = admin_state_up
             if not admin_state_up:
                 operating_status = 'OFFLINE'
+        m_listener.protocol = protocol
 
         self.ovn_driver.listener_update(m_listener, m_listener)
         pool_status = [{'id': m_listener.default_pool_id,
@@ -809,6 +811,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         m_listener.protocol = o_constants.PROTOCOL_HTTP
         self.assertRaises(o_exceptions.UnsupportedOptionError,
                           self.ovn_driver.listener_create, m_listener)
+        self._create_listener_and_validate(lb_data)
+        self.assertRaises(o_exceptions.UnsupportedOptionError,
+                          self._create_listener_and_validate,
+                          lb_data, protocol_port=80, protocol='UDP')
+        self.assertRaises(o_exceptions.UnsupportedOptionError,
+                          self._update_listener_and_validate,
+                          lb_data, protocol_port=80, protocol='UDP')
 
     def test_lb_listener_pool_workflow(self):
         lb_data = self._create_load_balancer_and_validate(
