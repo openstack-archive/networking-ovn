@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import threading
+
 import mock
 from oslo_utils import uuidutils
 
@@ -19,7 +21,31 @@ from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
 from neutron.common import utils as n_utils
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
+from ovsdbapp.backend.ovs_idl import event
+
+
+class WaitForMACBindingDeleteEvent(event.RowEvent):
+    # TODO(dalvarez): Use WaitEvent from ovsdbapp once this patch
+    # https://review.openstack.org/#/c/613121 merges.
+    event_name = 'WaitForMACBindingDeleteEvent'
+    ONETIME = True
+
+    def __init__(self, entry):
+        self.event = threading.Event()
+        self.timeout = 15
+        table = 'MAC_Binding'
+        events = (self.ROW_DELETE)
+        conditions = (('_uuid', '=', entry),)
+        super(WaitForMACBindingDeleteEvent, self).__init__(
+            events, table, conditions)
+
+    def run(self, event, row, old):
+        self.event.set()
+
+    def wait(self):
+        return self.event.wait(self.timeout)
 
 
 class TestNBDbMonitor(base.TestOVNFunctionalBase):
@@ -27,6 +53,7 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
     def setUp(self):
         super(TestNBDbMonitor, self).setUp(ovn_worker=True)
         self.chassis = self.add_fake_chassis('ovs-host1')
+        self.l3_plugin = directory.get_plugin(plugin_constants.L3)
 
     def create_port(self):
         net = self._make_network(self.fmt, 'net1', True)
@@ -40,6 +67,82 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
                                      arg_list=arg_list, **host_arg)
         port = self.deserialize(self.fmt, port_res)['port']
         return port
+
+    def _create_fip(self, port, fip_address):
+        e1 = self._make_network(self.fmt, 'e1', True,
+                                arg_list=('router:external',
+                                          'provider:network_type',
+                                          'provider:physical_network'),
+                                **{'router:external': True,
+                                   'provider:network_type': 'flat',
+                                   'provider:physical_network': 'public'})
+        res = self._create_subnet(self.fmt, e1['network']['id'],
+                                  '100.0.0.0/24', gateway_ip='100.0.0.254',
+                                  allocation_pools=[{'start': '100.0.0.2',
+                                                     'end': '100.0.0.253'}],
+                                  enable_dhcp=False)
+        e1_s1 = self.deserialize(self.fmt, res)
+        r1 = self.l3_plugin.create_router(
+            self.context,
+            {'router': {
+                'name': 'r1', 'admin_state_up': True,
+                'tenant_id': self._tenant_id,
+                'external_gateway_info': {
+                    'enable_snat': True,
+                    'network_id': e1['network']['id'],
+                    'external_fixed_ips': [
+                        {'ip_address': '100.0.0.2',
+                         'subnet_id': e1_s1['subnet']['id']}]}}})
+        self.l3_plugin.add_router_interface(
+            self.context, r1['id'],
+            {'subnet_id': port['fixed_ips'][0]['subnet_id']})
+        r1_f2 = self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'subnet_id': None,
+                'floating_ip_address': fip_address,
+                'port_id': port['id']}})
+        return r1_f2
+
+    def test_floatingip_mac_bindings(self):
+        """Check that MAC_Binding entries are cleared on FIP add/removal
+
+        This test will:
+        * Create a MAC_Binding entry for an IP address on the
+        'network1' datapath.
+        * Create a FIP with that same IP address on an external.
+        network and associate it to a Neutron port on a private network.
+        * Check that the MAC_Binding entry gets deleted.
+        * Create a new MAC_Binding entry for the same IP address.
+        * Delete the FIP.
+        * Check that the MAC_Binding entry gets deleted.
+        """
+        self._make_network(self.fmt, 'network1', True)
+        dp = self.sb_api.db_find(
+            'Datapath_Binding',
+            ('external_ids', '=', {'name2': 'network1'})).execute()
+        macb_id = self.sb_api.db_create('MAC_Binding', datapath=dp[0]['_uuid'],
+                                        ip='100.0.0.21').execute()
+        port = self.create_port()
+
+        # Ensure that the MAC_Binding entry gets deleted after creating a FIP
+        row_event = WaitForMACBindingDeleteEvent(macb_id)
+        self.mech_driver._sb_ovn.idl.notify_handler.watch_event(row_event)
+        fip = self._create_fip(port, '100.0.0.21')
+        self.assertTrue(row_event.wait())
+
+        # Now that the FIP is created, add a new MAC_Binding entry with the
+        # same IP address
+
+        macb_id = self.sb_api.db_create('MAC_Binding', datapath=dp[0]['_uuid'],
+                                        ip='100.0.0.21').execute()
+
+        # Ensure that the MAC_Binding entry gets deleted after deleting the FIP
+        row_event = WaitForMACBindingDeleteEvent(macb_id)
+        self.mech_driver._sb_ovn.idl.notify_handler.watch_event(row_event)
+        self.l3_plugin.delete_floatingip(self.context, fip['id'])
+        self.assertTrue(row_event.wait())
 
     def _test_port_binding_and_status(self, port_id, action, status):
         # This function binds or unbinds port to chassis and
