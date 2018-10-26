@@ -16,6 +16,8 @@ import collections
 
 from oslo_utils import timeutils
 
+from networking_ovn.common import exceptions as ovn_exc
+
 Stats = collections.namedtuple("Stats", ['nb_cfg', 'updated_at'])
 
 
@@ -27,7 +29,10 @@ class _AgentStats(object):
         self._agents[id_] = Stats(nb_cfg, updated_at or timeutils.utcnow())
 
     def get_stat(self, id_):
-        return self._agents[id_]
+        try:
+            return self._agents[id_]
+        except KeyError:
+            raise ovn_exc.AgentStatsNotFound(agent_id=id_)
 
     def del_agent(self, id_):
         self._agents.pop(id_, None)
