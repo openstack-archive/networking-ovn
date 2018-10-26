@@ -117,7 +117,7 @@ Carryout the below steps in the undercloud:
    modify it if desired.
 
 4. Run ``./ovn_migration.sh setup-mtu-t1``. This lowers the T1 parameter
-   of the internal neutron DHCP servers configuring the ‘dhcp_renewal_time’ in
+   of the internal neutron DHCP servers configuring the 'dhcp_renewal_time' in
    /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
    in all the nodes where DHCP agent is running.
 

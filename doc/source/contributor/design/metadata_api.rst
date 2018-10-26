@@ -24,7 +24,7 @@ Neutron today.
 https://www.suse.com/communities/blog/vms-get-access-metadata-neutron/
 
 In summary, we run a metadata proxy in either the router namespace or DHCP
-namespace.  The DHCP namespace can be used when there’s no router connected to
+namespace.  The DHCP namespace can be used when there's no router connected to
 the network.  The one downside to the DHCP namespace approach is that it
 requires pushing a static route to the VM through DHCP so that it knows to
 route metadata requests to the DHCP server IP address.
@@ -255,8 +255,8 @@ Alternatives Considered
 Alternative 1: Build metadata support into ovn-controller
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We’ve been building some features useful to OpenStack directly into OVN. DHCP
-and DNS are key examples of things we’ve replaced by building them into
+We've been building some features useful to OpenStack directly into OVN. DHCP
+and DNS are key examples of things we've replaced by building them into
 ovn-controller.  The metadata API case has some key differences that make this
 a less attractive solution:
 
