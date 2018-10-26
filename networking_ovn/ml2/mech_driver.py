@@ -801,6 +801,13 @@ class OVNMechanismDriver(api.MechanismDriver):
             LOG.debug("Port not found during OVN status down report: %s",
                       port_id)
 
+    def delete_mac_binding_entries(self, external_ip):
+        """Delete all MAC_Binding entries associated to this IP address"""
+        mac_binds = self._sb_ovn.db_find_rows(
+            'MAC_Binding', ('ip', '=', external_ip)).execute() or []
+        for entry in mac_binds:
+            self._sb_ovn.db_destroy('MAC_Binding', entry.uuid).execute()
+
     def update_segment_host_mapping(self, host, phy_nets):
         """Update SegmentHostMapping in DB"""
         if not host:
