@@ -53,16 +53,18 @@ def _get_standard_attr_id(session, resource_uuid, resource_type):
 
 @_wrap_db_retry
 def create_initial_revision(resource_uuid, resource_type, session,
-                            revision_number=ovn_const.INITIAL_REV_NUM):
+                            revision_number=ovn_const.INITIAL_REV_NUM,
+                            may_exist=False):
     LOG.debug('create_initial_revision uuid=%s, type=%s, rev=%s',
               resource_uuid, resource_type, revision_number)
+    db_func = session.merge if may_exist else session.add
     with session.begin(subtransactions=True):
         std_attr_id = _get_standard_attr_id(
             session, resource_uuid, resource_type)
         row = models.OVNRevisionNumbers(
             resource_uuid=resource_uuid, resource_type=resource_type,
             standard_attr_id=std_attr_id, revision_number=revision_number)
-        session.add(row)
+        db_func(row)
 
 
 @_wrap_db_retry
