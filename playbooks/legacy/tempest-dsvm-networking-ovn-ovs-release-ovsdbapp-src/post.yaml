@@ -1,4 +1,0 @@
-- hosts: primary
-  tasks:
-
-    - include: ../tempest-post-common.yml
