@@ -34,6 +34,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
 
 from neutron.common import utils as n_utils
+from neutron.db import api  # noqa
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
