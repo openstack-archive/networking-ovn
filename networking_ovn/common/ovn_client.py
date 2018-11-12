@@ -453,9 +453,11 @@ class OVNClient(object):
                         utils.is_port_security_enabled(port)):
                     self._add_port_to_drop_port_group(port['id'], txn)
                 # If the port doesn't belong to any security group and
-                # port_security is disabled, allow all traffic
-                elif (not new_sg_ids and
-                      not utils.is_port_security_enabled(port)):
+                # port_security is disabled, or it's a trusted port, then
+                # allow all traffic.
+                elif ((not new_sg_ids and
+                      not utils.is_port_security_enabled(port)) or
+                      utils.is_lsp_trusted(port)):
                     self._del_port_from_drop_port_group(port['id'], txn)
             else:
                 # Refresh ACLs for changed security groups or fixed IPs.
