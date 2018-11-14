@@ -96,7 +96,7 @@ def _get_protocol_number(protocol):
         return
     try:
         protocol = int(protocol)
-        if protocol >= 0 and protocol <= 255:
+        if 0 <= protocol <= 255:
             return str(protocol)
     except (ValueError, TypeError):
         protocol = PROTOCOL_NAME_TO_NUM_MAP.get(protocol)
@@ -455,7 +455,7 @@ def update_acls_for_security_group(plugin,
 
     if not update_port_list:
         return
-    lswitch_names = set([p['network_id'] for p in update_port_list])
+    lswitch_names = {p['network_id'] for p in update_port_list}
 
     ovn.update_acls(list(lswitch_names),
                     iter(update_port_list),

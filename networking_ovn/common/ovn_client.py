@@ -84,9 +84,9 @@ class OVNClient(object):
     def _transaction(self, commands, txn=None):
         """Create a new transaction or add the commands to an existing one."""
         if txn is None:
-            with self._nb_idl.transaction(check_error=True) as txn:
+            with self._nb_idl.transaction(check_error=True) as new_txn:
                 for cmd in commands:
-                    txn.add(cmd)
+                    new_txn.add(cmd)
         else:
             for cmd in commands:
                 txn.add(cmd)
