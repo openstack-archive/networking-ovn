@@ -56,4 +56,5 @@
         - openstack-tox-py35-with-ovsdbapp-master:
             required-projects:
               - openstack/neutron
+        - networking-ovn-tempest-dsvm-ovs-master-fedora
 

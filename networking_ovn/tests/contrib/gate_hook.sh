@@ -12,6 +12,9 @@ GATE_STACK_USER=stack
 
 case $VENV in
 "dsvm-functional"|"dsvm-functional-py35")
+    # The logic to set YUM or DNF as the package manager lives in stackrc,
+    # let's source it so it gets applied
+    source $DEVSTACK_PATH/stackrc
     source $DEVSTACK_PATH/functions
     source $NEUTRON_PATH/devstack/lib/ovs
 
