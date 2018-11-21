@@ -18,12 +18,14 @@ import threading
 
 from futurist import periodics
 from neutron.common import config as n_conf
+from neutron_lib import constants as n_const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib import worker
 from oslo_log import log
 from oslo_utils import timeutils
 
+from networking_ovn.common import config as ovn_conf
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
@@ -301,3 +303,66 @@ class DBInconsistenciesPeriodics(object):
         router_id = port['device_id']
         self._ovn_client._l3_plugin.add_router_interface(
             admin_context, router_id, {'port_id': port['id']}, may_exist=True)
+
+    def _check_subnet_global_dhcp_opts(self):
+        inconsistent_subnets = []
+        admin_context = n_context.get_admin_context()
+        subnet_filter = {'enable_dhcp': [True]}
+        neutron_subnets = self._ovn_client._plugin.get_subnets(
+            admin_context, subnet_filter)
+        global_v4_opts = ovn_conf.get_global_dhcpv4_opts()
+        global_v6_opts = ovn_conf.get_global_dhcpv6_opts()
+        LOG.debug('Checking %s subnets for global DHCP option consistency',
+                  len(neutron_subnets))
+        for subnet in neutron_subnets:
+            ovn_dhcp_opts = self._nb_idl.get_subnet_dhcp_options(
+                subnet['id'])['subnet']
+            inconsistent_opts = []
+            if ovn_dhcp_opts:
+                if subnet['ip_version'] == n_const.IP_VERSION_4:
+                    for opt, value in global_v4_opts.items():
+                        if value != ovn_dhcp_opts['options'].get(opt, None):
+                            inconsistent_opts.append(opt)
+                if subnet['ip_version'] == n_const.IP_VERSION_6:
+                    for opt, value in global_v6_opts.items():
+                        if value != ovn_dhcp_opts['options'].get(opt, None):
+                            inconsistent_opts.append(opt)
+            if inconsistent_opts:
+                LOG.debug('Subnet %s has inconsistent DHCP opts: %s',
+                          subnet['id'], inconsistent_opts)
+                inconsistent_subnets.append(subnet)
+        return inconsistent_subnets
+
+    # A static spacing value is used here, but this method will only run
+    # once per lock due to the use of periodics.NeverAgain().
+    @periodics.periodic(spacing=600,
+                        run_immediately=True)
+    def check_global_dhcp_opts(self):
+        # This periodic task is included in DBInconsistenciesPeriodics since
+        # it uses the lock to ensure only one worker is executing
+        if not self.has_lock:
+            return
+        if (not ovn_conf.get_global_dhcpv4_opts() and
+                not ovn_conf.get_global_dhcpv6_opts()):
+            # No need to scan the subnets if the settings are unset.
+            raise periodics.NeverAgain()
+        LOG.debug('Maintenance task: Checking DHCP options on subnets')
+        self._sync_timer.restart()
+        fix_subnets = self._check_subnet_global_dhcp_opts()
+        if fix_subnets:
+            admin_context = n_context.get_admin_context()
+            LOG.debug('Triggering update for %s subnets', len(fix_subnets))
+            for subnet in fix_subnets:
+                neutron_net = self._ovn_client._plugin.get_network(
+                    admin_context, subnet['network_id'])
+                try:
+                    self._ovn_client.update_subnet(subnet, neutron_net)
+                except Exception:
+                    LOG.exception('Failed to update subnet %s',
+                                  subnet['id'])
+
+        self._sync_timer.stop()
+        LOG.info('Maintenance task: DHCP options check finished '
+                 '(took %.2f seconds)', self._sync_timer.elapsed())
+
+        raise periodics.NeverAgain()

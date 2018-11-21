@@ -154,6 +154,32 @@ ovn_opts = [
                        "field is empty. If both subnet's dns_nameservers and "
                        "this option is empty, then the DNS resolvers on the "
                        "host running the neutron server will be used.")),
+    cfg.DictOpt('ovn_dhcp4_global_options',
+                default={},
+                help=_("Dictionary of global DHCPv4 options which will be "
+                       "automatically set on each subnet upon creation and "
+                       "on all existing subnets when Neutron starts.\n"
+                       "An empty value for a DHCP option will cause that "
+                       "option to be unset globally.\n"
+                       "EXAMPLES:\n"
+                       "- ntp_server:1.2.3.4,wpad:1.2.3.5 - Set ntp_server "
+                       "and wpad\n"
+                       "- ntp_server:,wpad:1.2.3.5 - Unset ntp_server and "
+                       "set wpad\n"
+                       "See the ovn-nb(5) man page for available options.")),
+    cfg.DictOpt('ovn_dhcp6_global_options',
+                default={},
+                help=_("Dictionary of global DHCPv6 options which will be "
+                       "automatically set on each subnet upon creation and "
+                       "on all existing subnets when Neutron starts.\n"
+                       "An empty value for a DHCP option will cause that "
+                       "option to be unset globally.\n"
+                       "EXAMPLES:\n"
+                       "- ntp_server:1.2.3.4,wpad:1.2.3.5 - Set ntp_server "
+                       "and wpad\n"
+                       "- ntp_server:,wpad:1.2.3.5 - Unset ntp_server and "
+                       "set wpad\n"
+                       "See the ovn-nb(5) man page for available options.")),
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -239,6 +265,14 @@ def is_ovn_metadata_enabled():
 
 def get_dns_servers():
     return cfg.CONF.ovn.dns_servers
+
+
+def get_global_dhcpv4_opts():
+    return cfg.CONF.ovn.ovn_dhcp4_global_options
+
+
+def get_global_dhcpv6_opts():
+    return cfg.CONF.ovn.ovn_dhcp6_global_options
 
 
 def setup_logging():

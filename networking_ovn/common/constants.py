@@ -91,6 +91,14 @@ SUPPORTED_DHCP_OPTS = {
     6: ['server-id', 'dns-server', 'domain-search']}
 DHCPV6_STATELESS_OPT = 'dhcpv6_stateless'
 
+# When setting global DHCP options, these options will be ignored
+# as they are required for basic network functions and will be
+# set by Neutron.
+GLOBAL_DHCP_OPTS_BLACKLIST = {
+    4: ['server_id', 'lease_time', 'mtu', 'router', 'server_mac',
+        'dns_server', 'classless_static_route'],
+    6: ['dhcpv6_stateless', 'dns_server', 'server_id']}
+
 CHASSIS_DATAPATH_NETDEV = 'netdev'
 CHASSIS_IFACE_DPDKVHOSTUSER = 'dpdkvhostuser'
 
