@@ -896,6 +896,14 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             dhcp_ports = self.core_plugin.get_ports(ctx, filters=dict(
                 network_id=[net['id']],
                 device_owner=[constants.DEVICE_OWNER_DHCP]))
+
+            for port in dhcp_ports:
+                # Ports with a device_id like 'dhcp<host_id>-<network_id>'
+                # belong to Neutron DHCP agent so we'll skip those for OVN
+                # metadata.
+                if port['device_id'].startswith('dhcp'):
+                    dhcp_ports.remove(port)
+
             if not dhcp_ports:
                 LOG.warning('Missing metadata port found in Neutron for '
                             'network %s', net['id'])
