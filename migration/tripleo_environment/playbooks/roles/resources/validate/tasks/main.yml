@@ -7,6 +7,6 @@
 - name: Run the validation script
   shell: >
     set -o pipefail &&
-    {{ ovn_migration_temp_dir }}/validate-resources.sh 2>&1 >
+    {{ ovn_migration_temp_dir }}/validate-resources.sh 2>&1 | tee
     {{ ovn_migration_temp_dir }}/validate-resources.sh.log
 

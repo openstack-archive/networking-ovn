@@ -18,5 +18,5 @@
 - name: Creating migration resources
   shell: >
     set -o pipefail &&
-    {{ ovn_migration_temp_dir }}/create-migration-resources.sh 2>&1 >
+    {{ ovn_migration_temp_dir }}/create-migration-resources.sh 2>&1 | tee
     {{ ovn_migration_temp_dir }}/create-migration-resources.sh.log
