@@ -65,6 +65,7 @@
 - name: Post migration
   hosts: localhost
   roles:
+    - delete-neutron-resources
     - post-migration
   tags:
     - post-migration

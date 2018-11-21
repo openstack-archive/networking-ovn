@@ -10,9 +10,3 @@
   when: ovn_controller is defined
   tags:
     - cleanup-dataplane
-
-- include_tasks: delete-neutron-resources.yml
-  delegate_to: localhost
-  when: ovn_central is defined
-  tags:
-    - cleanup-neutron-resources
