@@ -64,9 +64,9 @@ Perform the following steps in the undercloud
      cp -rfp /usr/share/ansible/networking-ovn-migration/playbooks .
 
 
-3. Create or edit the ``overcloud-deploy-ovn.sh`` script in your ``$HOME``.
+3. Create  ``~/overcloud-deploy-ovn.sh`` script in your ``$HOME``.
 This script must source your stackrc file, and then execute an ``openstack
-overcloud overcloud deploy`` with your original deployment parameters, plus
+overcloud deploy`` with your original deployment parameters, plus
 the following environment files, added to the end of the command
 in the following order:
 
@@ -120,20 +120,21 @@ values matching the defaults.
 
     * IMAGE_NAME - Name/ID of the glance image to us for booting a test server.
       Default:'cirros'.
-      It will be automatically downloaded during the pre-validation /
-      post-validation process.
+      If the image does not exist it will automatically download and use
+      cirros during the pre-validation / post-validation process.
 
     * VALIDATE_MIGRATION - Create migration resources to validate the
       migration. The migration script, before starting the migration, boot a
       server and validates that the server is reachable after the migration.
       Default: True.
 
-    * SERVER_USER_NAME - User name to use for logging to the migration
+    * SERVER_USER_NAME - User name to use for logging into the migration
       instances.
       Default: 'cirros'.
 
     * DHCP_RENEWAL_TIME - DHCP renewal time in seconds to configure in DHCP
-      agent configuration file.
+      agent configuration file. This renewal time is used only temporarily
+      during migration to ensure a synchronized MTU switch across the networks.
       Default: 30
 
 
@@ -160,19 +161,37 @@ values matching the defaults.
        $ ovn_migration.sh generate-inventory
 
 
-6. Run ``ovn_migration.sh setup-mtu-t1``. This lowers the T1 parameter
-   of the internal neutron DHCP servers configuring the ``dhcp_renewal_time``
-   in /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
-   in all the nodes where DHCP agent is running.
+   At this step the script will inspect the TripleO ansible inventory
+   and generate an inventory of hosts, specifically tagged to work
+   with the migration playbooks.
+
+
+6. Run ``ovn_migration.sh setup-mtu-t1``
 
   .. code-block:: console
 
        $ ovn_migration.sh setup-mtu-t1
 
 
+   This lowers the T1 parameter
+   of the internal neutron DHCP servers configuring the ``dhcp_renewal_time``
+   in /var/lib/config-data/puppet-generated/neutron/etc/neutron/dhcp_agent.ini
+   in all the nodes where DHCP agent is running.
+
+   We lower the T1 parameter to make sure that the instances start refreshing
+   the DHCP lease quicker (every 30 seconds by default) during the migration
+   proccess. The reason why we force this is to make sure that the MTU update
+   happens quickly across the network during step 8, this is very important
+   because during those 30 seconds there will be connectivity issues with
+   bigger packets (MTU missmatchess across the network), this is also why
+   step 7 is very important, even though we reduce T1, the previous T1 value
+   the instances leased from the DHCP server will be much higher
+   (24h by default) and we need to wait those 24h to make sure they have
+   updated T1. After migration the DHCP T1 parameter returns to normal values.
+
 7. If you are using VXLAN or GRE tenant networking, ``wait at least 24 hours``
 before continuing. This will allow VMs to catch up with the new MTU size
-of the next step.`
+of the next step.
 
   .. warning::
 
@@ -181,7 +200,7 @@ of the next step.`
 
   .. warning::
 
-        If you have any instance with static IP assignation on VXLAN or
+        If you have any instance with static IP assignment on VXLAN or
         GRE tenant networks, you must manually modify the configuration of those instances.
         If your instances don't honor the T1 parameter of DHCP they will need
         to be rebooted.
@@ -229,10 +248,9 @@ of the next step.`
 
 8. Run ``ovn_migration.sh reduce-mtu``.
 
-   This lowers the MTU of the pre
-   migration VXLAN and GRE networks. The tool will ignore non-VXLAN/GRE
-   networks, so if you use VLAN for tenant networks it will be fine if you
-   find this step not doing anything.
+   This lowers the MTU of the pre migration VXLAN and GRE networks. The
+   tool will ignore non-VXLAN/GRE networks, so if you use VLAN for tenant
+   networks it will be fine if you find this step not doing anything.
 
    .. code-block:: console
 
@@ -242,8 +260,15 @@ of the next step.`
    This step will go network by network reducing the MTU, and tagging with
    ``adapted_mtu`` the networks which have been already handled.
 
+   Every time a network is updated all the existing L3/DHCP agents
+   connected to such network will update their internal leg MTU, instances
+   will start fetching the new MTU as the DHCP T1 timer expires. As explained
+   before, instances not obeying the DHCP T1 parameter will need to be
+   restarted, and instances with static IP assignment will need to be manually
+   updated.
 
-9. Make Tripleo ``prepare the new container images`` for OVN.
+
+9. Make TripleO ``prepare the new container images`` for OVN.
 
    If your deployment didn't have a containers-prepare-parameter.yaml, you can
    create one with:
@@ -287,8 +312,8 @@ of the next step.`
       version doesn't seem to output any error).
 
 
-   TripleO will validate the containers and push them to your local
-   registry.
+   During this step TripleO will build a list of containers, pull them from
+   the remote registry and push them to your deployment local registry.
 
 
 10. Run ``ovn_migration.sh start-migration`` to kick start the migration
@@ -299,7 +324,7 @@ of the next step.`
        $ ovn_migration.sh start-migration
 
 
-   Under the hood, this is what will happen:
+   During this step, this is what will happen:
 
     * Create pre-migration resources (network and VM) to validate existing
       deployment and final migration.
@@ -333,7 +358,11 @@ of the next step.`
 
     * Cleanup post-migration resources.
 
-    * Re-run deployment tool to update OVN on br-int.
+    * Re-run deployment tool to update OVN on br-int, this step ensures
+      that the TripleO database is updated with the final integration bridge.
+
+    * Run an extra validation round to ensure the final state of the system is
+      fully operational.
 
 
 Migration is complete !!!
