@@ -693,11 +693,14 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
 
-    def test_set_port_status_up(self):
+    def _test_set_port_status_up(self, is_compute_port=False):
+        port_device_owner = 'compute:nova' if is_compute_port else ''
+        self.mech_driver._plugin.nova_notifier = mock.Mock()
         with self.network(set_context=True, tenant_id='test') as net1, \
             self.subnet(network=net1) as subnet1, \
             self.port(subnet=subnet1, set_context=True,
-                      tenant_id='test') as port1, \
+                      tenant_id='test',
+                      device_owner=port_device_owner) as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
                        'provisioning_complete') as pc, \
             mock.patch.object(
@@ -715,11 +718,30 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 upd_subport.assert_called_once_with(port1['port']['id'])
                 ude.assert_called_once_with(port1['port']['id'])
 
-    def test_set_port_status_down(self):
+                # If the port does NOT bellong to compute, do not notify Nova
+                # about it's status changes
+                if not is_compute_port:
+                    self.mech_driver._plugin.nova_notifier.\
+                        notify_port_active_direct.assert_not_called()
+                else:
+                    self.mech_driver._plugin.nova_notifier.\
+                        notify_port_active_direct.assert_called_once_with(
+                            mock.ANY)
+
+    def test_set_port_status_up(self):
+        self._test_set_port_status_up(is_compute_port=False)
+
+    def test_set_compute_port_status_up(self):
+        self._test_set_port_status_up(is_compute_port=True)
+
+    def _test_set_port_status_down(self, is_compute_port=False):
+        port_device_owner = 'compute:nova' if is_compute_port else ''
+        self.mech_driver._plugin.nova_notifier = mock.Mock()
         with self.network(set_context=True, tenant_id='test') as net1, \
             self.subnet(network=net1) as subnet1, \
             self.port(subnet=subnet1, set_context=True,
-                      tenant_id='test') as port1, \
+                      tenant_id='test',
+                      device_owner=port_device_owner) as port1, \
             mock.patch('neutron.db.provisioning_blocks.'
                        'add_provisioning_component') as apc, \
             mock.patch.object(self.mech_driver,
@@ -732,6 +754,28 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     provisioning_blocks.L2_AGENT_ENTITY
                 )
                 ude.assert_called_once_with(port1['port']['id'], False)
+
+                # If the port does NOT bellong to compute, do not notify Nova
+                # about it's status changes
+                if not is_compute_port:
+                    self.mech_driver._plugin.nova_notifier.\
+                        record_port_status_changed.assert_not_called()
+                    self.mech_driver._plugin.nova_notifier.\
+                        send_port_status.assert_not_called()
+                else:
+                    self.mech_driver._plugin.nova_notifier.\
+                        record_port_status_changed.assert_called_once_with(
+                            mock.ANY, const.PORT_STATUS_ACTIVE,
+                            const.PORT_STATUS_DOWN, None)
+                    self.mech_driver._plugin.nova_notifier.\
+                        send_port_status.assert_called_once_with(
+                            None, None, mock.ANY)
+
+    def test_set_port_status_down(self):
+        self._test_set_port_status_down(is_compute_port=False)
+
+    def test_set_compute_port_status_down(self):
+        self._test_set_port_status_down(is_compute_port=True)
 
     def test_set_port_status_down_not_found(self):
         with mock.patch('neutron.db.provisioning_blocks.'

@@ -35,6 +35,7 @@ from oslo_utils import timeutils
 
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
+from neutron.plugins.ml2 import db as ml2_db
 from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _
@@ -394,7 +395,8 @@ class OVNMechanismDriver(api.MechanismDriver):
             return
         utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host):
-            self._insert_port_provisioning_block(context._plugin_context, port)
+            self._insert_port_provisioning_block(context._plugin_context,
+                                                 port['id'])
 
         db_rev.create_initial_revision(port['id'],
                                        ovn_const.TYPE_PORTS,
@@ -438,13 +440,12 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         return True
 
-    def _insert_port_provisioning_block(self, context, port):
+    def _insert_port_provisioning_block(self, context, port_id):
         # Insert a provisioning block to prevent the port from
         # transitioning to active until OVN reports back that
         # the port is up.
         provisioning_blocks.add_provisioning_component(
-            context,
-            port['id'], resources.PORT,
+            context, port_id, resources.PORT,
             provisioning_blocks.L2_AGENT_ENTITY
         )
 
@@ -509,7 +510,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         utils.validate_and_get_data_from_binding_profile(port)
         if self._is_port_provisioning_required(port, context.host,
                                                context.original_host):
-            self._insert_port_provisioning_block(context._plugin_context, port)
+            self._insert_port_provisioning_block(context._plugin_context,
+                                                 port['id'])
 
         if utils.is_lsp_router_port(port):
             # handle the case when an existing port is added to a
@@ -772,12 +774,18 @@ class OVNMechanismDriver(api.MechanismDriver):
             # becasue the router ports are unbind so, for OVN we are
             # forcing the status here. Maybe it's something that we can
             # change in core Neutron in the future.
-            port = self._plugin.get_port(admin_context, port_id)
-            if port.get('device_owner') in (const.DEVICE_OWNER_ROUTER_INTF,
-                                            const.DEVICE_OWNER_DVR_INTERFACE,
-                                            const.DEVICE_OWNER_ROUTER_HA_INTF):
+            db_port = ml2_db.get_port(admin_context, port_id)
+            if not db_port:
+                return
+
+            if db_port.device_owner in (const.DEVICE_OWNER_ROUTER_INTF,
+                                        const.DEVICE_OWNER_DVR_INTERFACE,
+                                        const.DEVICE_OWNER_ROUTER_HA_INTF):
                 self._plugin.update_port_status(admin_context, port_id,
                                                 const.PORT_STATUS_ACTIVE)
+            elif db_port.device_owner.startswith(
+                    const.DEVICE_OWNER_COMPUTE_PREFIX):
+                self._plugin.nova_notifier.notify_port_active_direct(db_port)
         except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
             LOG.debug('Port not found during OVN status up report: %s',
                       port_id)
@@ -792,11 +800,21 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._update_dnat_entry_if_needed(port_id, False)
         admin_context = n_context.get_admin_context()
         try:
-            port = self._plugin.get_port(admin_context, port_id)
-            self._insert_port_provisioning_block(admin_context, port)
-            self._plugin.update_port_status(admin_context,
-                                            port['id'],
+            db_port = ml2_db.get_port(admin_context, port_id)
+            if not db_port:
+                return
+
+            self._insert_port_provisioning_block(admin_context, port_id)
+            self._plugin.update_port_status(admin_context, port_id,
                                             const.PORT_STATUS_DOWN)
+
+            if db_port.device_owner.startswith(
+                    const.DEVICE_OWNER_COMPUTE_PREFIX):
+                self._plugin.nova_notifier.record_port_status_changed(
+                    db_port, const.PORT_STATUS_ACTIVE, const.PORT_STATUS_DOWN,
+                    None)
+                self._plugin.nova_notifier.send_port_status(
+                    None, None, db_port)
         except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
             LOG.debug("Port not found during OVN status down report: %s",
                       port_id)
