@@ -885,7 +885,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         db_metadata_ports_ids = []
         db_metadata_ports_nets = []
         for port in db_ports['ports']:
-            if port['device_owner'] == constants.DEVICE_OWNER_DHCP:
+            if (port['device_owner'] == constants.DEVICE_OWNER_DHCP and
+                    port['device_id'].startswith('ovnmeta')):
                 db_metadata_ports_ids.append(port['id'])
                 db_metadata_ports_nets.append(port['network_id'])
         db_networks = self._list('networks')
@@ -895,8 +896,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_metadata_ports = [row.name for row in (
             _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
-            if row.type == ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
-                constants.DEVICE_OWNER_DHCP)]
+            if row.type == 'localport']
 
         if should_match:
             # Check that metadata ports exist in both Neutron and OVN dbs.
@@ -1402,7 +1402,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         db_ports = self._list('ports')
         db_metadata_ports = [port for port in db_ports['ports'] if
                              port['device_owner'] ==
-                             constants.DEVICE_OWNER_DHCP]
+                             constants.DEVICE_OWNER_DHCP and
+                             port['device_id'].startswith('ovnmeta')]
         lswitches = {}
         ports_to_delete = len(db_metadata_ports) / 2
         for port in db_metadata_ports:
@@ -1414,8 +1415,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         _plugin_nb_ovn = self.mech_driver._nb_ovn
         plugin_metadata_ports = [row.name for row in (
             _plugin_nb_ovn._tables['Logical_Switch_Port'].rows.values())
-            if row.type == ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
-                constants.DEVICE_OWNER_DHCP)]
+            if row.type == 'localport']
 
         with self.nb_api.transaction(check_error=True) as txn:
             for port in plugin_metadata_ports:

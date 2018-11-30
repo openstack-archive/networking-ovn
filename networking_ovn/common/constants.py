@@ -52,8 +52,6 @@ OVN_DROP_PORT_GROUP_NAME = 'neutron_pg_drop'
 
 OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
 
-OVN_NEUTRON_OWNER_TO_PORT_TYPE = {const.DEVICE_OWNER_DHCP: 'localport'}
-
 # Agent extension constants
 OVN_AGENT_DESC_KEY = 'neutron:description'
 OVN_AGENT_METADATA_SB_CFG_KEY = 'neutron:ovn-metadata-sb-cfg'
