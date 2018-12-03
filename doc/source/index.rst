@@ -32,7 +32,7 @@ Links
 * Design documents: https://docs.openstack.org/networking-ovn/latest/contributor/design/index.html
 * Bugs: https://bugs.launchpad.net/networking-ovn
 * Mailing list:
-  https://lists.openstack.org/cgi-bin/mailman/listinfo/openstack-dev
+  http://lists.openstack.org/cgi-bin/mailman/listinfo/openstack-discuss
 * IRC: #openstack-neutron-ovn on Freenode.
 * Docs: https://docs.openstack.org/networking-ovn/latest
 
