@@ -212,9 +212,12 @@ class OVNClient(object):
             tag = binding_prof.get('tag', [])
             address = port['mac_address']
             for ip in port.get('fixed_ips', []):
+                try:
+                    subnet = self._plugin.get_subnet(
+                        n_context.get_admin_context(), ip['subnet_id'])
+                except n_exc.SubnetNotFound:
+                    continue
                 address += ' ' + ip['ip_address']
-                subnet = self._plugin.get_subnet(n_context.get_admin_context(),
-                                                 ip['subnet_id'])
                 cidrs += ' {}/{}'.format(ip['ip_address'],
                                          subnet['cidr'].split('/')[1])
             port_security, new_macs = \
