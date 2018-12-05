@@ -110,3 +110,42 @@
     description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
     parent: networking-ovn-tempest-dsvm-ovs-master
     nodeset: fedora-latest
+
+- job:
+    name: networking-ovn-rally-task
+    parent: rally-task-at-devstack
+    required-projects:
+      - name: openstack-dev/devstack
+      - name: openstack-infra/devstack-gate
+      - name: openstack/rally
+      - name: openstack/rally-openstack
+      - name: openstack/networking-ovn
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+      - ^vagrant/.*$
+    vars:
+      devstack_plugins:
+        rally-openstack: https://git.openstack.org/openstack/rally-openstack
+        networking-ovn: https://git.openstack.org/openstack/networking-ovn
+      devstack_services:
+        ovn-northd: true
+        ovn-controller: true
+        networking-ovn-metadata-agent: true
+        br-ex-tcpdump: true
+        br-int-flows: true
+        q-dhcp: false
+        q-l3: false
+        q-agt: false
+      devstack_localrc:
+        PHYSICAL_NETWORK: public
+        Q_USE_PROVIDERNET_FOR_PUBLIC: true
+        ENABLE_CHASSIS_AS_GW: true
+        OVN_L3_CREATE_PUBLIC_NETWORK: true
+      rally_task: rally-jobs/ovn.yaml
+    timeout: 7800
