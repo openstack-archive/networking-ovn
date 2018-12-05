@@ -195,7 +195,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             else:
                 del lb_data[ovn_driver.LB_EXT_IDS_LS_REFS_KEY][net_id]
 
-    def _wait_for_status_and_validate(self, lb_data, expected_status):
+    def _wait_for_status_and_validate(self, lb_data, expected_status,
+                                      check_call=True):
         call_count = len(expected_status)
         expected_calls = [mock.call(status) for status in expected_status]
         update_loadbalancer_status = (
@@ -203,12 +204,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         n_utils.wait_until_true(
             lambda: update_loadbalancer_status.call_count == call_count,
             timeout=10)
-        try:
-            self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
-                expected_calls, any_order=True)
-        except Exception:
-            raise Exception(
-                self._o_driver_lib.update_loadbalancer_status.mock_calls)
+        if check_call:
+            try:
+                self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
+                    expected_calls, any_order=True)
+            except Exception:
+                raise Exception(
+                    self._o_driver_lib.update_loadbalancer_status.mock_calls)
         expected_lbs = self._make_expected_lbs(lb_data)
         self._validate_loadbalancers(expected_lbs)
 
@@ -545,14 +547,12 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._wait_for_status_and_validate(lb_data, [expected_status])
 
     def _update_members_in_batch_and_validate(self, lb_data, pool_id,
-                                              member_addresses):
+                                              members):
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
-
-        members = []
         expected_status = []
-        for addr in member_addresses:
-            member = self._get_pool_member(pool, addr)
-            members.append(member)
+        self._o_driver_lib.update_loadbalancer_status.reset_mock()
+        self.ovn_driver.member_batch_update(members)
+        for member in members:
             expected_status.append(
                 {'pools': [{'id': pool.pool_id,
                            'provisioning_status': 'ACTIVE'}],
@@ -562,9 +562,23 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                  'loadbalancers': [{'id': pool.loadbalancer_id,
                                    'provisioning_status': 'ACTIVE'}],
                  'listeners': []})
-        self._o_driver_lib.update_loadbalancer_status.reset_mock()
-        self.ovn_driver.member_batch_update(members)
-        self._wait_for_status_and_validate(lb_data, expected_status)
+        for m in pool.members:
+            found = False
+            for member in members:
+                if member.member_id == m.member_id:
+                    found = True
+                    break
+            if not found:
+                expected_status.append(
+                    {'pools': [{'id': pool.pool_id,
+                                'provisioning_status': 'ACTIVE'}],
+                     'members': [{'id': m.member_id,
+                                  'provisioning_status': 'DELETED'}],
+                     'loadbalancers': [{'id': pool.loadbalancer_id,
+                                        'provisioning_status': 'ACTIVE'}],
+                     'listeners': []})
+        self._wait_for_status_and_validate(lb_data, expected_status,
+                                           check_call=False)
 
     def _delete_member_and_validate(self, lb_data, pool_id, network_id,
                                     member_address):
@@ -707,10 +721,6 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # Enable loadbalancer back
         self._update_load_balancer_and_validate(lb_data,
                                                 admin_state_up=True)
-        # Test member_batch_update
-        self._update_members_in_batch_and_validate(lb_data, pool_id,
-                                                   ['10.0.0.10', '10.0.0.11'])
-
         self._delete_member_and_validate(lb_data, pool_id,
                                          lb_data['vip_net_info'][0],
                                          '10.0.0.10')
@@ -829,3 +839,29 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                        lb_data['listeners'][0].listener_id)
         self._delete_listener_and_validate(lb_data)
         self._delete_load_balancer_and_validate(lb_data)
+
+    def test_lb_member_batch_update(self):
+        # Create a LoadBalancer
+        lb_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'vip_network',
+             'cidr': '10.0.0.0/24'})
+        # Create a pool
+        self._create_pool_and_validate(lb_data, "p1")
+        pool_id = lb_data['pools'][0].pool_id
+        # Create Member-1 and associate it with lb_data
+        self._create_member_and_validate(
+            lb_data, pool_id, lb_data['vip_net_info'][1],
+            lb_data['vip_net_info'][0], '10.0.0.10')
+        # Create Member-2
+        m_member = self._create_member_model(pool_id,
+                                             lb_data['vip_net_info'][1],
+                                             '10.0.0.12')
+        # Update ovn's Logical switch reference
+        self._update_ls_refs(lb_data, lb_data['vip_net_info'][0])
+        lb_data['pools'][0].members.append(m_member)
+        # Add a new member to the LB
+        members = [m_member] + [lb_data['pools'][0].members[0]]
+        self._update_members_in_batch_and_validate(lb_data, pool_id, members)
+        # Deleting one member, while keeping the other member available
+        self._update_members_in_batch_and_validate(lb_data, pool_id,
+                                                   [m_member])
