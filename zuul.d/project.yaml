@@ -6,6 +6,7 @@
       - check-requirements
       - openstack-python35-jobs-neutron
       - openstack-python36-jobs-neutron
+      - openstack-lower-constraints-jobs-neutron
     check:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-master:
@@ -26,7 +27,6 @@
         # failures, please reach us on #tripleo IRC channel.
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
-        - openstack-tox-lower-constraints
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
@@ -44,7 +44,6 @@
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
-        - openstack-tox-lower-constraints
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
