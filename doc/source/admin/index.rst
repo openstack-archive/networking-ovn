@@ -12,4 +12,5 @@ Administration Guide
    refarch/refarch
    dpdk
    containers
+   loadbalancer
    troubleshooting
