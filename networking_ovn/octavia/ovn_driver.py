@@ -1303,7 +1303,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def listener_update(self, old_listener, new_listener):
-        self._check_listener_protocol(new_listener)
+        if not isinstance(new_listener.protocol, o_datamodels.UnsetType):
+            self._check_listener_protocol(new_listener)
         request_info = {'id': new_listener.listener_id,
                         'loadbalancer_id': old_listener.loadbalancer_id,
                         'protocol_port': old_listener.protocol_port}
