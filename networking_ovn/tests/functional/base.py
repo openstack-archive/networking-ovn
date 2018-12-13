@@ -33,6 +33,7 @@ from ovsdbapp.backend.ovs_idl import connection
 from networking_ovn.db import models  # noqa
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.ovsdb import worker
 from networking_ovn.tests import base
 from networking_ovn.tests.functional.resources import process
 
@@ -210,7 +211,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
 
         trigger_cls = TriggerCls()
         if self.ovn_worker:
-            trigger_cls.trigger.__self__.__class__ = ovsdb_monitor.OvnWorker
+            trigger_cls.trigger.__self__.__class__ = worker.OvnWorker
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
 
         self.addCleanup(self.stop)

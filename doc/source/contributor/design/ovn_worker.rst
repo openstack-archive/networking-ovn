@@ -10,7 +10,7 @@ port's status to 'ACTIVE' or 'DOWN' in the db, it needs to monitor the
 OVN Northbound db. A neutron worker is created for this purpose.
 
 The implementation of the ovn worker can be found here -
-'networking_ovn.ovsdb.ovsdb_monitor.OvnWorker'.
+'networking_ovn.ovsdb.worker.OvnWorker'.
 
 Neutron service will create 'n' api workers and 'm' rpc workers and 1 ovn
 worker (all these workers are separate processes).

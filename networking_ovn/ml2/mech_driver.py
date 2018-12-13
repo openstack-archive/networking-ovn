@@ -52,7 +52,7 @@ from networking_ovn.ml2 import qos_driver
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
-from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.ovsdb import worker
 
 
 LOG = log.getLogger(__name__)
@@ -193,7 +193,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # Now IDL connections can be safely used.
         self._post_fork_event.set()
 
-        if utils.get_method_class(trigger) == ovsdb_monitor.OvnWorker:
+        if utils.get_method_class(trigger) == worker.OvnWorker:
             # Call the synchronization task if its ovn worker
             # This sync neutron DB to OVN-NB DB only in inconsistent states
             self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
@@ -695,7 +695,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         workers, can return a sequence of worker instances.
         """
         # See doc/source/design/ovn_worker.rst for more details.
-        return [ovsdb_monitor.OvnWorker(), maintenance.MaintenanceWorker()]
+        return [worker.OvnWorker(), maintenance.MaintenanceWorker()]
 
     def _update_subport_host_if_needed(self, port_id):
         parent_port = self._ovn_client.get_parent_port(port_id)
