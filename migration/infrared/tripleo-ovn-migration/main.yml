@@ -190,7 +190,8 @@
                   echo "exit" > {{ ovn_migration_working_dir}}/_pinger_cmd.txt
         always:
             - name: Fetch ovn_migration log directory
-              fetch:
+              synchronize:
                   src: "{{ ovn_migration_working_dir }}"
-                  dest: "{{ inventory_dir }}/ovn_migration/"
+                  dest: "{{ inventory_dir }}"
+                  mode: pull
               when: install is defined
