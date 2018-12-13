@@ -196,6 +196,7 @@ class OVNClient(object):
             qos_options = self._qos_driver.get_qos_options(port)
         vtep_physical_switch = binding_prof.get('vtep-physical-switch')
 
+        port_type = ''
         cidrs = ''
         if vtep_physical_switch:
             vtep_logical_switch = binding_prof.get('vtep-logical-switch')
@@ -224,8 +225,12 @@ class OVNClient(object):
                 self._get_allowed_addresses_from_port(port)
             addresses = [address]
             addresses.extend(new_macs)
-            port_type = ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
-                port['device_owner'], '')
+
+            # Only adjust the OVN type if the port is not owned by Neutron
+            # DHCP agents.
+            if (port['device_owner'] == const.DEVICE_OWNER_DHCP and
+                    not port['device_id'].startswith('dhcp')):
+                port_type = 'localport'
 
         dhcpv4_options = self._get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self._get_port_dhcp_options(port, const.IP_VERSION_6)
@@ -1739,9 +1744,12 @@ class OVNClient(object):
 
         ports = self._plugin.get_ports(context, filters=dict(
             network_id=[network_id], device_owner=[const.DEVICE_OWNER_DHCP]))
-        # There should be only one metadata port per network
-        if len(ports) == 1:
-            return ports[0]
+
+        # Metadata ports are DHCP ports without a device_id starting by 'dhcp'
+        # since those belong to Neutron DHCP agents.
+        for port in ports:
+            if not port['device_id'].startswith('dhcp'):
+                return port
 
     def _find_metadata_port_ip(self, context, subnet):
         metadata_port = self._find_metadata_port(context, subnet['network_id'])
@@ -1765,7 +1773,8 @@ class OVNClient(object):
                 port = {'port':
                         {'network_id': network['id'],
                          'tenant_id': network['project_id'],
-                         'device_owner': const.DEVICE_OWNER_DHCP}}
+                         'device_owner': const.DEVICE_OWNER_DHCP,
+                         'device_id': 'ovnmeta-%s' % network['id']}}
                 # TODO(boden): rehome create_port into neutron-lib
                 p_utils.create_port(self._plugin, context, port)
             elif len(metadata_ports) > 1:
