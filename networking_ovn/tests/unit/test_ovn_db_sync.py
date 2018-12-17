@@ -13,6 +13,7 @@
 #    under the License.
 
 import mock
+from neutron_lib import constants as const
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import ovn_client
@@ -315,13 +316,17 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
 
     def _fake_get_gw_info(self, ctx, router):
         return {
-            'r1': ovn_client.GW_INFO(router_ip='90.0.0.2',
-                                     gateway_ip='90.0.0.1',
-                                     network_id='', subnet_id=''),
-            'r2': ovn_client.GW_INFO(router_ip='100.0.0.2',
-                                     gateway_ip='100.0.0.1',
-                                     network_id='', subnet_id='')
-        }.get(router['id'], ovn_client.GW_INFO('', '', '', ''))
+            'r1': [ovn_client.GW_INFO(router_ip='90.0.0.2',
+                                      gateway_ip='90.0.0.1',
+                                      network_id='', subnet_id='',
+                                      ip_version=4,
+                                      ip_prefix=const.IPv4_ANY)],
+            'r2': [ovn_client.GW_INFO(router_ip='100.0.0.2',
+                                      gateway_ip='100.0.0.1',
+                                      network_id='', subnet_id='',
+                                      ip_version=4,
+                                      ip_prefix=const.IPv4_ANY)]
+        }.get(router['id'], [])
 
     def _fake_get_v4_network_of_all_router_ports(self, ctx, router_id):
         return {'r1': ['172.16.0.0/24', '172.16.2.0/24'],

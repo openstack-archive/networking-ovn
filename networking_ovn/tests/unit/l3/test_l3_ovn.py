@@ -558,7 +558,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_update_router_ext_gw_change_subnet(self, gr, ur, gs,
                                                 grps, gp, mock_get_gw):
         self.l3_inst._ovn.is_col_present.return_value = True
-        mock_get_gw.return_value = mock.sentinel.GwRoute
+        mock_get_gw.return_value = [mock.sentinel.GwRoute]
         router = {'router': {'name': 'router'}}
         fake_old_ext_subnet = {'id': 'old-ext-subnet-id',
                                'ip_version': 4,
@@ -616,7 +616,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def test_update_router_ext_gw_change_ip_address(self, gr, ur, gs,
                                                     grps, gp, mock_get_gw):
         self.l3_inst._ovn.is_col_present.return_value = True
-        mock_get_gw.return_value = mock.sentinel.GwRoute
+        mock_get_gw.return_value = [mock.sentinel.GwRoute]
         router = {'router': {'name': 'router'}}
         # Old gateway info with same subnet and different ip address
         gr_value = copy.deepcopy(self.fake_router_with_ext_gw)
@@ -746,7 +746,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     def test_disable_snat(self, gr, ur, gs, grps, gp, mock_get_gw, mock_snats,
                           mock_ext_ips):
-        mock_get_gw.return_value = mock.sentinel.GwRoute
+        mock_get_gw.return_value = [mock.sentinel.GwRoute]
         mock_snats.return_value = [mock.sentinel.NAT]
         mock_ext_ips.return_value = False
         router = {'router': {'name': 'router'}}
@@ -1190,3 +1190,12 @@ class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
             'neutron-fake_device', ip_prefix='0.0.0.0/0', nexthop='120.0.0.2')
         self.l3_inst._ovn.delete_static_route.assert_called_once_with(
             'neutron-fake_device', ip_prefix='0.0.0.0/0', nexthop='120.0.0.1')
+
+    def test_router_update_gateway_upon_subnet_create_max_ips_ipv6(self):
+        super(OVNL3ExtrarouteTests, self). \
+            test_router_update_gateway_upon_subnet_create_max_ips_ipv6()
+        add_static_route_calls = [
+            mock.call(mock.ANY, ip_prefix='0.0.0.0/0', nexthop='10.0.0.1'),
+            mock.call(mock.ANY, ip_prefix='::/0', nexthop='2001:db8::1')]
+        self.l3_inst._ovn.add_static_route.assert_has_calls(
+            add_static_route_calls, any_order=True)
