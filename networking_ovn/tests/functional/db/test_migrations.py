@@ -54,11 +54,11 @@ class _TestModelsMigrationsOVN(test_migrations._TestModelsMigrations):
 
 class TestModelsMigrationsMysql(testlib_api.MySQLTestCaseMixin,
                                 _TestModelsMigrationsOVN,
-                                testlib_api.SqlTestCaseLight):
+                                testlib_api.SqlTestCase):
     pass
 
 
 class TestModelsMigrationsPostgresql(testlib_api.PostgreSQLTestCaseMixin,
                                      _TestModelsMigrationsOVN,
-                                     testlib_api.SqlTestCaseLight):
+                                     testlib_api.SqlTestCase):
     pass
