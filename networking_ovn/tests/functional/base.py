@@ -87,6 +87,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
     OVS_INSTALL_SHARE_PATH = '/usr/local/share/openvswitch'
     _mechanism_drivers = ['logger', 'ovn']
     _extension_drivers = ['port_security']
+    _counter = 0
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
 
     def setUp(self, ovn_worker=False):
@@ -258,7 +259,15 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                   for i, phys_net in enumerate(physical_nets)])
         name = uuidutils.generate_uuid()
         external_ids['ovn-bridge-mappings'] = bridge_mapping
+        # We'll be using different IP addresses every time for the Encap of
+        # the fake chassis as the SB schema doesn't allow to have two entries
+        # with same (ip,type) pairs as of OVS 2.11. This shouldn't have any
+        # impact as the tunnels won't get created anyways since ovn-controller
+        # is not running. Ideally we shouldn't be creating more than 255
+        # fake chassis but from the SB db point of view, 'ip' column can be
+        # any string so we could add entries with ip='172.24.4.1000'.
+        self._counter += 1
         self.sb_api.chassis_add(
-            name, ['geneve'], '172.24.4.10', external_ids=external_ids,
-            hostname=host).execute(check_error=True)
+            name, ['geneve'], '172.24.4.%d' % self._counter,
+            external_ids=external_ids, hostname=host).execute(check_error=True)
         return name
