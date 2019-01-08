@@ -20,9 +20,13 @@ import mock
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron.tests.unit import testlib_api
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
+from oslo_concurrency import lockutils
 from oslo_config import cfg
+from oslo_db import exception as os_db_exc
+from oslo_db.sqlalchemy import provision
 from oslo_log import log
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import command
@@ -41,6 +45,7 @@ LOG = log.getLogger(__name__)
 # This is the directory from which infra fetches log files for functional tests
 DEFAULT_LOG_DIR = os.path.join(os.environ.get('OS_LOG_PATH', '/tmp'),
                                'dsvm-functional-logs')
+SQL_FIXTURE_LOCK = 'sql_fixture_lock'
 
 
 class AddFakeChassisCommand(command.BaseCommand):
@@ -77,6 +82,27 @@ class ConnectionFixture(fixtures.Fixture):
 
     def stop(self):
         self.connection.stop()
+
+
+class OVNSqlFixture(testlib_api.StaticSqlFixture):
+
+    @classmethod
+    @lockutils.synchronized(SQL_FIXTURE_LOCK)
+    def _init_resources(cls):
+        cls.schema_resource = provision.SchemaResource(
+            provision.DatabaseResource("sqlite"),
+            cls._generate_schema, teardown=False)
+        dependency_resources = {}
+        for name, resource in cls.schema_resource.resources:
+            dependency_resources[name] = resource.getResource()
+        cls.schema_resource.make(dependency_resources)
+        cls.engine = dependency_resources['database'].engine
+
+    def _delete_from_schema(self, engine):
+        try:
+            super(OVNSqlFixture, self)._delete_from_schema(engine)
+        except os_db_exc.DBNonExistentTable:
+            pass
 
 
 class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
@@ -116,6 +142,16 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.ovn_worker = ovn_worker
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
+
+    # FIXME(lucasagomes): Workaround for
+    # https://bugs.launchpad.net/networking-ovn/+bug/1808146. We should
+    # investigate and properly fix the problem. This method is just a
+    # workaround to alleviate the gate for now and should not be considered
+    # a proper fix.
+    def _setup_database_fixtures(self):
+        fixture = OVNSqlFixture()
+        self.useFixture(fixture)
+        self.engine = fixture.engine
 
     def get_additional_service_plugins(self):
         p = super(TestOVNFunctionalBase, self).get_additional_service_plugins()
