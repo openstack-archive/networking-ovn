@@ -7,7 +7,6 @@
       - ^doc/.*$
       - ^releasenotes/.*$
       - ^setup.cfg$
-      - ^tools/.*$
       - ^tox.ini$
       - ^vagrant/.*$
     required-projects:
