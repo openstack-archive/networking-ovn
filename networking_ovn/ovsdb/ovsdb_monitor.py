@@ -12,11 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.common import config
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
-from neutron_lib import worker
 from oslo_log import log
 from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
@@ -383,23 +381,3 @@ def _check_and_set_ssl_files(schema_name):
 
     if ca_cert_file:
         Stream.ssl_set_ca_cert_file(ca_cert_file)
-
-
-class OvnWorker(worker.BaseWorker):
-    def start(self):
-        super(OvnWorker, self).start()
-        # NOTE(twilson) The super class will trigger the post_fork_initialize
-        # in the driver, which starts the connection/IDL notify loop which
-        # keeps the process from exiting
-
-    def stop(self):
-        """Stop service."""
-        # TODO(numans)
-
-    def wait(self):
-        """Wait for service to complete."""
-        # TODO(numans)
-
-    @staticmethod
-    def reset():
-        config.reset_service()

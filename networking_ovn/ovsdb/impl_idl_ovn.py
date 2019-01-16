@@ -34,6 +34,7 @@ from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
+from networking_ovn.ovsdb import worker
 
 
 LOG = log.getLogger(__name__)
@@ -135,7 +136,7 @@ def get_connection(db_class, trigger=None, driver=None):
         args = (cfg.get_ovn_sb_connection(), 'OVN_Southbound')
         cls = ovsdb_monitor.OvnSbIdl
 
-    if trigger and utils.get_method_class(trigger) == ovsdb_monitor.OvnWorker:
+    if trigger and utils.get_method_class(trigger) == worker.OvnWorker:
         idl_ = cls.from_server(*args, driver=driver)
     else:
         if db_class == OvsdbSbOvnIdl:
