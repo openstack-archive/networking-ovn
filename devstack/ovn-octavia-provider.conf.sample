@@ -1,0 +1,36 @@
+#
+# Sample DevStack local.conf.
+#
+# This sample file is intented to be used for using OVN as Octavia's Provider
+# driver.
+#
+
+[[local|localrc]]
+DATABASE_PASSWORD=password
+RABBIT_PASSWORD=password
+SERVICE_PASSWORD=password
+SERVICE_TOKEN=password
+ADMIN_PASSWORD=password
+enable_plugin networking-ovn \ $GIT_BASE/openstack/networking-ovn
+enable_service ovn-northd
+enable_service ovn-controller
+enable_service networking-ovn-metadata-agent
+enable_service q-svc
+
+# Disable Neutron agents not used with OVN
+disable_service q-agt
+disable_service q-l3
+disable_service q-dhcp
+disable_service q-meta
+
+DISABLE_AMP_IMAGE_BUILD=True
+enable_plugin octavia $GIT_BASE/openstack/octavia
+enable_service o-api
+enable_service o-hk
+enable_service octavia
+disable_service o-cw
+disable_service o-hm
+
+[[post-config|$OCTAVIA_CONF]]
+[api_settings]
+enabled_provider_drivers = amphora:'Octavia Amphora driver',ovn:'Octavia OVN driver'
