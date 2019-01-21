@@ -15,27 +15,36 @@
   # only if the config value needs to be changed.
   - name: Configure ovn-encap-type.
     command: "ovs-vsctl set open . external_ids:ovn-encap-type=geneve"
+    changed_when: false
   - name: Configure ovn-encap-ip.
     command: "ovs-vsctl set open . external_ids:ovn-encap-ip={{ ovn_encap_ip }}"
+    changed_when: false
   - name: Configure ovn-remote.
     command: "ovs-vsctl set open . external_ids:ovn-remote=tcp:{{ ovn_db_ip }}:6642"
+    changed_when: false
     # TODO We could discover the appropriate value for ovn-bridge-mappings based on
     # the openvswitch agent configuration instead of requiring it to be configured
     # in the inventory.
   - name: Configure ovn-bridge-mappings.
     command: "ovs-vsctl set open . external_ids:ovn-bridge-mappings={{ ovn_bridge_mappings }}"
+    changed_when: false
   - name: Get hostname
-    shell: hostname -f
+    command: hostname -f
     register: hostname
     check_mode: no
+    changed_when: false
   - name: Set host name
     command: "ovs-vsctl set Open_vSwitch . external-ids:hostname={{ hostname.stdout }}"
+    changed_when: false
   # TODO ansible has an "iptables" module, but it does not allow you specify a "rule number"
   # which we require here.
   - name: Open Geneve UDP port for tunneling.
     command: iptables -I INPUT 10 -m state --state NEW -p udp --dport 6081 -j ACCEPT
+    changed_when: false
   - name: Persist our iptables changes after a reboot
     shell: iptables-save > /etc/sysconfig/iptables.save
+    args:
+        creates: /etc/sysconfig/iptables.save
     # TODO Remove this once the metadata API is supported.
     # https://bugs.launchpad.net/networking-ovn/+bug/1562132
   - name: Force config drive until the metadata API is supported.
@@ -65,8 +74,11 @@
   - name: Open OVN database ports.
     command: "iptables -I INPUT 10 -m state --state NEW -p tcp --dport {{ item }} -j ACCEPT"
     with_items: [ 6641, 6642 ]
+    changed_when: False
   - name: Persist our iptables changes after a reboot
     shell: iptables-save > /etc/sysconfig/iptables.save
+    args:
+        creates: /etc/sysconfig/iptables.save
   # TODO Integrate HA support for the OVN control services.
   - name: Start ovn-northd and the OVN databases.
     when: ovn_central is defined
@@ -77,9 +89,11 @@
   - name: Enable remote access to the northbound database.
     command: "ovn-nbctl set-connection ptcp:6641:{{ ovn_db_ip }}"
     when: ovn_central is defined
+    changed_when: False
   - name: Enable remote access to the southbound database.
     command: "ovn-sbctl set-connection ptcp:6642:{{ ovn_db_ip }}"
     when: ovn_central is defined
+    changed_when: False
   - name: Ensure the Neutron ML2 plugin is installed on neutron-api hosts.
     yum:
       name: python-networking-ovn
@@ -140,10 +154,12 @@
       msg: DATA PLANE IS NOW BEING RESTORED.
   - name: Delete br-tun as it is no longer used.
     command: "ovs-vsctl del-br br-tun"
+    changed_when: false
   - name: Reset OpenFlow protocol version before ovn-controller takes over.
     with_items: [ br-int, br-ex ]
     command: "ovs-vsctl set Bridge {{ item }} protocols=[]"
     ignore_errors: True
+    changed_when: false
   - name: Start ovn-controller.
     systemd:
       name: ovn-controller
@@ -161,8 +177,10 @@
   - name: Schedule gateway routers by running the sync util.
     when: ovn_central is defined
     command: neutron-ovn-db-sync-util --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+    changed_when: false
   - name: Configure node for hosting gateway routers for external connectivity.
     command: "ovs-vsctl set open . external_ids:ovn-cms-options=enable-chassis-as-gw"
+    changed_when: false
 
 - hosts: overcloud
   remote_user: "{{ remote_user }}"
@@ -173,6 +191,7 @@
   #     # once containers are in use on the overcloud.
   - name: Delete network namespaces.
     command: ip -all netns delete
+    changed_when: false
 
 - hosts: controller
   remote_user: "{{ remote_user }}"

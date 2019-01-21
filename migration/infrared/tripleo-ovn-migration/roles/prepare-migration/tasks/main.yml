@@ -24,8 +24,7 @@
             - deploy_file_2.stat.exists|bool
 
       - name: Copy overcloud deploy script to overcloud-deploy-ovn.sh
-        shell:
-            cp -f {{ overcloud_deploy_script }}  ~/overcloud-deploy-ovn.sh
+        command: cp -f {{ overcloud_deploy_script }}  ~/overcloud-deploy-ovn.sh
         when: infrared_deployment|bool
 
 - name: set overcloud deploy ovn script
@@ -75,7 +74,7 @@
   block:
       - name: Get puddle version
         shell: cat containers-prepare-parameter.yaml | grep -v _tag | grep tag | awk '{print $2}'
-        ignore_error: True
+        ignore_errors: True
         register: core_puddle_version
 
       - name: Set image tag from puddle version
@@ -84,7 +83,7 @@
 
       - name: Get registry namespace
         shell: cat containers-prepare-parameter.yaml | grep -v _namespace | grep namespace | awk '{print $2}'
-        ignore_error: True
+        ignore_errors: True
         register: reg_ns
 
       - name: Set registry namespace
@@ -111,6 +110,8 @@
 - name: Generate ovn container images
   shell: |
       echo "container_images:" > ~/ovn_container_images.yaml
+  args:
+      creates: ~/ovn_container_images.yaml
 
 - name: Add ovn container images to ovn_container_images.yaml
   lineinfile:
@@ -125,6 +126,7 @@
 - name: Generate docker images environment file
   shell: |
       echo "parameter_defaults:" > ~/docker-images-ovn.yaml
+  changed_when: False
 
 - name: Set the local namespace
   block:
@@ -143,7 +145,7 @@
            rm -rf /tmp/oc_plan
 
      - name: Get the local namespace
-       shell: cat /tmp/_reg_namespace
+       command: cat /tmp/_reg_namespace
        register: local_ns
 
      - name: Set the local registry
@@ -175,3 +177,4 @@
   shell: |
       source ~/stackrc
       openstack overcloud container image upload --verbose --config-file ~/ovn_container_images.yaml
+  changed_when: False
