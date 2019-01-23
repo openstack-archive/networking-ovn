@@ -615,7 +615,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             capabilities = profile.get('capabilities', [])
         if (vnic_type == portbindings.VNIC_DIRECT and
            'switchdev' not in capabilities):
-            LOG.debug("Refusing to bind port due to unsupported vnic_type: %s"
+            LOG.debug("Refusing to bind port due to unsupported vnic_type: %s "
                       "with no switchdev capability", portbindings.VNIC_DIRECT)
             return
 
