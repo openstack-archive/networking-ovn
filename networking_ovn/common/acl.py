@@ -49,7 +49,7 @@ ICMP_PROTOCOLS = (const.PROTO_NAME_ICMP,
 
 class ProtocolNotSupported(n_exceptions.NeutronException):
     message = _('The protocol "%(protocol)s" is not supported. Valid '
-                'protocols are: %(valid_protocols); or protocol '
+                'protocols are: %(valid_protocols)s; or protocol '
                 'numbers ranging from 0 to 255.')
 
 
