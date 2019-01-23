@@ -1069,12 +1069,10 @@ class OVNClient(object):
                   candidates)
         return candidates
 
-    def _get_physnet(self, net_id):
-        extnet = self._plugin.get_network(n_context.get_admin_context(),
-                                          net_id)
-        if extnet.get(pnet.NETWORK_TYPE) in [const.TYPE_FLAT,
-                                             const.TYPE_VLAN]:
-            return extnet.get(pnet.PHYSICAL_NETWORK)
+    def _get_physnet(self, network):
+        if network.get(pnet.NETWORK_TYPE) in [const.TYPE_FLAT,
+                                              const.TYPE_VLAN]:
+            return network.get(pnet.PHYSICAL_NETWORK)
 
     def _gen_router_port_ext_ids(self, port):
         ext_ids = {
@@ -1099,8 +1097,18 @@ class OVNClient(object):
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
             'device_owner')
         columns = {}
+        port_net = self._plugin.get_network(n_context.get_admin_context(),
+                                            port['network_id'])
+        # For VLAN type networks we need to set the
+        # "reside-on-redirect-chassis" option so the routing for this
+        # logical router port is centralized in the chassis hosting the
+        # distributed gateway port.
+        # https://github.com/openvswitch/ovs/commit/85706c34d53d4810f54bec1de662392a3c06a996
+        if port_net.get(pnet.NETWORK_TYPE) == const.TYPE_VLAN:
+            columns['options'] = {'reside-on-redirect-chassis': 'true'}
+
         if is_gw_port:
-            physnet = self._get_physnet(port['network_id'])
+            physnet = self._get_physnet(port_net)
             candidates = self.get_candidates_for_scheduling(physnet)
             selected_chassis = self._ovn_scheduler.select(
                 self._nb_idl, self._sb_idl, lrouter_port_name,
