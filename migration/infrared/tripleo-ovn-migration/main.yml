@@ -146,7 +146,7 @@
                   ovn_migration_working_dir: /home/stack/ovn_migration
 
             - name: Copy the playbook files into ovn_migration working dir
-              shell: cp -rf /usr/share/ansible/networking-ovn-migration/playbooks {{ ovn_migration_working_dir }}
+              command: cp -rf /usr/share/ansible/networking-ovn-migration/playbooks {{ ovn_migration_working_dir }}
 
             - name: Set the public network name (infrared deployment)
               set_fact:

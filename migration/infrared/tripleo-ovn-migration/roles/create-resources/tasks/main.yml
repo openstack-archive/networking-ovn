@@ -19,6 +19,7 @@
     set -o pipefail &&
     {{ ovn_migration_temp_dir }}/create-resources.sh 2>&1 >
     {{ ovn_migration_temp_dir }}/create-resources.sh.log
+  changed_when: true
 
 - name: Generate pinger script
   template:
@@ -29,3 +30,4 @@
 - name: Start pinger in background
   shell: >
       nohup {{ ovn_migration_temp_dir }}/start-pinger.sh </dev/null >/dev/null 2>&1 &
+  changed_when: False
