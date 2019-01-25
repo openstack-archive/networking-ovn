@@ -17,6 +17,7 @@ import mock
 
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.db import api as db_api
+from oslo_db import exception as db_exc
 
 from networking_ovn.common import constants
 from networking_ovn.db import revision as db_rev
@@ -64,3 +65,17 @@ class TestRevisionNumber(db_base.DBTestCase, test_plugin.Ml2PluginV2TestCase):
         db_rev.delete_revision(self.net['id'], constants.TYPE_NETWORKS)
         row = db_rev.get_revision_row(self.net['id'])
         self.assertIsNone(row)
+
+    def test_create_initial_revision_may_exist_duplicated_entry(self):
+        args = (self.net['id'], constants.TYPE_NETWORKS, self.session)
+        db_rev.create_initial_revision(*args)
+
+        # assert DBDuplicateEntry is raised when may_exist is False (default)
+        self.assertRaises(db_exc.DBDuplicateEntry,
+                          db_rev.create_initial_revision, *args)
+
+        try:
+            db_rev.create_initial_revision(*args, may_exist=True)
+        except db_exc.DBDuplicateEntry:
+            self.fail("create_initial_revision shouldn't raise "
+                      "DBDuplicateEntry when may_exist is True")
