@@ -138,7 +138,7 @@ EOF
 
 # _install_databases [install_pg]
 function _install_databases {
-    local install_pg=${1:-True}
+    local install_pg=${1:-False}
 
     echo_summary "Installing databases"
 
