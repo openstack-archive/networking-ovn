@@ -34,6 +34,11 @@ services:
   service plugin. One has to enable the 'trunk' service plugin in neutron
   configuration files to use this feature.
 
+* VLAN tenant networks
+
+  The networking-ovn driver does support VLAN tenant networks when used
+  with OVN version 2.11 (or higher).
+
 
 The following Neutron API extensions are supported with OVN:
 

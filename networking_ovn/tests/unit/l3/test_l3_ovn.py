@@ -21,6 +21,7 @@ from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import resources
 from neutron_lib import constants
@@ -54,6 +55,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.fake_network = \
             fakes.FakeNetwork.create_one_network(attrs=network_attrs).info()
         self.fake_router_port = {'device_id': '',
+                                 'network_id': self.fake_network['id'],
                                  'device_owner': 'network:router_interface',
                                  'mac_address': 'aa:aa:aa:aa:aa:aa',
                                  'fixed_ips': [{'ip_address': '10.0.0.100',
@@ -490,6 +492,48 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 'router-port-id', 'lrp-router-port-id', is_gw_port=False,
                 lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
         self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_not_called()
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_network')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
+    def test_add_router_interface_vlan_network(self, ari, gr, grps, gs,
+                                               gp, gn):
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        ari.return_value = self.fake_router_interface_info
+        gr.return_value = self.fake_router_with_ext_gw
+        gs.return_value = self.fake_subnet
+        gp.return_value = self.fake_router_port
+
+        # Set the type to be VLAN
+        fake_network_vlan = self.fake_network
+        fake_network_vlan[pnet.NETWORK_TYPE] = constants.TYPE_VLAN
+        gn.return_value = fake_network_vlan
+
+        self.l3_inst.add_router_interface(self.context, router_id,
+                                          interface_info)
+
+        # Make sure that the "reside-on-redirect-chassis" option was
+        # set to the new router port
+        fake_router_port_assert = self.fake_router_port_assert
+        fake_router_port_assert['options'] = {
+            'reside-on-redirect-chassis': 'true'}
+
+        self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
+            **fake_router_port_assert)
+        self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=False,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
+        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.1', type='snat')
+
+        self.bump_rev_p.assert_called_with(self.fake_router_port,
+                                           ovn_const.TYPE_ROUTER_PORTS)
 
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')

@@ -160,9 +160,10 @@ primary node. See the :ref:`faq` for more information.
 
      .. note::
 
-        To enable VLAN self-service networks, add ``vlan`` to the
-        ``tenant_network_types`` option. The first network type
-        in the list becomes the default self-service network type.
+        To enable VLAN self-service networks, make sure that OVN
+        version 2.11 (or higher) is used, then add ``vlan`` to the
+        ``tenant_network_types`` option. The first network type in the
+        list becomes the default self-service network type.
 
         To use IPv6 for all overlay (tunnel) network endpoints,
         set the ``overlay_ip_version`` option to ``6``.

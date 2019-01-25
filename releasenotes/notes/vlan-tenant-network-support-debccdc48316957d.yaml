@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Added VLAN tenant network support in networking-ovn when used with
+    OVN version 2.11 or higher.
