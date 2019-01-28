@@ -65,7 +65,7 @@ as soon as it's configured (see next question).
 
 Yes, it's controlled by a single flag in configuration.
 
-DVR will be used for floating IPs if the ovn / enable_distributed_floating_ips
+DVR will be used for floating IPs if the ovn / enable_distributed_floating_ip
 flag is configured to True in the neutron server configuration, being
 a deployment wide setting. In contrast to ML2/ovs which was able to specify
 this setting per router (only admin).
