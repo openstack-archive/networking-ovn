@@ -515,20 +515,26 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
             db_extends[router['id']]['fips'] = []
             if not router.get(l3.EXTERNAL_GW_INFO):
                 continue
-            gw_info = self._ovn_client._get_gw_info(ctx, router)
-            if gw_info.gateway_ip:
-                db_extends[router['id']]['routes'].append(
-                    {'destination': '0.0.0.0/0',
-                     'nexthop': gw_info.gateway_ip})
-            if gw_info.router_ip and utils.is_snat_enabled(router):
-                networks = (
-                    self._ovn_client._get_v4_network_of_all_router_ports(
-                        ctx, router['id']))
-                for network in networks:
-                    db_extends[router['id']]['snats'].append({
-                        'logical_ip': network,
-                        'external_ip': gw_info.router_ip,
-                        'type': 'snat'})
+            gateways = self._ovn_client._get_gw_info(ctx, router)
+            for gw_info in gateways:
+                prefix = (constants.IPv4_ANY if
+                          gw_info.ip_version == constants.IP_VERSION_4 else
+                          constants.IPv6_ANY)
+                if gw_info.gateway_ip:
+                    db_extends[router['id']]['routes'].append(
+                        {'destination': prefix,
+                         'nexthop': gw_info.gateway_ip})
+                if gw_info.ip_version == constants.IP_VERSION_6:
+                    continue
+                if gw_info.router_ip and utils.is_snat_enabled(router):
+                    networks = (
+                        self._ovn_client._get_v4_network_of_all_router_ports(
+                            ctx, router['id']))
+                    for network in networks:
+                        db_extends[router['id']]['snats'].append({
+                            'logical_ip': network,
+                            'external_ip': gw_info.router_ip,
+                            'type': 'snat'})
 
         fips = self.l3_plugin.get_floatingips(
             ctx, {'router_id': list(db_routers.keys())})
