@@ -9,6 +9,7 @@
       - ^setup.cfg$
       - ^tox.ini$
       - ^vagrant/.*$
+      - ^migration/.*$
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/neutron
@@ -27,6 +28,7 @@
       - ^tools/.*$
       - ^tox.ini$
       - ^vagrant/.*$
+      - ^migration/.*$
     required-projects:
       - openstack-infra/devstack-gate
       - openstack/neutron
@@ -81,6 +83,7 @@
       - ^tools/.*$
       - ^tox.ini$
       - ^vagrant/.*$
+      - ^migration/.*$
     required-projects:
       - openstack-dev/grenade
       - openstack-infra/devstack-gate
