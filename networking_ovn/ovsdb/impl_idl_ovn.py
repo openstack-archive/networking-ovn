@@ -40,7 +40,16 @@ LOG = log.getLogger(__name__)
 
 
 class OvnNbTransaction(idl_trans.Transaction):
+
+    def __init__(self, *args, **kwargs):
+        # NOTE(lucasagomes): The bump_nb_cfg parameter is only used by
+        # the agents health status check
+        self.bump_nb_cfg = kwargs.pop('bump_nb_cfg', False)
+        super(OvnNbTransaction, self).__init__(*args, **kwargs)
+
     def pre_commit(self, txn):
+        if not self.bump_nb_cfg:
+            return
         self.api.nb_global.increment('nb_cfg')
 
 
@@ -155,10 +164,11 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def nb_global(self):
         return next(iter(self.tables['NB_Global'].rows.values()))
 
-    def create_transaction(self, check_error=False, log_errors=True):
+    def create_transaction(self, check_error=False, log_errors=True,
+                           bump_nb_cfg=False):
         return OvnNbTransaction(
             self, self.ovsdb_connection, self.ovsdb_connection.timeout,
-            check_error, log_errors)
+            check_error, log_errors, bump_nb_cfg=bump_nb_cfg)
 
     @contextlib.contextmanager
     def transaction(self, *args, **kwargs):

@@ -985,7 +985,10 @@ class OVNMechanismDriver(api.MechanismDriver):
 
     def ping_chassis(self):
         """Update NB_Global.nb_cfg so that Chassis.nb_cfg will increment"""
-        self._nb_ovn.check_liveness().execute(check_error=True)
+
+        with self._nb_ovn.create_transaction(check_error=True,
+                                             bump_nb_cfg=True) as txn:
+            txn.add(self._nb_ovn.check_liveness())
 
 
 def get_agents(self, context, filters=None, fields=None, _driver=None):
