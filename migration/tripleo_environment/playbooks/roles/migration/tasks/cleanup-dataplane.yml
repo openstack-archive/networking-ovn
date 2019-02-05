@@ -36,6 +36,11 @@
 
 - name: Cleanup neutron datapath resources
   shell: |
+    # avoid cleaning up dhcp namespaces if the neutron dhcp agent is up (SR-IOV use case)
+    if [[ "{{ item.value.cleanup_type }}" == "dhcp" ]]; then
+        docker inspect neutron_dhcp && echo "Shouldn't clean DHCP namespaces if neutron_dhcp docker is up" && exit 0
+    fi
+
     if ip netns | egrep -e "{{ item.value.netns_regex }}"
     then
       echo "Cleaning up"
