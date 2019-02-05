@@ -34,6 +34,7 @@ class TestMetadataDriverProcess(base.BaseTestCase):
 
     EUNAME = 'neutron'
     EGNAME = 'neutron'
+    METADATA_DEFAULT_IP = '169.254.169.254'
     METADATA_PORT = 8080
     METADATA_SOCKET = '/socket/path'
     PIDFILE = 'pidfile'
@@ -76,6 +77,7 @@ class TestMetadataDriverProcess(base.BaseTestCase):
                 metadata_ns,
                 self.METADATA_PORT,
                 cfg.CONF,
+                bind_address=self.METADATA_DEFAULT_IP,
                 network_id=datapath_id)
 
             netns_execute_args = [
@@ -85,6 +87,7 @@ class TestMetadataDriverProcess(base.BaseTestCase):
             cfg_contents = metadata_driver._HAPROXY_CONFIG_TEMPLATE % {
                 'user': self.EUNAME,
                 'group': self.EGNAME,
+                'host': self.METADATA_DEFAULT_IP,
                 'port': self.METADATA_PORT,
                 'unix_socket_path': self.METADATA_SOCKET,
                 'res_type': 'Network',
@@ -107,9 +110,9 @@ class TestMetadataDriverProcess(base.BaseTestCase):
         with mock.patch('pwd.getpwnam', side_effect=KeyError):
             config = metadata_driver.HaproxyConfigurator(mock.ANY, mock.ANY,
                                                          mock.ANY, mock.ANY,
-                                                         self.EUNAME,
-                                                         self.EGNAME,
-                                                         mock.ANY, mock.ANY)
+                                                         mock.ANY, self.EUNAME,
+                                                         self.EGNAME, mock.ANY,
+                                                         mock.ANY)
             self.assertRaises(metadata_driver.InvalidUserOrGroupException,
                               config.create_config_file)
 
@@ -119,8 +122,8 @@ class TestMetadataDriverProcess(base.BaseTestCase):
                            return_value=test_utils.FakeUser(self.EUNAME)):
             config = metadata_driver.HaproxyConfigurator(mock.ANY, mock.ANY,
                                                          mock.ANY, mock.ANY,
-                                                         self.EUNAME,
-                                                         self.EGNAME,
-                                                         mock.ANY, mock.ANY)
+                                                         mock.ANY, self.EUNAME,
+                                                         self.EGNAME, mock.ANY,
+                                                         mock.ANY)
             self.assertRaises(metadata_driver.InvalidUserOrGroupException,
                               config.create_config_file)
