@@ -23,6 +23,7 @@ from ovsdbapp import event as ovsdb_event
 from networking_ovn.agent.metadata import agent
 from networking_ovn.agent.metadata import ovsdb
 from networking_ovn.agent.metadata import server as metadata_server
+from networking_ovn.agent import stats
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.conf.agent.metadata import config as meta
 from networking_ovn.tests.functional import base
@@ -121,3 +122,17 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         # chassis with the nb_cfg, 2 revisions, one for the network transaction
         # and another one for the port
         self.assertTrue(row_event.wait())
+
+    def test_updating_metadata_doesnt_update_controller_stats(self):
+        chassis = self.sb_api.lookup('Chassis', self.chassis_name)
+        self.assertNotIn(ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY,
+                         chassis.external_ids)
+        nb_cfg = stats.AgentStats.get_stat(chassis.uuid).nb_cfg
+        new_nb_cfg = nb_cfg + 1
+        row_event = MetadataAgentHealthEvent(chassis.name, new_nb_cfg)
+        self.handler.watch_event(row_event)
+        self.sb_api.update_metadata_health_status(
+            chassis.name, new_nb_cfg).execute(check_error=True)
+        self.assertTrue(row_event.wait())
+        self.assertEqual(stats.AgentStats.get_stat(chassis.uuid).nb_cfg,
+                         nb_cfg)
