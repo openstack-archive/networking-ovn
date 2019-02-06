@@ -34,7 +34,6 @@ from oslo_db import exception as os_db_exc
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 
-from neutron.db import api  # noqa
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests import tools
