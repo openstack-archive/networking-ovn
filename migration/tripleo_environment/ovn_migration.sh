@@ -63,11 +63,15 @@ file again."
         exit 1
     fi
 
-    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT  | grep  $HOME/ovn-extras.yaml >/dev/null
-    if [ "$?" == "1" ]
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT | grep \$HOME/ovn-extras.yaml >/dev/null
+    check1=$?
+    cat $OVERCLOUD_OVN_DEPLOY_SCRIPT | grep $HOME/ovn-extras.yaml >/dev/null
+    check2=$?
+
+    if [[ "$check1" == "1" && "$check2" == "1" ]]
     then
         echo "ovn-extras.yaml file is missing in $OVERCLOUD_OVN_DEPLOY_SCRIPT.\
- Please add it as \" -e $HOME/ovn-extras.yaml\""
+ Please add it as \" -e \$HOME/ovn-extras.yaml\""
         exit 1
     fi
 }
