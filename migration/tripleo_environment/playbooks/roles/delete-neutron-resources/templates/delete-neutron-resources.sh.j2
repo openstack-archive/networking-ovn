@@ -4,8 +4,8 @@ set -x
 
 source {{ overcloudrc }}
 
-# Delete neutron agents
-for i in `openstack network agent list | grep neutron- | awk {'print $2'}`
+# Delete non alive neutron agents
+for i in `openstack network agent list | grep neutron- | grep -v ':-)' | awk {'print $2'}`
 do
   openstack network agent delete $i
 done
