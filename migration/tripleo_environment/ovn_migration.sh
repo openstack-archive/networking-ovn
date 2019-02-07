@@ -203,7 +203,7 @@ EOF
     cat hosts_for_migration
     echo "***************************************"
     echo "Generated the inventory file - hosts_for_migration"
-    echo "Please review the file before running the next command - reduce-mtu"
+    echo "Please review the file before running the next command - setup-mtu-t1"
 }
 
 # Check if the public network exists, and if it has floating ips available
