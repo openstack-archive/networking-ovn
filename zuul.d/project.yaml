@@ -24,7 +24,7 @@
         # run in Pike and beyond.
         # If you need any support to debug these jobs in case of
         # failures, please reach us on #tripleo IRC channel.
-        - tripleo-ci-centos-7-scenario007-multinode-oooq-container
+        - networking-ovn-tripleo-c7-s007-oooq-containers
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
