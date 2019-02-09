@@ -225,6 +225,14 @@ class OVNClient(object):
             port_type = ovn_const.OVN_NEUTRON_OWNER_TO_PORT_TYPE.get(
                 port['device_owner'], '')
 
+            if not port_security:
+                # Port security is disabled for this port.
+                # So this port can send traffic with any mac address.
+                # OVN allows any mac address from a port if "unknown"
+                # is added to the Logical_Switch_Port.addresses column.
+                # So add it.
+                addresses.append("unknown")
+
         dhcpv4_options = self._get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self._get_port_dhcp_options(port, const.IP_VERSION_6)
 
