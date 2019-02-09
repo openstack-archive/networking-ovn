@@ -227,6 +227,14 @@ class OVNClient(object):
             addresses = [address]
             addresses.extend(new_macs)
 
+            if not port_security:
+                # Port security is disabled for this port.
+                # So this port can send traffic with any mac address.
+                # OVN allows any mac address from a port if "unknown"
+                # is added to the Logical_Switch_Port.addresses column.
+                # So add it.
+                addresses.append("unknown")
+
             # Only adjust the OVN type if the port is not owned by Neutron
             # DHCP agents.
             if (port['device_owner'] == const.DEVICE_OWNER_DHCP and
