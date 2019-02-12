@@ -98,7 +98,7 @@ class PortBindingChassisEvent(row_event.RowEvent):
         self.driver = driver
         self.l3_plugin = directory.get_plugin(constants.L3)
         table = 'Port_Binding'
-        events = (self.ROW_UPDATE)
+        events = (self.ROW_UPDATE,)
         super(PortBindingChassisEvent, self).__init__(
             events, table, (('type', '=', 'chassisredirect'),))
         self.event_name = 'PortBindingChassisEvent'
@@ -129,7 +129,7 @@ class LogicalSwitchPortCreateUpEvent(row_event.RowEvent):
     def __init__(self, driver):
         self.driver = driver
         table = 'Logical_Switch_Port'
-        events = (self.ROW_CREATE)
+        events = (self.ROW_CREATE,)
         super(LogicalSwitchPortCreateUpEvent, self).__init__(
             events, table, (('up', '=', True),))
         self.event_name = 'LogicalSwitchPortCreateUpEvent'
@@ -148,7 +148,7 @@ class LogicalSwitchPortCreateDownEvent(row_event.RowEvent):
     def __init__(self, driver):
         self.driver = driver
         table = 'Logical_Switch_Port'
-        events = (self.ROW_CREATE)
+        events = (self.ROW_CREATE,)
         super(LogicalSwitchPortCreateDownEvent, self).__init__(
             events, table, (('up', '=', False),))
         self.event_name = 'LogicalSwitchPortCreateDownEvent'
@@ -167,7 +167,7 @@ class LogicalSwitchPortUpdateUpEvent(row_event.RowEvent):
     def __init__(self, driver):
         self.driver = driver
         table = 'Logical_Switch_Port'
-        events = (self.ROW_UPDATE)
+        events = (self.ROW_UPDATE,)
         super(LogicalSwitchPortUpdateUpEvent, self).__init__(
             events, table, (('up', '=', True),),
             old_conditions=(('up', '=', False),))
@@ -187,7 +187,7 @@ class LogicalSwitchPortUpdateDownEvent(row_event.RowEvent):
     def __init__(self, driver):
         self.driver = driver
         table = 'Logical_Switch_Port'
-        events = (self.ROW_UPDATE)
+        events = (self.ROW_UPDATE,)
         super(LogicalSwitchPortUpdateDownEvent, self).__init__(
             events, table, (('up', '=', False),),
             old_conditions=(('up', '=', True),))

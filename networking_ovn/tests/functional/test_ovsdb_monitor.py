@@ -36,7 +36,7 @@ class WaitForMACBindingDeleteEvent(event.RowEvent):
         self.event = threading.Event()
         self.timeout = 15
         table = 'MAC_Binding'
-        events = (self.ROW_DELETE)
+        events = (self.ROW_DELETE,)
         conditions = (('_uuid', '=', entry),)
         super(WaitForMACBindingDeleteEvent, self).__init__(
             events, table, conditions)

@@ -72,7 +72,7 @@ class PortBindingChassisEvent(row_event.RowEvent):
     def __init__(self, metadata_agent):
         self.agent = metadata_agent
         table = 'Port_Binding'
-        events = (self.ROW_UPDATE)
+        events = (self.ROW_UPDATE,)
         super(PortBindingChassisEvent, self).__init__(
             events, table, None)
         self.event_name = 'PortBindingChassisEvent'
@@ -109,7 +109,7 @@ class ChassisCreateEvent(row_event.RowEvent):
         self.agent = metadata_agent
         self.first_time = True
         table = 'Chassis'
-        events = (self.ROW_CREATE)
+        events = (self.ROW_CREATE,)
         super(ChassisCreateEvent, self).__init__(
             events, table, (('name', '=', self.agent.chassis),))
         self.event_name = 'ChassisCreateEvent'
@@ -128,7 +128,7 @@ class SbGlobalUpdateEvent(row_event.RowEvent):
     def __init__(self, metadata_agent):
         self.agent = metadata_agent
         table = 'SB_Global'
-        events = (self.ROW_UPDATE)
+        events = (self.ROW_UPDATE,)
         super(SbGlobalUpdateEvent, self).__init__(events, table, None)
         self.event_name = 'SbGlobalUpdateEvent'
 
