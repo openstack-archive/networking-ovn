@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import abc
+
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
@@ -30,34 +32,70 @@ from networking_ovn.common import utils
 LOG = log.getLogger(__name__)
 
 
-class ChassisAgentEvent(row_event.RowEvent):
+class BaseEvent(row_event.RowEvent):
+    table = None
+    events = tuple()
+
     def __init__(self):
-        table = 'Chassis'
-        events = (self.ROW_CREATE, self.ROW_UPDATE, self.ROW_DELETE)
-        super(ChassisAgentEvent, self).__init__(events, table, None)
-        self.event_name = 'ChassisAgentEvent'
+        self.event_name = self.__class__.__name__
+        super(BaseEvent, self).__init__(self.events, self.table, None)
+
+    @abc.abstractmethod
+    def match_fn(self, event, row, old=None):
+        """Define match criteria other than table/event"""
+
+    def matches(self, event, row, old=None):
+        if row._table.name != self.table or event not in self.events:
+            return False
+        if not self.match_fn(event, row, old):
+            return False
+        LOG.debug("%s : Matched %s, %s, %s %s", self.event_name, self.table,
+                  event, self.conditions, self.old_conditions)
+        return True
+
+
+class ChassisAgentDeleteEvent(BaseEvent):
+    table = 'Chassis'
+    events = (BaseEvent.ROW_DELETE,)
 
     def run(self, event, row, old):
-        if event != self.ROW_DELETE:
-            stats.AgentStats.add_stat(row.uuid, row.nb_cfg)
+        stats.AgentStats.del_agent(row.uuid)
+        stats.AgentStats.del_agent(utils.ovn_metadata_name(row.uuid))
 
-            # Update the metadata agent stats
-            metadata_nb_cfg = row.external_ids.get(
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, None)
-            if event == self.ROW_UPDATE and metadata_nb_cfg:
-                try:
-                    old_metadata_nb_cfg = old.external_ids.get(
-                        ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, None)
-                except AttributeError:
-                    return
+    def match_fn(self, event, row, old=None):
+        return True
 
-                if metadata_nb_cfg != old_metadata_nb_cfg:
-                    stats.AgentStats.add_stat(
-                        utils.ovn_metadata_name(row.uuid),
-                        int(metadata_nb_cfg))
-        else:
-            stats.AgentStats.del_agent(row.uuid)
-            stats.AgentStats.del_agent(utils.ovn_metadata_name(row.uuid))
+
+class ChassisGatewayAgentEvent(BaseEvent):
+    table = 'Chassis'
+    events = (BaseEvent.ROW_CREATE, BaseEvent.ROW_UPDATE)
+
+    def match_fn(self, event, row, old=None):
+        return event == self.ROW_CREATE or getattr(old, 'nb_cfg', False)
+
+    def run(self, event, row, old):
+        stats.AgentStats.add_stat(row.uuid, row.nb_cfg)
+
+
+class ChassisMetadataAgentEvent(BaseEvent):
+    table = 'Chassis'
+    events = (BaseEvent.ROW_CREATE, BaseEvent.ROW_UPDATE)
+
+    @staticmethod
+    def _metadata_nb_cfg(row):
+        return int(row.external_ids[ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY])
+
+    def match_fn(self, event, row, old=None):
+        if event == self.ROW_CREATE:
+            return True
+        try:
+            return self._metadata_nb_cfg(row) != self._metadata_nb_cfg(old)
+        except (AttributeError, KeyError):
+            return False
+
+    def run(self, event, row, old):
+        stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
+                                  self._metadata_nb_cfg(row))
 
 
 class ChassisEvent(row_event.RowEvent):
@@ -237,7 +275,9 @@ class BaseOvnSbIdl(connection.OvsdbIdl):
     def __init__(self, remote, schema):
         super(BaseOvnSbIdl, self).__init__(remote, schema)
         self.notify_handler = event.RowEventHandler()
-        self.notify_handler.watch_event(ChassisAgentEvent())
+        self.notify_handler.watch_events([
+            ChassisAgentDeleteEvent(), ChassisMetadataAgentEvent(),
+            ChassisGatewayAgentEvent()])
 
     @classmethod
     def from_server(cls, connection_string, schema_name):
