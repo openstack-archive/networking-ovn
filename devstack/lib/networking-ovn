@@ -102,9 +102,6 @@ NEUTRON_DIR=$DEST/neutron
 
 OVN_META_CONF=$NEUTRON_CONF_DIR/networking_ovn_metadata_agent.ini
 
-# Octavia directory
-OCTAVIA_DIR=$DEST/octavia
-
 # Set variables for building OVS from source
 OVS_REPO=$OVN_REPO
 OVS_REPO_NAME=$OVN_REPO_NAME
@@ -566,63 +563,6 @@ function create_public_bridge {
     sudo ip link set $ext_gw_ifc up
 }
 
-function _start_ovn_octavia_apache_wsgi {
-    if [[ "$WSGI_MODE" == "uwsgi" ]]; then
-        run_process $OCTAVIA_API "$OCTAVIA_BIN_DIR/uwsgi --ini $OCTAVIA_UWSGI_CONF"
-        enable_apache_site octavia-wsgi
-    else
-        enable_apache_site octavia
-        restart_apache_server
-    fi
-}
-
-function _stop_ovn_octavia_apache_wsgi {
-    if [[ "$WSGI_MODE" == "uwsgi" ]]; then
-        disable_apache_site octavia-wsgi
-        stop_process $OCTAVIA_API
-    else
-        disable_apache_site octavia
-        restart_apache_server
-    fi
-}
-
-function install_ovn_octavia {
-    source $OCTAVIA_DIR/devstack/plugin.sh
-    octavia_install
-    octaviaclient_install
-}
-
-function configure_ovn_octavia {
-    source $OCTAVIA_DIR/devstack/plugin.sh
-    octavia_configure
-    iniset $OCTAVIA_CONF api_settings enabled_provider_drivers 'ovn:OVN provider driver'
-    iniset $OCTAVIA_CONF api_settings default_provider_driver 'ovn'
-    iniset $OCTAVIA_CONF house_keeping load_balancer_expiry_age 20
-}
-
-function start_ovn_octavia {
-    source $OCTAVIA_DIR/devstack/plugin.sh
-    source $OCTAVIA_DIR/devstack/settings
-    create_octavia_accounts
-    add_load-balancer_roles
-    if [[ "$OCTAVIA_USE_MOD_WSGI" == "True" ]]; then
-        _start_ovn_octavia_apache_wsgi
-    else
-        run_process $OCTAVIA_API "$OCTAVIA_API_BINARY $OCTAVIA_API_ARGS"
-    fi
-    run_process $OCTAVIA_HOUSEKEEPER  "$OCTAVIA_HOUSEKEEPER_BINARY $OCTAVIA_HOUSEKEEPER_ARGS"
-}
-
-function stop_ovn_octavia {
-    source $OCTAVIA_DIR/devstack/plugin.sh
-    source $OCTAVIA_DIR/devstack/settings
-    if [[ "$OCTAVIA_USE_MOD_WSGI" == "True" ]]; then
-        _stop_ovn_octavia_apache_wsgi
-    else
-        stop_process $OCTAVIA_API
-    fi
-    stop_process $OCTAVIA_HOUSEKEEPER
-}
 
 # Restore xtrace
 $_XTRACE_NETWORKING_OVN
