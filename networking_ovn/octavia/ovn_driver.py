@@ -872,9 +872,8 @@ class OvnProviderHelper(object):
             self.ovn_nbdb_api.db_set(
                 'Load_Balancer', ovn_lb.uuid,
                 ('external_ids', external_ids)).execute(check_error=True)
-            operating_status = constants.ONLINE
-            if not pool.get('admin_state_up', True):
-                operating_status = constants.OFFLINE
+            # Pool status will be set to Online after a member is added to it.
+            operating_status = constants.OFFLINE
 
             status = {
                 'pools': [{'id': pool['id'],
@@ -1033,10 +1032,9 @@ class OvnProviderHelper(object):
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key]
         member_info = self._get_member_key(member)
-        if member_info in existing_members.split(','):
-            # member already present. No need to do anything.
+        if member_info in existing_members:
+            # Member already present
             return
-
         if existing_members:
             pool_data = {pool_key: existing_members + "," + member_info}
         else:
@@ -1067,9 +1065,11 @@ class OvnProviderHelper(object):
                                               is_enabled=False)
                 ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
             self._add_member(member, ovn_lb, pool_key)
+            pool = {"id": member['pool_id'],
+                    "provisioning_status": constants.ACTIVE,
+                    "operating_status": constants.ONLINE}
             status = {
-                'pools': [{"id": member['pool_id'],
-                           "provisioning_status": constants.ACTIVE}],
+                'pools': [pool],
                 'members': [{"id": member['id'],
                              "provisioning_status": constants.ACTIVE}],
                 'loadbalancers': [{"id": ovn_lb.name,
@@ -1100,6 +1100,10 @@ class OvnProviderHelper(object):
         if member_info in existing_members:
             commands = []
             existing_members.remove(member_info)
+            if not existing_members:
+                pool_status = constants.OFFLINE
+            else:
+                pool_status = constants.ONLINE
             pool_data = {pool_key: ",".join(existing_members)}
             commands.append(
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
@@ -1115,6 +1119,12 @@ class OvnProviderHelper(object):
                     ovn_lb, subnet_id=member['subnet_id'], associate=False)
             )
             self._execute_commands(commands)
+            return pool_status
+        else:
+            msg = _("Member %s not found in the pool") % member['id']
+            raise driver_exceptions.DriverError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
 
     def member_delete(self, member):
         try:
@@ -1124,10 +1134,12 @@ class OvnProviderHelper(object):
                 pool_key = self._get_pool_key(member['pool_id'],
                                               is_enabled=False)
                 ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
-            self._remove_member(member, ovn_lb, pool_key)
+            pool_status = self._remove_member(member, ovn_lb, pool_key)
+            pool = {"id": member['pool_id'],
+                    "provisioning_status": constants.ACTIVE,
+                    "operating_status": pool_status}
             status = {
-                'pools': [{"id": member['pool_id'],
-                           "provisioning_status": constants.ACTIVE}],
+                'pools': [pool],
                 'members': [{"id": member['id'],
                              "provisioning_status": constants.DELETED}],
                 'loadbalancers': [{"id": ovn_lb.name,
@@ -1151,6 +1163,27 @@ class OvnProviderHelper(object):
 
         return status
 
+    def _update_member(self, member, ovn_lb, pool_key):
+        commands = []
+        external_ids = copy.deepcopy(ovn_lb.external_ids)
+        existing_members = external_ids[pool_key].split(",")
+        member_info = self._get_member_key(member)
+        for mem in existing_members:
+            if member_info.split('_')[1] == mem.split(
+                '_')[1] and mem != member_info:
+                existing_members.remove(mem)
+                existing_members.append(member_info)
+                pool_data = {pool_key: ",".join(existing_members)}
+                commands.append(
+                    self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
+                                             ('external_ids', pool_data))
+                )
+                external_ids[pool_key] = ",".join(existing_members)
+                commands.extend(
+                    self._refresh_lb_vips(ovn_lb.uuid, external_ids)
+                )
+                self._execute_commands(commands)
+
     def member_update(self, member):
         try:
             pool_key = self._get_pool_key(member['pool_id'])
@@ -1167,14 +1200,13 @@ class OvnProviderHelper(object):
                                               is_enabled=False)
                 ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
 
+            self._update_member(member, ovn_lb, pool_key)
             if 'admin_state_up' in member:
                 if member['admin_state_up']:
-                    self._add_member(member, ovn_lb, pool_key)
                     status['members'][0]['operating_status'] = constants.ONLINE
                 else:
-                    self._remove_member(member, ovn_lb, pool_key)
-                    status['members'][0]['operating_status'] = (
-                        constants.OFFLINE)
+                    status['members'][0][
+                        'operating_status'] = constants.OFFLINE
 
             pool_listeners = self._get_pool_listeners(ovn_lb, pool_key)
             listener_status = []
@@ -1398,7 +1430,20 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     # Member
+    def _check_monitor_options(self, member):
+        if not(member.monitor_address or member.monitor_port):
+            return False
+        else:
+            return not (isinstance(
+                member.monitor_address, o_datamodels.UnsetType) or isinstance(
+                    member.monitor_port, o_datamodels.UnsetType))
+
     def member_create(self, member):
+        if self._check_monitor_options(member):
+            msg = _('OVN provider does not support monitor options')
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
         admin_state_up = member.admin_state_up
         if isinstance(member.subnet_id, o_datamodels.UnsetType):
             msg = _('Subnet is required for Member creation'
@@ -1430,6 +1475,11 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def member_update(self, old_member, new_member):
+        if self._check_monitor_options(new_member):
+            msg = _('OVN provider does not support monitor options')
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
         request_info = {'id': new_member.member_id,
                         'address': old_member.address,
                         'protocol_port': old_member.protocol_port,
@@ -1461,7 +1511,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         current_members = self._ovn_helper.get_member_info(pool_id)
         # current_members gets a list of tuples (ID, IP:Port) for pool members
         for member in members:
-            if member.monitor_address or member.monitor_port:
+            if self._check_monitor_options(member):
                 skipped_members.append(member.member_id)
                 continue
             admin_state_up = member.admin_state_up
