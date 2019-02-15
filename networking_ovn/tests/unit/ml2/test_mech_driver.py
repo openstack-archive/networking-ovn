@@ -33,6 +33,7 @@ from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
+from oslo_utils import uuidutils
 
 from neutron.db import api  # noqa
 from neutron.db import provisioning_blocks
@@ -1444,6 +1445,37 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         # Assert that subsequently calls checking the status of the agent
         # shows it as "dead" instead of blowing up with an exception
         self.assertFalse(self.mech_driver.agent_alive(chassis, agent_type))
+
+    def _test__update_dnat_entry_if_needed(self, up=True):
+        ovn_config.cfg.CONF.set_override(
+            'enable_distributed_floating_ip', True, group='ovn')
+        port_id = 'fake-port-id'
+        fake_ext_mac_key = 'fake-ext-mac-key'
+        fake_nat_uuid = uuidutils.generate_uuid()
+        nat_row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'_uuid': fake_nat_uuid, 'external_ids': {
+                ovn_const.OVN_FIP_EXT_MAC_KEY: fake_ext_mac_key}})
+
+        fake_db_find = mock.Mock()
+        fake_db_find.execute.return_value = [nat_row]
+        self.nb_ovn.db_find.return_value = fake_db_find
+
+        self.mech_driver._update_dnat_entry_if_needed(port_id, up=up)
+
+        if up:
+            # Assert that we are setting the external_mac in the NAT table
+            self.nb_ovn.db_set.assert_called_once_with(
+                'NAT', fake_nat_uuid, ('external_mac', fake_ext_mac_key))
+        else:
+            # Assert that we are cleaning the external_mac from the NAT table
+            self.nb_ovn.db_clear.assert_called_once_with(
+                'NAT', fake_nat_uuid, 'external_mac')
+
+    def test__update_dnat_entry_if_needed_up(self):
+        self._test__update_dnat_entry_if_needed()
+
+    def test__update_dnat_entry_if_needed_down(self):
+        self._test__update_dnat_entry_if_needed(up=False)
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
