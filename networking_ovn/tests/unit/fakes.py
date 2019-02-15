@@ -137,6 +137,9 @@ class FakeOvsdbNbOvnIdl(object):
         self.nb_global = mock.Mock()
         self.db_list_rows = mock.Mock()
         self.lsp_list = mock.MagicMock()
+        self.db_find = mock.Mock()
+        self.db_set = mock.Mock()
+        self.db_clear = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
