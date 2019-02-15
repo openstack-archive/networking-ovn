@@ -16,10 +16,9 @@
 import mock
 
 from neutron.common import utils as n_utils
-from octavia.api.drivers import data_models as octavia_data_model
-from octavia.api.drivers import exceptions as o_exceptions
-from octavia.common import constants as o_constants
-from octavia.common import utils as o_utils
+from octavia_lib.api.drivers import data_models as octavia_data_model
+from octavia_lib.api.drivers import exceptions as o_exceptions
+from octavia_lib.common import constants as o_constants
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
 
@@ -40,8 +39,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._o_driver_lib = self.ovn_driver._ovn_helper._octavia_driver_lib
         self._o_driver_lib.update_loadbalancer_status = mock.Mock()
         self.fake_network_driver = mock.MagicMock()
-        o_utils.get_network_driver = mock.MagicMock()
-        o_utils.get_network_driver.return_value = self.fake_network_driver
+        ovn_driver.get_network_driver = mock.MagicMock()
+        ovn_driver.get_network_driver.return_value = self.fake_network_driver
         self.fake_network_driver.get_subnet = self._mock_get_subnet
         self.fake_network_driver.neutron_client.list_ports = (
             self._mock_list_ports)

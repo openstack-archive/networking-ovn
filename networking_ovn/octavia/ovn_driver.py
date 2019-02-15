@@ -18,23 +18,25 @@ import threading
 
 from six.moves import queue as Queue
 
+from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 from ovs.stream import Stream
 from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
+from stevedore import driver
 
-from octavia.api.drivers import data_models as o_datamodels
-from octavia.api.drivers import driver_lib as o_driver_lib
-from octavia.api.drivers import exceptions as driver_exceptions
-from octavia.api.drivers import provider_base as driver_base
-from octavia.common import constants
-from octavia.common import utils
+from octavia_lib.api.drivers import data_models as o_datamodels
+from octavia_lib.api.drivers import driver_lib as o_driver_lib
+from octavia_lib.api.drivers import exceptions as driver_exceptions
+from octavia_lib.api.drivers import provider_base as driver_base
+from octavia_lib.common import constants
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as ovn_cfg
 from networking_ovn.common import utils as ovn_utils
 
+CONF = cfg.CONF  # Gets Octavia Conf as it runs under o-api domain
 
 LOG = logging.getLogger(__name__)
 
@@ -193,6 +195,15 @@ LB_EXT_IDS_VIP_KEY = 'neutron:vip'
 LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
 
+def get_network_driver():
+    CONF.import_group('controller_worker', 'octavia.common.config')
+    return driver.DriverManager(
+        namespace='octavia.network.drivers',
+        name=CONF.controller_worker.network_driver,
+        invoke_on_load=True
+    ).driver
+
+
 class OvnProviderHelper(object):
 
     ovn_nbdb_api = None
@@ -317,7 +328,7 @@ class OvnProviderHelper(object):
         if network_id:
             ls_name = ovn_utils.ovn_name(network_id)
         else:
-            network_driver = utils.get_network_driver()
+            network_driver = get_network_driver()
             subnet = network_driver.get_subnet(subnet_id)
             ls_name = ovn_utils.ovn_name(subnet.network_id)
 
@@ -497,7 +508,7 @@ class OvnProviderHelper(object):
             # Get the port id of the vip and store it in the external_ids.
             # This is required to delete the port when the loadbalancer is
             # deleted.
-            network_driver = utils.get_network_driver()
+            network_driver = get_network_driver()
             ports = network_driver.neutron_client.list_ports(
                 network_id=loadbalancer['vip_network_id'])
             port = None
@@ -616,7 +627,7 @@ class OvnProviderHelper(object):
             self._execute_commands(commands)
 
             # We need to delete the vip port
-            network_driver = utils.get_network_driver()
+            network_driver = get_network_driver()
             network_driver.neutron_client.delete_port(
                 ovn_lb.external_ids[LB_EXT_IDS_VIP_PORT_ID_KEY])
         except Exception:
@@ -643,18 +654,17 @@ class OvnProviderHelper(object):
             lb_enabled = loadbalancer['admin_state_up']
 
             ovn_lb = self._find_ovn_lb(loadbalancer['id'])
-            external_ids = copy.deepcopy(ovn_lb.external_ids)
             if ovn_lb.external_ids['enabled'] != str(lb_enabled):
                 commands = []
                 enable_info = {'enabled': str(lb_enabled)}
-                external_ids['enabled'] = str(lb_enabled)
+                ovn_lb.external_ids['enabled'] = str(lb_enabled)
                 commands.append(
                     self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
                                              ('external_ids', enable_info))
                 )
 
                 commands.extend(
-                    self._refresh_lb_vips(ovn_lb.uuid, external_ids))
+                    self._refresh_lb_vips(ovn_lb.uuid, ovn_lb.external_ids))
 
                 self._execute_commands(commands)
             if lb_enabled:
