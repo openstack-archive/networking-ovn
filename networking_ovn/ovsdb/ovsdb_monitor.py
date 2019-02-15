@@ -96,8 +96,11 @@ class ChassisMetadataAgentEvent(BaseEvent):
             return False
 
     def run(self, event, row, old):
-        stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
-                                  self._metadata_nb_cfg(row))
+        try:
+            stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
+                                      self._metadata_nb_cfg(row))
+        except (AttributeError, KeyError):
+            return
 
 
 class ChassisEvent(row_event.RowEvent):
