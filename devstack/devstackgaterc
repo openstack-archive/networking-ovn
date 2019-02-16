@@ -20,7 +20,7 @@
 
 OVN_OPTS=$@
 
-OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,n-api-meta,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc,networking-ovn-metadata-agent,br-ex-tcpdump,br-int-flows,q-trunk,ovn-octavia,o-api,o-hk
+OVERRIDE_ENABLED_SERVICES=key,n-api,n-cpu,n-cond,n-sch,n-crt,n-cauth,n-obj,n-api-meta,placement-api,g-api,g-reg,c-sch,c-api,c-vol,rabbit,mysql,dstat,ovn-northd,ovn-controller,q-svc,networking-ovn-metadata-agent,br-ex-tcpdump,br-int-flows,q-trunk,octavia,o-api,o-hk
 export OVERRIDE_ENABLED_SERVICES
 
 if [ -z "${RALLY_SCENARIO}" ] ; then
