@@ -366,3 +366,21 @@ class DBInconsistenciesPeriodics(object):
                  '(took %.2f seconds)', self._sync_timer.elapsed())
 
         raise periodics.NeverAgain()
+
+    # A static spacing value is used here, but this method will only run
+    # once per lock due to the use of periodics.NeverAgain().
+    @periodics.periodic(spacing=1800, run_immediately=True)
+    def check_metadata_ports(self):
+        # If OVN metadata is disabled do not run this task again
+        if not ovn_conf.is_ovn_metadata_enabled():
+            raise periodics.NeverAgain()
+
+        # Make sure that only one worker is executing this
+        if not self.has_lock:
+            return
+
+        admin_context = n_context.get_admin_context()
+        for n in self._ovn_client._plugin.get_networks(admin_context):
+            self._ovn_client.create_metadata_port(admin_context, n)
+
+        raise periodics.NeverAgain()

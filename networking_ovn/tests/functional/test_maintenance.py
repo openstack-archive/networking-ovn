@@ -694,3 +694,44 @@ class TestMaintenance(_TestMaintenanceHelper):
 
         # Assert the revision number no longer exists
         self.assertIsNone(db_rev.get_revision_row(neutron_obj['port_id']))
+
+    def test_check_metadata_ports(self):
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
+                                         group='ovn')
+        neutron_net = self._create_network('network1')
+        metadata_ports = self._ovn_client._get_metadata_ports(
+            self.context, neutron_net['id'])
+
+        # Assert the metadata port exists
+        self.assertEqual(1, len(metadata_ports))
+
+        # Delete the metadata port
+        self._delete('ports', metadata_ports[0]['id'])
+
+        metadata_ports = self._ovn_client._get_metadata_ports(
+            self.context, neutron_net['id'])
+
+        # Assert the metadata port is gone
+        self.assertEqual(0, len(metadata_ports))
+
+        # Call the maintenance thread to fix the problem, it will raise
+        # NeverAgain so that the job only runs once at startup
+        self.assertRaises(periodics.NeverAgain,
+                          self.maint.check_metadata_ports)
+
+        metadata_ports = self._ovn_client._get_metadata_ports(
+            self.context, neutron_net['id'])
+
+        # Assert the metadata port was re-created
+        self.assertEqual(1, len(metadata_ports))
+
+    def test_check_metadata_ports_not_enabled(self):
+        ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', False,
+                                         group='ovn')
+        with mock.patch.object(self._ovn_client,
+                               'create_metadata_port') as mock_create_port:
+            self.assertRaises(periodics.NeverAgain,
+                              self.maint.check_metadata_ports)
+            # Assert create_metadata_port() wasn't called since metadata
+            # is not enabled
+            self.assertFalse(mock_create_port.called)
