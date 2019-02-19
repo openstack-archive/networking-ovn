@@ -699,31 +699,31 @@ class TestMaintenance(_TestMaintenanceHelper):
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
                                          group='ovn')
         neutron_net = self._create_network('network1')
-        metadata_ports = self._ovn_client._get_metadata_ports(
+        metadata_port = self._ovn_client._find_metadata_port(
             self.context, neutron_net['id'])
 
         # Assert the metadata port exists
-        self.assertEqual(1, len(metadata_ports))
+        self.assertIsNotNone(metadata_port)
 
         # Delete the metadata port
-        self._delete('ports', metadata_ports[0]['id'])
+        self._delete('ports', metadata_port['id'])
 
-        metadata_ports = self._ovn_client._get_metadata_ports(
+        metadata_port = self._ovn_client._find_metadata_port(
             self.context, neutron_net['id'])
 
         # Assert the metadata port is gone
-        self.assertEqual(0, len(metadata_ports))
+        self.assertIsNone(metadata_port)
 
         # Call the maintenance thread to fix the problem, it will raise
         # NeverAgain so that the job only runs once at startup
         self.assertRaises(periodics.NeverAgain,
                           self.maint.check_metadata_ports)
 
-        metadata_ports = self._ovn_client._get_metadata_ports(
+        metadata_port = self._ovn_client._find_metadata_port(
             self.context, neutron_net['id'])
 
         # Assert the metadata port was re-created
-        self.assertEqual(1, len(metadata_ports))
+        self.assertIsNotNone(metadata_port)
 
     def test_check_metadata_ports_not_enabled(self):
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', False,

@@ -258,9 +258,10 @@ function configure_ovn_plugin {
     fi
 
     if is_service_enabled q-dhcp ; then
-        die $LINENO "The q-dhcp service must be disabled with OVN."
+        iniset $NEUTRON_CONF DEFAULT dhcp_agent_notification True
+    else
+        iniset $NEUTRON_CONF DEFAULT dhcp_agent_notification False
     fi
-    iniset $NEUTRON_CONF DEFAULT dhcp_agent_notification False
 
     if is_service_enabled q-l3 ; then
         die $LINENO "The q-l3 service must be disabled with OVN."
