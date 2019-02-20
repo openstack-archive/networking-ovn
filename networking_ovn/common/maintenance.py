@@ -384,3 +384,26 @@ class DBInconsistenciesPeriodics(object):
             self._ovn_client.create_metadata_port(admin_context, n)
 
         raise periodics.NeverAgain()
+
+    # TODO(lucasagomes): Remove this in the T cycle
+    # A static spacing value is used here, but this method will only run
+    # once per lock due to the use of periodics.NeverAgain().
+    @periodics.periodic(spacing=600, run_immediately=True)
+    def check_for_port_security_unknown_address(self):
+
+        if not self.has_lock:
+            return
+
+        for port in self._nb_idl.lsp_list().execute(check_error=True):
+            addresses = port.addresses
+            if not port.port_security and 'unknown' not in addresses:
+                addresses.append('unknown')
+            elif port.port_security and 'unknown' in addresses:
+                addresses.remove('unknown')
+            else:
+                continue
+
+            self._nb_idl.lsp_set_addresses(
+                port.name, addresses=addresses).execute(check_error=True)
+
+        raise periodics.NeverAgain()
