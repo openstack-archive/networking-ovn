@@ -94,8 +94,15 @@ class ChassisMetadataAgentEvent(BaseEvent):
             return False
 
     def run(self, event, row, old):
-        stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
-                                  self._metadata_nb_cfg(row))
+        try:
+            stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
+                                      self._metadata_nb_cfg(row))
+        except (AttributeError, KeyError):
+            LOG.warning('No "%(key)s" key found for the metadata agent at '
+                        'Chassis %(chassis)s',
+                        {'key': ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY,
+                         'chassis': row.uuid})
+            return
 
 
 class ChassisEvent(row_event.RowEvent):
@@ -275,9 +282,10 @@ class BaseOvnSbIdl(connection.OvsdbIdl):
     def __init__(self, remote, schema):
         super(BaseOvnSbIdl, self).__init__(remote, schema)
         self.notify_handler = event.RowEventHandler()
-        self.notify_handler.watch_events([
-            ChassisAgentDeleteEvent(), ChassisMetadataAgentEvent(),
-            ChassisGatewayAgentEvent()])
+        events = [ChassisAgentDeleteEvent(), ChassisGatewayAgentEvent()]
+        if ovn_config.is_ovn_metadata_enabled():
+            events.append(ChassisMetadataAgentEvent())
+        self.notify_handler.watch_events(events)
 
     @classmethod
     def from_server(cls, connection_string, schema_name):
