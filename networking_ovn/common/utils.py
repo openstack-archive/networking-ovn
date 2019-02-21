@@ -312,11 +312,10 @@ def get_lrouter_ext_gw_static_route(ovn_router):
     # TODO(lucasagomes): Remove the try...except block after OVS 2.8.2
     # is tagged.
     try:
-        for route in getattr(ovn_router, 'static_routes', []):
-            external_ids = getattr(route, 'external_ids', {})
-            if strutils.bool_from_string(
-                external_ids.get(constants.OVN_ROUTER_IS_EXT_GW, 'false')):
-                return route
+        return [route for route in getattr(ovn_router, 'static_routes', []) if
+                strutils.bool_from_string(getattr(
+                    route, 'external_ids', {}).get(
+                        constants.OVN_ROUTER_IS_EXT_GW, 'false'))]
     except KeyError:
         pass
 
