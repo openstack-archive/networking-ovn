@@ -237,6 +237,27 @@ class LogicalSwitchPortUpdateDownEvent(row_event.RowEvent):
         self.driver.set_port_status_down(row.name)
 
 
+class FIPAddDeleteEvent(row_event.RowEvent):
+    """Row event - NAT 'dnat_and_snat' entry added or deleted
+
+    This happens when a FIP is created or removed.
+    """
+    def __init__(self, driver):
+        self.driver = driver
+        table = 'NAT'
+        events = (self.ROW_CREATE, self.ROW_DELETE)
+        super(FIPAddDeleteEvent, self).__init__(
+            events, table, (('type', '=', 'dnat_and_snat'),))
+        self.event_name = 'FIPAddDeleteEvent'
+
+    def run(self, event, row, old):
+        # When a FIP is added or deleted, we will delete all entries in the
+        # MAC_Binding table of SB OVSDB corresponding to that IP Address.
+        # TODO(dalvarez): Remove this workaround once fixed in core OVN:
+        # https://mail.openvswitch.org/pipermail/ovs-discuss/2018-October/047604.html
+        self.driver.delete_mac_binding_entries(row.external_ip)
+
+
 class OvnDbNotifyHandler(event.RowEventHandler):
     def __init__(self, driver):
         super(OvnDbNotifyHandler, self).__init__()
@@ -319,11 +340,13 @@ class OvnNbIdl(OvnIdl):
         self._lsp_update_down_event = LogicalSwitchPortUpdateDownEvent(driver)
         self._lsp_create_up_event = LogicalSwitchPortCreateUpEvent(driver)
         self._lsp_create_down_event = LogicalSwitchPortCreateDownEvent(driver)
+        self._fip_create_delete_event = FIPAddDeleteEvent(driver)
 
         self.notify_handler.watch_events([self._lsp_create_up_event,
                                           self._lsp_create_down_event,
                                           self._lsp_update_up_event,
-                                          self._lsp_update_down_event])
+                                          self._lsp_update_down_event,
+                                          self._fip_create_delete_event])
 
     @classmethod
     def from_server(cls, connection_string, schema_name, driver):
@@ -363,6 +386,7 @@ class OvnSbIdl(OvnIdl):
         helper.register_table('Encap')
         helper.register_table('Port_Binding')
         helper.register_table('Datapath_Binding')
+        helper.register_table('MAC_Binding')
         _idl = cls(driver, connection_string, helper)
         _idl.set_lock(_idl.event_lock_name)
         return _idl
