@@ -45,7 +45,7 @@
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
             branches: ^(stable/(pike|queens|rocky)).*$
-        - tripleo-ci-centos-7-scenario003-multinode-oooq-container:
+        - networking-ovn-tripleo-c7-s003-oooq-containers:
             branches: ^(?!stable/(pike|queens|rocky)).*$
 
     experimental:
