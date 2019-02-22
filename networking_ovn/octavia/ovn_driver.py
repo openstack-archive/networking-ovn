@@ -1018,7 +1018,7 @@ class OvnProviderHelper(object):
                      'provisioning_status': constants.ACTIVE})
             status['listeners'] = listener_status
         except Exception:
-            LOG.exception('Exception during pool delete')
+            LOG.exception('Exception during pool update')
             status = {
                 'pools': [{"id": pool['id'],
                            'provisioning_status': constants.ERROR}],
@@ -1191,6 +1191,52 @@ class OvnProviderHelper(object):
                 'loadbalancers': [{'id': ovn_lb.name,
                                    'provisioning_status': constants.ACTIVE}]}
         return status
+
+    def _get_existing_pool_members(self, pool_id):
+        pool_key = self._get_pool_key(pool_id)
+        ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+        if not ovn_lb:
+            pool_key = self._get_pool_key(pool_id, is_enabled=False)
+            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+            if not ovn_lb:
+                msg = _("Loadbalancer with pool %s does not exist") % pool_key
+                raise driver_exceptions.DriverError(msg)
+        external_ids = dict(ovn_lb.external_ids)
+        return external_ids[pool_key]
+
+    def get_pool_member_id(self, pool_id, mem_addr_port=None):
+        '''Gets Member information
+
+        :param pool_id: ID of the Pool whose member information is reqd.
+        :param mem_addr_port: Combination of Member Address+Port. Default=None
+        :returns: UUID -- ID of the Member if member exists in pool.
+        :returns: None -- if no member exists in the pool
+        :raises: Exception if Loadbalancer is not found for a Pool ID
+        '''
+        existing_members = self._get_existing_pool_members(pool_id)
+        # Members are saved in OVN in the form of
+        # member1_UUID_IP:Port, member2_UUID_IP:Port
+        # Match the IP:Port for all members with the mem_addr_port
+        # information and return the UUID.
+        for meminf in existing_members.split(','):
+            if mem_addr_port == meminf.split('_')[2]:
+                return meminf.split('_')[1]
+
+    def get_member_info(self, pool_id):
+        '''Gets Member information
+
+        :param pool_id: ID of the Pool whose member information is reqd.
+        :param mem_addr_port: Combination of Member Address+Port. Default=None
+        :returns: List -- List of Member Address+Pool of all members in pool.
+        :returns:[None] -- if no member exists in the pool.
+        :raises: Exception if Loadbalancer is not found for a Pool ID
+        '''
+        existing_members = self._get_existing_pool_members(pool_id)
+        # Members are saved in OVN in the form of
+        # member1_UUID_IP:Port, member2_UUID_IP:Port
+        # Return the list of (UUID,IP:Port) for all members.
+        return [(meminf.split('_')[1], meminf.split(
+            '_')[2]) for meminf in existing_members.split(',')]
 
 
 class OvnProviderDriver(driver_base.ProviderDriver):
@@ -1375,5 +1421,62 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def member_batch_update(self, members):
+        # Note(rbanerje): all members belong to the same pool.
+        request_list = []
+        skipped_members = []
+        pool_id = None
+        try:
+            pool_id = members[0].pool_id
+        except IndexError:
+            msg = (_('No member information has been passed'))
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+        except AttributeError:
+            msg = (_('Member does not have proper pool information'))
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+        current_members = self._ovn_helper.get_member_info(pool_id)
+        # current_members gets a list of tuples (ID, IP:Port) for pool members
         for member in members:
-            self.member_update(member, member)
+            if member.monitor_address or member.monitor_port:
+                skipped_members.append(member.member_id)
+                continue
+            admin_state_up = member.admin_state_up
+            if isinstance(admin_state_up, o_datamodels.UnsetType):
+                admin_state_up = True
+            mem_addr_port = str(member.address) + ':' + str(
+                member.protocol_port)
+            if (member.member_id, mem_addr_port) not in current_members:
+                req_type = REQ_TYPE_MEMBER_CREATE
+            else:
+                # If member exists in pool, then Update
+                req_type = REQ_TYPE_MEMBER_UPDATE
+                current_members.remove((member.member_id, mem_addr_port))
+                # Remove all updating members so only deleted ones are left
+            request_info = {'id': member.member_id,
+                            'address': member.address,
+                            'protocol_port': member.protocol_port,
+                            'pool_id': member.pool_id,
+                            'subnet_id': member.subnet_id,
+                            'admin_state_up': admin_state_up}
+            request = {'type': req_type,
+                       'info': request_info}
+            request_list.append(request)
+        for cmember in current_members:
+            request_info = {'id': cmember[0],
+                            'address': cmember[1].split(':')[0],
+                            'protocol_port': cmember[1].split(':')[1],
+                            'pool_id': pool_id}
+            request = {'type': REQ_TYPE_MEMBER_DELETE,
+                       'info': request_info}
+            request_list.append(request)
+        for request in request_list:
+            self._ovn_helper.add_request(request)
+        if skipped_members:
+            msg = (_('OVN provider does not support monitor options, '
+                     'so following members skipped: %s') % skipped_members)
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
