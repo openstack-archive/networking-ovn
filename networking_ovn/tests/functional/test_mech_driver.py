@@ -25,6 +25,7 @@ class TestPortBinding(base.TestOVNFunctionalBase):
         self.ovs_host = 'ovs-host'
         self.dpdk_host = 'dpdk-host'
         self.invalid_dpdk_host = 'invalid-host'
+        self.vhu_mode = 'server'
         self.add_fake_chassis(self.ovs_host)
         self.add_fake_chassis(
             self.dpdk_host,
@@ -85,7 +86,7 @@ class TestPortBinding(base.TestOVNFunctionalBase):
 
         port_id = self._create_or_update_port(hostname=self.dpdk_host)
         expected_vif_details = {'port_filter': False,
-                                'vhostuser_mode': 'client',
+                                'vhostuser_mode': self.vhu_mode,
                                 'vhostuser_ovs_plug': True}
         expected_vif_details['vhostuser_socket'] = (
             utils.ovn_vhu_sockpath(cfg.CONF.ovn.vhost_sock_dir, port_id))
@@ -107,7 +108,7 @@ class TestPortBinding(base.TestOVNFunctionalBase):
         port_id = self._create_or_update_port(port_id=port_id,
                                               hostname=self.dpdk_host)
         expected_vif_details = {'port_filter': False,
-                                'vhostuser_mode': 'client',
+                                'vhostuser_mode': self.vhu_mode,
                                 'vhostuser_ovs_plug': True}
         expected_vif_details['vhostuser_socket'] = (
             utils.ovn_vhu_sockpath(cfg.CONF.ovn.vhost_sock_dir, port_id))
