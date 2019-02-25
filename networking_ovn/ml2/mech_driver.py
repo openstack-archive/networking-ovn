@@ -132,7 +132,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             portbindings.VIF_TYPE_VHOST_USER: {
                 portbindings.CAP_PORT_FILTER: False,
                 portbindings.VHOST_USER_MODE:
-                portbindings.VHOST_USER_MODE_CLIENT,
+                portbindings.VHOST_USER_MODE_SERVER,
                 portbindings.VHOST_USER_OVS_PLUG: True
             }
         }
