@@ -725,7 +725,7 @@ class OVNMechanismDriver(api.MechanismDriver):
                 'NAT', nat['_uuid'],
                 ('external_mac', mac)).execute(check_error=True)
         else:
-            LOG.debug("Clearing up external_mac of port %s", port_id, mac)
+            LOG.debug("Clearing up external_mac of port %s", port_id)
             self._nb_ovn.db_clear(
                 'NAT', nat['_uuid'], 'external_mac').execute(check_error=True)
 

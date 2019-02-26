@@ -119,6 +119,9 @@ class FakeOvsdbNbOvnIdl(object):
         self.delete_lrouter_ext_gw = mock.Mock()
         self.delete_lrouter_ext_gw.return_value = None
         self.lsp_get_up = mock.Mock()
+        self.db_find = mock.Mock()
+        self.db_set = mock.Mock()
+        self.db_clear = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
