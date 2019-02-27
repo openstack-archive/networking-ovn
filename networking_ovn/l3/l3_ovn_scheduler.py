@@ -44,7 +44,6 @@ class OVNGatewayScheduler(object):
         Schedule the gateway router port only if it is not already
         scheduled.
         """
-        pass
 
     def _schedule_gateway(self, nb_idl, sb_idl, gateway_name, candidates):
         existing_chassis = nb_idl.get_gateway_chassis_binding(gateway_name)
@@ -71,7 +70,6 @@ class OVNGatewayScheduler(object):
     @abc.abstractmethod
     def _select_gateway_chassis(self, nb_idl, candidates):
         """Choose a chassis from candidates based on a specific policy."""
-        pass
 
     def _get_chassis_candidates(self, sb_idl):
         # TODO(azbiswas): Allow selection of a specific type of chassis when

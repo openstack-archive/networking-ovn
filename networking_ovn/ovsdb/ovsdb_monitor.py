@@ -333,9 +333,9 @@ class OvnIdl(BaseOvnIdl):
             return
         self.notify_handler.notify(event, row, updates)
 
+    @abc.abstractmethod
     def post_connect(self):
         """Should be called after the idl has been initialized"""
-        pass
 
 
 class OvnNbIdl(OvnIdl):
