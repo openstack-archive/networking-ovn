@@ -2516,8 +2516,8 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         this port to be created again.
         """
         with mock.patch.object(
-            self.mech_driver._ovn_client, '_get_metadata_ports',
-                return_value=['metadata_port1']):
+            self.mech_driver._ovn_client, '_find_metadata_port',
+                return_value={'port': {'id': 'metadata_port1'}}):
             with self.network():
                 self.assertEqual(0, self.nb_ovn.create_lswitch_port.call_count)
 
@@ -2527,14 +2527,23 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         Check that the metadata port is updated with a new IP address when a
         subnet is created.
         """
-        with self.network() as net1:
-            with self.subnet(network=net1, cidr='10.0.0.0/24'):
-                self.assertEqual(1, self.nb_ovn.set_lswitch_port.call_count)
-                args, kwargs = self.nb_ovn.set_lswitch_port.call_args
-                self.assertEqual('localport', kwargs['type'])
-                self.assertEqual('10.0.0.2/24',
-                                 kwargs['external_ids'].get(
-                                     ovn_const.OVN_CIDRS_EXT_ID_KEY, ''))
+        with self.network(set_context=True, tenant_id='test') as net1:
+            with self.subnet(network=net1, cidr='10.0.0.0/24') as subnet1:
+                # Create a network:dhcp owner port just as how Neutron DHCP
+                # agent would do.
+                with self.port(subnet=subnet1,
+                               device_owner=const.DEVICE_OWNER_DHCP,
+                               device_id='dhcpxxxx',
+                               set_context=True, tenant_id='test'):
+                    with self.subnet(network=net1, cidr='20.0.0.0/24'):
+                        self.assertEqual(
+                            2, self.nb_ovn.set_lswitch_port.call_count)
+                        args, kwargs = self.nb_ovn.set_lswitch_port.call_args
+                        self.assertEqual('localport', kwargs['type'])
+                        self.assertEqual('10.0.0.2/24 20.0.0.2/24',
+                                         kwargs['external_ids'].get(
+                                             ovn_const.OVN_CIDRS_EXT_ID_KEY,
+                                             ''))
 
     def test_metadata_port_on_network_delete(self):
         """Check metadata port delete.

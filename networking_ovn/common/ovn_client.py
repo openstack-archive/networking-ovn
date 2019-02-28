@@ -1790,17 +1790,10 @@ class OVNClient(object):
                 if fixed_ip['subnet_id'] == subnet['id']:
                     return fixed_ip['ip_address']
 
-    def _get_metadata_ports(self, context, network_id):
-        if not config.is_ovn_metadata_enabled():
-            return
-
-        return self._plugin.get_ports(context, filters=dict(
-            network_id=[network_id], device_owner=[const.DEVICE_OWNER_DHCP]))
-
     def create_metadata_port(self, context, network):
         if config.is_ovn_metadata_enabled():
-            metadata_ports = self._get_metadata_ports(context, network['id'])
-            if not metadata_ports:
+            metadata_port = self._find_metadata_port(context, network['id'])
+            if not metadata_port:
                 # Create a neutron port for DHCP/metadata services
                 port = {'port':
                         {'network_id': network['id'],
@@ -1809,10 +1802,6 @@ class OVNClient(object):
                          'device_id': 'ovnmeta-%s' % network['id']}}
                 # TODO(boden): rehome create_port into neutron-lib
                 p_utils.create_port(self._plugin, context, port)
-            elif len(metadata_ports) > 1:
-                LOG.error("More than one metadata ports found for network %s. "
-                          "Please run the neutron-ovn-db-sync-util to fix it.",
-                          network['id'])
 
     def update_metadata_port(self, context, network_id):
         """Update metadata port.
