@@ -102,7 +102,7 @@ Run the following command to see the existing networks::
 A Neutron network is implemented as an OVN logical switch.  networking-ovn
 creates logical switches with a name in the format neutron-<network UUID>.
 We can use ``ovn-nbctl`` to list the configured logical switches and see that
-their names correlate with the output from ``neutron net-list``::
+their names correlate with the output from ``openstack network list``::
 
     $ ovn-nbctl ls-list
     71206f5c-b0e6-49ce-b572-eb2e964b2c4e (neutron-40080dad-0064-480a-b1b0-592ae51c1471)
@@ -125,9 +125,9 @@ and receive a small amount of traffic so performance is not very important.
 1. Get the Network UUID.
 
 Start by getting the UUID for the ``private`` network from the output of
-``neutron net-list`` from earlier and save it off::
+``openstack network list`` from earlier and save it off::
 
-    $ PRIVATE_NET_ID=40080dad-0064-480a-b1b0-592ae51c1471
+    $ PRIVATE_NET_ID=$(openstack network show private -c id -f value)
 
 2. Create an SSH keypair.
 
@@ -164,7 +164,7 @@ sufficient.
     | d4 | ds4G      |  4096 |   20 |         0 |     4 | True      |
     +----+-----------+-------+------+-----------+-------+-----------+
 
-    $ FLAVOR_ID=42
+    $ FLAVOR_ID=$(openstack flavor show m1.nano -c id -f value)
 
 4. Choose an image.
 
@@ -180,7 +180,7 @@ It's a very small test image.
     | 849a8db2-3754-4cf6-9271-491fa4ff7195 | cirros-0.3.5-x86_64-disk | active |
     +--------------------------------------+--------------------------+--------+
 
-    $ IMAGE_ID=849a8db2-3754-4cf6-9271-491fa4ff7195
+    $ IMAGE_ID=$(openstack image list -c ID -f value)
 
 5. Setup a security rule so that we can access the VMs we will boot up next.
 
@@ -200,17 +200,6 @@ will need to add a rule.  We will allow both ICMP and SSH.
     | d0861a98-f90e-4d1a-abfb-827b416bc2f6 | icmp        | 0.0.0.0/0 |            | None                                 | a47b14da-5607-404a-8de4-3a0f1ad3649c |
     ...
     +--------------------------------------+-------------+-----------+------------+--------------------------------------+--------------------------------------+
-
-    $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --port-range-min 22 --port-range-max 22 --protocol tcp default
-    $ neutron security-group-rule-create --direction ingress --ethertype IPv4 --protocol ICMP default
-    $ neutron security-group-rule-list
-    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
-    | id                                   | security_group | direction | ethertype | protocol/port | remote          |
-    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
-    | 8b2edbe6-790e-40ef-af54-c7b64ced8240 | default        | ingress   | IPv4      | 22/tcp        | any             |
-    | 5bee0179-807b-41d7-ab16-6de6ac051335 | default        | ingress   | IPv4      | icmp          | any             |
-    ...
-    +--------------------------------------+----------------+-----------+-----------+---------------+-----------------+
 
 6. Boot some VMs.
 
@@ -525,18 +514,18 @@ Now create a Neutron provider network.
 
 ::
 
-    $ neutron net-create provider --shared \
-    --provider:physical_network providernet \
-    --provider:network_type flat
+    $ openstack network create provider --share \
+    --provider-physical-network providernet \
+    --provider-network-type flat
 
 Alternatively, you can define connectivity to a VLAN instead of a flat network:
 
 ::
 
-    $ neutron net-create provider-101 --shared \
-    --provider:physical_network providernet \
-    --provider:network_type vlan \
-    --provider:segmentation_id 101
+    $ openstack network create provider-101 --share \
+    --provider-physical-network providernet \
+    --provider-network-type vlan
+    --provider-segment 101
 
 Observe that the OVN ML2 driver created a special logical switch port of type
 localnet on the logical switch to model the connection to the physical network.
@@ -562,13 +551,13 @@ Finally, create a Neutron port on the provider network.
 
 ::
 
-    $ neutron port-create provider
+    $ openstack port create --network provider myport
 
 or if you followed the VLAN example, it would be:
 
 ::
 
-    $ neutron port-create provider-101
+    $ openstack port create --network provider-101 myport
 
 Run Unit Tests
 --------------
