@@ -6,7 +6,7 @@ register_project_for_upgrade networking-ovn
 UPGRADE_PROJECTS="networking-ovn ${UPGRADE_PROJECTS/ networking-ovn/}"
 
 devstack_localrc base enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn $BASE_DEVSTACK_BRANCH
-devstack_localrc base OVN_BRANCH="branch-2.10"
+devstack_localrc base OVN_BRANCH="branch-2.11"
 
 devstack_localrc target enable_plugin networking-ovn http://git.openstack.org/openstack/networking-ovn
 devstack_localrc target OVN_BRANCH="master"
