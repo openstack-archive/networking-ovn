@@ -14,7 +14,6 @@
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
-        - networking-ovn-install-dsvm-kuryr
         - networking-ovn-tempest-dsvm-neutron-api-scenario-ovs-release:
             voting: false
         # TripleO jobs that deploy OVN.
@@ -38,7 +37,6 @@
         - networking-ovn-dsvm-functional
         - networking-ovn-dsvm-functional-py35:
             branches: ^(?!stable/newton).*$
-        - networking-ovn-install-dsvm-kuryr
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container
     experimental:
@@ -51,9 +49,9 @@
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
             branches: ^(?!stable/newton).*$
+        - kuryr-kubernetes-tempest-ovn
     periodic:
       jobs:
         - openstack-tox-py35-with-ovsdbapp-master:
             required-projects:
               - openstack/neutron
-
