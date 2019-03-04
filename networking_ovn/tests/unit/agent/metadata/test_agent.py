@@ -63,7 +63,9 @@ class TestMetadataAgent(base.BaseTestCase):
         self.agent = agent.MetadataAgent(self.fake_conf)
         self.agent.sb_idl = mock.Mock()
         self.agent.ovs_idl = mock.Mock()
+        self.agent.ovs_idl.transaction = mock.MagicMock()
         self.agent.chassis = 'chassis'
+        self.agent.ovn_bridge = 'br-int'
 
     def test_sync(self):
         with mock.patch.object(
@@ -181,8 +183,7 @@ class TestMetadataAgent(base.BaseTestCase):
             self.agent.teardown_datapath('1')
 
             destroy_mdp.assert_called_once()
-            self.agent.ovs_idl.del_port.assert_called_once_with(
-                'veth_0', bridge='br-int')
+            self.agent.ovs_idl.del_port.assert_called_once_with('veth_0')
             del_veth.assert_called_once_with('veth_0')
             garbage_collect.assert_called_once()
 
@@ -226,8 +227,15 @@ class TestMetadataAgent(base.BaseTestCase):
                     driver.MetadataDriver,
                     'spawn_monitored_metadata_proxy') as spawn_mdp:
 
+            # Simulate that the VETH pair was already present in 'br-fake'.
+            # We need to assert that it was deleted first.
+            self.agent.ovs_idl.list_br.return_value.execute.return_value = (
+                ['br-int', 'br-fake'])
             self.agent.provision_datapath('1')
 
+            # Check that the port was deleted from br-fake
+            self.agent.ovs_idl.del_port.assert_called_once_with(
+                'veth_0', bridge='br-fake', if_exists=True)
             # Check that the VETH pair is created
             add_veth.assert_called_once_with('veth_0', 'veth_1', 'namespace')
             # Make sure that the two ends of the VETH pair have been set as up.

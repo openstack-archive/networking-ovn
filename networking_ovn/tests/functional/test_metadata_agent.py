@@ -85,8 +85,11 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
 
         self.chassis_name = self.add_fake_chassis('ovs-host-fake')
         with mock.patch.object(agent.MetadataAgent,
-                               '_get_own_chassis_name') as mock_get_ch_name:
+                               '_get_own_chassis_name') as mock_get_ch_name,\
+                mock.patch.object(agent.MetadataAgent,
+                                  '_get_ovn_bridge') as mock_get_ovn_br:
             mock_get_ch_name.return_value = self.chassis_name
+            mock_get_ovn_br.return_value = 'br-int'
             agt = agent.MetadataAgent(conf)
             agt.start()
             # Metadata agent will open connections to OVS and SB databases.
