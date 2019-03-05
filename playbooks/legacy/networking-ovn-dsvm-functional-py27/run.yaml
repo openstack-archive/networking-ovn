@@ -1,6 +1,5 @@
 - hosts: all
-  name: Autoconverted job legacy-networking-ovn-dsvm-functional-py35 from old job
-    gate-networking-ovn-dsvm-functional-py35
+  name: Autoconverted job legacy-networking-ovn-dsvm-functional-py27 from old job gate-networking-ovn-dsvm-functional-py27
   tasks:
 
     - name: Ensure legacy workspace directory
@@ -45,12 +44,12 @@
           export PROJECTS="openstack/networking-ovn $PROJECTS"
 
           function gate_hook {
-              bash -xe $BASE/new/networking-ovn/networking_ovn/tests/contrib/gate_hook.sh dsvm-functional-py35
+              bash -xe $BASE/new/networking-ovn/networking_ovn/tests/contrib/gate_hook.sh dsvm-functional-py27
           }
           export -f gate_hook
 
           function post_test_hook {
-             bash -xe $BASE/new/networking-ovn/networking_ovn/tests/contrib/post_test_hook.sh dsvm-functional-py35
+             bash -xe $BASE/new/networking-ovn/networking_ovn/tests/contrib/post_test_hook.sh dsvm-functional-py27
           }
           export -f post_test_hook
 
