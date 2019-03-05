@@ -11,7 +11,7 @@ NETWORKING_OVN_PATH=$GATE_DEST/networking-ovn
 GATE_STACK_USER=stack
 
 case $VENV in
-"dsvm-functional"|"dsvm-functional-py35")
+"dsvm-functional"|"dsvm-functional-py27")
     # The logic to set YUM or DNF as the package manager lives in stackrc,
     # let's source it so it gets applied
     source $DEVSTACK_PATH/stackrc
