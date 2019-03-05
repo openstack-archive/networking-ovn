@@ -11,7 +11,7 @@ NETWORKING_OVN_PATH=$GATE_DEST/networking-ovn
 GATE_STACK_USER=stack
 
 case $VENV in
-"dsvm-functional"|"dsvm-functional-py35")
+"dsvm-functional"|"dsvm-functional-py27")
     source $DEVSTACK_PATH/functions
     source $NEUTRON_PATH/devstack/lib/ovs
 

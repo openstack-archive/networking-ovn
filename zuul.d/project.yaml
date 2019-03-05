@@ -12,8 +12,8 @@
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python3
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional
-        - networking-ovn-dsvm-functional-py35:
+        - networking-ovn-dsvm-functional-py27
+        - networking-ovn-dsvm-functional:
             branches: ^(?!stable/newton).*$
         # TripleO jobs that deploy OVN.
         # Note we don't use a project-template here, so it's easier
@@ -37,8 +37,8 @@
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python3
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional
-        - networking-ovn-dsvm-functional-py35:
+        - networking-ovn-dsvm-functional-py27
+        - networking-ovn-dsvm-functional:
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
         - openstack-tox-lower-constraints

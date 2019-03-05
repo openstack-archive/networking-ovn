@@ -1,5 +1,6 @@
 - hosts: all
-  name: Autoconverted job legacy-networking-ovn-dsvm-functional from old job gate-networking-ovn-dsvm-functional
+  name: Autoconverted job legacy-networking-ovn-dsvm-functional from old job
+    gate-networking-ovn-dsvm-functional
   tasks:
 
     - name: Ensure legacy workspace directory
