@@ -7,6 +7,16 @@
       - name: openstack/rally
       - name: openstack/rally-openstack
       - name: openstack/networking-ovn
+    irrelevant-files:
+      - ^(test-|)requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+      - ^vagrant/.*$
+      - ^migration/.*$
     vars:
       devstack_plugins:
         rally-openstack: https://git.openstack.org/openstack/rally-openstack
