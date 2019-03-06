@@ -1384,7 +1384,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                     mock_notify_dhcp):
         fake_port = fakes.FakePort.create_one_port(
             attrs={'status': const.PORT_STATUS_ACTIVE}).info()
-        fake_ctx = mock.Mock(current=fake_port)
+        fake_ctx = mock.Mock(current=fake_port, original=fake_port)
         self.mech_driver.update_port_postcommit(fake_ctx)
         mock_update_port.assert_called_once_with(
             fake_port, port_object=fake_ctx.original)

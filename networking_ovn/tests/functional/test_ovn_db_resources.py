@@ -846,8 +846,10 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
         expected_dns_records = []
         nets = []
         for n, cidr in [('n1', '10.0.0.0/24'), ('n2', '20.0.0.0/24')]:
-            net_kwargs = {dns_apidef.DNSDOMAIN: 'ovn.test.'}
-            net_kwargs['arg_list'] = (dns_apidef.DNSDOMAIN,)
+            net_kwargs = {}
+            if n == 'n1':
+                net_kwargs = {dns_apidef.DNSDOMAIN: 'net-' + n + '.'}
+                net_kwargs['arg_list'] = (dns_apidef.DNSDOMAIN,)
             res = self._create_network(self.fmt, n, True, **net_kwargs)
             net = self.deserialize(self.fmt, res)
             nets.append(net)
@@ -870,7 +872,8 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
                              for f in n1p1['port']['fixed_ips']])
         expected_dns_records = [
             {'external_ids': {'ls_name': n1_lswitch_name},
-             'records': {'n1p1': port_ips, 'n1p1.ovn.test': port_ips}}
+             'records': {'n1p1': port_ips, 'n1p1.ovn.test': port_ips,
+                         'n1p1.net-n1': port_ips}}
         ]
 
         self._validate_dns_records(expected_dns_records)
@@ -913,6 +916,7 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
                              for f in n1p2['port']['fixed_ips']])
         expected_dns_records[0]['records']['n1p2'] = port_ips
         expected_dns_records[0]['records']['n1p2.ovn.test'] = port_ips
+        expected_dns_records[0]['records']['n1p2.net-n1'] = port_ips
         self._validate_dns_records(expected_dns_records)
         self._validate_ls_dns_records(n1_lswitch_name,
                                       [expected_dns_records[0]])
@@ -925,9 +929,9 @@ class TestDNSRecords(base.TestOVNFunctionalBase):
         req = self.new_update_request('ports', data, n1p1['port']['id'])
         res = req.get_response(self.api)
         self.assertEqual(200, res.status_int)
-
         expected_dns_records[0]['records'].pop('n1p1')
         expected_dns_records[0]['records'].pop('n1p1.ovn.test')
+        expected_dns_records[0]['records'].pop('n1p1.net-n1')
         self._validate_dns_records(expected_dns_records)
         self._validate_ls_dns_records(n1_lswitch_name,
                                       [expected_dns_records[0]])
