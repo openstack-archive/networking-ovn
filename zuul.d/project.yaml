@@ -6,6 +6,7 @@
       - check-requirements
       - openstack-python35-jobs-neutron
       - openstack-python36-jobs-neutron
+      - openstack-python37-jobs-neutron
       - openstack-lower-constraints-jobs-neutron
     check:
       jobs:
