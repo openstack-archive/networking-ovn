@@ -17,7 +17,9 @@ ovs-vsctl set Bridge {{ ovn_bridge }} protocols=[]
 for bm in $ovn_bms; do
    parts=($(echo $bm | sed 's/:/ /g'))
    bridge=${parts[1]}
+   ovs-vsctl set-fail-mode $bridge standalone
    ovs-vsctl set Bridge $bridge protocols=[]
+   ovs-vsctl del-controller $bridge
 done
 
 # Delete controller from integration bridge
