@@ -28,6 +28,7 @@ from neutron_lib import constants as const
 from neutron_lib import context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.tests import tools
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
@@ -37,7 +38,6 @@ from oslo_utils import uuidutils
 
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
-from neutron.tests import tools
 from neutron.tests.unit.extensions import test_segment
 from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin

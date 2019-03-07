@@ -57,7 +57,7 @@ munch==2.1.0
 netaddr==0.7.18
 netifaces==0.10.4
 neutron==13.0.0.0b2
-neutron-lib==1.22.0
+neutron-lib==1.25.0
 octavia-lib==1.1.1
 openstackdocstheme==1.18.1
 openstacksdk==0.11.2
@@ -70,7 +70,6 @@ oslo.cache==1.26.0
 oslo.concurrency==3.25.0
 oslo.config==5.2.0
 oslo.context==2.19.2
-oslo.db==4.27.0
 oslo.i18n==3.15.3
 oslo.log==3.36.0
 oslo.messaging==5.29.0
