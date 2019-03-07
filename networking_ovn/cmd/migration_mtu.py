@@ -49,8 +49,8 @@ def verify_network_mtu():
     if success:
         print("All the networks are set to expected mtu value")
     else:
-        print("Please run : \"%s update mtu\" before starting the migration "
-              "migration to OVN" % sys.argv[0])
+        print("Some tenant networks need to have their MTU updated to a "
+              "lower value.")
     return success
 
 
