@@ -85,6 +85,20 @@
   become: false
 
 #
+# Final validation after tripleo update to br-int
+#
+
+- name: Final validation
+  hosts: localhost
+  vars:
+      validate_premigration_resources: false
+  roles:
+    - post-migration
+  tags:
+    - final-validation
+
+
+#
 # Announce that it's done and ready.
 #
 
