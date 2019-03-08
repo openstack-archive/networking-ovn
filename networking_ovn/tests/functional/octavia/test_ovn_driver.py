@@ -44,8 +44,11 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.fake_network_driver.get_subnet = self._mock_get_subnet
         self.fake_network_driver.neutron_client.list_ports = (
             self._mock_list_ports)
+        self.fake_network_driver.neutron_client.\
+            delete_port.return_value = True
         self._local_net_cache = {}
         self._local_port_cache = {'ports': []}
+        self.lb_count = None   # useful for Multiple LB scenarios
 
     def _mock_get_subnet(self, subnet_id):
         m_subnet = mock.MagicMock()
@@ -209,12 +212,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             lambda: update_loadbalancer_status.call_count == call_count,
             timeout=10)
         if check_call:
-            try:
-                self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
-                    expected_calls, any_order=True)
-            except Exception:
-                raise Exception(
-                    self._o_driver_lib.update_loadbalancer_status.mock_calls)
+            self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
+                expected_calls, any_order=True)
         expected_lbs = self._make_expected_lbs(lb_data)
         self._validate_loadbalancers(expected_lbs)
 
@@ -308,7 +307,6 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         lb = lb_data['model']
         del lb_data['model']
         self._wait_for_status_and_validate(lb_data, [expected_status])
-        self._validate_loadbalancers([])
         vip_net_id = lb_data['vip_net_info'][0]
         self.assertFalse(
             self._is_lb_associated_to_ls(lb.loadbalancer_id,
@@ -350,7 +348,6 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             external_ids[
                 ovn_driver.LB_EXT_IDS_LR_REF_KEY] = 'neutron-' + lb_data[
                     ovn_driver.LB_EXT_IDS_LR_REF_KEY]
-
         expected_vips = {}
         expected_protocol = ['tcp']
         for l in lb_data['listeners']:
@@ -768,7 +765,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         pool_id = lb_data['pools'][0].pool_id
         self._create_member_and_validate(
             lb_data, pool_id, lb_data['vip_net_info'][1],
-            lb_data['vip_net_info'][0], '10.0.0.10')
+            lb_data['vip_net_info'][0], '10.0.0.4')
 
         net_info = self._create_net('net1', '20.0.0.0/24')
         self._create_member_and_validate(lb_data, pool_id,
@@ -782,6 +779,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         self._delete_listener_and_validate(lb_data, 82)
         self._delete_listener_and_validate(lb_data, 80)
+        self._delete_member_and_validate(lb_data, pool_id,
+                                         net_info[0], '20.0.0.4')
+        self._delete_member_and_validate(lb_data, pool_id,
+                                         lb_data['vip_net_info'][0],
+                                         '10.0.0.4')
+        self._delete_pool_and_validate(lb_data, "p1")
+        self._delete_load_balancer_and_validate(lb_data)
 
     def _test_cascade_delete(self, pool=True, listener=True, member=True):
         lb_data = self._create_load_balancer_and_validate(
@@ -831,6 +835,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.assertRaises(o_exceptions.UnsupportedOptionError,
                           self._update_listener_and_validate,
                           lb_data, protocol_port=80, protocol='UDP')
+        self._delete_load_balancer_and_validate(lb_data)
 
     def test_lb_listener_pool_workflow(self):
         lb_data = self._create_load_balancer_and_validate(
@@ -869,3 +874,4 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # Deleting one member, while keeping the other member available
         self._update_members_in_batch_and_validate(lb_data, pool_id,
                                                    [m_member])
+        self._delete_load_balancer_and_validate(lb_data)
