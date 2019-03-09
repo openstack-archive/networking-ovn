@@ -296,7 +296,8 @@ class OvnProviderHelper(object):
             self._octavia_driver_lib.update_loadbalancer_status(status)
         except driver_exceptions.UpdateStatusError as e:
             # TODO(numans): Handle the exception properly
-            LOG.error('Error while updating the load balancer status: %s', e)
+            LOG.error('Error while updating the load balancer status: %s',
+                      e.fault_string)
 
     def _find_ovn_lb(self, loadbalancer_id):
         find_condition = ('name', '=', loadbalancer_id)
@@ -517,7 +518,6 @@ class OvnProviderHelper(object):
                     if ip['ip_address'] == loadbalancer['vip_address']:
                         port = p
                         break
-
             # In case port is not found for the vip_address we will see an
             # exception when port['id'] is accessed.
             self.ovn_nbdb_api.db_create(
@@ -1238,6 +1238,15 @@ class OvnProviderHelper(object):
         return [(meminf.split('_')[1], meminf.split(
             '_')[2]) for meminf in existing_members.split(',')]
 
+    def create_vip_port(self, project_id, lb_id, vip_d):
+        port = {'port': {'name': 'ovn-lb-vip-' + str(lb_id),
+                         'network_id': vip_d['vip_network_id'],
+                         'fixed_ips': [{'subnet_id': vip_d['vip_subnet_id']}],
+                         'admin_state_up': True,
+                         'project_id': project_id}}
+        network_driver = get_network_driver()
+        return network_driver.neutron_client.create_port(port)
+
 
 class OvnProviderDriver(driver_base.ProviderDriver):
     def __init__(self):
@@ -1480,3 +1489,13 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
+
+    def create_vip_port(self, lb_id, project_id, vip_dict):
+        try:
+            port = self._ovn_helper.create_vip_port(
+                project_id, lb_id, vip_dict)['port']
+            vip_dict['vip_port_id'] = port['id']
+            vip_dict['vip_address'] = port['fixed_ips'][0]['ip_address']
+        except Exception as e:
+            raise driver_exceptions.DriverError(e)
+        return vip_dict
