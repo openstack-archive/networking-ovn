@@ -48,10 +48,12 @@ class TestACLs(base.TestCase):
             'ovsdbapp.backend.ovs_idl.idlutils.row_by_value',
             lambda *args, **kwargs: mock.MagicMock())
         patcher.start()
-        mock.patch(
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch(
             "networking_ovn.common.acl._acl_columns_name_severity_supported",
-            return_value=True
-        ).start()
+            return_value=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_drop_all_ip_traffic_for_port(self):
         acls = ovn_acl.drop_all_ip_traffic_for_port(self.fake_port)
