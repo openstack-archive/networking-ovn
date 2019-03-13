@@ -272,7 +272,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             LOG.debug('Validating network segment with '
                       'type %(network_type)s, '
                       'segmentation ID %(segmentation_id)s, '
-                      'physical network %(physical_network)s' %
+                      'physical network %(physical_network)s',
                       {'network_type': network_type,
                        'segmentation_id': segmentation_id,
                        'physical_network': physical_network})
@@ -606,7 +606,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
         if vnic_type not in self.supported_vnic_types:
             LOG.debug('Refusing to bind port %(port_id)s due to unsupported '
-                      'vnic_type: %(vnic_type)s' %
+                      'vnic_type: %(vnic_type)s',
                       {'port_id': port['id'], 'vnic_type': vnic_type})
             return
 
@@ -630,7 +630,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             iface_types = iface_types.split(',') if iface_types else []
         except RuntimeError:
             LOG.debug('Refusing to bind port %(port_id)s due to '
-                      'no OVN chassis for host: %(host)s' %
+                      'no OVN chassis for host: %(host)s',
                       {'port_id': port['id'], 'host': context.host})
             return
 
@@ -641,7 +641,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             LOG.debug('Attempting to bind port %(port_id)s on host %(host)s '
                       'for network segment with type %(network_type)s, '
                       'segmentation ID %(segmentation_id)s, '
-                      'physical network %(physical_network)s' %
+                      'physical network %(physical_network)s',
                       {'port_id': port['id'],
                        'host': context.host,
                        'network_type': network_type,

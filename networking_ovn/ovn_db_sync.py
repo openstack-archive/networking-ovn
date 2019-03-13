@@ -242,7 +242,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         @type  ctx: object of type neutron_lib.context.Context
         @var   db_ports: List of ports from neutron DB
         """
-        LOG.debug('Address-Set-SYNC: started @ %s' % str(datetime.now()))
+        LOG.debug('Address-Set-SYNC: started @ %s', str(datetime.now()))
 
         sgnames_to_add = sgnames_to_delete = []
         sgs_to_update = {}
@@ -283,7 +283,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                   len(sgs_to_update))
 
         if self.mode == SYNC_MODE_REPAIR:
-            LOG.debug('Address-Set-SYNC: transaction started @ %s' %
+            LOG.debug('Address-Set-SYNC: transaction started @ %s',
                       str(datetime.now()))
             with self.ovn_api.transaction(check_error=True) as txn:
                 for sgname in sgnames_to_add:
@@ -293,7 +293,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                     txn.add(self.ovn_api.update_address_set(**sg))
                 for sgname in sgnames_to_delete:
                     txn.add(self.ovn_api.delete_address_set(name=sgname))
-            LOG.debug('Address-Set-SYNC: transaction finished @ %s' %
+            LOG.debug('Address-Set-SYNC: transaction finished @ %s',
                       str(datetime.now()))
 
     def _get_acls_from_port_groups(self):
@@ -448,16 +448,14 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         @type  ctx: object of type neutron_lib.context.Context
         @return: Nothing
         """
-        LOG.debug('ACL-SYNC: started @ %s' %
-                  str(datetime.now()))
+        LOG.debug('ACL-SYNC: started @ %s', str(datetime.now()))
 
         if self.ovn_api.is_port_groups_supported():
             self._sync_acls_port_groups(ctx)
         else:
             self._sync_acls(ctx)
 
-        LOG.debug('ACL-SYNC: finished @ %s' %
-                  str(datetime.now()))
+        LOG.debug('ACL-SYNC: finished @ %s', str(datetime.now()))
 
     def _calculate_fips_differences(self, ovn_fips, db_fips):
         to_add = []
@@ -501,7 +499,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                       "sync routers and router ports")
             return
 
-        LOG.debug('OVN-NB Sync Routers and Router ports started @ %s' %
+        LOG.debug('OVN-NB Sync Routers and Router ports started @ %s',
                   str(datetime.now()))
 
         db_routers = {}
@@ -755,7 +753,7 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                                 logical_ip=nat['logical_ip'],
                                 external_ip=nat['external_ip'],
                                 type='snat'))
-        LOG.debug('OVN-NB Sync routers and router ports finished %s' %
+        LOG.debug('OVN-NB Sync routers and router ports finished %s',
                   str(datetime.now()))
 
     def _sync_subnet_dhcp_options(self, ctx, db_networks,

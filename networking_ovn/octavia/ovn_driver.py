@@ -306,7 +306,7 @@ class OvnProviderHelper(object):
                 check_error=True)
         if len(ovn_lb) > 1:
             LOG.warning("Two or more load balancer named '%s' "
-                        "have been found in the database" % loadbalancer_id)
+                        "have been found in the database", loadbalancer_id)
         return ovn_lb[0] if len(ovn_lb) == 1 else None
 
     def _find_ovn_lb_with_pool_key(self, pool_key):
