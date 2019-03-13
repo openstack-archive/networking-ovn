@@ -62,14 +62,14 @@ class TestSbApi(base.FunctionalTestCase):
 
     def test_get_chassis_hostname_and_physnets(self):
         mapping = self.api.get_chassis_hostname_and_physnets()
-        self.assertTrue(len(self.data['chassis']) <= len(mapping))
-        self.assertTrue(set(mapping.keys()) >=
-                        {c['hostname'] for c in self.data['chassis']})
+        self.assertLessEqual(len(self.data['chassis']), len(mapping))
+        self.assertGreaterEqual(set(mapping.keys()),
+                                {c['hostname'] for c in self.data['chassis']})
 
     def test_get_all_chassis(self):
         chassis_list = set(self.api.get_all_chassis())
         our_chassis = {c['name'] for c in self.data['chassis']}
-        self.assertTrue(our_chassis <= chassis_list)
+        self.assertLessEqual(our_chassis, chassis_list)
 
     def test_get_chassis_data_for_ml2_bind_port(self):
         host = self.data['chassis'][0]['hostname']
@@ -85,9 +85,9 @@ class TestSbApi(base.FunctionalTestCase):
 
     def test_get_chassis_and_physnets(self):
         mapping = self.api.get_chassis_and_physnets()
-        self.assertTrue(len(self.data['chassis']) <= len(mapping))
-        self.assertTrue(set(mapping.keys()) >=
-                        {c['name'] for c in self.data['chassis']})
+        self.assertLessEqual(len(self.data['chassis']), len(mapping))
+        self.assertGreaterEqual(set(mapping.keys()),
+                                {c['name'] for c in self.data['chassis']})
 
     def _add_switch_port(self, chassis_name, type='localport'):
         sname, pname = (utils.get_rand_device_name(prefix=p)
