@@ -717,36 +717,36 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         port_device_owner = 'compute:nova' if is_compute_port else ''
         self.mech_driver._plugin.nova_notifier = mock.Mock()
         with self.network(set_context=True, tenant_id='test') as net1, \
-            self.subnet(network=net1) as subnet1, \
-            self.port(subnet=subnet1, set_context=True,
-                      tenant_id='test',
-                      device_owner=port_device_owner) as port1, \
-            mock.patch('neutron.db.provisioning_blocks.'
-                       'provisioning_complete') as pc, \
-            mock.patch.object(
-                self.mech_driver,
-                '_update_subport_host_if_needed') as upd_subport, \
-            mock.patch.object(self.mech_driver,
-                              '_update_dnat_entry_if_needed') as ude:
-                self.mech_driver.set_port_status_up(port1['port']['id'])
-                pc.assert_called_once_with(
-                    mock.ANY,
-                    port1['port']['id'],
-                    resources.PORT,
-                    provisioning_blocks.L2_AGENT_ENTITY
-                )
-                upd_subport.assert_called_once_with(port1['port']['id'])
-                ude.assert_called_once_with(port1['port']['id'])
+                self.subnet(network=net1) as subnet1, \
+                self.port(subnet=subnet1, set_context=True,
+                          tenant_id='test',
+                          device_owner=port_device_owner) as port1, \
+                mock.patch('neutron.db.provisioning_blocks.'
+                           'provisioning_complete') as pc, \
+                mock.patch.object(
+                    self.mech_driver,
+                    '_update_subport_host_if_needed') as upd_subport, \
+                mock.patch.object(self.mech_driver,
+                                  '_update_dnat_entry_if_needed') as ude:
+            self.mech_driver.set_port_status_up(port1['port']['id'])
+            pc.assert_called_once_with(
+                mock.ANY,
+                port1['port']['id'],
+                resources.PORT,
+                provisioning_blocks.L2_AGENT_ENTITY
+            )
+            upd_subport.assert_called_once_with(port1['port']['id'])
+            ude.assert_called_once_with(port1['port']['id'])
 
-                # If the port does NOT bellong to compute, do not notify Nova
-                # about it's status changes
-                if not is_compute_port:
-                    self.mech_driver._plugin.nova_notifier.\
-                        notify_port_active_direct.assert_not_called()
-                else:
-                    self.mech_driver._plugin.nova_notifier.\
-                        notify_port_active_direct.assert_called_once_with(
-                            mock.ANY)
+            # If the port does NOT bellong to compute, do not notify Nova
+            # about it's status changes
+            if not is_compute_port:
+                self.mech_driver._plugin.nova_notifier.\
+                    notify_port_active_direct.assert_not_called()
+            else:
+                self.mech_driver._plugin.nova_notifier.\
+                    notify_port_active_direct.assert_called_once_with(
+                        mock.ANY)
 
     def test_set_port_status_up(self):
         self._test_set_port_status_up(is_compute_port=False)
@@ -758,38 +758,38 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         port_device_owner = 'compute:nova' if is_compute_port else ''
         self.mech_driver._plugin.nova_notifier = mock.Mock()
         with self.network(set_context=True, tenant_id='test') as net1, \
-            self.subnet(network=net1) as subnet1, \
-            self.port(subnet=subnet1, set_context=True,
-                      tenant_id='test',
-                      device_owner=port_device_owner) as port1, \
-            mock.patch('neutron.db.provisioning_blocks.'
-                       'add_provisioning_component') as apc, \
-            mock.patch.object(self.mech_driver,
-                              '_update_dnat_entry_if_needed') as ude:
-                self.mech_driver.set_port_status_down(port1['port']['id'])
-                apc.assert_called_once_with(
-                    mock.ANY,
-                    port1['port']['id'],
-                    resources.PORT,
-                    provisioning_blocks.L2_AGENT_ENTITY
-                )
-                ude.assert_called_once_with(port1['port']['id'], False)
+                self.subnet(network=net1) as subnet1, \
+                self.port(subnet=subnet1, set_context=True,
+                          tenant_id='test',
+                          device_owner=port_device_owner) as port1, \
+                mock.patch('neutron.db.provisioning_blocks.'
+                           'add_provisioning_component') as apc, \
+                mock.patch.object(self.mech_driver,
+                                  '_update_dnat_entry_if_needed') as ude:
+            self.mech_driver.set_port_status_down(port1['port']['id'])
+            apc.assert_called_once_with(
+                mock.ANY,
+                port1['port']['id'],
+                resources.PORT,
+                provisioning_blocks.L2_AGENT_ENTITY
+            )
+            ude.assert_called_once_with(port1['port']['id'], False)
 
-                # If the port does NOT bellong to compute, do not notify Nova
-                # about it's status changes
-                if not is_compute_port:
-                    self.mech_driver._plugin.nova_notifier.\
-                        record_port_status_changed.assert_not_called()
-                    self.mech_driver._plugin.nova_notifier.\
-                        send_port_status.assert_not_called()
-                else:
-                    self.mech_driver._plugin.nova_notifier.\
-                        record_port_status_changed.assert_called_once_with(
-                            mock.ANY, const.PORT_STATUS_ACTIVE,
-                            const.PORT_STATUS_DOWN, None)
-                    self.mech_driver._plugin.nova_notifier.\
-                        send_port_status.assert_called_once_with(
-                            None, None, mock.ANY)
+            # If the port does NOT bellong to compute, do not notify Nova
+            # about it's status changes
+            if not is_compute_port:
+                self.mech_driver._plugin.nova_notifier.\
+                    record_port_status_changed.assert_not_called()
+                self.mech_driver._plugin.nova_notifier.\
+                    send_port_status.assert_not_called()
+            else:
+                self.mech_driver._plugin.nova_notifier.\
+                    record_port_status_changed.assert_called_once_with(
+                        mock.ANY, const.PORT_STATUS_ACTIVE,
+                        const.PORT_STATUS_DOWN, None)
+                self.mech_driver._plugin.nova_notifier.\
+                    send_port_status.assert_called_once_with(
+                        None, None, mock.ANY)
 
     def test_set_port_status_down(self):
         self._test_set_port_status_down(is_compute_port=False)
@@ -808,32 +808,33 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
     def test_set_port_status_concurrent_delete(self):
         exc = os_db_exc.DBReferenceError('', '', '', '')
         with self.network(set_context=True, tenant_id='test') as net1, \
-            self.subnet(network=net1) as subnet1, \
-            self.port(subnet=subnet1, set_context=True,
-                      tenant_id='test') as port1, \
-            mock.patch('neutron.db.provisioning_blocks.'
-                       'add_provisioning_component',
-                       side_effect=exc) as apc, \
-            mock.patch.object(self.mech_driver,
-                              '_update_dnat_entry_if_needed') as ude:
-                self.mech_driver.set_port_status_down(port1['port']['id'])
-                apc.assert_called_once_with(
-                    mock.ANY,
-                    port1['port']['id'],
-                    resources.PORT,
-                    provisioning_blocks.L2_AGENT_ENTITY
-                )
-                ude.assert_called_once_with(port1['port']['id'], False)
+                self.subnet(network=net1) as subnet1, \
+                self.port(subnet=subnet1, set_context=True,
+                          tenant_id='test') as port1, \
+                mock.patch('neutron.db.provisioning_blocks.'
+                           'add_provisioning_component',
+                           side_effect=exc) as apc, \
+                mock.patch.object(self.mech_driver,
+                                  '_update_dnat_entry_if_needed') as ude:
+            self.mech_driver.set_port_status_down(port1['port']['id'])
+            apc.assert_called_once_with(
+                mock.ANY,
+                port1['port']['id'],
+                resources.PORT,
+                provisioning_blocks.L2_AGENT_ENTITY
+            )
+            ude.assert_called_once_with(port1['port']['id'], False)
 
     def test__update_subport_host_if_needed(self):
         """Check that a subport is updated with parent's host_id."""
         binding_host_id = {'binding:host_id': 'hostname'}
         with mock.patch.object(self.mech_driver._ovn_client, 'get_parent_port',
                                return_value='parent'), \
-            mock.patch.object(self.mech_driver._plugin, 'get_port',
-                              return_value=binding_host_id) as get_port, \
-            mock.patch.object(self.mech_driver._plugin, 'update_port') as upd:
-                self.mech_driver._update_subport_host_if_needed('subport')
+                mock.patch.object(self.mech_driver._plugin, 'get_port',
+                                  return_value=binding_host_id) as get_port, \
+                mock.patch.object(self.mech_driver._plugin,
+                                  'update_port') as upd:
+            self.mech_driver._update_subport_host_if_needed('subport')
 
         get_port.assert_called_once_with(mock.ANY, 'parent')
         upd.assert_called_once_with(mock.ANY, 'subport',
