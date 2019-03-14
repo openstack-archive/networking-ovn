@@ -347,6 +347,12 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                                      'end': '100.0.0.253'}],
                                   enable_dhcp=False)
         e1_s1 = self.deserialize(self.fmt, res)
+        res = self._create_subnet(self.fmt, e1['network']['id'],
+                                  '2001:db8::/64',
+                                  gateway_ip='fd05:59e4:ef16::1',
+                                  ip_version=constants.IP_VERSION_6,
+                                  enable_dhcp=False)
+        e1_s2 = self.deserialize(self.fmt, res)
 
         self.create_lswitches.append('neutron-' + uuidutils.generate_uuid())
         self.create_lswitch_ports.append(('neutron-' +
@@ -370,7 +376,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                     'network_id': e1['network']['id'],
                     'external_fixed_ips': [
                         {'ip_address': '100.0.0.2',
-                         'subnet_id': e1_s1['subnet']['id']}]}}})
+                         'subnet_id': e1_s1['subnet']['id']},
+                        {'ip_address': '2001:db8::23a',
+                         'subnet_id': e1_s2['subnet']['id']}]}}})
         self.l3_plugin.add_router_interface(
             self.context, r1['id'], {'subnet_id': n1_s1['subnet']['id']})
         r1_p2 = self.l3_plugin.add_router_interface(
@@ -1073,19 +1081,22 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                           for db_route in db_router['routes']]
             db_nats[db_router['id']] = []
             if db_router.get(l3.EXTERNAL_GW_INFO):
-                gw_info = self.l3_plugin._ovn_client._get_gw_info(
+                gateways = self.l3_plugin._ovn_client._get_gw_info(
                     self.context, db_router)
-                # Add gateway default route and snats
-                if gw_info.gateway_ip:
-                    db_routes[db_router['id']].append('0.0.0.0/0' +
-                                                      gw_info.gateway_ip)
-                if gw_info.router_ip and utils.is_snat_enabled(db_router):
-                    networks = self.l3_plugin._ovn_client.\
-                        _get_v4_network_of_all_router_ports(self.context,
-                                                            db_router['id'])
-                    db_nats[db_router['id']].extend(
-                        [gw_info.router_ip + network + 'snat'
-                         for network in networks])
+                for gw_info in gateways:
+                    # Add gateway default route and snats
+                    if gw_info.gateway_ip:
+                        db_routes[db_router['id']].append(gw_info.ip_prefix +
+                                                          gw_info.gateway_ip)
+                    if (gw_info.ip_version == constants.IP_VERSION_4 and
+                            gw_info.router_ip and
+                            utils.is_snat_enabled(db_router)):
+                        networks = self.l3_plugin._ovn_client.\
+                            _get_v4_network_of_all_router_ports(
+                                self.context, db_router['id'])
+                        db_nats[db_router['id']].extend(
+                            [gw_info.router_ip + network + 'snat'
+                             for network in networks])
         fips = self._list('floatingips')
         fip_macs = {}
         if ovn_config.is_ovn_distributed_floating_ip():
