@@ -46,8 +46,9 @@ options in:
 
 .. literalinclude:: ../../../devstack/ovn-octavia-provider.conf.sample
 
-Kindly note that the configuration allows the user to create
-Load Balancers of both Amphora and OVN types.
+Kindly note that the configuration here shows only OVN provider driver but
+in theory, user can create Load Balancers of both Amphora and OVN types by
+enabling the correct configuration settings.
 
 Once the DevStack run is complete, the user can create a load balancer
 in Openstack::
@@ -76,8 +77,9 @@ in Openstack::
     | vip_subnet_id       | 3eed0c05-6527-400e-bb80-df6e59d248f1 |
     +---------------------+--------------------------------------+
 
-The user can see the different types of loadbalancers with their associated
-providers as below::
+If both Amphora and OVN drivers are enabled, then the user can create
+different types of loadbalancers with their associated providers which
+would be visible as shown below::
 
     +--------------------------------------+------+----------------------------------+-------------+---------------------+----------+
     | id                                   | name | project_id                       | vip_address | provisioning_status | provider |
