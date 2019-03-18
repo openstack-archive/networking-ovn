@@ -19,6 +19,7 @@
 _XTRACE_OVN_PLUGIN=$(set +o | grep xtrace)
 set +o xtrace
 source $DEST/networking-ovn/devstack/lib/networking-ovn
+source $DEST/networking-ovn/devstack/lib/octavia
 source $TOP_DIR/lib/neutron-legacy
 
 # main loop

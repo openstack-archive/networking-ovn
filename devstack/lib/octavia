@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Save trace setting
+XTRACE=$(set +o | grep xtrace)
+set +o xtrace
+
+if is_plugin_enabled octavia; then
+    function octavia_create_network_interface_device {
+        INTERFACE=$1
+        MGMT_PORT_ID=$2
+        MGMT_PORT_MAC=$3
+        openstack subnet set --gateway none lb-mgmt-subnet
+        sudo ovs-vsctl -- --may-exist add-port ${OVS_BRIDGE:-br-int} o-hm0 -- set Interface o-hm0 type=internal -- set Interface o-hm0 external-ids:iface-status=active -- set Interface o-hm0 external-ids:attached-mac=$MGMT_PORT_MAC -- set Interface o-hm0 external-ids:iface-id=$MGMT_PORT_ID -- set Interface o-hm0 external-ids:skip_cleanup=true
+    }
+
+    function octavia_delete_network_interface_device {
+        : # Do nothing
+    }
+fi
+
+# Restore xtrace
+$XTRACE
