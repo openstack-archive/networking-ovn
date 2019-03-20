@@ -1665,7 +1665,7 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
         self._test_create_segment(
             network_id=network['id'],
             segmentation_id=200,
-            network_type='geneve')['segment']
+            network_type='geneve')
         self.mech_driver.update_segment_host_mapping(host, ['phys_net1'])
         segments_host_db = self._get_segments_for_host(host)
         self.assertEqual({segment1['id']}, set(segments_host_db))
