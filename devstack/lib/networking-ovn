@@ -366,7 +366,7 @@ function start_ovs {
             fi
         fi
 
-        local dbcmd="$OVS_SBINDIR/ovsdb-server --remote=punix:$OVS_RUNDIR/db.sock --pidfile --detach --log-file"
+        local dbcmd="$OVS_SBINDIR/ovsdb-server --remote=punix:$OVS_RUNDIR/db.sock --remote=ptcp:6640:127.0.0.1 --pidfile --detach --log-file"
         dbcmd+=" --remote=db:Open_vSwitch,Open_vSwitch,manager_options"
         if is_service_enabled ovn-controller-vtep; then
             dbcmd+=" --remote=db:hardware_vtep,Global,managers $OVS_DATADIR/vtep.db"
