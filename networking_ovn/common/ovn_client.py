@@ -1360,6 +1360,7 @@ class OVNClient(object):
     def _gen_network_external_ids(self, network):
         ext_ids = {
             ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: network['name'],
+            ovn_const.OVN_NETWORK_MTU_EXT_ID_KEY: str(network['mtu']),
             ovn_const.OVN_REV_NUM_EXT_ID_KEY: str(
                 utils.get_revision_number(network, ovn_const.TYPE_NETWORKS))}
 
@@ -1452,7 +1453,19 @@ class OVNClient(object):
         with self._nb_idl.transaction(check_error=True) as txn:
             txn.add(check_rev_cmd)
             ext_ids = self._gen_network_external_ids(network)
+            lswitch = self._nb_idl.get_lswitch(lswitch_name)
             txn.add(self._nb_idl.set_lswitch_ext_ids(lswitch_name, ext_ids))
+            # Check if previous mtu is different than current one,
+            # checking will help reduce number of operations
+            if (not lswitch or
+                    lswitch.external_ids.get(
+                        ovn_const.OVN_NETWORK_MTU_EXT_ID_KEY) !=
+                    str(network['mtu'])):
+                context = n_context.get_admin_context()
+                subnets = self._plugin.get_subnets_by_network(
+                    context, network['id'])
+                for subnet in subnets:
+                    self.update_subnet(subnet, network, txn)
 
         if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             if qos_update_required:
@@ -1674,7 +1687,15 @@ class OVNClient(object):
             self._add_subnet_dhcp_options(subnet, network)
         db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
 
-    def update_subnet(self, subnet, network):
+    def _modify_subnet_dhcp_options(self, subnet, ovn_subnet, network, txn):
+        if subnet['enable_dhcp'] and not ovn_subnet:
+            self._enable_subnet_dhcp_options(subnet, network, txn)
+        elif subnet['enable_dhcp'] and ovn_subnet:
+            self._update_subnet_dhcp_options(subnet, network, txn)
+        elif not subnet['enable_dhcp'] and ovn_subnet:
+            self._remove_subnet_dhcp_options(subnet['id'], txn)
+
+    def update_subnet(self, subnet, network, txn=None):
         ovn_subnet = self._nb_idl.get_subnet_dhcp_options(
             subnet['id'])['subnet']
 
@@ -1684,15 +1705,13 @@ class OVNClient(object):
 
         check_rev_cmd = self._nb_idl.check_revision_number(
             subnet['id'], subnet, ovn_const.TYPE_SUBNETS)
-        with self._nb_idl.transaction(check_error=True) as txn:
-            txn.add(check_rev_cmd)
-            if subnet['enable_dhcp'] and not ovn_subnet:
-                self._enable_subnet_dhcp_options(subnet, network, txn)
-            elif not subnet['enable_dhcp'] and ovn_subnet:
-                self._remove_subnet_dhcp_options(subnet['id'], txn)
-            elif subnet['enable_dhcp'] and ovn_subnet:
-                self._update_subnet_dhcp_options(subnet, network, txn)
-
+        if not txn:
+            with self._nb_idl.transaction(check_error=True) as txn_n:
+                txn_n.add(check_rev_cmd)
+                self._modify_subnet_dhcp_options(subnet, ovn_subnet, network,
+                                                 txn_n)
+        else:
+            self._modify_subnet_dhcp_options(subnet, ovn_subnet, network, txn)
         if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             db_rev.bump_revision(subnet, ovn_const.TYPE_SUBNETS)
 
