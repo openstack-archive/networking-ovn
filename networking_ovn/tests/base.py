@@ -14,6 +14,7 @@
 
 import os
 
+import mock
 from oslo_utils import fileutils
 from oslotest import base
 
@@ -41,3 +42,7 @@ def sanitize_log_path(path):
 class TestCase(base.BaseTestCase):
 
     """Test case base class for all unit tests."""
+
+    def setUp(self):
+        super(TestCase, self).setUp()
+        self.addCleanup(mock.patch.stopall)
