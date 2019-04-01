@@ -194,6 +194,10 @@ LB_EXT_IDS_MEMBER_PREFIX = 'member_'
 LB_EXT_IDS_VIP_KEY = 'neutron:vip'
 LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
+OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
+                           constants.PROTOCOL_UDP, ]
+OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_ROUND_ROBIN, ]
+
 
 def get_network_driver():
     CONF.import_group('controller_worker', 'octavia.common.config')
@@ -1250,13 +1254,19 @@ class OvnProviderHelper(object):
 
 class OvnProviderDriver(driver_base.ProviderDriver):
     def __init__(self):
-        self.ovn_native_protocols = [constants.PROTOCOL_TCP,
-                                     constants.PROTOCOL_UDP]
+        super(OvnProviderDriver, self).__init__()
         self._ovn_helper = OvnProviderHelper()
 
     def _check_for_supported_protocols(self, protocol):
-        if protocol not in self.ovn_native_protocols:
+        if protocol not in OVN_NATIVE_LB_PROTOCOLS:
             msg = _('OVN provider does not support %s protocol') % protocol
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+
+    def _check_for_supported_algorithms(self, algorithm):
+        if algorithm not in OVN_NATIVE_LB_ALGORITHMS:
+            msg = _('OVN provider does not support %s algorithm') % algorithm
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
@@ -1299,6 +1309,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
     # Pool
     def pool_create(self, pool):
         self._check_for_supported_protocols(pool.protocol)
+        self._check_for_supported_algorithms(pool.lb_algorithm)
         admin_state_up = pool.admin_state_up
         if isinstance(admin_state_up, o_datamodels.UnsetType):
             admin_state_up = True
@@ -1321,7 +1332,10 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def pool_update(self, old_pool, new_pool):
-        self._check_for_supported_protocols(new_pool.protocol)
+        if not isinstance(new_pool.protocol, o_datamodels.UnsetType):
+            self._check_for_supported_protocols(new_pool.protocol)
+        if not isinstance(new_pool.lb_algorithm, o_datamodels.UnsetType):
+            self._check_for_supported_algorithms(new_pool.lb_algorithm)
         request_info = {'id': new_pool.pool_id,
                         'loadbalancer_id': old_pool.loadbalancer_id}
 
