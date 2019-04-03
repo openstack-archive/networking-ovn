@@ -53,6 +53,8 @@ from networking_ovn.db import revision as db_rev
 from networking_ovn.ml2 import mech_driver
 from networking_ovn.tests.unit import fakes
 
+OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
+
 
 class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
@@ -2558,3 +2560,111 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         self.assertEqual(exc.HTTPNoContent.code,
                          res.status_int)
         self.assertEqual(1, self.nb_ovn.delete_lswitch_port.call_count)
+
+
+class TestOVNParentTagPortBinding(OVNMechanismDriverTestCase):
+    def test_create_port_with_invalid_parent(self):
+        binding = {OVN_PROFILE: {"parent_name": 'invalid', 'tag': 1}}
+        with self.network() as n:
+            with self.subnet(n):
+                self._create_port(
+                    self.fmt, n['network']['id'],
+                    expected_res_status=404,
+                    arg_list=(OVN_PROFILE,),
+                    **binding)
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    def test_create_port_with_parent_and_tag(self, mock_get_port):
+        binding = {OVN_PROFILE: {"parent_name": '', 'tag': 1}}
+        with self.network() as n:
+            with self.subnet(n) as s:
+                with self.port(s) as p:
+                    binding[OVN_PROFILE]['parent_name'] = p['port']['id']
+                    res = self._create_port(self.fmt, n['network']['id'],
+                                            arg_list=(OVN_PROFILE,),
+                                            **binding)
+                    port = self.deserialize(self.fmt, res)
+                    self.assertEqual(port['port'][OVN_PROFILE],
+                                     binding[OVN_PROFILE])
+                    mock_get_port.assert_called_with(mock.ANY, p['port']['id'])
+
+    def test_create_port_with_invalid_tag(self):
+        binding = {OVN_PROFILE: {"parent_name": '', 'tag': 'a'}}
+        with self.network() as n:
+            with self.subnet(n) as s:
+                with self.port(s) as p:
+                    binding[OVN_PROFILE]['parent_name'] = p['port']['id']
+                    self._create_port(self.fmt, n['network']['id'],
+                                      arg_list=(OVN_PROFILE,),
+                                      expected_res_status=400,
+                                      **binding)
+
+
+class TestOVNVtepPortBinding(OVNMechanismDriverTestCase):
+
+    def test_create_port_with_vtep_options(self):
+        binding = {OVN_PROFILE: {"vtep-physical-switch": 'psw1',
+                   "vtep-logical-switch": 'lsw1'}}
+        with self.network() as n:
+            with self.subnet(n):
+                res = self._create_port(self.fmt, n['network']['id'],
+                                        arg_list=(OVN_PROFILE,),
+                                        **binding)
+                port = self.deserialize(self.fmt, res)
+                self.assertEqual(binding[OVN_PROFILE],
+                                 port['port'][OVN_PROFILE])
+
+    def test_create_port_with_only_vtep_physical_switch(self):
+        binding = {OVN_PROFILE: {"vtep-physical-switch": 'psw'}}
+        with self.network() as n:
+            with self.subnet(n):
+                self._create_port(self.fmt, n['network']['id'],
+                                  arg_list=(OVN_PROFILE,),
+                                  expected_res_status=400,
+                                  **binding)
+
+    def test_create_port_with_only_vtep_logical_switch(self):
+        binding = {OVN_PROFILE: {"vtep-logical-switch": 'lsw1'}}
+        with self.network() as n:
+            with self.subnet(n):
+                self._create_port(self.fmt, n['network']['id'],
+                                  arg_list=(OVN_PROFILE,),
+                                  expected_res_status=400,
+                                  **binding)
+
+    def test_create_port_with_invalid_vtep_logical_switch(self):
+        binding = {OVN_PROFILE: {"vtep-logical-switch": 1234,
+                                 "vtep-physical-switch": "psw1"}}
+        with self.network() as n:
+            with self.subnet(n):
+                self._create_port(self.fmt, n['network']['id'],
+                                  arg_list=(OVN_PROFILE,),
+                                  expected_res_status=400,
+                                  **binding)
+
+    def test_create_port_with_vtep_options_and_parent_name_tag(self):
+        binding = {OVN_PROFILE: {"vtep-logical-switch": "lsw1",
+                                 "vtep-physical-switch": "psw1",
+                                 "parent_name": "pname", "tag": 22}}
+        with self.network() as n:
+            with self.subnet(n):
+                self._create_port(self.fmt, n['network']['id'],
+                                  arg_list=(OVN_PROFILE,),
+                                  expected_res_status=400,
+                                  **binding)
+
+    def test_create_port_with_vtep_options_and_check_vtep_keys(self):
+        port = {
+            'id': 'foo-port',
+            'device_owner': 'compute:None',
+            'fixed_ips': [{'subnet_id': 'foo-subnet',
+                           'ip_address': '10.0.0.11'}],
+            OVN_PROFILE: {"vtep-logical-switch": "lsw1",
+                          "vtep-physical-switch": "psw1"}
+        }
+        ovn_port_info = (
+            self.mech_driver._ovn_client._get_port_options(port))
+        self.assertEqual(port[OVN_PROFILE]["vtep-physical-switch"],
+                         ovn_port_info.options["vtep-physical-switch"])
+        self.assertEqual(port[OVN_PROFILE]["vtep-logical-switch"],
+                         ovn_port_info.options["vtep-logical-switch"])
