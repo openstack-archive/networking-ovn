@@ -107,20 +107,19 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         self.assertNotIn(ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY,
                          chassis_row['external_ids'])
 
-        # Let's create a network to force a transaction (actually 2: one for
-        # the logical switch and another one for the metadata port) on NB db
-        # which will automatically increment the nb_cfg counter on NB_Global
-        # and make ovn-controller copy it over to SB_Global. Upon this event,
-        # Metadata agent will update the external_ids on its Chassis row to
-        # signal that it's healthy.
-        row_event = MetadataAgentHealthEvent(self.chassis_name, 2)
+        # Let's list the agents to force the nb_cfg to be bumped on NB
+        # db, which will automatically increment the nb_cfg counter on
+        # NB_Global and make ovn-controller copy it over to SB_Global. Upon
+        # this event, Metadata agent will update the external_ids on its
+        # Chassis row to signal that it's healthy.
+
+        row_event = MetadataAgentHealthEvent(self.chassis_name, 1)
         self.handler.watch_event(row_event)
-        self._make_network(self.fmt, 'n1', True)
+        self.new_list_request('agents').get_response(self.api)
 
         # If we do not time out waiting for the event, then we are assured
         # that the metadata agent has populated the external_ids from the
-        # chassis with the nb_cfg, 2 revisions, one for the network transaction
-        # and another one for the port
+        # chassis with the nb_cfg, 1 revisions when listing the agents.
         self.assertTrue(row_event.wait())
 
     def test_updating_metadata_doesnt_update_controller_stats(self):
