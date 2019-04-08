@@ -1538,7 +1538,26 @@ class TestOVNMechansimDriverV2HTTPResponse(test_plugin.TestMl2V2HTTPResponse,
 
 class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
                                        OVNMechanismDriverTestCase):
-    pass
+
+    def test__update_segmentation_id_ports_wrong_vif_type(self):
+        """Skip the Update Segmentation ID tests
+
+        Currently Segmentation ID cannot be updated till
+        https://review.openstack.org/#/c/632984/ is merged
+        to allow OVS Agents and thus OVN Mechanism Driver to allow
+        updation of Segmentation IDs. Till then the test  needs to be skipped
+        """
+        pass
+
+    def test__update_segmentation_id_ports(self):
+        """Skip the Update Segmentation ID tests
+
+        Currently Segmentation ID cannot be updated till
+        https://review.openstack.org/#/c/632984/ is merged
+        to allow OVS Agents and thus OVN Mechanism Driver to allow
+        updation of Segmentation IDs. Till then the test  needs to be skipped
+        """
+        pass
 
 
 class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
