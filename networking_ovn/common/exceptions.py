@@ -34,3 +34,9 @@ class StandardAttributeIDNotFound(n_exc.NeutronException):
 
 class AgentStatsNotFound(n_exc.NeutronException):
     _message = _('The stats for agent %(agent_id)s could not be found')
+
+
+class HashRingIsEmpty(n_exc.NeutronException):
+    _message = _('Hash Ring returned empty when hashing "%(key)s". '
+                 'This should never happen in a normal situation, please '
+                 'check the status of your cluster')
