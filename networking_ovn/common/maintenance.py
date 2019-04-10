@@ -17,16 +17,15 @@ import inspect
 import threading
 
 from futurist import periodics
-from neutron.common import config as n_conf
 from neutron_lib import constants as n_const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
-from neutron_lib import worker
 from oslo_log import log
 from oslo_utils import timeutils
 
 from networking_ovn.common import config as ovn_conf
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
 from networking_ovn import ovn_db_sync
@@ -34,27 +33,6 @@ from networking_ovn import ovn_db_sync
 LOG = log.getLogger(__name__)
 
 DB_CONSISTENCY_CHECK_INTERVAL = 300  # 5 minutes
-
-
-class MaintenanceWorker(worker.BaseWorker):
-
-    def start(self):
-        super(MaintenanceWorker, self).start()
-        # NOTE(twilson) The super class will trigger the post_fork_initialize
-        # in the driver, which starts the connection/IDL notify loop which
-        # keeps the process from exiting
-
-    def stop(self):
-        """Stop service."""
-        super(MaintenanceWorker, self).stop()
-
-    def wait(self):
-        """Wait for service to complete."""
-        super(MaintenanceWorker, self).wait()
-
-    @staticmethod
-    def reset():
-        n_conf.reset_service()
 
 
 class MaintenanceThread(object):
@@ -407,3 +385,13 @@ class DBInconsistenciesPeriodics(object):
                 port.name, addresses=addresses).execute(check_error=True)
 
         raise periodics.NeverAgain()
+
+    # The static spacing value here is half of the
+    # HASH_RING_NODES_TIMEOUT, we want to be able to try to touch the nodes
+    # at least twice before they are considered dead.
+    @periodics.periodic(spacing=ovn_const.HASH_RING_NODES_TIMEOUT / 2)
+    def touch_hash_ring_nodes(self):
+        # NOTE(lucasagomes): Note that we do not rely on the OVSDB lock
+        # here because we want the maintenance tasks from each instance to
+        # execute this task.
+        db_hash_ring.touch_nodes_from_host()

@@ -41,7 +41,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
     def setUp(self):
         ovn_config.cfg.CONF.set_override('dns_domain', 'ovn.test')
-        super(TestOvnNbSync, self).setUp()
+        super(TestOvnNbSync, self).setUp(maintenance_worker=True)
         ext_mgr = test_extraroute.ExtraRouteTestExtensionManager()
         self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
         sg_mgr = test_securitygroup.SecurityGroupTestExtensionManager()
@@ -1518,7 +1518,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 class TestOvnSbSync(base.TestOVNFunctionalBase):
 
     def setUp(self):
-        super(TestOvnSbSync, self).setUp(ovn_worker=False)
+        super(TestOvnSbSync, self).setUp(maintenance_worker=True)
         self.segments_plugin = directory.get_plugin('segments')
         self.sb_synchronizer = ovn_db_sync.OvnSbSynchronizer(
             self.plugin, self.mech_driver._sb_ovn, self.mech_driver)

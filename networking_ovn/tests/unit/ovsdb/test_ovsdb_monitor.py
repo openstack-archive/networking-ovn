@@ -93,8 +93,6 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         helper = ovs_idl.SchemaHelper(schema_json=OVN_NB_SCHEMA)
         helper.register_all()
         self.idl = ovsdb_monitor.OvnNbIdl(self.driver, "remote", helper)
-        self.idl.lock_name = self.idl.event_lock_name
-        self.idl.has_lock = True
         self.lp_table = self.idl.tables.get('Logical_Switch_Port')
         self.driver.set_port_status_up = mock.Mock()
         self.driver.set_port_status_down = mock.Mock()
@@ -198,17 +196,16 @@ class TestOvnNbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         self.assertFalse(self.driver.set_port_status_up.called)
         self.assertFalse(self.driver.set_port_status_down.called)
 
-    def test_notify_no_ovsdb_lock(self):
-        self.idl.is_lock_contended = True
+    @mock.patch('networking_ovn.common.hash_ring_manager.'
+                'HashRingManager.get_node')
+    def test_notify_different_target_node(self, mock_get_node):
+        mock_get_node.return_value = 'this-is-a-different-node'
+        row = fakes.FakeOvsdbRow.create_one_ovsdb_row()
         self.idl.notify_handler.notify = mock.Mock()
-        self.idl.notify("create", mock.ANY)
+        self.idl.notify("create", row)
+        # Assert that if the target_node returned by the ring is different
+        # than this driver's node_uuid, notify() won't be called
         self.assertFalse(self.idl.notify_handler.notify.called)
-
-    def test_notify_ovsdb_lock_not_yet_contended(self):
-        self.idl.is_lock_contended = False
-        self.idl.notify_handler.notify = mock.Mock()
-        self.idl.notify("create", mock.ANY)
-        self.assertTrue(self.idl.notify_handler.notify.called)
 
 
 class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
@@ -220,8 +217,6 @@ class TestOvnSbIdlNotifyHandler(test_mech_driver.OVNMechanismDriverTestCase):
         sb_helper = ovs_idl.SchemaHelper(schema_json=OVN_SB_SCHEMA)
         sb_helper.register_table('Chassis')
         self.sb_idl = ovsdb_monitor.OvnSbIdl(self.driver, "remote", sb_helper)
-        self.sb_idl.lock_name = self.sb_idl.event_lock_name
-        self.sb_idl.has_lock = True
         self.sb_idl.post_connect()
         self.chassis_table = self.sb_idl.tables.get('Chassis')
         self.driver.update_segment_host_mapping = mock.Mock()
