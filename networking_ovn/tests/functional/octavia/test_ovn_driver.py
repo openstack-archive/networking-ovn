@@ -218,7 +218,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._validate_loadbalancers(expected_lbs)
 
     def _create_load_balancer_and_validate(self, lb_info,
-                                           admin_state_up=True):
+                                           admin_state_up=True,
+                                           only_model=False):
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         lb_data = {}
         router_id = self._create_router("r1")
@@ -233,6 +234,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         lb_data['listeners'] = []
         lb_data['pools'] = []
         self._update_ls_refs(lb_data, net_info[0])
+        if only_model:
+            return lb_data
 
         self.ovn_driver.loadbalancer_create(lb_data['model'])
         if lb_data['model'].admin_state_up:
@@ -685,6 +688,21 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             {'vip_network': 'vip_network',
              'cidr': '10.0.0.0/24'}, admin_state_up=False)
         self._delete_load_balancer_and_validate(lb_data)
+
+    def test_delete_lb_on_nonexisting_lb(self):
+        # LoadBalancer doesnt exist anymore, so just create a model and delete
+        lb_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'vip_network',
+             'cidr': '19.0.0.0/24'},
+            only_model=True)
+        self.ovn_driver.loadbalancer_delete(lb_data['model'])
+        expected_status = {
+            'loadbalancers': [{"id": lb_data['model'].loadbalancer_id,
+                               "provisioning_status": "DELETED",
+                               "operating_status": "OFFLINE"}]
+        }
+        del lb_data['model']
+        self._wait_for_status_and_validate(lb_data, [expected_status])
 
     def test_pool(self):
         lb_data = self._create_load_balancer_and_validate(
