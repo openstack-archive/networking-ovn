@@ -12,16 +12,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron.conf.agent import securitygroups_rpc
+from neutron import manager
+from neutron import opts as neutron_options
+from neutron.plugins.ml2 import plugin as ml2_plugin
 from neutron_lib.agent import topics
 from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log as logging
-
-from neutron.conf.agent import securitygroups_rpc
-from neutron import manager
-from neutron import opts as neutron_options
-from neutron.plugins.ml2 import plugin as ml2_plugin
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import ovn_client

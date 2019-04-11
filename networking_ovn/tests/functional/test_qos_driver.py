@@ -12,10 +12,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_ovn.tests.functional import base
 from neutron.extensions import qos as qos_ext
 from neutron.tests.unit.api import test_extensions
 from ovsdbapp.backend.ovs_idl import idlutils
+
+from networking_ovn.tests.functional import base
 
 
 class QoSTestExtensionManager(object):

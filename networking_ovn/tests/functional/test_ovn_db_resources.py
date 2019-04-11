@@ -14,8 +14,8 @@
 
 
 import mock
-import netaddr
 
+import netaddr
 from neutron_lib.api.definitions import dns as dns_apidef
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg

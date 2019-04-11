@@ -18,6 +18,10 @@ import threading
 import types
 import uuid
 
+from neutron.common import utils as n_utils
+from neutron.db import provisioning_blocks
+from neutron.plugins.ml2 import db as ml2_db
+from neutron.services.segments import db as segment_service_db
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
@@ -32,11 +36,6 @@ from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 from oslo_utils import timeutils
-
-from neutron.common import utils as n_utils
-from neutron.db import provisioning_blocks
-from neutron.plugins.ml2 import db as ml2_db
-from neutron.services.segments import db as segment_service_db
 
 from networking_ovn._i18n import _
 from networking_ovn.agent import stats

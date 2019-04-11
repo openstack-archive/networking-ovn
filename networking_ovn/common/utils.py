@@ -15,7 +15,6 @@ import os
 import re
 
 import netaddr
-
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec

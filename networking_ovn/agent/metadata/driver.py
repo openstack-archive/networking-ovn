@@ -18,11 +18,10 @@ import grp
 import os
 import pwd
 
+from neutron.agent.linux import external_process
 from neutron_lib import exceptions
 from oslo_config import cfg
 from oslo_log import log as logging
-
-from neutron.agent.linux import external_process
 
 from networking_ovn._i18n import _
 

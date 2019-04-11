@@ -16,21 +16,18 @@ import atexit
 import copy
 import threading
 
-from six.moves import queue as Queue
-
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_serialization import jsonutils
-
-from ovs.stream import Stream
-from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
-from stevedore import driver
-
 from octavia_lib.api.drivers import data_models as o_datamodels
 from octavia_lib.api.drivers import driver_lib as o_driver_lib
 from octavia_lib.api.drivers import exceptions as driver_exceptions
 from octavia_lib.api.drivers import provider_base as driver_base
 from octavia_lib.common import constants
+from oslo_config import cfg
+from oslo_log import log as logging
+from oslo_serialization import jsonutils
+from ovs.stream import Stream
+from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
+from six.moves import queue as Queue
+from stevedore import driver
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as ovn_cfg

@@ -12,6 +12,11 @@
 #    under the License.
 #
 
+from neutron.db import dns_db
+from neutron.db import extraroute_db
+from neutron.db import l3_gwmode_db
+from neutron.db.models import l3 as l3_models
+from neutron.quota import resource_registry
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
@@ -26,12 +31,6 @@ from neutron_lib.plugins import directory
 from neutron_lib.services import base as service_base
 from oslo_log import log
 from oslo_utils import excutils
-
-from neutron.db import dns_db
-from neutron.db import extraroute_db
-from neutron.db import l3_gwmode_db
-from neutron.db.models import l3 as l3_models
-from neutron.quota import resource_registry
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import extensions

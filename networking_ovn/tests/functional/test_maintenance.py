@@ -19,6 +19,9 @@ from futurist import periodics
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_securitygroup
+from neutron_lib.api.definitions import external_net as extnet_apidef
+from neutron_lib import constants as n_const
+from neutron_lib import context as n_context
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
@@ -26,9 +29,6 @@ from networking_ovn.common import maintenance
 from networking_ovn.common import utils
 from networking_ovn.db import revision as db_rev
 from networking_ovn.tests.functional import base
-from neutron_lib.api.definitions import external_net as extnet_apidef
-from neutron_lib import constants as n_const
-from neutron_lib import context as n_context
 
 
 class _TestMaintenanceHelper(base.TestOVNFunctionalBase):

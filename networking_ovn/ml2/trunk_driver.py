@@ -10,6 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron.services.trunk import constants as trunk_consts
+from neutron.services.trunk.drivers import base as trunk_base
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
 from neutron_lib import context as n_context
@@ -19,11 +22,6 @@ from oslo_db import exception as os_db_exc
 from oslo_log import log
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
-
-from neutron.services.trunk import constants as trunk_consts
-from neutron.services.trunk.drivers import base as trunk_base
-from neutron_lib.api.definitions import portbindings
-
 
 SUPPORTED_INTERFACES = (
     portbindings.VIF_TYPE_OVS,

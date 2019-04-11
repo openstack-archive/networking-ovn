@@ -10,9 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_log import log as logging
-
+from neutron.objects.qos import policy as qos_policy
+from neutron.objects.qos import rule as qos_rule
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
 from neutron_lib import context as n_context
@@ -20,9 +19,8 @@ from neutron_lib.db import constants as db_consts
 from neutron_lib.plugins import directory
 from neutron_lib.services.qos import base
 from neutron_lib.services.qos import constants as qos_consts
-
-from neutron.objects.qos import policy as qos_policy
-from neutron.objects.qos import rule as qos_rule
+from oslo_config import cfg
+from oslo_log import log as logging
 
 from networking_ovn.common import utils
 

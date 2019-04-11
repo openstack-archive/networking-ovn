@@ -16,9 +16,13 @@ import datetime
 import uuid
 
 import mock
-from webob import exc
-
+from neutron.db import provisioning_blocks
+from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.services.revisions import revision_plugin
+from neutron.tests.unit.extensions import test_segment
+from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
+from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron.tests.unit.plugins.ml2 import test_security_group
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -35,13 +39,7 @@ from oslo_db import exception as os_db_exc
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-
-from neutron.db import provisioning_blocks
-from neutron.plugins.ml2.drivers import type_geneve  # noqa
-from neutron.tests.unit.extensions import test_segment
-from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
-from neutron.tests.unit.plugins.ml2 import test_plugin
-from neutron.tests.unit.plugins.ml2 import test_security_group
+from webob import exc
 
 from networking_ovn.agent import stats
 from networking_ovn.common import acl as ovn_acl

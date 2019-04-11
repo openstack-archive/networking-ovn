@@ -13,17 +13,16 @@
 #
 
 import mock
+
+from neutron.services.trunk import constants as trunk_consts
+from neutron.tests import base
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
+from oslo_config import cfg
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn.tests.unit import fakes
-
-from neutron.services.trunk import constants as trunk_consts
-from neutron.tests import base
-
-from oslo_config import cfg
 
 
 class TestTrunkHandler(base.BaseTestCase):

@@ -11,12 +11,12 @@
 #    under the License.
 
 import mock
-from neutron_lib import constants
-from oslo_utils import uuidutils
 
 from neutron.objects.qos import policy as qos_policy
 from neutron.objects.qos import rule as qos_rule
 from neutron.tests import base
+from neutron_lib import constants
+from oslo_utils import uuidutils
 
 from networking_ovn.common import utils
 from networking_ovn.ml2 import qos_driver

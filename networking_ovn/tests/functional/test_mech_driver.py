@@ -12,10 +12,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_ovn.common import utils
-from networking_ovn.tests.functional import base
 from oslo_config import cfg
 from oslo_utils import uuidutils
+
+from networking_ovn.common import utils
+from networking_ovn.tests.functional import base
 
 
 class TestPortBinding(base.TestOVNFunctionalBase):

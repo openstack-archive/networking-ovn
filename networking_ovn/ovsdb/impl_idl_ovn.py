@@ -14,10 +14,8 @@ import contextlib
 import uuid
 
 from neutron_lib import exceptions as n_exc
-from oslo_log import log
-import tenacity
-
 from neutron_lib.utils import helpers
+from oslo_log import log
 from oslo_utils import uuidutils
 from ovsdbapp.backend import ovs_idl
 from ovsdbapp.backend.ovs_idl import connection
@@ -26,6 +24,7 @@ from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 from ovsdbapp.backend.ovs_idl import vlog
 from ovsdbapp.schema.ovn_northbound import impl_idl as nb_impl_idl
 from ovsdbapp.schema.ovn_southbound import impl_idl as sb_impl_idl
+import tenacity
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as cfg

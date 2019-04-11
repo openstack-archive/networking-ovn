@@ -14,11 +14,6 @@
 
 import mock
 
-from networking_ovn.common import constants as ovn_const
-from networking_ovn.common import utils as ovn_utils
-from networking_ovn.l3 import l3_ovn_scheduler as l3_sched
-from networking_ovn.tests.functional import base
-
 from neutron.common import utils as n_utils
 from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import l3 as l3_apidef
@@ -27,6 +22,11 @@ from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib import constants as n_consts
 from neutron_lib.plugins import directory
 from ovsdbapp.backend.ovs_idl import idlutils
+
+from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils as ovn_utils
+from networking_ovn.l3 import l3_ovn_scheduler as l3_sched
+from networking_ovn.tests.functional import base
 
 
 class TestRouter(base.TestOVNFunctionalBase):

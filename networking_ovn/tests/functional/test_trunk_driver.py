@@ -14,13 +14,14 @@
 
 import contextlib
 
-from networking_ovn.tests.functional import base
 from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk import plugin as trunk_plugin
 from neutron_lib import constants as n_consts
 from neutron_lib.objects import registry as obj_reg
 from neutron_lib.plugins import utils
 from oslo_utils import uuidutils
+
+from networking_ovn.tests.functional import base
 
 
 class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
