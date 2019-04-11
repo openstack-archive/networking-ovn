@@ -7,5 +7,6 @@ Contributor Documentation
 
    contributing
    vagrant/index
+   testing/testing
    testing
    design/index
