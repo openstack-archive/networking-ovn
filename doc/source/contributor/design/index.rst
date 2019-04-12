@@ -12,3 +12,4 @@ Design Notes
    database_consistency
    acl_optimizations
    loadbalancer
+   distributed_ovsdb_events
