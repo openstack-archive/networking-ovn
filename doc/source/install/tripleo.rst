@@ -224,8 +224,8 @@ You can use the following script to create the resources.
                            --subnet-range 192.168.99.0/24
    openstack router create router1
 
-   neutron router-gateway-set router1 public
-   neutron router-interface-add router1 private
+   openstack router set --external-gateway public router1
+   openstack router add subnet router1 private
 
    openstack security group create test
    openstack security group rule create --ingress --protocol tcp \
