@@ -29,6 +29,7 @@
             branches: ^(stable/(pike|queens|rocky)).*$
         - networking-ovn-tripleo-c7-s003-oooq-containers:
             branches: ^(?!stable/(pike|queens|rocky)).*$
+            voting: false
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
@@ -46,8 +47,7 @@
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
             branches: ^(stable/(pike|queens|rocky)).*$
-        - networking-ovn-tripleo-c7-s003-oooq-containers:
-            branches: ^(?!stable/(pike|queens|rocky)).*$
+
 
     experimental:
       jobs:

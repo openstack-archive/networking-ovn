@@ -136,10 +136,8 @@ EOF
     sudo mv $TEMPFILE /etc/sudoers.d/60-neutron-func-test-rootwrap
 }
 
-# _install_databases [install_pg]
+# _install_databases
 function _install_databases {
-    local install_pg=${1:-False}
-
     echo_summary "Installing databases"
 
     # Avoid attempting to configure the db if it appears to already
@@ -159,15 +157,6 @@ function _install_databases {
     install_database
     configure_database_mysql
 
-    if [[ "$install_pg" == "True" ]]; then
-        # acl package includes setfacl.
-        install_package acl
-        enable_service postgresql
-        initialize_database_backends
-        install_database
-        configure_database_postgresql
-    fi
-
     # Set up the 'openstack_citest' user and database in each backend
     tmp_dir=$(mktemp -d)
     trap "rm -rf $tmp_dir" EXIT
@@ -181,17 +170,6 @@ GRANT ALL PRIVILEGES ON *.* TO 'openstack_citest';
 FLUSH PRIVILEGES;
 EOF
     /usr/bin/mysql -u root < $tmp_dir/mysql.sql
-
-    if [[ "$install_pg" == "True" ]]; then
-        cat << EOF > $tmp_dir/postgresql.sql
-CREATE USER openstack_citest WITH CREATEDB LOGIN PASSWORD 'openstack_citest';
-CREATE DATABASE openstack_citest WITH OWNER openstack_citest;
-EOF
-
-        # User/group postgres needs to be given access to tmp_dir
-        setfacl -m g:postgres:rwx $tmp_dir
-        sudo -u postgres /usr/bin/psql --file=$tmp_dir/postgresql.sql
-    fi
 }
 
 
