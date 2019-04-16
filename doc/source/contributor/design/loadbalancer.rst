@@ -287,6 +287,11 @@ Following issue exists with OVN's integration with Octavia:
 - If creation/deletion of a LoadBalancer, Listener, Pool or Member fails, then
   the corresponding object will remain in the DB in a PENDING_* state.
 
+Support Matrix
+--------------
+A detailed matrix of the operations supported by OVN Provider driver in Octavia
+can be found in https://docs.openstack.org/octavia/latest/user/feature-classification/index.html
+
 Other References
 ----------------
 [1] Octavia API:
