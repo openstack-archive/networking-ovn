@@ -37,6 +37,8 @@
             required-projects:
               - openstack/neutron
             voting: false
+        - networking-ovn-tempest-slow:
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release

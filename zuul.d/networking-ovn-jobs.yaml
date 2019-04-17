@@ -182,3 +182,14 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+
+- job:
+    name: networking-ovn-tempest-slow
+    parent: networking-ovn-base
+    vars:
+      tox_envlist: slow-serial
+      tempest_test_regex: ""
+      # TODO(slaweq): remove test_port_security_macspoofing_port test from
+      # blacklist when bug https://bugs.launchpad.net/tempest/+bug/1728886
+      # will be fixed
+      tempest_black_regex: "(?:tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_port_security_macspoofing_port)"
