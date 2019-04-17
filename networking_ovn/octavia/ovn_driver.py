@@ -194,6 +194,7 @@ LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
                            constants.PROTOCOL_UDP, ]
 OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_ROUND_ROBIN, ]
+EXCEPTION_MSG = "Exception occurred during %s"
 
 
 def get_network_driver():
@@ -553,7 +554,7 @@ class OvnProviderHelper(object):
         # immediately or reschedule the lb_create request later.
         # For now lets report immediately.
         except Exception:
-            LOG.exception('Unexpected exception during load balancer create')
+            LOG.exception(EXCEPTION_MSG, "creation of loadbalancer")
             # Any Exception set the status to ERROR
             status = {
                 'loadbalancers': [{"id": loadbalancer['id'],
@@ -632,7 +633,7 @@ class OvnProviderHelper(object):
             network_driver.neutron_client.delete_port(
                 ovn_lb.external_ids[LB_EXT_IDS_VIP_PORT_ID_KEY])
         except Exception:
-            LOG.exception('Exception during load balancer delete')
+            LOG.exception(EXCEPTION_MSG, "deletion of loadbalancer")
             status = {
                 'loadbalancers': [{"id": loadbalancer['id'],
                                    "provisioning_status": constants.ERROR,
@@ -674,7 +675,7 @@ class OvnProviderHelper(object):
                 operating_status = constants.OFFLINE
             lb_status['operating_status'] = operating_status
         except Exception:
-            LOG.exception('Exception during load balancer delete')
+            LOG.exception(EXCEPTION_MSG, "update of loadbalancer")
             lb_status['provisioning_status'] = constants.ERROR
             lb_status['operating_status'] = constants.ERROR
 
@@ -722,7 +723,7 @@ class OvnProviderHelper(object):
                 'loadbalancers': [{"id": listener['loadbalancer_id'],
                                    "provisioning_status": constants.ACTIVE}]}
         except Exception:
-            LOG.exception('Exception during listener create')
+            LOG.exception(EXCEPTION_MSG, "creation of listener")
             status = {
                 'listeners': [{"id": listener['id'],
                                "provisioning_status": constants.ERROR,
@@ -759,7 +760,7 @@ class OvnProviderHelper(object):
                 'loadbalancers': [{"id": listener['loadbalancer_id'],
                                    "provisioning_status": constants.ACTIVE}]}
         except Exception:
-            LOG.exception('Exception during listener create')
+            LOG.exception(EXCEPTION_MSG, "deletion of listener")
             status = {
                 'listeners': [{"id": listener['id'],
                                "provisioning_status": constants.ERROR,
@@ -847,7 +848,7 @@ class OvnProviderHelper(object):
                 self._refresh_lb_vips(ovn_lb.uuid, external_ids))
             self._execute_commands(commands)
         except Exception:
-            LOG.exception('Exception during listener delete')
+            LOG.exception(EXCEPTION_MSG, "update of listener")
             status = {
                 'listeners': [{'id': listener['id'],
                                'provisioning_status': constants.ERROR}],
@@ -886,7 +887,7 @@ class OvnProviderHelper(object):
                                     'provisioning_status': constants.ACTIVE}]
                 status['listeners'] = listener_status
         except Exception:
-            LOG.exception('Exception during pool create')
+            LOG.exception(EXCEPTION_MSG, "creation of pool")
             status = {
                 'pools': [{"id": pool['id'],
                            "provisioning_status": constants.ERROR}],
@@ -946,7 +947,7 @@ class OvnProviderHelper(object):
                     'id': listener_id,
                     'provisioning_status': constants.ACTIVE}]
         except Exception:
-            LOG.exception('Exception during pool delete')
+            LOG.exception(EXCEPTION_MSG, "deletion of pool")
             status = {
                 'pools': [{"id": pool['id'],
                            "provisioning_status": constants.ERROR}],
@@ -1019,7 +1020,7 @@ class OvnProviderHelper(object):
                      'provisioning_status': constants.ACTIVE})
             status['listeners'] = listener_status
         except Exception:
-            LOG.exception('Exception during pool update')
+            LOG.exception(EXCEPTION_MSG, "update of pool")
             status = {
                 'pools': [{"id": pool['id'],
                            'provisioning_status': constants.ERROR}],
@@ -1081,7 +1082,7 @@ class OvnProviderHelper(object):
                      'provisioning_status': constants.ACTIVE})
             status['listeners'] = listener_status
         except Exception:
-            LOG.exception('Exception during member create')
+            LOG.exception(EXCEPTION_MSG, "creation of member")
             status = {
                 'pools': [{"id": member['pool_id'],
                            "provisioning_status": constants.ERROR}],
@@ -1139,7 +1140,7 @@ class OvnProviderHelper(object):
                      'provisioning_status': constants.ACTIVE})
             status['listeners'] = listener_status
         except Exception:
-            LOG.exception('Exception during member delete')
+            LOG.exception(EXCEPTION_MSG, "deletion of member")
             status = {
                 'pools': [{"id": member['pool_id'],
                            "provisioning_status": constants.ACTIVE}],
@@ -1184,6 +1185,7 @@ class OvnProviderHelper(object):
                      'provisioning_status': constants.ACTIVE})
             status['listeners'] = listener_status
         except Exception:
+            LOG.exception(EXCEPTION_MSG, "update of member")
             status = {
                 'pools': [{'id': member['pool_id'],
                            'provisioning_status': constants.ACTIVE}],
