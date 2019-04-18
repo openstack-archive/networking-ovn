@@ -85,20 +85,11 @@ disable_service cinder c-sch c-api c-vol
 #enable_service skydive-analyzer
 #enable_service skydive-agent
 
-
 # Octavia with OVN provider driver. OVN provider driver uses the OVN native
 # load balancer and it only supports L4 TCP load balancer and doesn't support
 # health check monitor and other advanced features supported by Octavia
 # amphore driver. If you want to enable Octavia amphore driver, please see
-# the local.conf sample in the octavia repo.
-enable_plugin octavia https://git.openstack.org/openstack/octavia
-enable_service octavia
-enable_service o-api
-enable_service o-hk
-disable_service o-cw
-disable_service o-hm
-DISABLE_AMP_IMAGE_BUILD=True
-LIBS_FROM_GIT+=python-octaviaclient
+# http://git.openstack.org/cgit/openstack/networking-ovn/tree/devstack/ovn-octavia-provider.conf.sample
 
 # If you want to enable a provider network instead of the default private
 # network after your DevStack environment installation, you *must* set
