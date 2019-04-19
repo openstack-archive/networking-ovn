@@ -11,7 +11,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/neutron
       - openstack/networking-ovn
       - openstack/tempest
@@ -30,7 +30,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/neutron
       - openstack/networking-ovn
       - openstack/tempest
@@ -42,7 +42,7 @@
     post-run: playbooks/legacy/networking-ovn-dsvm-functional-py27/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
 
 - job:
@@ -52,7 +52,7 @@
     post-run: playbooks/legacy/networking-ovn-dsvm-functional/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
 
 - job:
@@ -62,7 +62,7 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-multinode/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/neutron-tempest-plugin
       - openstack/tempest
@@ -85,8 +85,8 @@
       - ^vagrant/.*$
       - ^migration/.*$
     required-projects:
-      - openstack-dev/grenade
-      - openstack-infra/devstack-gate
+      - openstack/grenade
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/neutron-tempest-plugin
       - openstack/tempest

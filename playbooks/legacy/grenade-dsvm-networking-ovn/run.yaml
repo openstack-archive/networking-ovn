@@ -13,12 +13,12 @@
           set -x
           cat > clonemap.yaml << EOF
           clonemap:
-            - name: openstack-infra/devstack-gate
+            - name: openstack/devstack-gate
               dest: devstack-gate
           EOF
           /usr/zuul-env/bin/zuul-cloner -m clonemap.yaml --cache-dir /opt/git \
-              https://git.openstack.org \
-              openstack-infra/devstack-gate
+              https://opendev.org \
+              openstack/devstack-gate
         executable: /bin/bash
         chdir: '{{ ansible_user_dir }}/workspace'
       environment: '{{ zuul | zuul_legacy_vars }}'
@@ -29,7 +29,7 @@
           set -x
           cat << 'EOF' >>"/tmp/dg-local.conf"
           [[local|localrc]]
-          enable_plugin neutron-tempest-plugin https://git.openstack.org/openstack/neutron-tempest-plugin
+          enable_plugin neutron-tempest-plugin https://opendev.org/openstack/neutron-tempest-plugin
 
           EOF
         executable: /bin/bash
@@ -44,9 +44,9 @@
           # Because we are testing a non standard project, add
           # our project repository. This makes zuul do the right
           # reference magic for testing changes.
-          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin openstack-dev/grenade $PROJECTS"
+          export PROJECTS="openstack/networking-ovn openstack/neutron-tempest-plugin openstack/grenade $PROJECTS"
 
-          export GRENADE_PLUGINRC="enable_grenade_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn"
+          export GRENADE_PLUGINRC="enable_grenade_plugin networking-ovn https://opendev.org/openstack/networking-ovn"
           export DEVSTACK_GATE_GRENADE=pullup
 
           export DEVSTACK_GATE_NEUTRON=1
