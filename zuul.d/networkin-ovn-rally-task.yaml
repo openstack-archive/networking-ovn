@@ -2,15 +2,15 @@
     name: networking-ovn-rally-task
     parent: rally-task-at-devstack
     required-projects:
-      - name: openstack-dev/devstack
-      - name: openstack-infra/devstack-gate
+      - name: openstack/devstack
+      - name: openstack/devstack-gate
       - name: openstack/rally
       - name: openstack/rally-openstack
       - name: openstack/networking-ovn
     vars:
       devstack_plugins:
-        rally-openstack: https://git.openstack.org/openstack/rally-openstack
-        networking-ovn: https://git.openstack.org/openstack/networking-ovn
+        rally-openstack: https://opendev.org/openstack/rally-openstack
+        networking-ovn: https://opendev.org/openstack/networking-ovn
       devstack_services:
         ovn-northd: true
         ovn-controller: true
