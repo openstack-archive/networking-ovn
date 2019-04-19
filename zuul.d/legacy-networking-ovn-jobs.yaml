@@ -11,7 +11,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/neutron
       - openstack/networking-ovn
       - openstack/tempest
@@ -29,7 +29,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/neutron
       - openstack/networking-ovn
       - openstack/tempest
@@ -41,8 +41,8 @@
     post-run: playbooks/legacy/grenade-dsvm-networking-ovn/post.yaml
     timeout: 9000
     required-projects:
-      - openstack-dev/grenade
-      - openstack-infra/devstack-gate
+      - openstack/grenade
+      - openstack/devstack-gate
       - openstack/networking-ovn
 
 - job:
@@ -52,7 +52,7 @@
     post-run: playbooks/legacy/networking-ovn-dsvm-functional/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
 
 - job:
@@ -62,7 +62,7 @@
     post-run: playbooks/legacy/networking-ovn-dsvm-functional-py35/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
 
 - job:
@@ -72,7 +72,7 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-multinode/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/tempest
     nodeset: legacy-ubuntu-xenial-2-node
@@ -84,7 +84,7 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-neutron-api-scenario-ovs-release/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/neutron
       - openstack/neutron-tempest-plugin
@@ -97,7 +97,7 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/tempest
 
@@ -108,7 +108,7 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-master-python3/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/tempest
 
@@ -119,6 +119,6 @@
     post-run: playbooks/legacy/tempest-dsvm-networking-ovn-ovs-release/post.yaml
     timeout: 7800
     required-projects:
-      - openstack-infra/devstack-gate
+      - openstack/devstack-gate
       - openstack/networking-ovn
       - openstack/tempest
