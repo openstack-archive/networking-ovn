@@ -11,9 +11,3 @@
             required-projects:
               - openstack/neutron
             voting: false
-    periodic:
-      jobs:
-        - openstack-tox-py35-with-ovsdbapp-master:
-            required-projects:
-              - openstack/neutron
-
