@@ -16,7 +16,9 @@
 import threading
 
 import mock
+from neutron.common import utils as n_utils
 from oslo_config import fixture as fixture_config
+from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event
 from ovsdbapp import event as ovsdb_event
 
@@ -55,12 +57,19 @@ class MetadataAgentHealthEvent(event.RowEvent):
 
 
 class TestMetadataAgent(base.TestOVNFunctionalBase):
+    OVN_BRIDGE = 'br-int'
 
     def setUp(self):
         super(TestMetadataAgent, self).setUp()
         self.handler = ovsdb_event.RowEventHandler()
         self.sb_api.idl.notify = self.handler.notify
-        self._start_metadata_agent()
+        # We only have OVN NB and OVN SB running for functional tests
+        mock.patch.object(ovsdb, 'MetadataAgentOvsIdl').start()
+        self._mock_get_ovn_br = mock.patch.object(
+            agent.MetadataAgent,
+            '_get_ovn_bridge',
+            return_value=self.OVN_BRIDGE).start()
+        self.agent = self._start_metadata_agent()
 
     def _start_metadata_agent(self):
         conf = self.useFixture(fixture_config.Config()).conf
@@ -78,24 +87,18 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         p.start()
         self.addCleanup(p.stop)
 
-        # We only have OVN NB and OVN SB running for functional tests
-        p = mock.patch.object(ovsdb, 'MetadataAgentOvsIdl')
-        p.start()
-        self.addCleanup(p.stop)
-
         self.chassis_name = self.add_fake_chassis('ovs-host-fake')
         with mock.patch.object(agent.MetadataAgent,
-                               '_get_own_chassis_name') as mock_get_ch_name,\
-                mock.patch.object(agent.MetadataAgent,
-                                  '_get_ovn_bridge') as mock_get_ovn_br:
+                               '_get_own_chassis_name') as mock_get_ch_name:
             mock_get_ch_name.return_value = self.chassis_name
-            mock_get_ovn_br.return_value = 'br-int'
             agt = agent.MetadataAgent(conf)
             agt.start()
             # Metadata agent will open connections to OVS and SB databases.
             # Close connections to them when the test ends,
             self.addCleanup(agt.ovs_idl.ovsdb_connection.stop)
             self.addCleanup(agt.sb_idl.ovsdb_connection.stop)
+
+        return agt
 
     def test_metadata_agent_healthcheck(self):
         chassis_row = self.sb_api.db_find(
@@ -135,3 +138,43 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         self.assertTrue(row_event.wait())
         self.assertEqual(stats.AgentStats.get_stat(chassis.uuid).nb_cfg,
                          nb_cfg)
+
+    def _create_metadata_port(self, txn, lswitch_name):
+        mdt_port_name = 'ovn-mdt-' + uuidutils.generate_uuid()
+        txn.add(
+            self.nb_api.lsp_add(
+                lswitch_name,
+                mdt_port_name,
+                type='localport',
+                addresses='AA:AA:AA:AA:AA:AA 192.168.122.123',
+                external_ids={
+                    ovn_const.OVN_CIDRS_EXT_ID_KEY: '192.168.122.123/24'}))
+
+    def test_agent_resync_on_non_existing_bridge(self):
+        BR_NEW = 'br-new'
+        self._mock_get_ovn_br.return_value = BR_NEW
+        self.agent.ovs_idl.list_br.return_value.execute.return_value = [BR_NEW]
+        # The agent has initialized with br-int and above list_br doesn't
+        # return it, hence the agent should trigger reconfiguration and store
+        # new br-new value to its attribute.
+        self.assertEqual(self.OVN_BRIDGE, self.agent.ovn_bridge)
+        lswitch_name = 'ovn-' + uuidutils.generate_uuid()
+        lswitchport_name = 'ovn-port-' + uuidutils.generate_uuid()
+
+        with self.nb_api.transaction(check_error=True) as txn:
+            txn.add(
+                self.nb_api.ls_add(lswitch_name, True))
+            txn.add(
+                self.nb_api.create_lswitch_port(
+                    lswitchport_name, lswitch_name, True))
+            self._create_metadata_port(txn, lswitch_name)
+        # Trigger PortBindingChassisEvent
+        self.sb_api.lsp_bind(lswitchport_name, self.chassis_name).execute()
+
+        exc = Exception("Agent bridge hasn't changed from %s to %s "
+                        "in 10 seconds after Port_Binding event" %
+                        (self.agent.ovn_bridge, BR_NEW))
+        n_utils.wait_until_true(
+            lambda: BR_NEW == self.agent.ovn_bridge,
+            timeout=10,
+            exception=exc)
