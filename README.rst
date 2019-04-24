@@ -7,7 +7,7 @@ vSwitch project.  This project provides integration between OpenStack Neutron
 and OVN.
 
 * Free software: Apache license
-* Source: https://git.openstack.org/cgit/openstack/networking-ovn
+* Source: https://opendev.org/openstack/networking-ovn
 * Bugs: https://bugs.launchpad.net/networking-ovn
 * Mailing list:
   http://lists.openstack.org/cgi-bin/mailman/listinfo/openstack-discuss

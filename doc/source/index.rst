@@ -28,7 +28,7 @@ Contents
 Links
 -----
 * Free software: Apache license
-* Source: https://git.openstack.org/cgit/openstack/networking-ovn
+* Source: https://opendev.org/openstack/networking-ovn
 * Design documents: https://docs.openstack.org/networking-ovn/latest/contributor/design/index.html
 * Bugs: https://bugs.launchpad.net/networking-ovn
 * Mailing list:
