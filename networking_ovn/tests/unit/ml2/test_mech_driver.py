@@ -1524,17 +1524,17 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         self.addCleanup(p.stop)
 
 
-class TestOVNMechansimDriverBasicGet(test_plugin.TestMl2BasicGet,
+class TestOVNMechanismDriverBasicGet(test_plugin.TestMl2BasicGet,
                                      OVNMechanismDriverTestCase):
     pass
 
 
-class TestOVNMechansimDriverV2HTTPResponse(test_plugin.TestMl2V2HTTPResponse,
+class TestOVNMechanismDriverV2HTTPResponse(test_plugin.TestMl2V2HTTPResponse,
                                            OVNMechanismDriverTestCase):
     pass
 
 
-class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
+class TestOVNMechanismDriverNetworksV2(test_plugin.TestMl2NetworksV2,
                                        OVNMechanismDriverTestCase):
 
     def test__update_segmentation_id_ports_wrong_vif_type(self):
@@ -1558,7 +1558,7 @@ class TestOVNMechansimDriverNetworksV2(test_plugin.TestMl2NetworksV2,
         pass
 
 
-class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
+class TestOVNMechanismDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                                       OVNMechanismDriverTestCase):
 
     def setUp(self):
@@ -1569,7 +1569,7 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          False,
                                          group='ovn')
-        super(TestOVNMechansimDriverSubnetsV2, self).setUp()
+        super(TestOVNMechanismDriverSubnetsV2, self).setUp()
 
     # NOTE(rtheis): Mock the OVN port update since it is getting subnet
     # information for ACL processing. This interferes with the update_port
@@ -1579,7 +1579,7 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                 mock.patch.object(self.mech_driver._ovn_client,
                                   '_get_subnet_dhcp_options_for_port',
                                   return_value={}):
-            super(TestOVNMechansimDriverSubnetsV2, self).\
+            super(TestOVNMechanismDriverSubnetsV2, self).\
                 test_subnet_update_ipv4_and_ipv6_pd_v6stateless_subnets()
 
     # NOTE(rtheis): Mock the OVN port update since it is getting subnet
@@ -1590,7 +1590,7 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                 mock.patch.object(self.mech_driver._ovn_client,
                                   '_get_subnet_dhcp_options_for_port',
                                   return_value={}):
-            super(TestOVNMechansimDriverSubnetsV2, self).\
+            super(TestOVNMechanismDriverSubnetsV2, self).\
                 test_subnet_update_ipv4_and_ipv6_pd_slaac_subnets()
 
     # NOTE(numans) Overriding the base test case here because the base test
@@ -1612,7 +1612,7 @@ class TestOVNMechansimDriverSubnetsV2(test_plugin.TestMl2SubnetsV2,
                              observerd_mech_context.network.current['mtu'])
 
 
-class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
+class TestOVNMechanismDriverPortsV2(test_plugin.TestMl2PortsV2,
                                     OVNMechanismDriverTestCase):
 
     def setUp(self):
@@ -1623,7 +1623,7 @@ class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          False,
                                          group='ovn')
-        super(TestOVNMechansimDriverPortsV2, self).setUp()
+        super(TestOVNMechanismDriverPortsV2, self).setUp()
 
     # NOTE(rtheis): Override this test to verify that updating
     # a port MAC fails when the port is bound.
@@ -1635,23 +1635,23 @@ class TestOVNMechansimDriverPortsV2(test_plugin.TestMl2PortsV2,
             expected_error='PortBound')
 
 
-class TestOVNMechansimDriverAllowedAddressPairs(
+class TestOVNMechanismDriverAllowedAddressPairs(
         test_plugin.TestMl2AllowedAddressPairs,
         OVNMechanismDriverTestCase):
     pass
 
 
-class TestOVNMechansimDriverPortSecurity(
+class TestOVNMechanismDriverPortSecurity(
         test_ext_portsecurity.PSExtDriverTestCase,
         OVNMechanismDriverTestCase):
     pass
 
 
-class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
+class TestOVNMechanismDriverSegment(test_segment.HostSegmentMappingTestCase):
     _mechanism_drivers = ['logger', 'ovn']
 
     def setUp(self):
-        super(TestOVNMechansimDriverSegment, self).setUp()
+        super(TestOVNMechanismDriverSegment, self).setUp()
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         nb_ovn = fakes.FakeOvsdbNbOvnIdl()
@@ -1730,7 +1730,7 @@ class TestOVNMechansimDriverSegment(test_segment.HostSegmentMappingTestCase):
 
 
 @mock.patch.object(n_net, 'get_random_mac', lambda *_: '01:02:03:04:05:06')
-class TestOVNMechansimDriverDHCPOptions(OVNMechanismDriverTestCase):
+class TestOVNMechanismDriverDHCPOptions(OVNMechanismDriverTestCase):
 
     def _test_get_ovn_dhcp_options_helper(self, subnet, network,
                                           expected_dhcp_options,
