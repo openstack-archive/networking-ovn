@@ -294,7 +294,7 @@ of the next step.
 
    .. code-block:: console
 
-      $ grep neutron_driver containers-prepare-parameter.yaml
+      $ grep neutron_driver $HOME/containers-prepare-parameter.yaml
       neutron_driver: ovn
 
 
@@ -303,7 +303,7 @@ of the next step.
    .. code-block:: console
 
       $ openstack tripleo container image prepare \
-           --environment-file /home/stack/containers-prepare-parameter.yaml
+           --environment-file $HOME/containers-prepare-parameter.yaml
 
    .. note::
 
