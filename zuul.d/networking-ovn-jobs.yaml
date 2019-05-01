@@ -110,7 +110,7 @@
     name: networking-ovn-tempest-dsvm-ovs-master-fedora
     description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
     parent: networking-ovn-tempest-dsvm-ovs-master
-    nodeset: fedora-latest
+    nodeset: devstack-single-node-fedora-latest
 
 - job:
     name: networking-ovn-rally-task
