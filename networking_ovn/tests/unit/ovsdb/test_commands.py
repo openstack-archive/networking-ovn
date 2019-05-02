@@ -18,6 +18,7 @@ from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils as ovn_utils
 from networking_ovn.ovsdb import commands
 from networking_ovn.tests import base
@@ -84,6 +85,14 @@ class TestBaseCommand(base.TestCase):
         self.ovn_api = fakes.FakeOvsdbNbOvnIdl()
         self.transaction = fakes.FakeOvsdbTransaction()
         self.ovn_api.transaction = self.transaction
+
+
+class TestCheckLivenessCommand(TestBaseCommand):
+    def test_check_liveness(self):
+        old_ng_cfg = self.ovn_api.nb_global.ng_cfg
+        cmd = commands.CheckLivenessCommand(self.ovn_api)
+        cmd.run_idl(self.transaction)
+        self.assertNotEqual(cmd.result, old_ng_cfg)
 
 
 class TestLSwitchSetExternalIdsCommand(TestBaseCommand):
@@ -1129,6 +1138,76 @@ class TestUpdateAddrSetExtIdsCommand(TestBaseCommand):
             self.assertEqual(new_ext_ids, fake_addrset.external_ids)
 
 
+class TestUpdateChassisExtIdsCommand(TestBaseCommand):
+    def setUp(self):
+        super(TestUpdateChassisExtIdsCommand, self).setUp()
+        self.ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default'}
+
+    def _test_chassis_extids_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdateChassisExtIdsCommand(
+                self.ovn_api, 'fake-chassis', self.ext_ids,
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_chassis_no_exist_ignore(self):
+        self._test_chassis_extids_update_no_exist(if_exists=True)
+
+    def test_chassis_no_exist_fail(self):
+        self._test_chassis_extids_update_no_exist(if_exists=False)
+
+    def test_chassis_extids_update(self):
+        new_ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default-new'}
+        fake_chassis = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': self.ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_chassis):
+            cmd = commands.UpdateChassisExtIdsCommand(
+                self.ovn_api, fake_chassis.name,
+                new_ext_ids, if_exists=True)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_chassis.external_ids)
+
+
+class TestUpdatePortBindingExtIdsCommand(TestBaseCommand):
+    def setUp(self):
+        super(TestUpdatePortBindingExtIdsCommand, self).setUp()
+        self.ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default'}
+
+    def _test_portbinding_extids_update_no_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.UpdatePortBindingExtIdsCommand(
+                self.ovn_api, 'fake-portbinding', self.ext_ids,
+                if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_portbinding_no_exist_ignore(self):
+        self._test_portbinding_extids_update_no_exist(if_exists=True)
+
+    def test_portbinding_no_exist_fail(self):
+        self._test_portbinding_extids_update_no_exist(if_exists=False)
+
+    def test_portbinding_extids_update(self):
+        new_ext_ids = {ovn_const.OVN_SG_EXT_ID_KEY: 'default-new'}
+        fake_portbinding = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': self.ext_ids})
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_portbinding):
+            cmd = commands.UpdatePortBindingExtIdsCommand(
+                self.ovn_api, fake_portbinding.name,
+                new_ext_ids, if_exists=True)
+            cmd.run_idl(self.transaction)
+            self.assertEqual(new_ext_ids, fake_portbinding.external_ids)
+
+
 class TestAddDHCPOptionsCommand(TestBaseCommand):
 
     def test_dhcp_options_exists(self):
@@ -1234,26 +1313,290 @@ class TestDelDHCPOptionsCommand(TestBaseCommand):
         fake_dhcp_options.delete.assert_called_once_with()
 
 
+class TestAddNATRuleInLRouterCommand(TestBaseCommand):
+
+    def test_add_nat_rule(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        fake_nat_rule_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.10',
+                   'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat'})
+        fake_nat_rule_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.8',
+                   'logical_ip': '10.0.0.5', 'type': 'dnat_and_snat'})
+        fake_lrouter.nat = [fake_nat_rule_1, fake_nat_rule_2]
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_1.uuid] = \
+            fake_nat_rule_1
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_2.uuid] = \
+            fake_nat_rule_2
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.AddNATRuleInLRouterCommand(
+                self.ovn_api, fake_lrouter.name)
+            cmd.run_idl(self.transaction)
+            self.transaction.insert.assert_called_once_with(
+                self.ovn_api._tables['NAT'])
+            # a UUID will have been appended
+            self.assertEqual(3, len(fake_lrouter.nat))
+            self.assertIn(fake_nat_rule_1, fake_lrouter.nat)
+            self.assertIn(fake_nat_rule_2, fake_lrouter.nat)
+
+    def test_add_nat_rule_no_lrouter_exist(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.AddNATRuleInLRouterCommand(
+                self.ovn_api, "fake-lrouter")
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+
+class TestDeleteNATRuleInLRouterCommand(TestBaseCommand):
+
+    def test_delete_nat_rule(self):
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        fake_nat_rule_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.10',
+                   'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat'})
+        fake_nat_rule_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.8',
+                   'logical_ip': '10.0.0.5', 'type': 'dnat_and_snat'})
+        fake_lrouter.nat = [fake_nat_rule_1, fake_nat_rule_2]
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_1.uuid] = \
+            fake_nat_rule_1
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_2.uuid] = \
+            fake_nat_rule_2
+        with mock.patch.object(idlutils, 'row_by_value',
+                               return_value=fake_lrouter):
+            cmd = commands.DeleteNATRuleInLRouterCommand(
+                self.ovn_api, fake_lrouter.name, fake_nat_rule_1.type,
+                fake_nat_rule_1.logical_ip, fake_nat_rule_1.external_ip,
+                False)
+            cmd.run_idl(self.transaction)
+            fake_nat_rule_1.delete.assert_called_once()
+            self.assertEqual(1, len(fake_lrouter.nat))
+            self.assertNotIn(fake_nat_rule_1, fake_lrouter.nat)
+            self.assertIn(fake_nat_rule_2, fake_lrouter.nat)
+
+            # run again with same arguments, should not remove anything
+            fake_nat_rule_1.delete.reset_mock()
+            cmd.run_idl(self.transaction)
+            fake_nat_rule_1.delete.assert_not_called()
+            self.assertEqual(1, len(fake_lrouter.nat))
+            self.assertNotIn(fake_nat_rule_1, fake_lrouter.nat)
+            self.assertIn(fake_nat_rule_2, fake_lrouter.nat)
+
+    def _test_delete_nat_rule_no_lrouter_exist(self, if_exists=True):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.DeleteNATRuleInLRouterCommand(
+                self.ovn_api, "fake-lrouter", "fake-type", "fake-logical-ip",
+                "fake-external-ip", if_exists=if_exists)
+            if if_exists:
+                cmd.run_idl(self.transaction)
+            else:
+                self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+    def test_delete_nat_rule_no_lrouter_exist_ignore(self):
+        self._test_delete_nat_rule_no_lrouter_exist(if_exists=True)
+
+    def test_delete_nat_rule_no_lrouter_exist_fail(self):
+        self._test_delete_nat_rule_no_lrouter_exist(if_exists=False)
+
+
 class TestSetNATRuleInLRouterCommand(TestBaseCommand):
 
     def test_set_nat_rule(self):
         fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        fake_nat_rule_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.10',
+                   'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat'})
+        fake_nat_rule_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.8',
+                   'logical_ip': '10.0.0.5', 'type': 'dnat_and_snat'})
+        fake_lrouter.nat = [fake_nat_rule_1, fake_nat_rule_2]
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_1.uuid] = \
+            fake_nat_rule_1
+        self.ovn_api._tables['NAT'].rows[fake_nat_rule_2.uuid] = \
+            fake_nat_rule_2
         with mock.patch.object(idlutils, 'row_by_value',
                                return_value=fake_lrouter):
-            fake_nat_rule_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-                attrs={'external_ip': '192.168.1.10',
-                       'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat'})
-            fake_nat_rule_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-                attrs={'external_ip': '192.168.1.8',
-                       'logical_ip': '10.0.0.5', 'type': 'dnat_and_snat'})
-            fake_lrouter.nat = [fake_nat_rule_1, fake_nat_rule_2]
-            self.ovn_api._tables['NAT'].rows[fake_nat_rule_1.uuid] = \
-                fake_nat_rule_1
-            self.ovn_api._tables['NAT'].rows[fake_nat_rule_2.uuid] = \
-                fake_nat_rule_2
             cmd = commands.SetNATRuleInLRouterCommand(
                 self.ovn_api, fake_lrouter.name, fake_nat_rule_1.uuid,
                 logical_ip='10.0.0.10')
             cmd.run_idl(self.transaction)
             self.assertEqual('10.0.0.10', fake_nat_rule_1.logical_ip)
             self.assertEqual('10.0.0.5', fake_nat_rule_2.logical_ip)
+
+    def test_set_nat_rule_no_lrouter_exist(self):
+        with mock.patch.object(idlutils, 'row_by_value',
+                               side_effect=idlutils.RowNotFound):
+            cmd = commands.SetNATRuleInLRouterCommand(
+                self.ovn_api, "fake-lrouter", "fake-uuid",
+                logical_ip='fake-ip')
+            self.assertRaises(RuntimeError, cmd.run_idl, self.transaction)
+
+
+class TestCheckRevisionNumberCommand(TestBaseCommand):
+    def setUp(self):
+        super(TestCheckRevisionNumberCommand, self).setUp()
+        self.fip = {'name': 'floating-ip', 'revision_number': 3}
+        self.fip_old_rev = {'name': 'floating-ip', 'revision_number': 1}
+        self.nat_rule = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.10', 'name': 'floating-ip',
+                   'logical_ip': '10.0.0.4', 'type': 'dnat_and_snat',
+                   'external_ids':
+                       {ovn_const.OVN_FIP_EXT_ID_KEY: 'floating-ip',
+                        ovn_const.OVN_REV_NUM_EXT_ID_KEY: 3}})
+        bad_nat_rule = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.11',
+                   'logical_ip': '10.0.0.5', 'type': 'bad_type'})
+        self.ovn_api._tables['NAT'].rows[self.nat_rule.uuid] = self.nat_rule
+        self.ovn_api._tables['NAT'].rows[bad_nat_rule.uuid] = bad_nat_rule
+
+        self.subnet = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'subnet_id': 'mysubnet'}})
+        bad_subnet = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids': {'port_id': 'fake-lsp'}})
+        self.ovn_api._tables['DHCP_Options'].rows[self.subnet.uuid] = \
+            self.subnet
+        self.ovn_api._tables['DHCP_Options'].rows[bad_subnet.uuid] = \
+            bad_subnet
+
+    def _test_check_revision_number(
+            self, name='fake-name', resource='fake-resource',
+            resource_type=ovn_const.TYPE_NETWORKS, if_exists=True,
+            revision_conflict=False):
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(self.ovn_api, 'lookup',
+                                   side_effect=idlutils.RowNotFound):
+                cmd = commands.CheckRevisionNumberCommand(
+                    self.ovn_api, name, resource, resource_type,
+                    if_exists=if_exists)
+                if if_exists:
+                    cmd.run_idl(self.transaction)
+                elif revision_conflict:
+                    self.assertRaises(ovn_exc.RevisionConflict, cmd.run_idl,
+                                      self.transaction)
+                else:
+                    self.assertRaises(RuntimeError, cmd.run_idl,
+                                      self.transaction)
+
+    def test_check_revision_number_no_exist_ignore(self):
+        self._test_check_revision_number(if_exists=True)
+
+    def test_check_revision_number_no_exist_fail(self):
+        self._test_check_revision_number(if_exists=False)
+
+    def test_check_revision_number_floating_ip(self):
+        self._test_check_revision_number(
+            name=self.fip['name'], resource=self.fip,
+            resource_type=ovn_const.TYPE_FLOATINGIPS, if_exists=True)
+
+    def test_check_revision_number_floating_ip_not_found(self):
+        self._test_check_revision_number(
+            name='fip-not-found', resource=self.fip,
+            resource_type=ovn_const.TYPE_FLOATINGIPS, if_exists=False)
+
+    def test_check_revision_number_floating_ip_revision_conflict(self):
+        self._test_check_revision_number(
+            name=self.fip['name'], resource=self.fip_old_rev,
+            resource_type=ovn_const.TYPE_FLOATINGIPS, if_exists=False,
+            revision_conflict=True)
+
+    def test_check_revision_number_subnet(self):
+        self._test_check_revision_number(
+            name=self.subnet['name'], resource=self.subnet,
+            resource_type=ovn_const.TYPE_SUBNETS, if_exists=True)
+
+    def test_check_revision_number_subnet_not_found(self):
+        self._test_check_revision_number(
+            name='subnet-not-found', resource=self.subnet,
+            resource_type=ovn_const.TYPE_SUBNETS, if_exists=False)
+
+
+class TestDeleteLRouterExtGwCommand(TestBaseCommand):
+
+    def test_delete_lrouter_extgw_routes(self):
+        fake_route_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ip_prefix': '0.0.0.0/0', 'nexthop': '10.0.0.1',
+                   'external_ids': {ovn_const.OVN_ROUTER_IS_EXT_GW: True}})
+        fake_route_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'ip_prefix': '50.0.0.0/24', 'nexthop': '40.0.0.101'})
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'static_routes': [fake_route_1, fake_route_2]})
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(idlutils, 'row_by_value',
+                                   return_value=fake_lrouter):
+                cmd = commands.DeleteLRouterExtGwCommand(
+                    self.ovn_api, fake_lrouter.name, False)
+                cmd.run_idl(self.transaction)
+                fake_lrouter.delvalue.assert_called_once_with(
+                    'static_routes', fake_route_1)
+
+    def test_delete_lrouter_extgw_nat(self):
+        fake_nat_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.10',
+                   'logical_ip': '10.0.0.4', 'type': 'snat'})
+        fake_nat_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ip': '192.168.1.8',
+                   'logical_ip': '10.0.0.5', 'type': 'badtype'})
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'nat': [fake_nat_1, fake_nat_2]})
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(idlutils, 'row_by_value',
+                                   return_value=fake_lrouter):
+                cmd = commands.DeleteLRouterExtGwCommand(
+                    self.ovn_api, fake_lrouter.name, False)
+                cmd.run_idl(self.transaction)
+                fake_lrouter.delvalue.assert_called_once_with(
+                    'nat', fake_nat_1)
+
+    def test_delete_lrouter_extgw_ports(self):
+        port_id = 'fake-port-id'
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids':
+                   {ovn_const.OVN_GW_PORT_EXT_ID_KEY: port_id}})
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(idlutils, 'row_by_value',
+                                   side_effect=[fake_lrouter, port_id]):
+                cmd = commands.DeleteLRouterExtGwCommand(
+                    self.ovn_api, fake_lrouter.name, False)
+                cmd.run_idl(self.transaction)
+                fake_lrouter.delvalue.assert_called_once_with(
+                    'ports', port_id)
+
+    def test_delete_lrouter_extgw_ports_not_found(self):
+        port_id = 'fake-port-id'
+        fake_lrouter = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'external_ids':
+                   {ovn_const.OVN_GW_PORT_EXT_ID_KEY: port_id}})
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(idlutils, 'row_by_value',
+                                   side_effect=[fake_lrouter,
+                                                idlutils.RowNotFound]):
+                cmd = commands.DeleteLRouterExtGwCommand(
+                    self.ovn_api, fake_lrouter.name, False)
+                cmd.run_idl(self.transaction)
+                fake_lrouter.delvalue.assert_not_called()
+
+    def _test_delete_lrouter_no_lrouter_exist(self, if_exists=True):
+        with mock.patch.object(self.ovn_api, "is_col_present",
+                               return_value=True):
+            with mock.patch.object(idlutils, 'row_by_value',
+                                   side_effect=idlutils.RowNotFound):
+                cmd = commands.DeleteLRouterExtGwCommand(
+                    self.ovn_api, "fake-lrouter", if_exists=if_exists)
+                if if_exists:
+                    cmd.run_idl(self.transaction)
+                else:
+                    self.assertRaises(RuntimeError, cmd.run_idl,
+                                      self.transaction)
+
+    def test_delete_lrouter_no_lrouter_exist_ignore(self):
+        self._test_delete_lrouter_no_lrouter_exist(if_exists=True)
+
+    def test_delete_no_lrouter_exist_fail(self):
+        self._test_delete_lrouter_no_lrouter_exist(if_exists=False)
