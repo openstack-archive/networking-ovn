@@ -167,11 +167,11 @@
       - ^migration/.*$
 
 - job:
-    name: networking-ovn-tripleo-c7-s003-oooq-containers
+    name: networking-ovn-tripleo-ci-centos-7-containers-multinode
     parent: tripleo-ci-base-multinode
     vars:
       nodes: 1ctlr
-      featureset: '018'
+      featureset: '010'
     irrelevant-files:
       - ^(test-|)requirements.txt$
       - ^.*\.rst$
