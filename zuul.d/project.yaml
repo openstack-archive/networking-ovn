@@ -21,14 +21,13 @@
         # Note we don't use a project-template here, so it's easier
         # to disable voting on one specific job if things go wrong.
         # tripleo-ci-centos-7-scenario007-multinode-oooq-container will
-        # run until Rocky while in Stein and beyond, scenario003 will run.
+        # run until Rocky while in Stein and beyond, fs010 will run.
         # If you need any support to debug these jobs in case of
         # failures, please reach us on #tripleo IRC channel.
         - networking-ovn-tripleo-c7-s007-oooq-containers:
             branches: ^(stable/(pike|queens|rocky)).*$
-        - networking-ovn-tripleo-c7-s003-oooq-containers:
+        - networking-ovn-tripleo-ci-centos-7-containers-multinode:
             branches: ^(?!stable/(pike|queens|rocky)).*$
-            voting: false
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
@@ -48,8 +47,8 @@
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
             branches: ^(stable/(pike|queens|rocky)).*$
-
-
+        - networking-ovn-tripleo-ci-centos-7-containers-multinode:
+            branches: ^(?!stable/(pike|queens|rocky)).*$
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
