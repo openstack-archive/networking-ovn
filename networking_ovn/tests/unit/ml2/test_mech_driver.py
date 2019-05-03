@@ -32,6 +32,7 @@ from neutron_lib import constants as const
 from neutron_lib import context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
+from neutron_lib.services.trunk import constants as trunk_consts
 from neutron_lib.tests import tools
 from neutron_lib.utils import net as n_net
 from oslo_config import cfg
@@ -827,7 +828,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test__update_subport_host_if_needed(self):
         """Check that a subport is updated with parent's host_id."""
-        binding_host_id = {'binding:host_id': 'hostname'}
+        binding_host_id = {'binding:host_id': 'hostname',
+                           'device_owner': trunk_consts.TRUNK_SUBPORT_OWNER}
         with mock.patch.object(self.mech_driver._ovn_client, 'get_parent_port',
                                return_value='parent'), \
                 mock.patch.object(self.mech_driver._plugin, 'get_port',

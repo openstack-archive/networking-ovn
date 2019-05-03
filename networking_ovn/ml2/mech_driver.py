@@ -32,6 +32,7 @@ from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
 from neutron_lib.services.qos import constants as qos_consts
+from neutron_lib.services.trunk import constants as trunk_consts
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
@@ -704,7 +705,9 @@ class OVNMechanismDriver(api.MechanismDriver):
             try:
                 port = self._plugin.get_port(admin_context, parent_port)
                 host_id = port.get(portbindings.HOST_ID, '')
-                subport = {'port': {'binding:host_id': host_id}}
+                subport = {
+                    'port': {'binding:host_id': host_id,
+                             'device_owner': trunk_consts.TRUNK_SUBPORT_OWNER}}
                 self._plugin.update_port(admin_context, port_id, subport)
             except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
                 LOG.debug("Error trying to set host_id %s for subport %s",
