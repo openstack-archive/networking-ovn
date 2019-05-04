@@ -151,11 +151,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
                     self.fake_floating_ip['router_id'])}}
         self.l3_inst = directory.get_plugin(plugin_constants.L3)
-        self._start_mock(
+        self.nb_idl = self._start_mock(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._ovn',
             new_callable=mock.PropertyMock,
             return_value=fakes.FakeOvsdbNbOvnIdl())
-        self._start_mock(
+        self.sb_idl = self._start_mock(
             'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin._sb_ovn',
             new_callable=mock.PropertyMock,
             return_value=fakes.FakeOvsdbSbOvnIdl())
@@ -183,11 +183,11 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self._start_mock(
             'neutron.db.l3_db.L3_NAT_dbonly_mixin.delete_router',
             return_value={})
-        self._start_mock(
+        self.mock_candidates = self._start_mock(
             'networking_ovn.common.ovn_client.'
             'OVNClient.get_candidates_for_scheduling',
             return_value=[])
-        self._start_mock(
+        self.mock_schedule = self._start_mock(
             'networking_ovn.l3.l3_ovn_scheduler.'
             'OVNGatewayLeastLoadedScheduler._schedule_gateway',
             return_value=['hv1'])
@@ -1217,6 +1217,62 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         # Assert that the port status is being set to DOWN
         mock_updt_status.assert_called_once_with(
             mock.ANY, fake_port_id, constants.PORT_STATUS_DOWN)
+
+    def test_schedule_unhosted_gateways_no_gateways(self):
+        self.nb_idl().get_unhosted_gateways.return_value = []
+        self.l3_inst.schedule_unhosted_gateways()
+        self.nb_idl().update_lrouter_port.assert_not_called()
+
+    def test_schedule_unhosted_gateways(self):
+        unhosted_gws = ['lrp-foo-1', 'lrp-foo-2', 'lrp-foo-3']
+        chassis_mappings = {
+            'chassis1': ['physnet1'],
+            'chassis2': ['physnet1'],
+            'chassis3': ['physnet1']}
+        chassis = ['chassis1', 'chassis2', 'chassis3']
+        self.sb_idl().get_chassis_and_physnets.return_value = (
+            chassis_mappings)
+        self.sb_idl().get_gateway_chassis_from_cms_options.return_value = (
+            chassis)
+        self.nb_idl().get_unhosted_gateways.return_value = unhosted_gws
+        # 1. port has 2 gateway chassis
+        # 2. port has only chassis2
+        # 3. port is not bound
+        existing_port_bindings = [
+            ['chassis1', 'chassis2'],
+            ['chassis2'],
+            []]
+        self.nb_idl().get_gateway_chassis_binding.side_effect = (
+            existing_port_bindings)
+        # for 1. port schedule untouched, add only 3'rd chassis
+        # for 2. port master scheduler somewhere else
+        # for 3. port schedule all
+        self.mock_schedule.side_effect = [
+            ['chassis1', 'chassis2', 'chassis3'],
+            ['chassis1', 'chassis2', 'chassis3'],
+            ['chassis3', 'chassis2', 'chassis1']]
+
+        self.l3_inst.schedule_unhosted_gateways()
+
+        self.mock_candidates.assert_has_calls([
+            mock.call(mock.ANY,
+                      chassis_physnets=chassis_mappings,
+                      cms=chassis)] * 3)
+        self.mock_schedule.assert_has_calls([
+            mock.call(self.nb_idl(), self.sb_idl(),
+                      'lrp-foo-1', [], ['chassis1', 'chassis2']),
+            mock.call(self.nb_idl(), self.sb_idl(),
+                      'lrp-foo-2', [], ['chassis2']),
+            mock.call(self.nb_idl(), self.sb_idl(),
+                      'lrp-foo-3', [], [])])
+        # make sure that for second port master chassis stays untouched
+        self.nb_idl().update_lrouter_port.assert_has_calls([
+            mock.call('lrp-foo-1',
+                      gateway_chassis=['chassis1', 'chassis2', 'chassis3']),
+            mock.call('lrp-foo-2',
+                      gateway_chassis=['chassis2', 'chassis1', 'chassis3']),
+            mock.call('lrp-foo-3',
+                      gateway_chassis=['chassis3', 'chassis2', 'chassis1'])])
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
