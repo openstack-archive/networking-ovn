@@ -319,10 +319,35 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             port_physnet_dict, chassis_physnets, cms)
         for g_name in unhosted_gateways:
             physnet = port_physnet_dict.get(g_name[len('lrp-'):])
+            # Remove any invalid gateway chassis from the list, otherwise
+            # we can have a situation where all existing_chassis are invalid
+            existing_chassis = self._ovn.get_gateway_chassis_binding(g_name)
+            master = existing_chassis[0] if existing_chassis else None
+            existing_chassis = self.scheduler.filter_existing_chassis(
+                nb_idl=self._ovn, gw_chassis=cms,
+                physnet=physnet, chassis_physnets=chassis_physnets,
+                existing_chassis=existing_chassis)
             candidates = self._ovn_client.get_candidates_for_scheduling(
                 physnet, cms=cms, chassis_physnets=chassis_physnets)
             chassis = self.scheduler.select(
-                self._ovn, self._sb_ovn, g_name, candidates=candidates)
+                self._ovn, self._sb_ovn, g_name, candidates=candidates,
+                existing_chassis=existing_chassis)
+            if master and master != chassis[0]:
+                if master not in chassis:
+                    LOG.debug("Master gateway chassis %(old)s "
+                              "has been removed from the system. Moving "
+                              "gateway %(gw)s to other chassis %(new)s.",
+                              {'gw': g_name,
+                               'old': master,
+                               'new': chassis[0]})
+                else:
+                    LOG.debug("Gateway %s is hosted at %s.", g_name, master)
+                    # NOTE(mjozefcz): It means scheduler moved master chassis
+                    # to other gw based on scheduling method. But we don't
+                    # want network flap - so moving actual master to be on
+                    # the top.
+                    index = chassis.index(master)
+                    chassis[0], chassis[index] = chassis[index], chassis[0]
             # NOTE(dalvarez): Let's commit the changes in separate transactions
             # as we will rely on those for scheduling subsequent gateways.
             with self._ovn.transaction(check_error=True) as txn:

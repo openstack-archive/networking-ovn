@@ -21,14 +21,13 @@ import six
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils
 
 
 LOG = log.getLogger(__name__)
 
 OVN_SCHEDULER_CHANCE = 'chance'
 OVN_SCHEDULER_LEAST_LOADED = 'leastloaded'
-
-MAX_GW_CHASSIS = 5
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -45,23 +44,42 @@ class OVNGatewayScheduler(object):
         scheduled.
         """
 
-    def _schedule_gateway(self, nb_idl, sb_idl, gateway_name, candidates):
-        existing_chassis = nb_idl.get_gateway_chassis_binding(gateway_name)
+    def filter_existing_chassis(self, nb_idl, gw_chassis,
+                                physnet, chassis_physnets,
+                                existing_chassis):
+        chassis_list = copy.copy(existing_chassis)
+        for chassis_name in existing_chassis:
+            if utils.is_gateway_chassis_invalid(chassis_name, gw_chassis,
+                                                physnet, chassis_physnets):
+                LOG.debug("Chassis %(chassis)s is invalid for scheduling "
+                          "router in physnet: %(physnet)s.",
+                          {'chassis': chassis_name,
+                           'physnet': physnet})
+                chassis_list.remove(chassis_name)
+        return chassis_list
+
+    def _schedule_gateway(self, nb_idl, sb_idl, gateway_name, candidates,
+                          existing_chassis):
+        existing_chassis = existing_chassis or []
         candidates = candidates or self._get_chassis_candidates(sb_idl)
-        # if no candidates or all chassis in existing_chassis also present
-        # in candidates, then return existing_chassis
-        # TODO(anilvenkata): If more candidates avaialable, then schedule
-        # on them also?
-        if existing_chassis and (not candidates or
-           not (set(existing_chassis) - set(candidates))):
-            return existing_chassis
+        candidates = list(set(candidates) - set(existing_chassis))
+        # If no candidates, or gateway scheduled on MAX_GATEWAY_CHASSIS nodes
+        # or all candidates in existing_chassis, return existing_chassis.
+        # Otherwise, if more candidates present, then schedule them.
+        if existing_chassis:
+            if not candidates or (
+                    len(existing_chassis) == ovn_const.MAX_GW_CHASSIS):
+                return existing_chassis
         if not candidates:
             return [ovn_const.OVN_GATEWAY_INVALID_CHASSIS]
+        chassis_count = ovn_const.MAX_GW_CHASSIS - len(existing_chassis)
         # The actual binding of the gateway to a chassis via the options
         # column or gateway_chassis column in the OVN_Northbound is done
         # by the caller
         chassis = self._select_gateway_chassis(
-            nb_idl, candidates)[:MAX_GW_CHASSIS]
+            nb_idl, candidates)[:chassis_count]
+        # priority of existing chassis is higher than candidates
+        chassis = existing_chassis + chassis
 
         LOG.debug("Gateway %s scheduled on chassis %s",
                   gateway_name, chassis)
@@ -82,8 +100,10 @@ class OVNGatewayScheduler(object):
 class OVNGatewayChanceScheduler(OVNGatewayScheduler):
     """Randomly select an chassis for a gateway port of a router"""
 
-    def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
-        return self._schedule_gateway(nb_idl, sb_idl, gateway_name, candidates)
+    def select(self, nb_idl, sb_idl, gateway_name, candidates=None,
+               existing_chassis=None):
+        return self._schedule_gateway(nb_idl, sb_idl, gateway_name,
+                                      candidates, existing_chassis)
 
     def _select_gateway_chassis(self, nb_idl, candidates):
         candidates = copy.deepcopy(candidates)
@@ -94,8 +114,10 @@ class OVNGatewayChanceScheduler(OVNGatewayScheduler):
 class OVNGatewayLeastLoadedScheduler(OVNGatewayScheduler):
     """Select the least loaded chassis for a gateway port of a router"""
 
-    def select(self, nb_idl, sb_idl, gateway_name, candidates=None):
-        return self._schedule_gateway(nb_idl, sb_idl, gateway_name, candidates)
+    def select(self, nb_idl, sb_idl, gateway_name, candidates=None,
+               existing_chassis=None):
+        return self._schedule_gateway(nb_idl, sb_idl, gateway_name,
+                                      candidates, existing_chassis)
 
     @staticmethod
     def _get_chassis_load_by_prios(chassis_info):

@@ -311,5 +311,6 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             external_ids=external_ids, hostname=host).execute(check_error=True)
         return name
 
-    def del_fake_chassis(self, name):
-        self.sb_api.chassis_del(name).execute(check_error=True)
+    def del_fake_chassis(self, chassis, if_exists=True):
+        self.sb_api.chassis_del(
+            chassis, if_exists=if_exists).execute(check_error=True)
