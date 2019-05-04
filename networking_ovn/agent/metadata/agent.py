@@ -21,7 +21,6 @@ from neutron.common import utils
 from neutron_lib import constants as n_const
 from oslo_concurrency import lockutils
 from oslo_log import log
-from oslo_utils import excutils
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import vlog
@@ -59,13 +58,12 @@ def _sync_lock(f):
     return wrapped
 
 
-def _wait_if_syncing(f):
-    """Decorator to wait if any sync operations are in progress."""
-    @six.wraps(f)
-    def wrapped(*args, **kwargs):
-        with _SYNC_STATE_LOCK.read_lock():
-            return f(*args, **kwargs)
-    return wrapped
+class ConfigException(Exception):
+    """Misconfiguration of the agent
+
+    This exception is raised when agent detects its wrong configuration.
+    Typically agent should resync when this is raised.
+    """
 
 
 class PortBindingChassisEvent(row_event.RowEvent):
@@ -77,23 +75,31 @@ class PortBindingChassisEvent(row_event.RowEvent):
             events, table, None)
         self.event_name = 'PortBindingChassisEvent'
 
-    @_wait_if_syncing
     def run(self, event, row, old):
         # Check if the port has been bound/unbound to our chassis and update
         # the metadata namespace accordingly.
         # Type must be empty to make sure it's a VIF.
+        resync = False
         if row.type != "":
             return
         new_chassis = getattr(row, 'chassis', [])
         old_chassis = getattr(old, 'chassis', [])
-        if new_chassis and new_chassis[0].name == self.agent.chassis:
-            LOG.info("Port %s in datapath %s bound to our chassis",
-                     row.logical_port, str(row.datapath.uuid))
-            self.agent.update_datapath(str(row.datapath.uuid))
-        elif old_chassis and old_chassis[0].name == self.agent.chassis:
-            LOG.info("Port %s in datapath %s unbound from our chassis",
-                     row.logical_port, str(row.datapath.uuid))
-            self.agent.update_datapath(str(row.datapath.uuid))
+        with _SYNC_STATE_LOCK.read_lock():
+            try:
+                if new_chassis and new_chassis[0].name == self.agent.chassis:
+                    LOG.info("Port %s in datapath %s bound to our chassis",
+                             row.logical_port, str(row.datapath.uuid))
+                    self.agent.update_datapath(str(row.datapath.uuid))
+                elif old_chassis and old_chassis[0].name == self.agent.chassis:
+                    LOG.info("Port %s in datapath %s unbound from our chassis",
+                             row.logical_port, str(row.datapath.uuid))
+                    self.agent.update_datapath(str(row.datapath.uuid))
+            except ConfigException:
+                # We're now in the reader lock mode, we need to exit the
+                # context and then use writer lock
+                resync = True
+        if resync:
+            self.agent.resync()
 
 
 class ChassisCreateEvent(row_event.RowEvent):
@@ -146,6 +152,21 @@ class MetadataAgent(object):
             config=self.conf,
             resource_type='metadata')
 
+    def _load_config(self):
+        self.chassis = self._get_own_chassis_name()
+        self.ovn_bridge = self._get_ovn_bridge()
+        LOG.debug("Loaded chassis %s and ovn bridge %s.",
+                  self.chassis, self.ovn_bridge)
+
+    @_sync_lock
+    def resync(self):
+        """Resync the agent.
+
+        Reload the configuration and sync the agent again.
+        """
+        self._load_config()
+        self.sync()
+
     def start(self):
         # Launch the server that will act as a proxy between the VM's and Nova.
         proxy = metadata_server.UnixDomainMetadataProxy(self.conf)
@@ -153,8 +174,7 @@ class MetadataAgent(object):
 
         # Open the connection to OVS database
         self.ovs_idl = ovsdb.MetadataAgentOvsIdl().start()
-        self.chassis = self._get_own_chassis_name()
-        self.ovn_bridge = self._get_ovn_bridge()
+        self._load_config()
 
         # Open the connection to OVN SB database.
         self.sb_idl = ovsdb.MetadataAgentOvnSbIdl(
@@ -366,9 +386,9 @@ class MetadataAgent(object):
         try:
             ovs_bridges.remove(self.ovn_bridge)
         except KeyError:
-            with excutils.save_and_reraise_exception():
-                LOG.exception("Configured OVN bridge %s cannot be found in "
-                              "the system.", self.ovn_bridge)
+            LOG.warning("Configured OVN bridge %s cannot be found in "
+                        "the system. Resyncing the agent.", self.ovn_bridge)
+            raise ConfigException()
 
         if ovs_bridges:
             with self.ovs_idl.transaction() as txn:
