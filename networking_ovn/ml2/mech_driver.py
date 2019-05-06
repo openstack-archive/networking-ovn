@@ -624,8 +624,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         # cannot be found.
         chassis_physnets = []
         try:
-            datapath_type, iface_types, chassis_physnets = \
-                self._sb_ovn.get_chassis_data_for_ml2_bind_port(context.host)
+            datapath_type, iface_types, chassis_physnets = (
+                self._sb_ovn.get_chassis_data_for_ml2_bind_port(context.host))
             iface_types = iface_types.split(',') if iface_types else []
         except RuntimeError:
             LOG.debug('Refusing to bind port %(port_id)s due to '
@@ -657,8 +657,8 @@ class OVNMechanismDriver(api.MechanismDriver):
                          {'port_id': port['id'],
                           'network_type': network_type})
 
-            if (network_type in ['flat', 'vlan']) and \
-               (physical_network not in chassis_physnets):
+            if ((network_type in ['flat', 'vlan']) and
+                    (physical_network not in chassis_physnets)):
                 LOG.info('Refusing to bind port %(port_id)s on '
                          'host %(host)s due to the OVN chassis '
                          'bridge mapping physical networks '
@@ -678,8 +678,8 @@ class OVNMechanismDriver(api.MechanismDriver):
                         portbindings.VHOST_USER_SOCKET: vhost_user_socket
                         })
                     vif_details = dict(self.vif_details[vif_type])
-                    vif_details[portbindings.VHOST_USER_SOCKET] = \
-                        vhost_user_socket
+                    vif_details[portbindings.VHOST_USER_SOCKET] = (
+                        vhost_user_socket)
                 else:
                     vif_type = portbindings.VIF_TYPE_OVS
                     vif_details = self.vif_details[vif_type]

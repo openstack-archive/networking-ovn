@@ -31,8 +31,8 @@ STD_ATTR_MAP = standard_attr.get_standard_attr_resource_model_map()
 # 1:2 mapping for OVN, neutron router ports are simple ports, but
 # for OVN we handle LSP & LRP objects
 if STD_ATTR_MAP:
-    STD_ATTR_MAP[ovn_const.TYPE_ROUTER_PORTS] = \
-        STD_ATTR_MAP[ovn_const.TYPE_PORTS]
+    STD_ATTR_MAP[ovn_const.TYPE_ROUTER_PORTS] = (
+        STD_ATTR_MAP[ovn_const.TYPE_PORTS])
 
 _wrap_db_retry = oslo_db_api.wrap_db_retry(
     max_retries=ovn_const.DB_MAX_RETRIES,
