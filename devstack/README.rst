@@ -4,15 +4,15 @@
 
 1. Download devstack and networking-ovn::
 
-     git clone https://git.openstack.org/openstack-dev/devstack.git
-     git clone https://git.openstack.org/openstack/networking-ovn.git
+     git clone https://opendev.org/openstack/devstack.git
+     git clone https://opendev.org/openstack/networking-ovn.git
 
 2. Add networking-ovn to devstack.  The minimal set of critical local.conf
    additions are the following::
 
      cd devstack
      cat << EOF >> local.conf
-     > enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
+     > enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn
      > enable_service ovn-northd
      > enable_service ovn-controller
      > enable_service networking-ovn-metadata-agent

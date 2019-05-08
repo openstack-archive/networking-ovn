@@ -22,7 +22,7 @@ ADMIN_PASSWORD=password
 #OVN_REPO=https://github.com/blp/ovs-reviews.git
 #OVN_BRANCH=ovn
 
-enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
+enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn
 enable_service ovn-northd
 enable_service ovn-controller
 enable_service networking-ovn-metadata-agent
@@ -38,12 +38,12 @@ disable_service q-dhcp
 disable_service q-meta
 
 # Enable services, these services depend on neutron plugin.
-enable_plugin neutron https://git.openstack.org/openstack/neutron
+enable_plugin neutron https://opendev.org/openstack/neutron
 enable_service q-trunk
 #enable_service q-qos
 
 # Enable neutron tempest plugin tests
-enable_plugin neutron-tempest-plugin https://git.openstack.org/openstack/neutron-tempest-plugin
+enable_plugin neutron-tempest-plugin https://opendev.org/openstack/neutron-tempest-plugin
 
 # Horizon (the web UI) is enabled by default. You may want to disable
 # it here to speed up DevStack a bit.
@@ -89,7 +89,7 @@ disable_service cinder c-sch c-api c-vol
 # load balancer and it only supports L4 TCP load balancer and doesn't support
 # health check monitor and other advanced features supported by Octavia
 # amphore driver. If you want to enable Octavia amphore driver, please see
-# http://git.openstack.org/cgit/openstack/networking-ovn/tree/devstack/ovn-octavia-provider.conf.sample
+# http://opendev.org/openstack/networking-ovn/tree/devstack/ovn-octavia-provider.conf.sample
 
 # If you want to enable a provider network instead of the default private
 # network after your DevStack environment installation, you *must* set

@@ -11,7 +11,7 @@ RABBIT_PASSWORD=password
 SERVICE_PASSWORD=password
 SERVICE_TOKEN=password
 ADMIN_PASSWORD=password
-enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn
+enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn
 enable_service ovn-northd
 enable_service ovn-controller
 enable_service networking-ovn-metadata-agent
@@ -25,7 +25,7 @@ disable_service q-meta
 
 OCTAVIA_NODE="api"
 DISABLE_AMP_IMAGE_BUILD=True
-enable_plugin octavia https://git.openstack.org/openstack/octavia
+enable_plugin octavia https://opendev.org/openstack/octavia
 enable_service octavia
 enable_service o-api
 enable_service o-hk

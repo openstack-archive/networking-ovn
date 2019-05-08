@@ -49,7 +49,7 @@ Deployment
 #. Clone the ``networking-ovn`` repository locally and change to the
    ``vagrant/sparse`` directory::
 
-     $ git clone https://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://opendev.org/openstack/networking-ovn.git
      $ cd networking-ovn/vagrant/sparse
 
 #. If necessary, adjust any configuration in the ``instances.yml`` file.

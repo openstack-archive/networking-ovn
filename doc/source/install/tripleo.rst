@@ -43,8 +43,8 @@ Deployment steps
 
    .. code-block:: console
 
-      $ git clone https://git.openstack.org/openstack/tripleo-quickstart
-      $ git clone https://git.openstack.org/openstack/networking-ovn
+      $ git clone https://opendev.org/openstack/tripleo-quickstart
+      $ git clone https://opendev.org/openstack/networking-ovn
 
 #. Once you're done, run quickstart as follows (3 controller HA + 1 compute):
 

@@ -16,7 +16,7 @@ to use either CentOS 7 or the latest Ubuntu LTS (16.04, Xenial).
 
 ::
 
-     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://opendev.org/openstack/devstack.git
      $ sudo ./devstack/tools/create-stack-user.sh
 
 3. Switch to the ``stack`` user and clone DevStack and networking-ovn.
@@ -24,8 +24,8 @@ to use either CentOS 7 or the latest Ubuntu LTS (16.04, Xenial).
 ::
 
      $ sudo su - stack
-     $ git clone https://git.openstack.org/openstack-dev/devstack.git
-     $ git clone https://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://opendev.org/openstack/devstack.git
+     $ git clone https://opendev.org/openstack/networking-ovn.git
 
 4. Configure DevStack to use networking-ovn.
 
@@ -385,14 +385,14 @@ different host name. Having same host name for both VMs will confuse Nova and
 will not produce two hypervisors when you query nova hypervisor list later.
 Once the VM is setup, create the ``stack`` user::
 
-     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://opendev.org/openstack/devstack.git
      $ sudo ./devstack/tools/create-stack-user.sh
 
 Switch to the ``stack`` user and clone DevStack and networking-ovn::
 
      $ sudo su - stack
-     $ git clone https://git.openstack.org/openstack-dev/devstack.git
-     $ git clone https://git.openstack.org/openstack/networking-ovn.git
+     $ git clone https://opendev.org/openstack/devstack.git
+     $ git clone https://opendev.org/openstack/networking-ovn.git
 
 networking-ovn comes with another sample configuration file that can be used
 for this::
@@ -595,9 +595,9 @@ Next, get networking_ovn, neutron and devstack.
 
 ::
 
-     $ git clone https://git.openstack.org/openstack/networking-ovn.git
-     $ git clone https://git.openstack.org/openstack/neutron.git
-     $ git clone https://git.openstack.org/openstack-dev/devstack.git
+     $ git clone https://opendev.org/openstack/networking-ovn.git
+     $ git clone https://opendev.org/openstack/neutron.git
+     $ git clone https://opendev.org/openstack/devstack.git
 
 Then execute the script to prepare the environment.
 
