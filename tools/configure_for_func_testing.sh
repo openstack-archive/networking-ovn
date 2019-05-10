@@ -54,7 +54,6 @@ VENV=${VENV:-dsvm-functional}
 DEVSTACK_PATH=${DEVSTACK_PATH:-$1}
 PROJECT_NAME=${PROJECT_NAME:-networking-ovn}
 REPO_BASE=${GATE_DEST:-$(cd $(dirname "$0")/../.. && pwd)}
-INSTALL_MYSQL_ONLY=${INSTALL_MYSQL_ONLY:-False}
 # The gate should automatically install dependencies.
 INSTALL_BASE_DEPENDENCIES=${INSTALL_BASE_DEPENDENCIES:-$IS_GATE}
 
@@ -197,9 +196,5 @@ _init
 
 
 if [[ "$IS_GATE" != "True" ]]; then
-    if [[ "$INSTALL_MYSQL_ONLY" == "True" ]]; then
-        _install_databases nopg
-    else
         configure_host_for_func_testing
-    fi
 fi
