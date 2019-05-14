@@ -860,8 +860,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         """Wait for metadata service to be provisioned.
 
         Wait until metadata service has been setup for this port in the chassis
-        it resides. If metadata is disabled, this function will return right
-        away.
+        it resides. If metadata is disabled or DHCP is not enabled for its
+        subnets, this function will return right away.
         """
         if config.is_ovn_metadata_enabled() and self._sb_ovn:
             # Wait until metadata service has been setup for this port in the
@@ -876,6 +876,26 @@ class OVNMechanismDriver(api.MechanismDriver):
                 LOG.warning("Logical port %s is not bound to a "
                             "chassis", port_id)
                 return
+
+            # Check if the port belongs to some IPv4 subnet with DHCP enabled.
+            context = n_context.get_admin_context()
+            port = self._plugin.get_port(context, port_id)
+            port_subnet_ids = set(
+                ip['subnet_id'] for ip in port['fixed_ips'] if
+                n_utils.get_ip_version(ip['ip_address']) == const.IP_VERSION_4)
+            if not port_subnet_ids:
+                # The port doesn't belong to any IPv4 subnet
+                return
+
+            subnets = self._plugin.get_subnets(context, filters=dict(
+                network_id=[port['network_id']], ip_version=[4],
+                enable_dhcp=True))
+
+            subnet_ids = set(
+                s['id'] for s in subnets if s['id'] in port_subnet_ids)
+            if not subnet_ids:
+                return
+
             try:
                 n_utils.wait_until_true(
                     lambda: datapath in
