@@ -74,8 +74,8 @@ class OVNGatewayScheduler(object):
     def _get_chassis_candidates(self, sb_idl):
         # TODO(azbiswas): Allow selection of a specific type of chassis when
         # the upstream code merges.
-        # return sb_idl.get_all_chassis('gateway_router') or \
-        #    sb_idl.get_all_chassis()
+        # return (sb_idl.get_all_chassis('gateway_router') or
+        #    sb_idl.get_all_chassis())
         return sb_idl.get_all_chassis()
 
 

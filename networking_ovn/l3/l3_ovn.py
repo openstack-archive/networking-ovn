@@ -55,8 +55,8 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
     router and floatingip resources and manages associated
     request/response.
     """
-    supported_extension_aliases = \
-        extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3
+    supported_extension_aliases = (
+        extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3)
 
     @resource_registry.tracked_resources(router=l3_models.Router,
                                          floatingip=l3_models.FloatingIP)
@@ -196,9 +196,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
-        router_interface_info = \
+        router_interface_info = (
             super(OVNL3RouterPlugin, self).remove_router_interface(
-                context, router_id, interface_info)
+                context, router_id, interface_info))
         try:
             port_id = router_interface_info['port_id']
             subnet_ids = router_interface_info.get('subnet_ids')

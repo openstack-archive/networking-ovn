@@ -150,8 +150,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         lswitch_names = set([])
         for network in self.core_plugin.get_networks(context):
             lswitch_names.add(network['id'])
-        acl_dict, ignore1, ignore2 = \
-            self.ovn_api.get_acls_for_lswitches(lswitch_names)
+        acl_dict, ignore1, ignore2 = (
+            self.ovn_api.get_acls_for_lswitches(lswitch_names))
         acl_list = list(itertools.chain(*acl_dict.values()))
         acl_list_dict = {}
         for acl in acl_list:
@@ -275,8 +275,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                             neutron_sgs[name]['addresses'].extend(
                                 addresses[ip_version])
 
-            sgnames_to_add, sgnames_to_delete, sgs_to_update =\
-                self.compute_address_set_difference(neutron_sgs, nb_sgs)
+            sgnames_to_add, sgnames_to_delete, sgs_to_update = (
+                self.compute_address_set_difference(neutron_sgs, nb_sgs))
 
         LOG.debug('Address_Sets added %d, removed %d, updated %d',
                   len(sgnames_to_add), len(sgnames_to_delete),

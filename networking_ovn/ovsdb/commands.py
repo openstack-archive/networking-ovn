@@ -604,17 +604,17 @@ class UpdateACLsCommand(command.BaseCommand):
 
         if self.need_compare:
             # Get all relevant ACLs in 1 shot
-            acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict = \
-                self.api.get_acls_for_lswitches(self.lswitch_names)
+            acl_values_dict, acl_obj_dict, lswitch_ovsdb_dict = (
+                self.api.get_acls_for_lswitches(self.lswitch_names))
 
             # Compute the difference between the new and old set of ACLs
-            acl_del_objs_dict, acl_add_values_dict = \
+            acl_del_objs_dict, acl_add_values_dict = (
                 self._compute_acl_differences(
                     self.port_list, acl_values_dict,
-                    self.acl_new_values_dict, acl_obj_dict)
+                    self.acl_new_values_dict, acl_obj_dict))
         else:
-            lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict = \
-                self._get_update_data_without_compare()
+            lswitch_ovsdb_dict, acl_del_objs_dict, acl_add_values_dict = (
+                self._get_update_data_without_compare())
 
         for lswitch_name, lswitch in lswitch_ovsdb_dict.items():
             acl_del_objs = acl_del_objs_dict.get(lswitch_name, [])
@@ -938,9 +938,9 @@ class DeleteNATRuleInLRouterCommand(command.BaseCommand):
             type = getattr(nat, 'type', '')
             external_ip = getattr(nat, 'external_ip', '')
             logical_ip = getattr(nat, 'logical_ip', '')
-            if self.type == type and \
-               self.external_ip == external_ip and \
-               self.logical_ip == logical_ip:
+            if (self.type == type and
+                    self.external_ip == external_ip and
+                    self.logical_ip == logical_ip):
                 nats.remove(nat)
                 nat.delete()
                 break

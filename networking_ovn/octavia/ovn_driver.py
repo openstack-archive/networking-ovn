@@ -618,8 +618,8 @@ class OvnProviderHelper(object):
 
             lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY)
             if lr_ref:
-                for lr in self.ovn_nbdb_api.tables['Logical_Router'].rows.\
-                    values():
+                for lr in self.ovn_nbdb_api.tables[
+                        'Logical_Router'].rows.values():
                     if lr.name == lr_ref:
                         commands.append(self.ovn_nbdb_api.lr_lb_del(
                             lr.uuid, ovn_lb.uuid))
@@ -1170,12 +1170,11 @@ class OvnProviderHelper(object):
             if 'admin_state_up' in member:
                 if member['admin_state_up']:
                     self._add_member(member, ovn_lb, pool_key)
-                    status['members'][0]['operating_status'] = \
-                        constants.ONLINE
+                    status['members'][0]['operating_status'] = constants.ONLINE
                 else:
                     self._remove_member(member, ovn_lb, pool_key)
-                    status['members'][0]['operating_status'] = \
-                        constants.OFFLINE
+                    status['members'][0]['operating_status'] = (
+                        constants.OFFLINE)
 
             pool_listeners = self._get_pool_listeners(ovn_lb, pool_key)
             listener_status = []

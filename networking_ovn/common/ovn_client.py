@@ -222,8 +222,8 @@ class OVNClient(object):
                 address += ' ' + ip['ip_address']
                 cidrs += ' {}/{}'.format(ip['ip_address'],
                                          subnet['cidr'].split('/')[1])
-            port_security, new_macs = \
-                self._get_allowed_addresses_from_port(port)
+            port_security, new_macs = (
+                self._get_allowed_addresses_from_port(port))
             addresses = [address]
             addresses.extend(new_macs)
 
@@ -1603,9 +1603,9 @@ class OVNClient(object):
                 lsp_dhcp_options = txn.add(self._nb_idl.add_dhcp_options(
                     subnet['id'], port_id=port['id'],
                     **port_dhcp_options))
-            columns = {'dhcpv6_options': lsp_dhcp_options} if \
-                subnet['ip_version'] == const.IP_VERSION_6 else {
-                'dhcpv4_options': lsp_dhcp_options}
+            columns = ({'dhcpv6_options': lsp_dhcp_options} if
+                       subnet['ip_version'] == const.IP_VERSION_6 else {
+                       'dhcpv4_options': lsp_dhcp_options})
 
             # Set lsp DHCP options
             txn.add(self._nb_idl.set_lswitch_port(
