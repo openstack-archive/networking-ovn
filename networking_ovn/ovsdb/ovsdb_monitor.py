@@ -149,7 +149,7 @@ class PortBindingChassisEvent(row_event.RowEvent):
         table = 'Port_Binding'
         events = (self.ROW_UPDATE,)
         super(PortBindingChassisEvent, self).__init__(
-            events, table, (('type', '=', 'chassisredirect'),))
+            events, table, (('type', '=', ovn_const.OVN_CHASSIS_REDIRECT),))
         self.event_name = 'PortBindingChassisEvent'
 
     def run(self, event, row, old):
