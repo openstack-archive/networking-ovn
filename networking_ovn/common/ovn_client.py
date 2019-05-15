@@ -1099,7 +1099,7 @@ class OVNClient(object):
         candidates = cms_bmaps or bmaps
         if not cms_bmaps:
             LOG.debug("No eligible chassis with external connectivity"
-                      " through ovn-cms-options.")
+                      " through ovn-cms-options for %s", physnet)
         LOG.debug("Chassis candidates with external connectivity: %s",
                   candidates)
         return candidates
