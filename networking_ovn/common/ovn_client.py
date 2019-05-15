@@ -284,19 +284,32 @@ class OVNClient(object):
             # The lport_name *must* be neutron port['id'].  It must match the
             # iface-id set in the Interfaces table of the Open_vSwitch
             # database which nova sets to be the port ID.
-            txn.add(self._nb_idl.create_lswitch_port(
-                    lport_name=port['id'],
-                    lswitch_name=lswitch_name,
-                    addresses=port_info.addresses,
-                    external_ids=external_ids,
-                    parent_name=port_info.parent_name,
-                    tag=port_info.tag,
-                    enabled=port.get('admin_state_up'),
-                    options=port_info.options,
-                    type=port_info.type,
-                    port_security=port_info.port_security,
-                    dhcpv4_options=dhcpv4_options,
-                    dhcpv6_options=dhcpv6_options))
+
+            kwargs = {
+                'lport_name': port['id'],
+                'lswitch_name': lswitch_name,
+                'addresses': port_info.addresses,
+                'external_ids': external_ids,
+                'parent_name': port_info.parent_name,
+                'tag': port_info.tag,
+                'enabled': port.get('admin_state_up'),
+                'options': port_info.options,
+                'type': port_info.type,
+                'port_security': port_info.port_security,
+                'dhcpv4_options': dhcpv4_options,
+                'dhcpv6_options': dhcpv6_options
+            }
+
+            # NOTE(mjozefcz): Do not set addresses if the port is not
+            # bound and has no device_owner - possibly it is a VirtualIP
+            # port used for Octavia (VRRP).
+            # For more details check related bug #1789686.
+            if (not port.get('device_owner') and
+                port.get(portbindings.VIF_TYPE) ==
+                    portbindings.VIF_TYPE_UNBOUND):
+                kwargs['addresses'] = []
+
+            txn.add(self._nb_idl.create_lswitch_port(**kwargs))
 
             acls_new = ovn_acl.add_acls(self._plugin, admin_context,
                                         port, sg_cache, subnet_cache,
@@ -383,6 +396,16 @@ class OVNClient(object):
                 dhcpv6_options = txn.add(port_info.dhcpv6_options['cmd'])
             else:
                 dhcpv6_options = [port_info.dhcpv6_options['uuid']]
+
+            # NOTE(mjozefcz): Do not set addresses if the port is not
+            # bound and has no device_owner - possibly it is a VirtualIP
+            # port used for Octavia (VRRP).
+            # For more details check related bug #1789686.
+            if (not port.get('device_owner') and
+                port.get(portbindings.VIF_TYPE) ==
+                    portbindings.VIF_TYPE_UNBOUND):
+                columns_dict['addresses'] = []
+
             # NOTE(lizk): Fail port updating if port doesn't exist. This
             # prevents any new inserted resources to be orphan, such as port
             # dhcp options or ACL rules for port, e.g. a port was created
