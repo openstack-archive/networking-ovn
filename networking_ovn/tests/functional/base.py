@@ -29,7 +29,6 @@ from oslo_db import exception as os_db_exc
 from oslo_db.sqlalchemy import provision
 from oslo_log import log
 from oslo_utils import uuidutils
-from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import connection
 
 # Load all the models to register them into SQLAlchemy metadata before using
@@ -47,27 +46,6 @@ LOG = log.getLogger(__name__)
 DEFAULT_LOG_DIR = os.path.join(os.environ.get('OS_LOG_PATH', '/tmp'),
                                'dsvm-functional-logs')
 SQL_FIXTURE_LOCK = 'sql_fixture_lock'
-
-
-class AddFakeChassisCommand(command.BaseCommand):
-    """Add a fake chassis in OVN SB DB for functional test."""
-
-    def __init__(self, api, name, ip, **columns):
-        super(AddFakeChassisCommand, self).__init__(api)
-        self.name = name
-        self.ip = ip
-        self.columns = columns
-
-    def run_idl(self, txn):
-        encap_row = txn.insert(self.api._tables['Encap'])
-        encap_row.type = 'geneve'
-        encap_row.ip = self.ip
-        self.columns.update({'encaps': [encap_row.uuid]})
-
-        row = txn.insert(self.api._tables['Chassis'])
-        row.name = self.name
-        for col, val in self.columns.items():
-            setattr(row, col, val)
 
 
 class ConnectionFixture(fixtures.Fixture):
