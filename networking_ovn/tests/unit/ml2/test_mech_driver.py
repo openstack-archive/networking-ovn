@@ -394,7 +394,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                      called_args_dict.get('port_security'))
 
     def test_create_port_with_disabled_security(self):
-        kwargs = {'port_security_enabled': False}
+        # NOTE(mjozefcz): Lets pretend this is nova port to not
+        # be treated as VIP.
+        kwargs = {'port_security_enabled': False,
+                  'device_owner': 'compute:nova'}
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
@@ -441,10 +444,13 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                      called_args_dict.get('addresses'))
 
     def test_create_port_security_allowed_address_pairs(self):
+        # NOTE(mjozefcz): Lets pretend this is nova port to not
+        # be treated as VIP.
         kwargs = {'allowed_address_pairs':
                   [{"ip_address": "1.1.1.1"},
                    {"ip_address": "2.2.2.2",
-                    "mac_address": "22:22:22:22:22:22"}]}
+                    "mac_address": "22:22:22:22:22:22"}],
+                  'device_owner': 'compute:nova'}
         with self.network(set_context=True, tenant_id='test') as net1:
             with self.subnet(network=net1) as subnet1:
                 with self.port(subnet=subnet1,
@@ -493,6 +499,24 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                              "00:00:00:00:00:01 " + port_ip,
                              old_mac]),
                         called_args_dict.get('addresses'))
+
+    def test_create_port_possible_vip(self):
+        """Test if just created LSP has no adresses set.
+
+           This could be potential VIP port. If not - next
+           port update will set the adresses corectly during
+           binding process.
+        """
+        with (
+            self.network(set_context=True, tenant_id='test')) as net1, (
+            self.subnet(network=net1)) as subnet1, (
+            self.port(subnet=subnet1, set_context=True, tenant_id='test')):
+
+            self.assertTrue(self.nb_ovn.create_lswitch_port.called)
+            called_args_dict = (
+                self.nb_ovn.create_lswitch_port.call_args_list[0][1])
+            self.assertEqual([],
+                             called_args_dict.get('addresses'))
 
     def _create_fake_network_context(self,
                                      network_type,
@@ -672,6 +696,47 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                         1, self.nb_ovn.update_acls.call_count)
                     self.assertEqual(
                         1, self.nb_ovn.update_address_set.call_count)
+
+    def _test_update_port_vip(self, is_vip=True):
+        kwargs = {}
+        if not is_vip:
+            # NOTE(mjozefcz): Lets pretend this is nova port to not
+            # be treated as VIP.
+            kwargs['device_owner'] = 'compute:nova'
+        with (
+            self.network(set_context=True, tenant_id='test')) as net1, (
+            self.subnet(network=net1)) as subnet1, (
+            self.port(subnet=subnet1, set_context=True,
+                      tenant_id='test', **kwargs)) as port1:
+
+            fake_lsp = (
+                fakes.FakeOVNPort.from_neutron_port(
+                    port1['port']))
+            self.nb_ovn.lookup.return_value = fake_lsp
+
+            # Update the port name.
+            self.nb_ovn.set_lswitch_port.reset_mock()
+            data = {'port': {'name': 'rtheis'}}
+            self._update('ports', port1['port']['id'], data)
+            self.assertEqual(
+                1, self.nb_ovn.set_lswitch_port.call_count)
+            called_args_dict = (
+                self.nb_ovn.set_lswitch_port.call_args_list[0][1])
+            self.assertEqual(
+                'rtheis',
+                called_args_dict['external_ids']['neutron:port_name'])
+            if is_vip:
+                self.assertEqual([],
+                                 called_args_dict.get('addresses'))
+            else:
+                self.assertNotEqual([],
+                                    called_args_dict.get('addresses'))
+
+    def test_update_port_not_vip_port(self):
+        self._test_update_port_vip(is_vip=False)
+
+    def test_update_port_vip_port(self):
+        self._test_update_port_vip()
 
     def test_delete_port_without_security_groups(self):
         kwargs = {'security_groups': []}
