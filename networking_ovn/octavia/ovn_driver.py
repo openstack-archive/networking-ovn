@@ -79,7 +79,7 @@ LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
 OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
                            constants.PROTOCOL_UDP, ]
-OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_ROUND_ROBIN, ]
+OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_SOURCE_IP_PORT, ]
 EXCEPTION_MSG = "Exception occurred during %s"
 
 
