@@ -123,6 +123,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'dns_server': '{10.10.10.10}',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n1['network']['mtu']),
+                        'domain_name': '"ovn.test"',
                         'router': n1_s1['subnet']['gateway_ip']}})
         self.expected_dhcp_options_rows.append({
             'cidr': '2001:dba::/64',
@@ -190,6 +191,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'mtu': str(n1['network']['mtu']),
                         'router': n1_s1['subnet']['gateway_ip'],
                         'tftp_server': '20.0.0.20',
+                        'domain_name': '"ovn.test"',
                         'dns_server': '8.8.8.8'}})
                 self.expected_dhcp_options_rows.append({
                     'cidr': '2001:dba::/64',
@@ -260,6 +262,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'mtu': str(n1['network']['mtu']),
                         'router': n1_s1['subnet']['gateway_ip'],
                         'tftp_server': '20.0.0.20',
+                        'domain_name': '"ovn.test"',
                         'dns_server': '8.8.8.8'}})
                 self.expected_dhcp_options_rows.append({
                     'cidr': '2001:dba::/64',
@@ -292,6 +295,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'dns_server': '{10.10.10.10}',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n2['network']['mtu']),
+                        'domain_name': '"ovn.test"',
                         'router': n2_s1['subnet']['gateway_ip']}})
         self.expected_dhcp_options_rows.append({
             'cidr': '2001:dbd::/64',
@@ -319,6 +323,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         'mtu': str(n1['network']['mtu']),
                         'router': n2_s1['subnet']['gateway_ip'],
                         'tftp_server': '20.0.0.20',
+                        'domain_name': '"ovn.test"',
                         'dns_server': '8.8.8.8'}})
         self.missed_dhcp_options.extend([
             opts['uuid']
