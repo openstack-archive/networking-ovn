@@ -88,15 +88,15 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         self.addCleanup(p.stop)
 
         self.chassis_name = self.add_fake_chassis('ovs-host-fake')
-        with mock.patch.object(agent.MetadataAgent,
-                               '_get_own_chassis_name') as mock_get_ch_name:
-            mock_get_ch_name.return_value = self.chassis_name
-            agt = agent.MetadataAgent(conf)
-            agt.start()
-            # Metadata agent will open connections to OVS and SB databases.
-            # Close connections to them when the test ends,
-            self.addCleanup(agt.ovs_idl.ovsdb_connection.stop)
-            self.addCleanup(agt.sb_idl.ovsdb_connection.stop)
+        mock.patch.object(agent.MetadataAgent,
+                          '_get_own_chassis_name',
+                          return_value=self.chassis_name).start()
+        agt = agent.MetadataAgent(conf)
+        agt.start()
+        # Metadata agent will open connections to OVS and SB databases.
+        # Close connections to them when the test ends,
+        self.addCleanup(agt.ovs_idl.ovsdb_connection.stop)
+        self.addCleanup(agt.sb_idl.ovsdb_connection.stop)
 
         return agt
 
