@@ -17,8 +17,8 @@ import os
 
 import mock
 from neutron.tests import base
-from neutron.tests import tools
 from neutron.tests.unit.agent.linux import test_utils
+from neutron_lib import fixture as lib_fixtures
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
@@ -70,7 +70,7 @@ class TestMetadataDriverProcess(base.BaseTestCase):
                     cfg.CONF.state_path),
                 "%s.conf" % datapath_id)
             mock_open = self.useFixture(
-                tools.OpenFixture(cfg_file)).mock_open
+                lib_fixtures.OpenFixture(cfg_file)).mock_open
             metadata_driver.MetadataDriver.spawn_monitored_metadata_proxy(
                 agent._process_monitor,
                 metadata_ns,
