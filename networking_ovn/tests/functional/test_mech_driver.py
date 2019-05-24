@@ -16,6 +16,7 @@ from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from networking_ovn.common import utils
+from networking_ovn.db import revision as db_rev
 from networking_ovn.tests.functional import base
 
 
@@ -130,3 +131,47 @@ class TestPortBindingOverTcp(TestPortBinding):
 class TestPortBindingOverSsl(TestPortBinding):
     def get_ovsdb_server_protocol(self):
         return 'ssl'
+
+
+class TestNetworkMTUUpdate(base.TestOVNFunctionalBase):
+
+    def setUp(self):
+        super(TestNetworkMTUUpdate, self).setUp()
+        self._ovn_client = self.mech_driver._ovn_client
+        self.n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, self.n1['network']['id'],
+                                  '10.0.0.0/24')
+        self.sub = self.deserialize(self.fmt, res)
+
+    def test_update_network_mtu(self):
+        mtu_value = self.n1['network']['mtu'] - 100
+        dhcp_options = (
+            self.mech_driver._ovn_client._nb_idl.get_subnet_dhcp_options(
+                self.sub['subnet']['id'])
+        )
+        self.assertNotEqual(
+            int(dhcp_options['subnet']['options']['mtu']),
+            mtu_value)
+        data = {'network': {'mtu': mtu_value}}
+        req = self.new_update_request(
+            'networks', data, self.n1['network']['id'], self.fmt)
+        req.get_response(self.api)
+        dhcp_options = (
+            self.mech_driver._ovn_client._nb_idl.get_subnet_dhcp_options(
+                self.sub['subnet']['id'])
+        )
+        self.assertEqual(
+            int(dhcp_options['subnet']['options']['mtu']),
+            mtu_value)
+
+    def test_no_update_network_mtu(self):
+        mtu_value = self.n1['network']['mtu']
+        base_revision = db_rev.get_revision_row(self.sub['subnet']['id'])
+        data = {'network': {'mtu': mtu_value}}
+        req = self.new_update_request(
+            'networks', data, self.n1['network']['id'], self.fmt)
+        req.get_response(self.api)
+        second_revision = db_rev.get_revision_row(self.sub['subnet']['id'])
+        self.assertEqual(
+            base_revision.updated_at,
+            second_revision.updated_at)
