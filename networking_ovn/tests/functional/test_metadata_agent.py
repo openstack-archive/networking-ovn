@@ -56,6 +56,17 @@ class MetadataAgentHealthEvent(event.RowEvent):
         return self.event.wait(self.timeout)
 
 
+# TODO(jlibosva): Move this class to a common place in ovsdbapp. Once it's
+#                 released we can just import the class from ovsdbapp
+class WaitForPortBindingEvent(event.WaitEvent):
+    event_name = 'WaitForPortBindingEvent'
+
+    def __init__(self, port, timeout=5):
+        super(WaitForPortBindingEvent, self).__init__(
+            (self.ROW_CREATE,), 'Port_Binding', (('logical_port', '=', port),),
+            timeout=timeout)
+
+
 class TestMetadataAgent(base.TestOVNFunctionalBase):
     OVN_BRIDGE = 'br-int'
 
@@ -161,16 +172,25 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         lswitch_name = 'ovn-' + uuidutils.generate_uuid()
         lswitchport_name = 'ovn-port-' + uuidutils.generate_uuid()
 
-        with self.nb_api.transaction(check_error=True) as txn:
+        # It may take some time to ovn-northd to translate from OVN NB DB to
+        # the OVN SB DB. Wait for port binding event to happen before binding
+        # the port to chassis.
+
+        pb_event = WaitForPortBindingEvent(lswitchport_name)
+        self.handler.watch_event(pb_event)
+
+        with self.nb_api.transaction(check_error=True, log_errors=True) as txn:
             txn.add(
-                self.nb_api.ls_add(lswitch_name, True))
+                self.nb_api.ls_add(lswitch_name))
             txn.add(
                 self.nb_api.create_lswitch_port(
-                    lswitchport_name, lswitch_name, True))
+                    lswitchport_name, lswitch_name))
             self._create_metadata_port(txn, lswitch_name)
-        # Trigger PortBindingChassisEvent
-        self.sb_api.lsp_bind(lswitchport_name, self.chassis_name).execute()
+        self.assertTrue(pb_event.wait())
 
+        # Trigger PortBindingChassisEvent
+        self.sb_api.lsp_bind(lswitchport_name, self.chassis_name).execute(
+            check_error=True, log_errors=True)
         exc = Exception("Agent bridge hasn't changed from %s to %s "
                         "in 10 seconds after Port_Binding event" %
                         (self.agent.ovn_bridge, BR_NEW))
