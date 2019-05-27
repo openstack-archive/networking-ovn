@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import threading
-
 import mock
 from neutron.common import utils as n_utils
 from oslo_config import fixture as fixture_config
@@ -31,29 +29,21 @@ from networking_ovn.conf.agent.metadata import config as meta
 from networking_ovn.tests.functional import base
 
 
-class MetadataAgentHealthEvent(event.RowEvent):
+class MetadataAgentHealthEvent(event.WaitEvent):
     event_name = 'MetadataAgentHealthEvent'
-    ONETIME = True
 
     def __init__(self, chassis, sb_cfg, timeout=5):
         self.chassis = chassis
         self.sb_cfg = sb_cfg
-        self.event = threading.Event()
-        self.timeout = timeout
         super(MetadataAgentHealthEvent, self).__init__(
-            (self.ROW_UPDATE,), 'Chassis', (('name', '=', self.chassis),))
+            (self.ROW_UPDATE,), 'Chassis', (('name', '=', self.chassis),),
+            timeout=timeout)
 
     def matches(self, event, row, old=None):
         if not super(MetadataAgentHealthEvent, self).matches(event, row, old):
             return False
         return int(row.external_ids.get(
             ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, 0)) >= self.sb_cfg
-
-    def run(self, event, row, old):
-        self.event.set()
-
-    def wait(self):
-        return self.event.wait(self.timeout)
 
 
 # TODO(jlibosva): Move this class to a common place in ovsdbapp. Once it's
