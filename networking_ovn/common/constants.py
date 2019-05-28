@@ -151,3 +151,7 @@ MAINTENANCE_DELETE_TYPE_ORDER = {
 # The addresses field to set in the logical switch port which has a
 # peer router port (connecting to the logical router).
 DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
+
+# Hash Ring constants
+HASH_RING_NODES_TIMEOUT = 60
+HASH_RING_CACHE_TIMEOUT = 30

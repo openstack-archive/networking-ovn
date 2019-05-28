@@ -38,3 +38,13 @@ class OVNRevisionNumbers(model_base.BASEV2):
         default=sa.func.now(), nullable=False)
     updated_at = sa.Column(sa.TIMESTAMP, default=sa.func.now(),
                            onupdate=sa.func.now(), nullable=True)
+
+
+class OVNHashRing(model_base.BASEV2):
+    __tablename__ = 'ovn_hash_ring'
+    node_uuid = sa.Column(sa.String(36), nullable=False, primary_key=True)
+    hostname = sa.Column(sa.String(256), nullable=False)
+    created_at = sa.Column(sa.DateTime(), default=sa.func.now(),
+                           nullable=False)
+    updated_at = sa.Column(sa.DateTime(), default=sa.func.now(),
+                           nullable=False)
