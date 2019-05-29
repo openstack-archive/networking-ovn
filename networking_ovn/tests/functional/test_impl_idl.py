@@ -16,14 +16,25 @@ import uuid
 
 from ovsdbapp import event as ovsdb_event
 from ovsdbapp.tests.functional import base
-from ovsdbapp.tests.functional.schema.ovn_southbound import test_impl_idl as \
-    test_sb
+
 from ovsdbapp.tests import utils
 
 from networking_ovn.ovsdb import impl_idl_ovn as impl
 
+# TODO(jlibosva): ovsdbapp has moved WaitForPortBindingEvent to its own module
+#                 To keep backward compatiblity with ovsdbapp it first tries
+#                 the new location and in case the module doesn't exist it uses
+#                 the old location importing the whole test suite. Remove the
+#                 fallback mechanism when we limit ovsdbapp version to the one
+#                 containing event module.
+try:
+    from ovsdbapp.tests.functional.schema.ovn_southbound import event
+except ImportError:
+    from ovsdbapp.tests.functional.schema.ovn_southbound \
+        import test_impl_idl as event
 
-class WaitForPortBindingEvent(test_sb.WaitForPortBindingEvent):
+
+class WaitForPortBindingEvent(event.WaitForPortBindingEvent):
     def run(self, event, row, old):
         self.row = row
         super(WaitForPortBindingEvent, self).run(event, row, old)
