@@ -12,8 +12,10 @@
 #    under the License.
 #
 
+import atexit
 import functools
 import operator
+import signal
 import threading
 import types
 import uuid
@@ -47,6 +49,7 @@ from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import maintenance
 from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
+from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.db import revision as db_rev
 from networking_ovn.ml2 import qos_driver
 from networking_ovn.ml2 import trunk_driver
@@ -103,6 +106,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._plugin_property = None
         self._ovn_client_inst = None
         self._maintenance_thread = None
+        self.node_uuid = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
         self._post_fork_event = threading.Event()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
@@ -145,10 +149,12 @@ class OVNMechanismDriver(api.MechanismDriver):
         }
 
     def subscribe(self):
+        registry.subscribe(self.pre_fork_initialize,
+                           resources.PROCESS,
+                           events.BEFORE_SPAWN)
         registry.subscribe(self.post_fork_initialize,
                            resources.PROCESS,
                            events.AFTER_INIT)
-
         registry.subscribe(self._add_segment_host_mapping_for_segment,
                            resources.SEGMENT,
                            events.AFTER_CREATE)
@@ -177,13 +183,29 @@ class OVNMechanismDriver(api.MechanismDriver):
                                resources.SECURITY_GROUP_RULE,
                                events.BEFORE_DELETE)
 
+    def _clean_hash_ring(self, *args, **kwargs):
+        db_hash_ring.remove_nodes_from_host()
+
+    def pre_fork_initialize(self, resource, event, trigger, payload=None):
+        """Pre-initialize the ML2/OVN driver."""
+        self._clean_hash_ring()
+        atexit.register(self._clean_hash_ring)
+        signal.signal(signal.SIGTERM, self._clean_hash_ring)
+
     def post_fork_initialize(self, resource, event, trigger, payload=None):
         # NOTE(rtheis): This will initialize all workers (API, RPC,
         # plugin service and OVN) with OVN IDL connections.
         self._post_fork_event.clear()
         self._ovn_client_inst = None
-        self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self,
-                                                               trigger)
+
+        is_maintenance = (utils.get_method_class(trigger) ==
+                          worker.MaintenanceWorker)
+        if not is_maintenance:
+            self.node_uuid = db_hash_ring.add_node()
+
+        self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(
+            self, trigger, binding_events=not is_maintenance)
+
         # Override agents API methods
         self.patch_plugin_merge("get_agents", get_agents)
         self.patch_plugin_choose("get_agent", get_agent)
@@ -193,8 +215,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         # Now IDL connections can be safely used.
         self._post_fork_event.set()
 
-        if utils.get_method_class(trigger) == worker.OvnWorker:
-            # Call the synchronization task if its ovn worker
+        if is_maintenance:
+            # Call the synchronization task if its maintenance worker
             # This sync neutron DB to OVN-NB DB only in inconsistent states
             self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
                 self._plugin,
@@ -213,7 +235,6 @@ class OVNMechanismDriver(api.MechanismDriver):
             )
             self.sb_synchronizer.sync()
 
-        if utils.get_method_class(trigger) == maintenance.MaintenanceWorker:
             self._maintenance_thread = maintenance.MaintenanceThread()
             self._maintenance_thread.add_periodics(
                 maintenance.DBInconsistenciesPeriodics(self._ovn_client))
@@ -696,7 +717,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         workers, can return a sequence of worker instances.
         """
         # See doc/source/design/ovn_worker.rst for more details.
-        return [worker.OvnWorker(), maintenance.MaintenanceWorker()]
+        return [worker.MaintenanceWorker()]
 
     def _update_subport_host_if_needed(self, port_id):
         parent_port = self._ovn_client.get_parent_port(port_id)

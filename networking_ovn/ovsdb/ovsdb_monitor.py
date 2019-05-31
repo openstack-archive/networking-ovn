@@ -17,6 +17,7 @@ import abc
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
+from oslo_config import cfg
 from oslo_log import log
 from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
@@ -27,8 +28,11 @@ from ovsdbapp import event
 from networking_ovn.agent import stats
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions
+from networking_ovn.common import hash_ring_manager
 from networking_ovn.common import utils
 
+CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
 
@@ -338,7 +342,38 @@ class OvnIdl(BaseOvnIdl):
         """Should be called after the idl has been initialized"""
 
 
-class OvnNbIdl(OvnIdl):
+class OvnIdlDistributedLock(BaseOvnIdl):
+
+    def __init__(self, driver, remote, schema):
+        super(OvnIdlDistributedLock, self).__init__(remote, schema)
+        self.driver = driver
+        self.notify_handler = OvnDbNotifyHandler(driver)
+        self._hash_ring = hash_ring_manager.HashRingManager()
+        self._node_uuid = self.driver.node_uuid
+
+    def notify(self, event, row, updates=None):
+        try:
+            target_node = self._hash_ring.get_node(str(row.uuid))
+        except exceptions.HashRingIsEmpty as e:
+            LOG.error('HashRing is empty, error: %s', e)
+            return
+
+        if target_node != self._node_uuid:
+            return
+
+        LOG.debug('Hash Ring: Node %(node)s (host: %(hostname)s) '
+                  'handling event "%(event)s" for row %(row)s '
+                  '(table: %(table)s)',
+                  {'node': self._node_uuid, 'hostname': CONF.host,
+                   'event': event, 'row': row.uuid, 'table': row._table.name})
+        self.notify_handler.notify(event, row, updates)
+
+    @abc.abstractmethod
+    def post_connect(self):
+        """Should be called after the idl has been initialized"""
+
+
+class OvnNbIdl(OvnIdlDistributedLock):
 
     def __init__(self, driver, remote, schema):
         super(OvnNbIdl, self).__init__(driver, remote, schema)
@@ -360,9 +395,7 @@ class OvnNbIdl(OvnIdl):
         _check_and_set_ssl_files(schema_name)
         helper = idlutils.get_schema_helper(connection_string, schema_name)
         helper.register_all()
-        _idl = cls(driver, connection_string, helper)
-        _idl.set_lock(_idl.event_lock_name)
-        return _idl
+        return cls(driver, connection_string, helper)
 
     def unwatch_logical_switch_port_create_events(self):
         """Unwatch the logical switch port create events.
@@ -382,7 +415,7 @@ class OvnNbIdl(OvnIdl):
         self.unwatch_logical_switch_port_create_events()
 
 
-class OvnSbIdl(OvnIdl):
+class OvnSbIdl(OvnIdlDistributedLock):
 
     @classmethod
     def from_server(cls, connection_string, schema_name, driver):
@@ -393,9 +426,7 @@ class OvnSbIdl(OvnIdl):
         helper.register_table('Port_Binding')
         helper.register_table('Datapath_Binding')
         helper.register_table('MAC_Binding')
-        _idl = cls(driver, connection_string, helper)
-        _idl.set_lock(_idl.event_lock_name)
-        return _idl
+        return cls(driver, connection_string, helper)
 
     def post_connect(self):
         """Watch Chassis events.

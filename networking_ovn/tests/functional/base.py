@@ -95,7 +95,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
     _counter = 0
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
 
-    def setUp(self, ovn_worker=False):
+    def setUp(self, maintenance_worker=False):
         config.cfg.CONF.set_override('extension_drivers',
                                      self._extension_drivers,
                                      group='ml2')
@@ -118,7 +118,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.l3_plugin = directory.get_plugin(constants.L3)
         self.ovsdb_server_mgr = None
         self.ovn_northd_mgr = None
-        self.ovn_worker = ovn_worker
+        self.maintenance_worker = maintenance_worker
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
 
@@ -225,8 +225,8 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                 pass
 
         trigger_cls = TriggerCls()
-        if self.ovn_worker:
-            trigger_cls.trigger.__self__.__class__ = worker.OvnWorker
+        if self.maintenance_worker:
+            trigger_cls.trigger.__self__.__class__ = worker.MaintenanceWorker
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
 
         self.addCleanup(self.stop)
@@ -236,7 +236,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             mock.ANY, mock.ANY, trigger_cls.trigger)
 
     def stop(self):
-        if self.ovn_worker:
+        if self.maintenance_worker:
             self.mech_driver.nb_synchronizer.stop()
             self.mech_driver.sb_synchronizer.stop()
         self.mech_driver._nb_ovn.ovsdb_connection.stop()

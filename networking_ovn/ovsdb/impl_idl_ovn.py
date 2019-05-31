@@ -33,7 +33,6 @@ from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
-from networking_ovn.ovsdb import worker
 
 
 LOG = log.getLogger(__name__)
@@ -121,7 +120,7 @@ class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
 
 # Retry forever to get the OVN NB and SB IDLs. Wait 2^x * 1 seconds between
 # each retry, up to 180 seconds, then 180 seconds afterwards.
-def get_ovn_idls(driver, trigger):
+def get_ovn_idls(driver, trigger, binding_events=False):
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=180),
         reraise=True)
@@ -129,28 +128,29 @@ def get_ovn_idls(driver, trigger):
         trigger_class = utils.get_method_class(trigger)
         LOG.info('Getting %(cls)s for %(trigger)s with retry',
                  {'cls': cls.__name__, 'trigger': trigger_class.__name__})
-        return cls(get_connection(cls, trigger, driver))
+        return cls(get_connection(cls, trigger, driver, binding_events))
 
     vlog.use_python_logger(max_level=cfg.get_ovn_ovsdb_log_level())
     return tuple(get_ovn_idl_retry(c) for c in (OvsdbNbOvnIdl, OvsdbSbOvnIdl))
 
 
-def get_connection(db_class, trigger=None, driver=None):
-    # The trigger is the start() method of the worker class
+def get_connection(db_class, trigger=None, driver=None, binding_events=False):
     if db_class == OvsdbNbOvnIdl:
         args = (cfg.get_ovn_nb_connection(), 'OVN_Northbound')
-        cls = ovsdb_monitor.OvnNbIdl
     elif db_class == OvsdbSbOvnIdl:
         args = (cfg.get_ovn_sb_connection(), 'OVN_Southbound')
-        cls = ovsdb_monitor.OvnSbIdl
 
-    if trigger and utils.get_method_class(trigger) == worker.OvnWorker:
-        idl_ = cls.from_server(*args, driver=driver)
-    else:
-        if db_class == OvsdbSbOvnIdl:
-            idl_ = ovsdb_monitor.BaseOvnSbIdl.from_server(*args)
+    if binding_events:
+        if db_class == OvsdbNbOvnIdl:
+            idl_ = ovsdb_monitor.OvnNbIdl.from_server(*args, driver=driver)
         else:
+            idl_ = ovsdb_monitor.OvnSbIdl.from_server(*args, driver=driver)
+    else:
+        if db_class == OvsdbNbOvnIdl:
             idl_ = ovsdb_monitor.BaseOvnIdl.from_server(*args)
+        else:
+            idl_ = ovsdb_monitor.BaseOvnSbIdl.from_server(*args)
+
     return connection.Connection(idl_, timeout=cfg.get_ovn_ovsdb_timeout())
 
 

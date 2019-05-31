@@ -31,7 +31,7 @@ from networking_ovn.tests.functional import base
 
 class TestRouter(base.TestOVNFunctionalBase):
     def setUp(self):
-        super(TestRouter, self).setUp(ovn_worker=True)
+        super(TestRouter, self).setUp()
         self.chassis1 = self.add_fake_chassis(
             'ovs-host1', physical_nets=['physnet1', 'physnet3'])
         self.chassis2 = self.add_fake_chassis(
@@ -237,9 +237,9 @@ class TestRouter(base.TestOVNFunctionalBase):
             self._set_redirect_chassis_to_invalid_chassis(ovn_client)
             self.l3_plugin.schedule_unhosted_gateways()
 
-            # We can't test call_count for these mocks, as we have enabled
-            # ovn_worker which will trigger chassis events and eventually
-            # calling schedule_unhosted_gateways
+            # We can't test call_count for these mocks, as we have disabled
+            # maintenance_worker which will trigger chassis events
+            # and eventually calling schedule_unhosted_gateways
             self.assertTrue(client_select.called)
             self.assertTrue(plugin_select.called)
 

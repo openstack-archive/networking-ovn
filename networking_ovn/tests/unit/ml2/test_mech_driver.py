@@ -1609,6 +1609,15 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
                                          ['8.8.8.8'],
                                          group='ovn')
         super(OVNMechanismDriverTestCase, self).setUp()
+        # Make sure the node and target_node for the hash ring in the
+        # mechanism driver matches
+        node_uuid = uuidutils.generate_uuid()
+        p = mock.patch('networking_ovn.common.hash_ring_manager.'
+                       'HashRingManager.get_node', return_value=node_uuid)
+        p.start()
+        self.addCleanup(p.stop)
+        self.driver.node_uuid = node_uuid
+
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
         nb_ovn = fakes.FakeOvsdbNbOvnIdl()

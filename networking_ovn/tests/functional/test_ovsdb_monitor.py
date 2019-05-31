@@ -17,6 +17,8 @@ import threading
 import mock
 from oslo_utils import uuidutils
 
+from networking_ovn.common import constants as ovn_const
+from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests.functional import base
 from neutron.common import utils as n_utils
@@ -48,10 +50,26 @@ class WaitForMACBindingDeleteEvent(event.RowEvent):
         return self.event.wait(self.timeout)
 
 
+class DistributedLockTestEvent(event.WaitEvent):
+    ONETIME = False
+    COUNTER = 0
+
+    def __init__(self):
+        table = 'Logical_Switch_Port'
+        events = (self.ROW_CREATE,)
+        super(DistributedLockTestEvent, self).__init__(
+            events, table, (), timeout=15)
+        self.event_name = 'DistributedLockTestEvent'
+
+    def run(self, event, row, old):
+        self.COUNTER += 1
+        self.event.set()
+
+
 class TestNBDbMonitor(base.TestOVNFunctionalBase):
 
     def setUp(self):
-        super(TestNBDbMonitor, self).setUp(ovn_worker=True)
+        super(TestNBDbMonitor, self).setUp()
         self.chassis = self.add_fake_chassis('ovs-host1')
         self.l3_plugin = directory.get_plugin(plugin_constants.L3)
 
@@ -174,54 +192,41 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         self._test_port_binding_and_status(port['id'], 'bind', 'ACTIVE')
         self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
 
-    def test_ovsdb_monitor_lock(self):
-        """Test case to test the ovsdb monitor lock used by OvnConnection.
+    def test_distributed_lock(self):
+        row_event = DistributedLockTestEvent()
+        self.mech_driver._nb_ovn.idl.notify_handler.watch_event(row_event)
+        worker_list = [self.mech_driver._nb_ovn, ]
 
-        This test case created another IDL connection to the NB DB using
-        the ovsdb_monitor.OvnConnection.
+        # Create 10 fake workers
+        for _ in range(10):
+            node_uuid = uuidutils.generate_uuid()
+            db_hash_ring.add_node(node_uuid)
+            fake_driver = mock.MagicMock(node_uuid=node_uuid)
+            _idl = ovsdb_monitor.OvnNbIdl.from_server(
+                self.ovsdb_server_mgr.get_ovsdb_connection_path(),
+                'OVN_Northbound', fake_driver)
+            worker = self.useFixture(
+                base.ConnectionFixture(idl=_idl, timeout=10)).connection
+            worker.idl.notify_handler.watch_event(row_event)
+            worker.start()
+            worker_list.append(worker)
 
-        With this we will have 2 'ovsdb_monitor.OvnConnection's. At the
-        start the lock should be with the IDL connection created by the
-        'TestOVNFunctionalBase' setup() function.
+        # Refresh the hash rings just in case
+        [worker.idl._hash_ring.refresh() for worker in worker_list]
 
-        The port up/down events should be handled by the first IDL connection.
-        Then the first IDL connection will release the lock so that the 2nd IDL
-        connection created in this test case gets the lock and it should
-        handle the port up/down events. Later when 2nd IDL connection releases
-        lock, first IDL connection will get the lock and handles the
-        port up/down events.
+        # Assert we have 11 active workers in the ring
+        self.assertEqual(
+            11, len(db_hash_ring.get_active_nodes(
+                    interval=ovn_const.HASH_RING_NODES_TIMEOUT)))
 
-        Please note that the "self.monitor_nb_idl_con" created by the base
-        class is created using 'connection.Connection' and hence it will not
-        contend for any lock.
-        """
-        fake_driver = mock.MagicMock()
-        _idl = ovsdb_monitor.OvnNbIdl.from_server(
-            self.ovsdb_server_mgr.get_ovsdb_connection_path(),
-            'OVN_Northbound', fake_driver)
-        tst_ovn_conn = self.useFixture(
-            base.ConnectionFixture(idl=_idl, timeout=10)).connection
-        tst_ovn_conn.start()
+        # Trigger the event
+        self.create_port()
 
-        port = self.create_port()
+        # Wait for the event to complete
+        self.assertTrue(row_event.wait())
 
-        # mech_driver will release the lock to fake test driver. During chassis
-        # binding and unbinding, port status won't change(i.e will be DOWN)
-        # as mech driver can't update it.
-        self.mech_driver._nb_ovn.idl.set_lock(None)
-        n_utils.wait_until_true(lambda: tst_ovn_conn.idl.has_lock)
-        self.mech_driver._nb_ovn.idl.set_lock(
-            self.mech_driver._nb_ovn.idl.event_lock_name)
-        self._test_port_binding_and_status(port['id'], 'bind', 'DOWN')
-        self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
-
-        # Fake driver will relase the lock to mech driver. Port status will be
-        # updated to 'ACTIVE' for chassis binding and to 'DOWN' for chassis
-        # unbinding.
-        tst_ovn_conn.idl.set_lock(None)
-        n_utils.wait_until_true(lambda: self.mech_driver._nb_ovn.idl.has_lock)
-        self._test_port_binding_and_status(port['id'], 'bind', 'ACTIVE')
-        self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
+        # Assert that only one worker handled the event
+        self.assertEqual(1, row_event.COUNTER)
 
 
 class TestNBDbMonitorOverTcp(TestNBDbMonitor):
