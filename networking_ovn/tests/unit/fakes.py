@@ -341,6 +341,7 @@ class FakeOvsdbRow(FakeResource):
             'delete': None,
             'delvalue': None,
             'verify': None,
+            'setkey': None,
         }
 
         # Overwrite default attributes and methods.
