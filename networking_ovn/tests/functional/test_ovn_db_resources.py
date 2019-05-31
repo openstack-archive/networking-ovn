@@ -28,6 +28,7 @@ from networking_ovn.tests.functional import base
 
 
 class TestNBDbResources(base.TestOVNFunctionalBase):
+    _extension_drivers = ['dns']
 
     def setUp(self):
         super(TestNBDbResources, self).setUp()
@@ -719,6 +720,46 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         # The Logical_Switch_Port.dhcpv4_options for this port should be
         # empty.
         self._verify_dhcp_option_row_for_port(p1['id'], {})
+
+    def test_dhcp_options_domain_name(self):
+        """Test for DHCP_Options domain name option
+
+        This test needs dns extension_driver to be enabled.
+        Test test_dhcp_options* are too complex so this case
+        has been moved to separated one.
+        """
+
+        cidr = '10.0.0.0/24'
+        data = {
+            'network':
+                {'name': 'foo',
+                 'dns_domain': 'foo.com.',
+                 'tenant_id': self._tenant_id}}
+        req = self.new_create_request('networks', data, self.fmt)
+        res = req.get_response(self.api)
+        net = self.deserialize(self.fmt, res)['network']
+
+        res = self._create_subnet(self.fmt, net['id'], cidr)
+        subnet = self.deserialize(self.fmt, res)['subnet']
+        dhcp_mac = self._get_subnet_dhcp_mac(subnet)
+
+        p = self._make_port(
+            self.fmt, net['id'],
+            fixed_ips=[
+                {'subnet_id': subnet['id']}])
+
+        expected_dhcp_options_rows = {
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': subnet['id']},
+            'options': {'dns_server': '{10.10.10.10}',
+                        'domain_name': '"foo.com"',
+                        'lease_time': '43200',
+                        'mtu': '1450',
+                        'router': '10.0.0.1',
+                        'server_id': '10.0.0.1',
+                        'server_mac': dhcp_mac}}
+        self._verify_dhcp_option_row_for_port(
+            p['port']['id'], expected_dhcp_options_rows)
 
 
 class TestPortSecurity(base.TestOVNFunctionalBase):
