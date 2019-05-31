@@ -34,6 +34,7 @@ from networking_ovn.common import constants as ovn_const
 
 LOG = log.getLogger(__name__)
 _SYNC_STATE_LOCK = lockutils.ReaderWriterLock()
+CHASSIS_METADATA_LOCK = 'chassis_metadata_lock'
 
 
 NS_PREFIX = 'ovnmeta-'
@@ -353,6 +354,11 @@ class MetadataAgent(object):
 
         return namespaces
 
+    # NOTE(lucasagomes): Even tho the metadata agent is a multi-process
+    # application, there's only one Southbound database IDL instance in
+    # the agent which handles the OVSDB events therefore we do not need
+    # the external=True parameter in the @synchronized decorator.
+    @lockutils.synchronized(CHASSIS_METADATA_LOCK)
     def update_chassis_metadata_networks(self, datapath, remove=False):
         """Update metadata networks hosted in this chassis.
 
