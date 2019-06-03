@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Introduced a new mechanism to handle OVSDB events in a distributed
+    way. Prior to this change, OVSDB events were handled by a single
+    worker running in the cloud.
+upgrade:
+  - |
+    Adds a new dependency on the tooz library.
