@@ -507,6 +507,7 @@ class OvnProviderHelper(object):
             return str(listener_protocol).lower() in ovn_lb.protocol
 
     def lb_create(self, loadbalancer):
+        port = None
         try:
             # Get the port id of the vip and store it in the external_ids.
             # This is required to delete the port when the loadbalancer is
@@ -514,7 +515,6 @@ class OvnProviderHelper(object):
             network_driver = get_network_driver()
             ports = network_driver.neutron_client.list_ports(
                 network_id=loadbalancer['vip_network_id'])
-            port = None
             for p in ports['ports']:
                 for ip in p['fixed_ips']:
                     if ip['ip_address'] == loadbalancer['vip_address']:
@@ -556,6 +556,10 @@ class OvnProviderHelper(object):
         except Exception:
             LOG.exception(EXCEPTION_MSG, "creation of loadbalancer")
             # Any Exception set the status to ERROR
+            if isinstance(port, dict):
+                self.delete_vip_port(port.get('id'))
+                LOG.warning("Deleting the VIP port %s since LB went into "
+                            "ERROR state", str(port.get('id')))
             status = {
                 'loadbalancers': [{"id": loadbalancer['id'],
                                    "provisioning_status": constants.ERROR,
@@ -567,7 +571,14 @@ class OvnProviderHelper(object):
             status = {'loadbalancers': [{"id": loadbalancer['id'],
                                          "provisioning_status": "DELETED",
                                          "operating_status": "OFFLINE"}]}
-            ovn_lb = self._find_ovn_lb(loadbalancer['id'])
+            ovn_lb = None
+            try:
+                ovn_lb = self._find_ovn_lb(loadbalancer['id'])
+            except IndexError:
+                LOG.warning("Loadbalancer %s not found in OVN Northbound DB."
+                            "Setting the Loadbalancer status to DELETED "
+                            "in Octavia", str(loadbalancer['id']))
+                return status
             if not ovn_lb:
                 return status
 
@@ -605,7 +616,9 @@ class OvnProviderHelper(object):
                     ls_refs = jsonutils.loads(ls_refs)
                 except ValueError:
                     ls_refs = {}
-
+            # Delete the VIP Port
+            self.delete_vip_port(ovn_lb.external_ids[
+                LB_EXT_IDS_VIP_PORT_ID_KEY])
             commands = []
             for ls_name in ls_refs.keys():
                 ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
@@ -1280,6 +1293,10 @@ class OvnProviderHelper(object):
                          'project_id': project_id}}
         network_driver = get_network_driver()
         return network_driver.neutron_client.create_port(port)
+
+    def delete_vip_port(self, port_id):
+        network_driver = get_network_driver()
+        network_driver.neutron_client.delete_port(port_id)
 
 
 class OvnProviderDriver(driver_base.ProviderDriver):
