@@ -36,6 +36,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 
+from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.extensions import test_segment
@@ -792,7 +793,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self.mech_driver,
                     '_update_subport_host_if_needed') as upd_subport, \
                 mock.patch.object(self.mech_driver,
-                                  '_update_dnat_entry_if_needed') as ude:
+                                  '_update_dnat_entry_if_needed') as ude, \
+                mock.patch.object(
+                    self.mech_driver,
+                    '_wait_for_metadata_provisioned_if_needed') as wmp:
             self.mech_driver.set_port_status_up(port1['port']['id'])
             pc.assert_called_once_with(
                 mock.ANY,
@@ -802,6 +806,7 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             )
             upd_subport.assert_called_once_with(port1['port']['id'])
             ude.assert_called_once_with(port1['port']['id'])
+            wmp.assert_called_once_with(port1['port']['id'])
 
             # If the port does NOT bellong to compute, do not notify Nova
             # about it's status changes
@@ -904,6 +909,31 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         get_port.assert_called_once_with(mock.ANY, 'parent')
         upd.assert_called_once_with(mock.ANY, 'subport',
                                     {'port': binding_host_id})
+
+    def _test__wait_for_metadata_provisioned_if_needed(self, enable_dhcp,
+                                                       wait_expected):
+        with self.network(set_context=True, tenant_id='test') as net1, \
+                self.subnet(network=net1,
+                            enable_dhcp=enable_dhcp) as subnet1, \
+                self.port(subnet=subnet1, set_context=True,
+                          tenant_id='test') as port1, \
+                mock.patch.object(n_utils, 'wait_until_true') as wut, \
+                mock.patch.object(ovn_config, 'is_ovn_metadata_enabled',
+                                  return_value=True):
+            self.mech_driver._wait_for_metadata_provisioned_if_needed(
+                port1['port']['id'])
+        if wait_expected:
+            wut.assert_called_once()
+        else:
+            wut.assert_not_called()
+
+    def test__wait_for_metadata_provisioned_if_needed(self):
+        self._test__wait_for_metadata_provisioned_if_needed(
+            enable_dhcp=True, wait_expected=True)
+
+    def test__wait_for_metadata_provisioned_if_needed_not_needed(self):
+        self._test__wait_for_metadata_provisioned_if_needed(
+            enable_dhcp=False, wait_expected=False)
 
     def test_bind_port_unsupported_vnic_type(self):
         fake_port = fakes.FakePort.create_one_port(
