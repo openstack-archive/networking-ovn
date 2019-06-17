@@ -11,6 +11,10 @@ RABBIT_PASSWORD=password
 SERVICE_PASSWORD=password
 SERVICE_TOKEN=password
 ADMIN_PASSWORD=password
+
+# Enable devstack spawn logging
+LOGFILE=$DEST/logs/stack.sh.log
+
 enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn
 enable_service ovn-northd
 enable_service ovn-controller
