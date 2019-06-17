@@ -108,6 +108,10 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._maintenance_thread = None
         self.node_uuid = None
         self.sg_enabled = ovn_acl.is_sg_enabled()
+        # NOTE(lucasagomes): _clean_hash_ring() must be called before
+        # self.subscribe() to avoid processes racing when adding or
+        # deleting nodes from the Hash Ring during service initialization
+        self._clean_hash_ring()
         self._post_fork_event = threading.Event()
         if cfg.CONF.SECURITYGROUP.firewall_driver:
             LOG.warning('Firewall driver configuration is ignored')
@@ -188,7 +192,6 @@ class OVNMechanismDriver(api.MechanismDriver):
 
     def pre_fork_initialize(self, resource, event, trigger, payload=None):
         """Pre-initialize the ML2/OVN driver."""
-        self._clean_hash_ring()
         atexit.register(self._clean_hash_ring)
         signal.signal(signal.SIGTERM, self._clean_hash_ring)
 
