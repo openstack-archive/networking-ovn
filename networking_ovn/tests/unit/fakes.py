@@ -153,6 +153,9 @@ class FakeOvsdbSbOvnIdl(object):
         self.get_chassis_data_for_ml2_bind_port = mock.Mock()
         self.get_chassis_data_for_ml2_bind_port.return_value = \
             ('fake', '', ['fake-physnet'])
+        self.get_logical_port_chassis_and_datapath = mock.Mock()
+        self.get_logical_port_chassis_and_datapath.return_value = \
+            ('fake', 'fake-dp')
 
 
 class FakeOvsdbTransaction(object):
