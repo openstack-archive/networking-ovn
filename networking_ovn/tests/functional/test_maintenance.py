@@ -196,6 +196,7 @@ class _TestMaintenanceHelper(base.TestOVNFunctionalBase):
                 return row
 
 
+@mock.patch('networking_ovn.db.maintenance.INCONSISTENCIES_OLDER_THAN', -1)
 class TestMaintenance(_TestMaintenanceHelper):
 
     def test_network(self):
