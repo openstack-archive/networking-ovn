@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+
 from neutron.api import extensions
 from neutron.api.v2 import attributes
 from neutron.common import config
@@ -63,11 +65,39 @@ class TestMaintenance(test_securitygroup.SecurityGroupsTestCase,
         revision_plugin.RevisionPlugin()
         self.net = self._make_network(self.fmt, 'net1', True)['network']
 
+        # Mock the default value for INCONSISTENCIES_OLDER_THAN so
+        # tests won't need to wait for the timeout in order to validate
+        # the database inconsistencies
+        self.older_than_mock = mock.patch(
+            'networking_ovn.db.maintenance.INCONSISTENCIES_OLDER_THAN', -1)
+        self.older_than_mock.start()
+        self.addCleanup(self.older_than_mock.stop)
+
     def test_get_inconsistent_resources(self):
         # Set the intial revision to -1 to force it to be incosistent
         db_rev.create_initial_revision(
             self.net['id'], constants.TYPE_NETWORKS, self.session,
             revision_number=-1)
+        res = db_maint.get_inconsistent_resources()
+        self.assertEqual(1, len(res))
+        self.assertEqual(self.net['id'], res[0].resource_uuid)
+
+    def test_get_inconsistent_resources_older_than(self):
+        # Stop the mock so the INCONSISTENCIES_OLDER_THAN will have
+        # it's default value
+        self.older_than_mock.stop()
+        db_rev.create_initial_revision(
+            self.net['id'], constants.TYPE_NETWORKS, self.session,
+            revision_number=-1)
+        res = db_maint.get_inconsistent_resources()
+
+        # Assert that nothing is returned because the entry is not old
+        # enough to be picked as an inconsistency
+        self.assertEqual(0, len(res))
+
+        # Start the mock again and make sure it nows shows up as an
+        # inconsistency
+        self.older_than_mock.start()
         res = db_maint.get_inconsistent_resources()
         self.assertEqual(1, len(res))
         self.assertEqual(self.net['id'], res[0].resource_uuid)
