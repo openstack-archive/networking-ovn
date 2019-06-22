@@ -13,12 +13,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
+
 from neutron.db import standard_attr
 from neutron_lib.db import api as db_api
+from oslo_utils import timeutils
 import sqlalchemy as sa
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import models
+
+# Time (in seconds) used to identify if an entry is new before considering
+# it an inconsistency
+INCONSISTENCIES_OLDER_THAN = 60
 
 
 def get_inconsistent_resources():
@@ -30,16 +37,21 @@ def get_inconsistent_resources():
     sort_order = sa.case(value=models.OVNRevisionNumbers.resource_type,
                          whens=ovn_const.MAINTENANCE_CREATE_UPDATE_TYPE_ORDER)
     session = db_api.get_reader_session()
+    time_ = (timeutils.utcnow() -
+             datetime.timedelta(seconds=INCONSISTENCIES_OLDER_THAN))
     with session.begin():
-        return (session.query(models.OVNRevisionNumbers).
-                join(
-                    standard_attr.StandardAttribute,
-                    models.OVNRevisionNumbers.standard_attr_id ==
-                    standard_attr.StandardAttribute.id).
-                filter(
-                    models.OVNRevisionNumbers.revision_number !=
-                    standard_attr.StandardAttribute.revision_number).
-                order_by(sort_order).all())
+        query = session.query(models.OVNRevisionNumbers).join(
+            standard_attr.StandardAttribute,
+            models.OVNRevisionNumbers.standard_attr_id ==
+            standard_attr.StandardAttribute.id)
+        # Filter out new entries
+        query = query.filter(
+            standard_attr.StandardAttribute.created_at < time_)
+        # Filter for resources which revision_number differs
+        query = query.filter(
+            models.OVNRevisionNumbers.revision_number !=
+            standard_attr.StandardAttribute.revision_number)
+        return query.order_by(sort_order).all()
 
 
 def get_deleted_resources():
