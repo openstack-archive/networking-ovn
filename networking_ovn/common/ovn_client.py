@@ -667,6 +667,23 @@ class OVNClient(object):
         commands.append(self._nb_idl.add_nat_rule_in_lrouter(gw_lrouter_name,
                                                              **columns))
 
+        # Get the logical port (of the private network) and set the field
+        # external_ids:fip=<FIP>. This will be used by the ovn octavia driver
+        # to add the floating ip as vip in the Load_Balancer.vips column.
+        private_lsp = self._nb_idl.get_lswitch_port(floatingip['port_id'])
+
+        if private_lsp:
+            port_fip = {
+                ovn_const.OVN_PORT_FIP_EXT_ID_KEY:
+                    floatingip['floating_ip_address']}
+            commands.append(
+                self._nb_idl.db_set('Logical_Switch_Port', private_lsp.uuid,
+                                    ('external_ids', port_fip))
+            )
+        else:
+            LOG.warning("LSP for floatingip %s, has not been found! "
+                        "Cannot set FIP on VIP.",
+                        floatingip['id'])
         self._transaction(commands, txn=txn)
 
     def _delete_floatingip(self, fip, lrouter, txn=None):
@@ -674,6 +691,20 @@ class OVNClient(object):
                     lrouter, type='dnat_and_snat',
                     logical_ip=fip['logical_ip'],
                     external_ip=fip['external_ip'])]
+        try:
+            port_id = (
+                fip['external_ids'].get(ovn_const.OVN_FIP_PORT_EXT_ID_KEY))
+            if port_id:
+                private_lsp = self._nb_idl.get_lswitch_port(port_id)
+                if private_lsp:
+                    commands.append(
+                        self._nb_idl.db_remove(
+                            'Logical_Switch_Port', private_lsp.uuid,
+                            'external_ids',
+                            (ovn_const.OVN_PORT_FIP_EXT_ID_KEY))
+                    )
+        except KeyError:
+            LOG.debug("FIP %s doesn't have external_ids.", fip)
         self._transaction(commands, txn=txn)
 
     def update_floatingip_status(self, floatingip):
