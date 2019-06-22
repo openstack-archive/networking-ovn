@@ -100,6 +100,8 @@ class FakeOvsdbNbOvnIdl(object):
         self.get_lswitch = mock.Mock()
         fake_ovs_row = FakeOvsdbRow.create_one_ovsdb_row()
         self.get_lswitch.return_value = fake_ovs_row
+        self.get_lswitch_port = mock.Mock()
+        self.get_lswitch_port.return_value = fake_ovs_row
         self.get_ls_and_dns_record = mock.Mock()
         self.get_ls_and_dns_record.return_value = (fake_ovs_row, None)
         self.ls_set_dns_records = mock.Mock()
@@ -138,6 +140,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.db_find = mock.Mock()
         self.db_set = mock.Mock()
         self.db_clear = mock.Mock()
+        self.db_remove = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
