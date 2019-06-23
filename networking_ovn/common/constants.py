@@ -156,6 +156,7 @@ DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
 
 # Loadbalancer constants
 LRP_PREFIX = "lrp-"
+LB_VIP_PORT_PREFIX = "ovn-lb-vip-"
 
 # Hash Ring constants
 HASH_RING_NODES_TIMEOUT = 60
