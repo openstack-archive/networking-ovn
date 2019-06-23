@@ -24,6 +24,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
 from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
 
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.octavia import ovn_driver
 from networking_ovn.tests.functional import base
 
@@ -81,6 +82,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         return e1, e1_s1
 
     def _create_lb_model(self, vip=None, vip_network_id=None,
+                         vip_port_id=None,
                          admin_state_up=True):
         lb = octavia_data_model.LoadBalancer()
         lb.loadbalancer_id = uuidutils.generate_uuid()
@@ -92,6 +94,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         if vip_network_id:
             lb.vip_network_id = vip_network_id
+        if vip_port_id:
+            lb.vip_port_id = vip_port_id
         lb.admin_state_up = admin_state_up
         return lb
 
@@ -265,6 +269,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         lb_data['vip_net_info'] = net_info
         lb_data['model'] = self._create_lb_model(vip=net_info[2],
                                                  vip_network_id=net_info[0],
+                                                 vip_port_id=net_info[3],
                                                  admin_state_up=admin_state_up)
         lb_data[ovn_driver.LB_EXT_IDS_LS_REFS_KEY] = {}
         lb_data['listeners'] = []
@@ -274,6 +279,12 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             return lb_data
 
         self.ovn_driver.loadbalancer_create(lb_data['model'])
+
+        name = '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                         lb_data['model'].loadbalancer_id)
+        self.driver.update_port(
+            self.context, net_info[3], {'port': {'name': name}})
+
         if lb_data['model'].admin_state_up:
             expected_status = {
                 'loadbalancers': [{"id": lb_data['model'].loadbalancer_id,
@@ -1071,3 +1082,73 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._update_members_in_batch_and_validate(lb_data, pool_id,
                                                    [m_member])
         self._delete_load_balancer_and_validate(lb_data)
+
+    def test_fip_on_lb_vip(self):
+        """This test checks if FIP on LB VIP is configured.
+
+           This test validates if Load_Balancer VIP field
+           consist Floating IP address that is configured
+           on LB VIP port.
+        """
+        # Create LB
+        lb_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'vip_network',
+             'cidr': '10.0.0.0/24'})
+        # Create a pool
+        self._create_pool_and_validate(lb_data, "p1")
+        pool_id = lb_data['pools'][0].pool_id
+        # Create listener
+        self._create_listener_and_validate(lb_data, pool_id, 80)
+        # Create Member-1 and associate it with lb_data
+        self._create_member_and_validate(
+            lb_data, pool_id, lb_data['vip_net_info'][1],
+            lb_data['vip_net_info'][0], '10.0.0.10')
+
+        # Create provider network.
+        e1, e1_s1 = self._create_provider_network()
+
+        # Configure external_gateway for router
+        router_id = lb_data['lr_ref'][8::]
+        self.l3_plugin.update_router(
+            self.context,
+            router_id,
+            {'router': {
+                'id': router_id,
+                'external_gateway_info': {
+                    'enable_snat': True,
+                    'network_id': e1['network']['id'],
+                    'external_fixed_ips': [
+                        {'ip_address': '100.0.0.2',
+                         'subnet_id': e1_s1['subnet']['id']}]}}})
+
+        # Create floating IP on LB VIP port
+        vip_port_id = lb_data['model'].vip_port_id
+        vip_port = self.core_plugin.get_ports(
+            self.context, filters={'id': [vip_port_id]})[0]
+        self.l3_plugin.create_floatingip(
+            self.context, {'floatingip': {
+                'tenant_id': self._tenant_id,
+                'floating_network_id': e1['network']['id'],
+                'subnet_id': None,
+                'floating_ip_address': '100.0.0.20',
+                'port_id': vip_port['id']}})
+
+        # Validate if FIP is stored as VIP in LB
+        lbs = self._get_loadbalancers()
+        expected_vips = {
+            '%s:80' % vip_port['fixed_ips'][0]['ip_address']: '10.0.0.10:80',
+            '100.0.0.20:80': '10.0.0.10:80'}
+        self.assertDictEqual(expected_vips,
+                             lbs[0].get('vips'))
+
+        provider_net = 'neutron-%s' % e1['network']['id']
+        tenant_net = 'neutron-%s' % lb_data['model'].vip_network_id
+        for ls in self.nb_api.tables['Logical_Switch'].rows.values():
+            if ls.name == tenant_net:
+                # Make sure that LB1 is added to tenant network
+                self.assertIn(
+                    lb_data['model'].loadbalancer_id,
+                    [lb.name for lb in ls.load_balancer])
+            elif ls.name == provider_net:
+                # Make sure that LB1 is not added to provider net - e1 LS
+                self.assertListEqual([], ls.load_balancer)
