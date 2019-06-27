@@ -20,7 +20,7 @@ import mock
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.tests.unit.plugins.ml2 import test_plugin
-from neutron.tests.unit import testlib_api
+from neutron_lib import fixture
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from oslo_concurrency import lockutils
@@ -63,7 +63,7 @@ class ConnectionFixture(fixtures.Fixture):
         self.connection.stop()
 
 
-class OVNSqlFixture(testlib_api.StaticSqlFixture):
+class OVNSqlFixture(fixture.StaticSqlFixture):
 
     @classmethod
     @lockutils.synchronized(SQL_FIXTURE_LOCK)
