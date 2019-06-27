@@ -23,9 +23,14 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 from ovs.stream import Stream
+from ovsdbapp.backend.ovs_idl import connection
+from ovsdbapp.backend.ovs_idl import event as row_event
+from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
 from stevedore import driver
+import tenacity
 
+from neutronclient.common import exceptions as n_exc
 from octavia_lib.api.drivers import data_models as o_datamodels
 from octavia_lib.api.drivers import driver_lib as o_driver_lib
 from octavia_lib.api.drivers import exceptions as driver_exceptions
@@ -34,140 +39,13 @@ from octavia_lib.common import constants
 
 from networking_ovn._i18n import _
 from networking_ovn.common import config as ovn_cfg
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
+from networking_ovn.ovsdb import ovsdb_monitor
 
 CONF = cfg.CONF  # Gets Octavia Conf as it runs under o-api domain
 
 LOG = logging.getLogger(__name__)
-
-"""
-OVN Northbound schema [1] has a table to store load balancers.
-The table looks like
-
-"Load_Balancer": {
-    "columns": {
-        "name": {"type": "string"},
-        "vips": {
-            "type": {"key": "string", "value": "string",
-                     "min": 0, "max": "unlimited"}},
-        "protocol": {
-            "type": {"key": {"type": "string",
-                             "enum": ["set", ["tcp", "udp"]]},
-                             "min": 0, "max": 1}},
-        "external_ids": {
-            "type": {"key": "string", "value": "string",
-                    "min": 0, "max": "unlimited"}}},
-        "isRoot": true},
-
-Logical_Switch table (which corresponds to neutron network) has a column
-'load_balancers' which refers to the 'Load_Balancer' table.
-
-This driver updates this database. When a load balancer is created, a row in
-this table is created. And when the listeners and members are added, 'vips'
-column is updated accordingly. And the Logical_Switch's 'load_balancers'
-column is also updated accordingly.
-
-ovn-northd service which monitors for changes to the OVN Northbound db,
-generates OVN logical flows to enable load balancing and ovn-controller running
-on each compute node, translates the logical flows into actual OF Flows.
-[1] - https://github.com/openvswitch/ovs/blob/
-d1b235d7a6246e00d4afc359071d3b6b3ed244c3/ovn/ovn-nb.ovsschema#L117.
-
-Below  are few examples on what happens when loadbalancer commands are
-executed and what changes in the Load_Balancer Northbound db table.
-
-1. Create a load balancer
-$openstack loadbalancer create --provider ovn --vip-subnet-id=private lb1
-
-
-$ ovn-nbctl list load_balancer
-
-_uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
-external_ids  : {
-    lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
-    ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 1}",
-    neutron:vip="10.0.0.10",
-    neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
-
-name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
-protocol      : []
-vips          : {}
-
-
-2.  Create a pool
-$openstack loadbalancer pool create --name p1 --loadbalancer lb1
- --protocol TCP   --lb-algorithm ROUND_ROBIN
-
-$ovn-nbctl list load_balancer
-_uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
-external_ids  : {
-    lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
-    ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 1}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"="", neutron:vip="10.0.0.10",
-    neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
-name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
-protocol      : []
-vips          : {}
-
-3. Create a member
-$openstack loadbalancer member create --address 10.0.0.107
- --subnet-id 2d54ec67-c589-473b-bc67-41f3d1331fef  --protocol-port 80 p1
-
-$ovn-nbctl list load_balancer
-_uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
-external_ids  : {
-    lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
-    ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 2}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"=
-    "member_579c0c9f-d37d-4ba5-beed-cabf6331032d_10.0.0.107:80",
-    neutron:vip="10.0.0.10",
-    neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
-name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
-protocol      : []
-vips          : {}
-
-4. Create another member
-
-$openstack loadbalancer member create --address 20.0.0.107
- --subnet-id c2e2da10-1217-4fe2-837a-1c45da587df7   --protocol-port 80 p1
-
-$ovn-nbctl list load_balancer
-_uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
-external_ids  : {
-    lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
-    ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 2,
-              \"neutron-12c42705-3e15-4e2d-8fc0-070d1b80b9ef\": 1}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"=
-    "member_579c0c9f-d37d-4ba5-beed-cabf6331032d_10.0.0.107:80,
-     member_d100f2ed-9b55-4083-be78-7f203d095561_20.0.0.107:80",
-    neutron:vip="10.0.0.10",
-    neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
-name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
-protocol      : []
-vips          : {}
-
-5. Create a listener
-
-$openstack loadbalancer listener create --name l1 --protocol TCP
- --protocol-port 82 --default-pool p1 lb1
-
-$ovn-nbctl list load_balancer
-_uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
-external_ids  : {
-    lr_ref="neutron-52b6299c-6e38-4226-a275-77370296f257",
-    ls_refs="{\"neutron-2526c68a-5a9e-484c-8e00-0716388f6563\": 2,
-              \"neutron-12c42705-3e15-4e2d-8fc0-070d1b80b9ef\": 1}",
-    "pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9"="10.0.0.107:80,20.0.0.107:80",
-    "listener_12345678-2501-43f2-b34e-38a9cb7e4132"=
-        "82:pool_f2ddf7a6-4047-4cc9-97be-1d1a6c47ece9",
-    neutron:vip="10.0.0.10",
-    neutron:vip_port_id="2526c68a-5a9e-484c-8e00-0716388f6563"}
-name          : "973a201a-8787-4f6e-9b8f-ab9f93c31f44"
-protocol      : []
-vips          : {"10.0.0.10:82"="10.0.0.107:80,20.0.0.107:80"}
-
-"""
-
 
 REQ_TYPE_LB_CREATE = 'lb_create'
 REQ_TYPE_LB_DELETE = 'lb_delete'
@@ -182,6 +60,9 @@ REQ_TYPE_POOL_UPDATE = 'pool_update'
 REQ_TYPE_MEMBER_CREATE = 'member_create'
 REQ_TYPE_MEMBER_DELETE = 'member_delete'
 REQ_TYPE_MEMBER_UPDATE = 'member_update'
+REQ_TYPE_LB_CREATE_LRP_ASSOC = 'lb_create_lrp_assoc'
+REQ_TYPE_LB_DELETE_LRP_ASSOC = 'lb_delete_lrp_assoc'
+
 REQ_TYPE_EXIT = 'exit'
 
 DISABLED_RESOURCE_SUFFIX = 'D'
@@ -209,6 +90,69 @@ def get_network_driver():
     ).driver
 
 
+class LogicalRouterPortEvent(row_event.RowEvent):
+
+    driver = None
+
+    def __init__(self, driver):
+        table = 'Logical_Router_Port'
+        events = (self.ROW_CREATE, self.ROW_DELETE)
+        super(LogicalRouterPortEvent, self).__init__(
+            events, table, None)
+        self.event_name = 'LogicalRouterPortEvent'
+        self.driver = driver
+
+    def run(self, event, row, old):
+        LOG.debug('LogicalRouterPortEvent logged, '
+                  '%(event)s, %(row)s',
+                  {'event': event,
+                   'row': row})
+        if not self.driver or row.gateway_chassis:
+            return
+        if event == self.ROW_CREATE:
+            self.driver.lb_create_lrp_assoc_handler(row)
+        elif event == self.ROW_DELETE:
+            self.driver.lb_delete_lrp_assoc_handler(row)
+
+
+class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
+
+    SCHEMA = "OVN_Northbound"
+
+    def __init__(self):
+        self.tables = ('Logical_Switch', 'Load_Balancer', 'Logical_Router',
+                       'Logical_Switch_Port', 'Logical_Router_Port',
+                       'Gateway_Chassis')
+        self.conn_string = ovn_cfg.get_ovn_nb_connection()
+        helper = self._get_ovsdb_helper(self.conn_string)
+        for table in self.tables:
+            helper.register_table(table)
+        super(OvnNbIdlForLb, self).__init__(
+            driver=None, remote=self.conn_string, schema=helper)
+        self.event_lock_name = "neutron_ovn_octavia_event_lock"
+
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(max=180),
+        reraise=True)
+    def _get_ovsdb_helper(self, connection_string):
+        return idlutils.get_schema_helper(connection_string, self.SCHEMA)
+
+    def start(self):
+        self.conn = connection.Connection(
+            self, timeout=ovn_cfg.get_ovn_ovsdb_timeout())
+        return idl_ovn.OvnNbApiIdlImpl(self.conn)
+
+    def stop(self):
+        # Close the running connection
+        if not self.conn.stop(timeout=ovn_cfg.get_ovn_ovsdb_timeout()):
+            LOG.debug("Connection terminated to OvnNb "
+                      "but a thread is still alive")
+        # complete the shutdown for the event handler
+        self.notify_handler.shutdown()
+        # Close the idl session
+        self.close()
+
+
 class OvnProviderHelper(object):
 
     ovn_nbdb_api = None
@@ -219,7 +163,7 @@ class OvnProviderHelper(object):
         self.helper_thread.daemon = True
         atexit.register(self.shutdown)
         self._octavia_driver_lib = o_driver_lib.DriverLibrary()
-        self._init_ovnnb_db_api()
+        self._check_and_set_ssl_files()
         self._init_lb_actions()
         self.start()
 
@@ -238,24 +182,15 @@ class OvnProviderHelper(object):
             REQ_TYPE_MEMBER_CREATE: self.member_create,
             REQ_TYPE_MEMBER_DELETE: self.member_delete,
             REQ_TYPE_MEMBER_UPDATE: self.member_update,
+            REQ_TYPE_LB_CREATE_LRP_ASSOC: self.lb_create_lrp_assoc,
+            REQ_TYPE_LB_DELETE_LRP_ASSOC: self.lb_delete_lrp_assoc,
         }
 
-    def _init_ovnnb_db_api(self):
+    def _check_and_set_ssl_files(self):
+        # TODO(reedip): Make ovsdb_monitor's _check_and_set_ssl_files() public
+        # This is a copy of ovsdb_monitor._check_and_set_ssl_files
         if OvnProviderHelper.ovn_nbdb_api:
             return
-
-        tables = ('Logical_Switch', 'Load_Balancer', 'Logical_Router',
-                  'Logical_Switch_Port', 'Logical_Router_Port')
-        conn = ovn_utils.get_ovsdb_connection(
-            ovn_cfg.get_ovn_nb_connection(), 'OVN_Northbound',
-            ovn_cfg.get_ovn_ovsdb_timeout(), tables=tables)
-
-        # idl_ovn.OvnNbApiIdlImpl.ovsdb_connection is a class variable.
-        # So set it to None so that we don't use any old connection object.
-        # See ovsdbapp.backend.ovs_idl.Backend class for more details.
-        idl_ovn.OvnNbApiIdlImpl.ovsdb_connection = None
-        OvnProviderHelper.ovn_nbdb_api = idl_ovn.OvnNbApiIdlImpl(conn)
-
         priv_key_file = ovn_cfg.get_ovn_nb_private_key()
         cert_file = ovn_cfg.get_ovn_nb_certificate()
         ca_cert_file = ovn_cfg.get_ovn_nb_ca_cert()
@@ -269,7 +204,130 @@ class OvnProviderHelper(object):
             Stream.ssl_set_ca_cert_file(ca_cert_file)
 
     def start(self):
+        self.ovn_nb_idl_for_lb = OvnNbIdlForLb()
+        OvnProviderHelper.ovn_nbdb_api = self.ovn_nb_idl_for_lb.start()
+        events = [LogicalRouterPortEvent(self)]
+        self.ovn_nb_idl_for_lb.notify_handler.watch_events(events)
         self.helper_thread.start()
+
+    def shutdown(self):
+        self.requests.put({'type': REQ_TYPE_EXIT})
+        self.helper_thread.join()
+        self.ovn_nb_idl_for_lb.stop()
+
+    @staticmethod
+    def _map_val(row, col, key):
+        # If the row doesnt exist, RowNotFound is raised by the _map_val
+        # and is expected to be caught by the caller.
+        try:
+            return getattr(row, col)[key]
+        except KeyError:
+            raise idlutils.RowNotFound(table=row._table.name,
+                                       col=col, match=key)
+
+    def _get_nw_router_info_on_interface_event(self, lrp):
+        """Get the Router and Network information on an interface event
+
+        This function is called when a new interface between a router and
+        a network is added or deleted.
+        Input: Logical Router Port row which is coming from
+               LogicalRouterPortEvent.
+        Output: A row from router table and network table matching the router
+                and network for which the event was generated.
+        Exception: RowNotFound exception can be generated.
+        """
+        router = self.ovn_nbdb_api.lookup(
+            'Logical_Router', ovn_utils.ovn_name(self._map_val(
+                lrp, 'external_ids', ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY)))
+        network = self.ovn_nbdb_api.lookup(
+            'Logical_Switch',
+            self._map_val(lrp, 'external_ids',
+                          ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY))
+        return router, network
+
+    def lb_delete_lrp_assoc_handler(self, row):
+        try:
+            router, network = self._get_nw_router_info_on_interface_event(row)
+        except idlutils.RowNotFound:
+            LOG.debug("Router or network information not found")
+            return
+        request_info = {'network': network,
+                        'router': router}
+        self.add_request({'type': REQ_TYPE_LB_DELETE_LRP_ASSOC,
+                          'info': request_info})
+
+    def lb_delete_lrp_assoc(self, info):
+        # TODO(reedip): When OVS>=2.12, LB can be deleted without removing
+        # Network and Router references as pushed in the patch
+        # https://github.com/openvswitch/ovs/commit
+        # /612f80fa8ebf88dad2e204364c6c02b451dca36c
+        commands = []
+        network = info['network']
+        router = info['router']
+
+        # Find all loadbalancers which have a reference with the network
+        nw_lb = self._find_lb_in_ls(network=network)
+        # Find all loadbalancers which have a reference with the router
+        r_lb = set(router.load_balancer) - nw_lb
+        # Delete all LB on N/W from Router
+        for nlb in nw_lb:
+            commands.extend(self._update_lb_to_lr_association(nlb, router,
+                                                              delete=True))
+        # Delete all LB on Router from N/W
+        for rlb in r_lb:
+            commands.append(self.ovn_nbdb_api.ls_lb_del(
+                network.uuid, rlb.uuid))
+        if commands:
+            self._execute_commands(commands)
+
+    def lb_create_lrp_assoc_handler(self, row):
+        try:
+            router, network = self._get_nw_router_info_on_interface_event(row)
+        except idlutils.RowNotFound:
+            LOG.debug("Router or network information not found")
+            return
+        request_info = {'network': network,
+                        'router': router}
+        self.add_request({'type': REQ_TYPE_LB_CREATE_LRP_ASSOC,
+                          'info': request_info})
+
+    def lb_create_lrp_assoc(self, info):
+        commands = []
+
+        router_lb = set(info['router'].load_balancer)
+        network_lb = set(info['network'].load_balancer)
+        # Add only those lb to routers which are unique to the network
+        for lb in (network_lb - router_lb):
+            commands.extend(self._update_lb_to_lr_association(
+                lb, info['router']))
+
+        # Add those lb to the network which are unique to the router
+        for lb in (router_lb - network_lb):
+            commands.append(self.ovn_nbdb_api.ls_lb_add(
+                            info['network'].uuid, lb.uuid, may_exist=True))
+        if commands:
+            self._execute_commands(commands)
+
+    def _find_lb_in_ls(self, network):
+        """Find LB associated to a Network using Network information
+
+        This function retrieves those loadbalancers whose ls_ref
+        column in the OVN northbound database's load_balancer table
+        has the network's name. Though different networks can be
+        associated with a loadbalancer, but ls_ref of a loadbalancer
+        points to the network where it was actually created, and this
+        function tries to retrieve all those loadbalancers created on this
+        network.
+        Input : row of type Logical_Switch
+        Output: set of rows of type Load_Balancer or empty set
+        """
+        return {lb for lb in network.load_balancer
+                if network.name in lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY,
+                                                       [])}
+
+    def _find_lb_in_table(self, lb, table):
+        return [item for item in self.ovn_nbdb_api.tables[table].rows.values()
+                if lb in item.load_balancer]
 
     def request_handler(self):
         while True:
@@ -293,26 +351,27 @@ class OvnProviderHelper(object):
     def add_request(self, req):
         self.requests.put(req)
 
-    def shutdown(self):
-        self.requests.put({'type': REQ_TYPE_EXIT})
-
     def _update_status_to_octavia(self, status):
         try:
             self._octavia_driver_lib.update_loadbalancer_status(status)
         except driver_exceptions.UpdateStatusError as e:
-            # TODO(numans): Handle the exception properly
-            LOG.error('Error while updating the load balancer status: %s',
-                      e.fault_string)
+            msg = ("Error while updating the load balancer "
+                   "status: %s") % e.fault_string
+            LOG.error(msg)
+            raise driver_exceptions.UpdateStatusError(msg)
 
-    def _find_ovn_lb(self, loadbalancer_id):
-        find_condition = ('name', '=', loadbalancer_id)
-        ovn_lb = self.ovn_nbdb_api.db_find(
-            'Load_Balancer', find_condition, row=True).execute(
-                check_error=True)
-        if len(ovn_lb) > 1:
-            LOG.warning("Two or more load balancer named '%s' "
-                        "have been found in the database", loadbalancer_id)
-        return ovn_lb[0] if len(ovn_lb) == 1 else None
+    def _find_ovn_lb(self, lb_id):
+        """Find the Loadbalancer in OVN with the given lb_id as its name
+
+        This function searches for the LoadBalancer whose Name has the pattern
+        passed in lb_id.
+        Input: String format of LoadBalancer ID provided by Octavia in its API
+               request. Note that OVN saves the above ID in the 'name' column.
+        Output: LoadBalancer row matching the lb_id
+        Exception: RowNotFound can be generated if the LoadBalancer is not
+                   found.
+        """
+        return self.ovn_nbdb_api.lookup('Load_Balancer', lb_id)
 
     def _find_ovn_lb_with_pool_key(self, pool_key):
         lbs = self.ovn_nbdb_api.db_list_rows('Load_Balancer').execute()
@@ -327,6 +386,11 @@ class OvnProviderHelper(object):
 
     def _update_lb_to_ls_association(self, ovn_lb, network_id=None,
                                      subnet_id=None, associate=True):
+        """Update LB association with Logical Switch
+
+           This function deals with updating the References of Logical Switch
+           in LB and addition of LB to LS.
+        """
         commands = []
         if not network_id and not subnet_id:
             return commands
@@ -380,18 +444,79 @@ class OvnProviderHelper(object):
 
         return commands
 
-    def _update_lb_to_lr_association(self, ovn_lb, ovn_lr):
+    def _del_lb_to_lr_association(self, ovn_lb, ovn_lr, lr_ref):
         commands = []
-        lr_ref = {LB_EXT_IDS_LR_REF_KEY: ovn_lr.name}
+        if lr_ref:
+            try:
+                lr_ref = [r for r in
+                          [lr.strip() for lr in lr_ref.split(',')]
+                          if r != ovn_lr.name]
+            except ValueError:
+                msg = ('The loadbalancer %(lb)s is not associated with '
+                       'the router %(router)s' %
+                       {'lb': ovn_lb.name,
+                        'router': ovn_lr.name})
+                LOG.warning(msg)
+            if lr_ref:
+                commands.append(
+                    self.ovn_nbdb_api.db_set(
+                        'Load_Balancer', ovn_lb.uuid,
+                        ('external_ids',
+                         {LB_EXT_IDS_LR_REF_KEY: ','.join(lr_ref)})))
+            else:
+                commands.append(
+                    self.ovn_nbdb_api.db_remove(
+                        'Load_Balancer', ovn_lb.uuid, 'external_ids',
+                        (LB_EXT_IDS_LR_REF_KEY))
+                )
+            commands.append(
+                self.ovn_nbdb_api.lr_lb_del(ovn_lr.uuid, ovn_lb.uuid,
+                                            if_exists=True)
+            )
+        for net in self._find_ls_for_lr(ovn_lr):
+            commands.append(self.ovn_nbdb_api.ls_lb_del(
+                net, ovn_lb.uuid, if_exists=True))
+        return commands
+
+    def _add_lb_to_lr_association(self, ovn_lb, ovn_lr, lr_rf):
+        commands = []
+        commands.append(
+            self.ovn_nbdb_api.lr_lb_add(ovn_lr.uuid, ovn_lb.uuid,
+                                        may_exist=True)
+        )
+        for net in self._find_ls_for_lr(ovn_lr):
+            commands.append(self.ovn_nbdb_api.ls_lb_add(
+                net, ovn_lb.uuid, may_exist=True))
+
+        # Multiple routers in lr_rf are separated with ','
+        lr_rf = {LB_EXT_IDS_LR_REF_KEY: ovn_lr.name} if not lr_rf else {
+            LB_EXT_IDS_LR_REF_KEY: "%s,%s" % (lr_rf, ovn_lr.name)}
         commands.append(
             self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
-                                     ('external_ids', lr_ref))
+                                     ('external_ids', lr_rf))
         )
-        commands.append(
-            self.ovn_nbdb_api.lr_lb_add(ovn_lr.uuid, ovn_lb.uuid)
-        )
-
         return commands
+
+    def _update_lb_to_lr_association(self, ovn_lb, ovn_lr, delete=False):
+        lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY)
+        if delete:
+            return self._del_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
+        else:
+            return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
+
+    def _find_ls_for_lr(self, router):
+        # NOTE(mjozefcz): We skip here ports connected to
+        # provider networks (with gateway_chassis set).
+        netdriver = get_network_driver()
+        try:
+            return [ovn_utils.ovn_name(netdriver.get_subnet(sid).network_id)
+                    for port in router.ports
+                    for sid in port.external_ids.get(
+                        ovn_const.OVN_SUBNET_EXT_IDS_KEY, '').split(' ')
+                    if not port.gateway_chassis]
+        except Exception:
+            LOG.exception('Unknown exception occurred')
+            return []
 
     def _find_lr_of_ls(self, ovn_ls):
         lsp_router_port = None
@@ -410,6 +535,10 @@ class OvnProviderHelper(object):
             for lrp in lr.ports:
                 if lrp.name == lrp_name:
                     return lr
+            # Handles networks with only gateway port in the router
+            if ovn_utils.ovn_lrouter_port_name(
+                    lr.external_ids.get("neutron:gw_port_id")) == lrp_name:
+                return lr
 
     def _get_listener_key(self, listener_id, is_enabled=True):
         listener_key = LB_EXT_IDS_LISTENER_PREFIX + str(listener_id)
@@ -544,6 +673,8 @@ class OvnProviderHelper(object):
                     ovn_lb, ovn_lr))
             self._execute_commands(commands)
             operating_status = constants.ONLINE
+            # The issue is that since OVN doesnt support any HMs,
+            # we ideally should never put the status as 'ONLINE'
             if not loadbalancer.get('admin_state_up', True):
                 operating_status = constants.OFFLINE
             status = {
@@ -570,6 +701,8 @@ class OvnProviderHelper(object):
         return status
 
     def lb_delete(self, loadbalancer):
+        commands = []
+        port_id = None
         try:
             status = {'loadbalancers': [{"id": loadbalancer['id'],
                                          "provisioning_status": "DELETED",
@@ -577,7 +710,7 @@ class OvnProviderHelper(object):
             ovn_lb = None
             try:
                 ovn_lb = self._find_ovn_lb(loadbalancer['id'])
-            except IndexError:
+            except idlutils.RowNotFound:
                 LOG.warning("Loadbalancer %s not found in OVN Northbound DB."
                             "Setting the Loadbalancer status to DELETED "
                             "in Octavia", str(loadbalancer['id']))
@@ -622,17 +755,19 @@ class OvnProviderHelper(object):
             # Delete the VIP Port
             self.delete_vip_port(ovn_lb.external_ids[
                 LB_EXT_IDS_VIP_PORT_ID_KEY])
-            commands = []
             for ls_name in ls_refs.keys():
                 ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
                     check_error=True)
                 if ovn_ls:
                     commands.append(
-                        self.ovn_nbdb_api.ls_lb_del(ovn_ls.uuid, ovn_lb.uuid,
-                                                    if_exists=True)
+                        self.ovn_nbdb_api.ls_lb_del(ovn_ls.uuid, ovn_lb.uuid)
                     )
-
-            lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY)
+            # Delete LB from all Networks the LB is indirectly associated
+            for ls in self._find_lb_in_table(ovn_lb, 'Logical_Switch'):
+                commands.append(
+                    self.ovn_nbdb_api.ls_lb_del(ls.uuid, ovn_lb.uuid,
+                                                if_exists=True))
+            lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY, {})
             if lr_ref:
                 for lr in self.ovn_nbdb_api.tables['Logical_Router'].rows.\
                     values():
@@ -640,14 +775,22 @@ class OvnProviderHelper(object):
                         commands.append(self.ovn_nbdb_api.lr_lb_del(
                             lr.uuid, ovn_lb.uuid))
                         break
-
+            # Delete LB from all Routers the LB is indirectly associated
+            for lr in self._find_lb_in_table(ovn_lb, 'Logical_Router'):
+                commands.append(
+                    self.ovn_nbdb_api.lr_lb_del(lr.uuid, ovn_lb.uuid,
+                                                if_exists=True))
+            # Save the port ID before deleting the LoadBalancer
+            port_id = ovn_lb.external_ids[LB_EXT_IDS_VIP_PORT_ID_KEY]
             commands.append(self.ovn_nbdb_api.lb_del(ovn_lb.uuid))
             self._execute_commands(commands)
-
-            # We need to delete the vip port
+            # We need to delete the vip port but not fail LB delete if port
+            # delete fails. Can happen when Port deleted manually by user.
             network_driver = get_network_driver()
-            network_driver.neutron_client.delete_port(
-                ovn_lb.external_ids[LB_EXT_IDS_VIP_PORT_ID_KEY])
+            network_driver.neutron_client.delete_port(port_id)
+        except n_exc.PortNotFoundClient:
+            LOG.warning("Port %s could not be found. Please "
+                        "check Neutron logs", port_id)
         except Exception:
             LOG.exception(EXCEPTION_MSG, "deletion of loadbalancer")
             status = {
@@ -1020,7 +1163,10 @@ class OvnProviderHelper(object):
                 commands.extend(
                     self._refresh_lb_vips(ovn_lb.uuid, external_ids))
                 self._execute_commands(commands)
-            if pool['admin_state_up']:
+            if pool['admin_state_up'] and not external_ids.get(pool_key):
+                # Operating status can be ONLINE if members are present and
+                # admin_state_up is True. If either is false, operating_status
+                # is OFFLINE
                 operating_status = constants.ONLINE
             else:
                 operating_status = constants.OFFLINE
@@ -1137,7 +1283,7 @@ class OvnProviderHelper(object):
             self._execute_commands(commands)
             return pool_status
         else:
-            msg = _("Member %s not found in the pool") % member['id']
+            msg = "Member %s not found in the pool" % member['id']
             raise driver_exceptions.DriverError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
