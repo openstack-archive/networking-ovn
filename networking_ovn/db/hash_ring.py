@@ -43,11 +43,25 @@ def remove_nodes_from_host():
             hostname=CONF.host).delete()
 
 
-def touch_nodes_from_host():
+def _touch(hostname=None, node_uuid=None):
+    filter_args = {}
+    if hostname:
+        filter_args['hostname'] = hostname
+    if node_uuid:
+        filter_args['node_uuid'] = node_uuid
+
     session = db_api.get_writer_session()
     with session.begin():
         session.query(models.OVNHashRing).filter_by(
-            hostname=CONF.host).update({'updated_at': timeutils.utcnow()})
+            **filter_args).update({'updated_at': timeutils.utcnow()})
+
+
+def touch_nodes_from_host():
+    _touch(hostname=CONF.host)
+
+
+def touch_node(node_uuid):
+    _touch(node_uuid=node_uuid)
 
 
 def get_active_nodes(interval, from_host=False):

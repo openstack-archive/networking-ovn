@@ -386,10 +386,7 @@ class DBInconsistenciesPeriodics(object):
 
         raise periodics.NeverAgain()
 
-    # The static spacing value here is half of the
-    # HASH_RING_NODES_TIMEOUT, we want to be able to try to touch the nodes
-    # at least twice before they are considered dead.
-    @periodics.periodic(spacing=ovn_const.HASH_RING_NODES_TIMEOUT / 2)
+    @periodics.periodic(spacing=ovn_const.HASH_RING_TOUCH_INTERVAL)
     def touch_hash_ring_nodes(self):
         # NOTE(lucasagomes): Note that we do not rely on the OVSDB lock
         # here because we want the maintenance tasks from each instance to

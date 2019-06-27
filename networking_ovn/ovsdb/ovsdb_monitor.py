@@ -13,12 +13,14 @@
 #    under the License.
 
 import abc
+import datetime
 
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import helpers
 from oslo_config import cfg
 from oslo_log import log
+from oslo_utils import timeutils
 from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import event as row_event
@@ -31,6 +33,7 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import exceptions
 from networking_ovn.common import hash_ring_manager
 from networking_ovn.common import utils
+from networking_ovn.db import hash_ring as db_hash_ring
 
 CONF = cfg.CONF
 LOG = log.getLogger(__name__)
@@ -350,6 +353,7 @@ class OvnIdlDistributedLock(BaseOvnIdl):
         self.notify_handler = OvnDbNotifyHandler(driver)
         self._hash_ring = hash_ring_manager.HashRingManager()
         self._node_uuid = self.driver.node_uuid
+        self._last_touch = None
 
     def notify(self, event, row, updates=None):
         try:
@@ -360,6 +364,22 @@ class OvnIdlDistributedLock(BaseOvnIdl):
 
         if target_node != self._node_uuid:
             return
+
+        # If the worker hasn't been health checked by the maintenance
+        # thread (see bug #1834498), indicate that it's alive here
+        time_now = timeutils.utcnow()
+        touch_timeout = time_now - datetime.timedelta(
+            seconds=ovn_const.HASH_RING_TOUCH_INTERVAL)
+        if not self._last_touch or touch_timeout >= self._last_touch:
+            # NOTE(lucasagomes): Guard the db operation with an exception
+            # handler. If heartbeating fails for whatever reason, log
+            # the error and continue with processing the event
+            try:
+                db_hash_ring.touch_node(self._node_uuid)
+                self._last_touch = time_now
+            except Exception as e:
+                LOG.exception('Hash Ring node %s failed to heartbeat',
+                              self._node_uuid)
 
         LOG.debug('Hash Ring: Node %(node)s (host: %(hostname)s) '
                   'handling event "%(event)s" for row %(row)s '

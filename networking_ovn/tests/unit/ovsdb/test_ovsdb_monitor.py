@@ -13,11 +13,13 @@
 #    under the License.
 
 import copy
+import datetime
 import os
 
 import mock
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
+from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from ovs.db import idl as ovs_idl
 from ovs import poller
@@ -27,7 +29,9 @@ from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import hash_ring_manager
 from networking_ovn.common import utils
+from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
 from networking_ovn.tests.unit import fakes
@@ -424,3 +428,81 @@ class TestChassisMetadataAgentEvent(base.TestCase):
                 ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
 
         self.assertTrue(self.event.match_fn(ROW_UPDATE, row, old=old))
+
+
+class TestOvnIdlDistributedLock(base.TestCase):
+
+    def setUp(self):
+        super(TestOvnIdlDistributedLock, self).setUp()
+        self.node_uuid = uuidutils.generate_uuid()
+        self.fake_driver = mock.Mock()
+        self.fake_driver.node_uuid = self.node_uuid
+        self.fake_event = 'fake-event'
+        self.fake_row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'_table': mock.Mock(name='FakeTable')})
+        helper = ovs_idl.SchemaHelper(schema_json=OVN_NB_SCHEMA)
+        helper.register_all()
+
+        with mock.patch.object(ovsdb_monitor, 'OvnDbNotifyHandler'):
+            self.idl = ovsdb_monitor.OvnIdlDistributedLock(
+                self.fake_driver, 'punix:/tmp/fake', helper)
+
+        self.mock_get_node = mock.patch.object(
+            hash_ring_manager.HashRingManager,
+            'get_node', return_value=self.node_uuid).start()
+
+    @mock.patch.object(db_hash_ring, 'touch_node')
+    def test_notify(self, mock_touch_node):
+        self.idl.notify(self.fake_event, self.fake_row)
+
+        mock_touch_node.assert_called_once_with(self.node_uuid)
+        self.idl.notify_handler.notify.assert_called_once_with(
+            self.fake_event, self.fake_row, None)
+
+    @mock.patch.object(db_hash_ring, 'touch_node')
+    def test_notify_skip_touch_node(self, mock_touch_node):
+        # Set a time for last touch
+        self.idl._last_touch = timeutils.utcnow()
+        self.idl.notify(self.fake_event, self.fake_row)
+
+        # Assert that touch_node() wasn't called
+        self.assertFalse(mock_touch_node.called)
+        self.idl.notify_handler.notify.assert_called_once_with(
+            self.fake_event, self.fake_row, None)
+
+    @mock.patch.object(db_hash_ring, 'touch_node')
+    def test_notify_last_touch_expired(self, mock_touch_node):
+        # Set a time for last touch
+        self.idl._last_touch = timeutils.utcnow()
+
+        # Let's expire the touch node interval for the next utcnow()
+        with mock.patch.object(timeutils, 'utcnow') as mock_utcnow:
+            mock_utcnow.return_value = (
+                self.idl._last_touch + datetime.timedelta(
+                    seconds=ovn_const.HASH_RING_TOUCH_INTERVAL + 1))
+            self.idl.notify(self.fake_event, self.fake_row)
+
+        # Assert that touch_node() was invoked
+        mock_touch_node.assert_called_once_with(self.node_uuid)
+        self.idl.notify_handler.notify.assert_called_once_with(
+            self.fake_event, self.fake_row, None)
+
+    @mock.patch.object(ovsdb_monitor.LOG, 'exception')
+    @mock.patch.object(db_hash_ring, 'touch_node')
+    def test_notify_touch_node_exception(self, mock_touch_node, mock_log):
+        mock_touch_node.side_effect = Exception('BoOooOmmMmmMm')
+        self.idl.notify(self.fake_event, self.fake_row)
+
+        # Assert that in an eventual failure on touch_node() the event
+        # will continue to be processed by notify_handler.notify()
+        mock_touch_node.assert_called_once_with(self.node_uuid)
+        # Assert we are logging the exception
+        self.assertTrue(mock_log.called)
+        self.idl.notify_handler.notify.assert_called_once_with(
+            self.fake_event, self.fake_row, None)
+
+    def test_notify_different_node(self):
+        self.mock_get_node.return_value = 'different-node-uuid'
+        self.idl.notify('fake-event', self.fake_row)
+        # Assert that notify() wasn't called for a different node uuid
+        self.assertFalse(self.idl.notify_handler.notify.called)

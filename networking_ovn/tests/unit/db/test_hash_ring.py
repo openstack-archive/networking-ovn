@@ -131,3 +131,23 @@ class TestHashRing(db_base.DBTestCase):
                                                      from_host=True)
         self.assertEqual(3, len(active_nodes))
         self.assertNotIn(another_host_id, active_nodes)
+
+    def test_touch_node(self):
+        nodes = self._add_nodes_and_assert_exists(count=3)
+
+        # Assert no nodes were updated yet
+        for node in nodes:
+            node_db = self._get_node_row(node)
+            self.assertEqual(node_db.created_at, node_db.updated_at)
+
+        # Touch one of the nodes
+        db_hash_ring.touch_node(nodes[0])
+
+        # Assert it has been updated
+        node_db = self._get_node_row(nodes[0])
+        self.assertGreater(node_db.updated_at, node_db.created_at)
+
+        # Assert the other two nodes hasn't been updated
+        for node in nodes[1:]:
+            node_db = self._get_node_row(node)
+            self.assertEqual(node_db.created_at, node_db.updated_at)
