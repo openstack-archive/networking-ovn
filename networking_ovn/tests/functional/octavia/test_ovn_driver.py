@@ -16,14 +16,18 @@
 import mock
 
 from neutron.common import utils as n_utils
+from neutron_lib.plugins import directory
 from octavia_lib.api.drivers import data_models as octavia_data_model
 from octavia_lib.api.drivers import exceptions as o_exceptions
 from octavia_lib.common import constants as o_constants
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
+from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
 
 from networking_ovn.octavia import ovn_driver
 from networking_ovn.tests.functional import base
+
+LR_REF_KEY_HEADER = 'neutron-'
 
 
 class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
@@ -33,6 +37,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # ovn_driver.OvnProviderHelper.ovn_nbdb_api is a class variable.
         # Set it to None, so that when a worker starts the 2nd test we don't
         # use the old object.
+        idl_ovn.OvnNbApiIdlImpl.ovsdb_connection = None
         ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
         self.ovn_driver = ovn_driver.OvnProviderDriver()
         self.ovn_driver._ovn_helper._octavia_driver_lib = mock.MagicMock()
@@ -48,7 +53,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             delete_port.return_value = True
         self._local_net_cache = {}
         self._local_port_cache = {'ports': []}
-        self.lb_count = None   # useful for Multiple LB scenarios
+        self.addCleanup(self.ovn_driver._ovn_helper.shutdown)
+        self.core_plugin = directory.get_plugin()
 
     def _mock_get_subnet(self, subnet_id):
         m_subnet = mock.MagicMock()
@@ -57,6 +63,22 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
     def _mock_list_ports(self, **kwargs):
         return self._local_port_cache
+
+    def _create_provider_network(self):
+        e1 = self._make_network(self.fmt, 'e1', True,
+                                arg_list=('router:external',
+                                          'provider:network_type',
+                                          'provider:physical_network'),
+                                **{'router:external': True,
+                                   'provider:network_type': 'flat',
+                                   'provider:physical_network': 'public'})
+        res = self._create_subnet(self.fmt, e1['network']['id'],
+                                  '100.0.0.0/24', gateway_ip='100.0.0.254',
+                                  allocation_pools=[{'start': '100.0.0.2',
+                                                     'end': '100.0.0.253'}],
+                                  enable_dhcp=False)
+        e1_s1 = self.deserialize(self.fmt, res)
+        return e1, e1_s1
 
     def _create_lb_model(self, vip=None, vip_network_id=None,
                          admin_state_up=True):
@@ -150,12 +172,19 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.assertItemsEqual(expected_lbs, observed_lbs)
 
     def _is_lb_associated_to_ls(self, lb_name, ls_name):
+        return self._is_lb_associated_to_tab(
+            'Logical_Switch', lb_name, ls_name)
+
+    def _is_lb_associated_to_lr(self, lb_name, lr_name):
+        return self._is_lb_associated_to_tab(
+            'Logical_Router', lb_name, lr_name)
+
+    def _is_lb_associated_to_tab(self, table, lb_name, ls_name):
         lb_uuid = self._get_loadbalancer_id(lb_name)
-        for ls in self.nb_api.tables['Logical_Switch'].rows.values():
+        for ls in self.nb_api.tables[table].rows.values():
             if ls.name == ls_name:
                 ls_lbs = [lb.uuid for lb in ls.load_balancer]
                 return lb_uuid in ls_lbs
-
         return False
 
     def _create_router(self, name, gw_info=None):
@@ -185,8 +214,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                 port['port']['id'])
 
     def _update_ls_refs(self, lb_data, net_id, add_ref=True):
-        if not net_id.startswith("neutron-"):
-            net_id = "neutron-" + net_id
+        if not net_id.startswith(LR_REF_KEY_HEADER):
+            net_id = LR_REF_KEY_HEADER + '%s' % net_id
 
         if add_ref:
             if net_id in lb_data[ovn_driver.LB_EXT_IDS_LS_REFS_KEY]:
@@ -202,8 +231,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             else:
                 del lb_data[ovn_driver.LB_EXT_IDS_LS_REFS_KEY][net_id]
 
-    def _wait_for_status_and_validate(self, lb_data, expected_status,
-                                      check_call=True):
+    def _wait_for_status(self, expected_status, check_call=True):
         call_count = len(expected_status)
         expected_calls = [mock.call(status) for status in expected_status]
         update_loadbalancer_status = (
@@ -214,18 +242,26 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         if check_call:
             self._o_driver_lib.update_loadbalancer_status.assert_has_calls(
                 expected_calls, any_order=True)
+
+    def _wait_for_status_and_validate(self, lb_data, expected_status,
+                                      check_call=True):
+        self._wait_for_status(expected_status, check_call)
         expected_lbs = self._make_expected_lbs(lb_data)
         self._validate_loadbalancers(expected_lbs)
 
     def _create_load_balancer_and_validate(self, lb_info,
                                            admin_state_up=True,
-                                           only_model=False):
+                                           only_model=False,
+                                           create_router=True,
+                                           multiple_lb=False):
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         lb_data = {}
-        router_id = self._create_router("r1")
-        lb_data[ovn_driver.LB_EXT_IDS_LR_REF_KEY] = router_id
+        r_id = self._create_router("r1") if create_router else None
+        if r_id:
+            lb_data[
+                ovn_driver.LB_EXT_IDS_LR_REF_KEY] = LR_REF_KEY_HEADER + r_id
         net_info = self._create_net(lb_info['vip_network'], lb_info['cidr'],
-                                    router_id=router_id)
+                                    router_id=r_id)
         lb_data['vip_net_info'] = net_info
         lb_data['model'] = self._create_lb_model(vip=net_info[2],
                                                  vip_network_id=net_info[0],
@@ -250,10 +286,16 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                    "provisioning_status": "ACTIVE",
                                    "operating_status": o_constants.OFFLINE}]
             }
-        self._wait_for_status_and_validate(lb_data, [expected_status])
+        if not multiple_lb:
+            self._wait_for_status_and_validate(lb_data, [expected_status])
+        else:
+            l_id = lb_data['model'].loadbalancer_id
+            self._wait_for_status([expected_status])
+            self.assertIn(l_id,
+                          [lb['name'] for lb in self._get_loadbalancers()])
         self.assertTrue(
             self._is_lb_associated_to_ls(lb_data['model'].loadbalancer_id,
-                                         'neutron-' + net_info[0]))
+                                         LR_REF_KEY_HEADER + net_info[0]))
         return lb_data
 
     def _update_load_balancer_and_validate(self, lb_data,
@@ -279,7 +321,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         self._wait_for_status_and_validate(lb_data, [expected_status])
 
-    def _delete_load_balancer_and_validate(self, lb_data, cascade=False):
+    def _delete_load_balancer_and_validate(self, lb_data, cascade=False,
+                                           multiple_lb=False):
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         self.ovn_driver.loadbalancer_delete(lb_data['model'], cascade)
         expected_status = {
@@ -306,14 +349,19 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                     "operating_status": "OFFLINE"})
             expected_status = {
                 key: value for key, value in expected_status.items() if value}
-
+        l_id = lb_data['model'].loadbalancer_id
         lb = lb_data['model']
         del lb_data['model']
-        self._wait_for_status_and_validate(lb_data, [expected_status])
+        if not multiple_lb:
+            self._wait_for_status_and_validate(lb_data, [expected_status])
+        else:
+            self._wait_for_status([expected_status])
+            self.assertNotIn(
+                l_id, [lbs['name'] for lbs in self._get_loadbalancers()])
         vip_net_id = lb_data['vip_net_info'][0]
         self.assertFalse(
             self._is_lb_associated_to_ls(lb.loadbalancer_id,
-                                         'neutron-' + vip_net_id))
+                                         LR_REF_KEY_HEADER + vip_net_id))
 
     def _make_expected_lbs(self, lb_data):
         if not lb_data or not lb_data.get('model'):
@@ -349,7 +397,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
 
         if lb_data.get(ovn_driver.LB_EXT_IDS_LR_REF_KEY):
             external_ids[
-                ovn_driver.LB_EXT_IDS_LR_REF_KEY] = 'neutron-' + lb_data[
+                ovn_driver.LB_EXT_IDS_LR_REF_KEY] = lb_data[
                     ovn_driver.LB_EXT_IDS_LR_REF_KEY]
         expected_vips = {}
         expected_protocol = ['tcp']
@@ -657,7 +705,6 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             if not admin_state_up:
                 operating_status = 'OFFLINE'
         m_listener.protocol = protocol
-
         self.ovn_driver.listener_update(m_listener, m_listener)
         pool_status = [{'id': m_listener.default_pool_id,
                         'provisioning_status': 'ACTIVE'}]
@@ -870,6 +917,121 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                           self._update_listener_and_validate,
                           lb_data, protocol_port=80, protocol='UDP')
         self._delete_load_balancer_and_validate(lb_data)
+
+    def _test_lrp_event_handler(self, cascade=False):
+        # Create Network N1 on router R1 and LBA on N1
+        lba_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'N1',
+             'cidr': '10.0.0.0/24'})
+        router_id = lba_data[ovn_driver.LB_EXT_IDS_LR_REF_KEY][
+            len(LR_REF_KEY_HEADER):]
+        # Create Network N2, connect it to R1
+        nw_info = self._create_net("N2", "10.0.1.0/24", router_id)
+
+        # Check if LBA exists in N2 LS
+        n_utils.wait_until_true(
+            lambda: self._is_lb_associated_to_ls(
+                lba_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + nw_info[0]),
+            timeout=10)
+
+        # Create Network N3
+        lbb_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'N3',
+             'cidr': '10.0.2.0/24'}, create_router=False, multiple_lb=True)
+        # Add N3 to R1
+        self.l3_plugin.add_router_interface(
+            self.context, lba_data[
+                ovn_driver.LB_EXT_IDS_LR_REF_KEY][len(LR_REF_KEY_HEADER):],
+            {'subnet_id': lbb_data['vip_net_info'][1]})
+
+        # Check LBB exists on R1
+        n_utils.wait_until_true(
+            lambda: self._is_lb_associated_to_lr(
+                lbb_data['model'].loadbalancer_id,
+                lba_data[ovn_driver.LB_EXT_IDS_LR_REF_KEY]),
+            timeout=10)
+        # Check LBA connected to N3
+        n_utils.wait_until_true(
+            lambda: self._is_lb_associated_to_ls(
+                lba_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + lbb_data['vip_net_info'][0]),
+            timeout=10)
+        # Check LBB connected to N1
+        n_utils.wait_until_true(
+            lambda: self._is_lb_associated_to_ls(
+                lbb_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + lba_data['vip_net_info'][0]),
+            timeout=10)
+        # Check LBB connected to N2
+        n_utils.wait_until_true(
+            lambda: self._is_lb_associated_to_ls(
+                lbb_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + nw_info[0]),
+            timeout=10)
+
+        lbb_id = lbb_data['model'].loadbalancer_id
+        if not cascade:
+            # N3 removed from R1
+            self.l3_plugin.remove_router_interface(
+                self.context, lba_data[
+                    ovn_driver.LB_EXT_IDS_LR_REF_KEY][len(LR_REF_KEY_HEADER):],
+                {'subnet_id': lbb_data['vip_net_info'][1]})
+        else:
+            # Delete LBB Cascade
+            self._delete_load_balancer_and_validate(lbb_data, cascade=True,
+                                                    multiple_lb=True)
+
+        # Check LBB doesn't exists on R1
+        n_utils.wait_until_true(
+            lambda: not self._is_lb_associated_to_lr(
+                lbb_id, lba_data[ovn_driver.LB_EXT_IDS_LR_REF_KEY]),
+            timeout=10)
+        # Check LBB not connected to N1
+        n_utils.wait_until_true(
+            lambda: not self._is_lb_associated_to_ls(
+                lbb_id, LR_REF_KEY_HEADER + lba_data['vip_net_info'][0]),
+            timeout=10)
+        # Check LBB not connected to N2
+        n_utils.wait_until_true(
+            lambda: not self._is_lb_associated_to_ls(
+                lbb_id, LR_REF_KEY_HEADER + nw_info[0]),
+            timeout=10)
+
+    def test_lrp_event_handler_with_interface_delete(self):
+        self._test_lrp_event_handler()
+
+    def test_lrp_event_handler_with_loadbalancer_cascade_delete(self):
+        self._test_lrp_event_handler(cascade=True)
+
+    def test_lrp_event_handler_lrp_with_external_gateway(self):
+        # Create Network N1 on router R1 and LBA on N1
+        lba_data = self._create_load_balancer_and_validate(
+            {'vip_network': 'N1',
+             'cidr': '10.0.0.0/24'})
+        router_id = lba_data[ovn_driver.LB_EXT_IDS_LR_REF_KEY][
+            len(LR_REF_KEY_HEADER):]
+
+        # Create provider network N2, connect it to R1
+        provider_net, provider_subnet = self._create_provider_network()
+        self.l3_plugin.update_router(
+            self.context,
+            router_id,
+            {'router': {
+                'id': router_id,
+                'external_gateway_info': {
+                    'enable_snat': True,
+                    'network_id': provider_net['network']['id'],
+                    'external_fixed_ips': [
+                        {'ip_address': '100.0.0.2',
+                         'subnet_id': provider_subnet['subnet']['id']}]}}})
+
+        # Check if LBA doesn't exist in provider network LS
+        n_utils.wait_until_true(
+            lambda: not self._is_lb_associated_to_ls(
+                lba_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + provider_net['network']['id']),
+            timeout=10)
 
     def test_lb_listener_pool_workflow(self):
         lb_data = self._create_load_balancer_and_validate(
