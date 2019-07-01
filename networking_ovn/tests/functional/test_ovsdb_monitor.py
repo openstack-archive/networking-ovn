@@ -12,8 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import threading
-
 import mock
 from oslo_utils import uuidutils
 
@@ -28,26 +26,15 @@ from neutron_lib.plugins import directory
 from ovsdbapp.backend.ovs_idl import event
 
 
-class WaitForMACBindingDeleteEvent(event.RowEvent):
-    # TODO(dalvarez): Use WaitEvent from ovsdbapp once this patch
-    # https://review.openstack.org/#/c/613121 merges.
+class WaitForMACBindingDeleteEvent(event.WaitEvent):
     event_name = 'WaitForMACBindingDeleteEvent'
-    ONETIME = True
 
     def __init__(self, entry):
-        self.event = threading.Event()
-        self.timeout = 15
         table = 'MAC_Binding'
         events = (self.ROW_DELETE,)
         conditions = (('_uuid', '=', entry),)
         super(WaitForMACBindingDeleteEvent, self).__init__(
-            events, table, conditions)
-
-    def run(self, event, row, old):
-        self.event.set()
-
-    def wait(self):
-        return self.event.wait(self.timeout)
+            events, table, conditions, timeout=15)
 
 
 class DistributedLockTestEvent(event.WaitEvent):
