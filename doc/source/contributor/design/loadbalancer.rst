@@ -63,7 +63,7 @@ a network to the OVN Provider driver. OVN driver creates a LoadBalancer
 in the OVN NorthBound DB and asynchronously updates the Octavia DB
 with the status response. A VIP port is created in Neutron when the
 LoadBalancer creation is complete. The VIP information however is not updated
-in the NorthBound DB until the Members are not associated with the
+in the NorthBound DB until the Members are associated with the
 LoadBalancer's Pool.
 
 **Step 2** - Creating LoadBalancer entities (Pools, Listeners, Members)
@@ -102,7 +102,7 @@ OVN LoadBalancer Driver Logic
   inter-network communication while using the LoadBalancer L1 is possible.
   Also, during this time, a new port is created via Neutron which acts as a
   VIP Port. The information of this new port is not visible on the OVN's
-  NorthBound DB till a member is not added to the LoadBalancer.
+  NorthBound DB till a member is added to the LoadBalancer.
 
 * If a new network interface is added to the router R1 described above, all
   the LoadBalancers on that network are associated with the router R1 and all
