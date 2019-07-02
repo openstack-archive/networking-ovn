@@ -34,7 +34,6 @@
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
-            voting: false
         - networking-ovn-tempest-slow:
             voting: false
     gate:
@@ -49,6 +48,9 @@
             branches: ^(stable/(pike|queens|rocky)).*$
         - networking-ovn-tripleo-ci-centos-7-containers-multinode:
             branches: ^(?!stable/(pike|queens|rocky)).*$
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
