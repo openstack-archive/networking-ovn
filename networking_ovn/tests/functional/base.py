@@ -288,13 +288,15 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
 
-    def add_fake_chassis(self, host, physical_nets=None, external_ids=None):
+    def add_fake_chassis(self, host, physical_nets=None, external_ids=None,
+                         name=None):
         physical_nets = physical_nets or []
         external_ids = external_ids or {}
 
         bridge_mapping = ",".join(["%s:br-provider%s" % (phys_net, i)
                                   for i, phys_net in enumerate(physical_nets)])
-        name = uuidutils.generate_uuid()
+        if name is None:
+            name = uuidutils.generate_uuid()
         external_ids['ovn-bridge-mappings'] = bridge_mapping
         # We'll be using different IP addresses every time for the Encap of
         # the fake chassis as the SB schema doesn't allow to have two entries
@@ -308,3 +310,6 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             name, ['geneve'], '172.24.4.%d' % self._counter,
             external_ids=external_ids, hostname=host).execute(check_error=True)
         return name
+
+    def del_fake_chassis(self, name):
+        self.sb_api.chassis_del(name).execute(check_error=True)

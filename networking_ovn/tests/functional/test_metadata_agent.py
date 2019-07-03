@@ -20,6 +20,7 @@ from neutron.common import utils as n_utils
 from oslo_config import fixture as fixture_config
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event
+from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp import event as ovsdb_event
 
 from networking_ovn.agent.metadata import agent
@@ -69,6 +70,7 @@ class WaitForPortBindingEvent(event.WaitEvent):
 
 class TestMetadataAgent(base.TestOVNFunctionalBase):
     OVN_BRIDGE = 'br-int'
+    FAKE_CHASSIS_HOST = 'ovn-host-fake'
 
     def setUp(self):
         super(TestMetadataAgent, self).setUp()
@@ -98,7 +100,7 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         p.start()
         self.addCleanup(p.stop)
 
-        self.chassis_name = self.add_fake_chassis('ovs-host-fake')
+        self.chassis_name = self.add_fake_chassis(self.FAKE_CHASSIS_HOST)
         with mock.patch.object(agent.MetadataAgent,
                                '_get_own_chassis_name') as mock_get_ch_name:
             mock_get_ch_name.return_value = self.chassis_name
@@ -196,5 +198,33 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
                         (self.agent.ovn_bridge, BR_NEW))
         n_utils.wait_until_true(
             lambda: BR_NEW == self.agent.ovn_bridge,
+            timeout=10,
+            exception=exc)
+
+    def test_agent_registration_at_chassis_create_event(self):
+        chassis = self.sb_api.lookup('Chassis', self.chassis_name)
+        self.assertIn(ovn_const.OVN_AGENT_METADATA_ID_KEY,
+                      chassis.external_ids)
+
+        # Delete Chassis and assert
+        self.del_fake_chassis(chassis.name)
+        self.assertRaises(idlutils.RowNotFound, self.sb_api.lookup,
+                          'Chassis', self.chassis_name)
+
+        # Re-add the Chassis
+        self.add_fake_chassis(self.FAKE_CHASSIS_HOST, name=self.chassis_name)
+
+        def check_for_metadata():
+            chassis = self.sb_api.lookup('Chassis', self.chassis_name)
+            return ovn_const.OVN_AGENT_METADATA_ID_KEY in chassis.external_ids
+
+        exc = Exception('Agent metadata failed to re-register itself '
+                        'after the Chassis %s was re-created' %
+                        self.chassis_name)
+
+        # Check if metadata agent was re-registered
+        chassis = self.sb_api.lookup('Chassis', self.chassis_name)
+        n_utils.wait_until_true(
+            check_for_metadata,
             timeout=10,
             exception=exc)
