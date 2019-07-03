@@ -125,6 +125,10 @@ class ChassisCreateEvent(row_event.RowEvent):
         if self.first_time:
             self.first_time = False
         else:
+            # NOTE(lucasagomes): Re-register the ovn metadata agent
+            # with the local chassis in case its entry was re-created
+            # (happens when restarting the ovn-controller)
+            self.agent.register_metadata_agent()
             LOG.info("Connection to OVSDB established, doing a full sync")
             self.agent.sync()
 
@@ -186,11 +190,11 @@ class MetadataAgent(object):
         self.sync()
 
         # Register the agent with its corresponding Chassis
-        self._register_metadata_agent()
+        self.register_metadata_agent()
 
         proxy.wait()
 
-    def _register_metadata_agent(self):
+    def register_metadata_agent(self):
         # NOTE(lucasagomes): db_add() will not overwrite the UUID if
         # it's already set.
         ext_ids = {
