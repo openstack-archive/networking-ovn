@@ -25,51 +25,48 @@ from networking_ovn.db import models
 CONF = cfg.CONF
 
 
-def add_node(node_uuid=None):
+def add_node(group_name, node_uuid=None):
     if node_uuid is None:
         node_uuid = uuidutils.generate_uuid()
 
     session = db_api.get_writer_session()
     with session.begin():
-        row = models.OVNHashRing(node_uuid=node_uuid, hostname=CONF.host)
+        row = models.OVNHashRing(node_uuid=node_uuid, hostname=CONF.host,
+                                 group_name=group_name)
         session.add(row)
     return node_uuid
 
 
-def remove_nodes_from_host():
+def remove_nodes_from_host(group_name):
     session = db_api.get_writer_session()
     with session.begin():
-        session.query(models.OVNHashRing).filter_by(
-            hostname=CONF.host).delete()
+        session.query(models.OVNHashRing).filter(
+            models.OVNHashRing.hostname == CONF.host,
+            models.OVNHashRing.group_name == group_name).delete()
 
 
-def _touch(hostname=None, node_uuid=None):
-    filter_args = {}
-    if hostname:
-        filter_args['hostname'] = hostname
-    if node_uuid:
-        filter_args['node_uuid'] = node_uuid
-
+def _touch(**filter_args):
     session = db_api.get_writer_session()
     with session.begin():
         session.query(models.OVNHashRing).filter_by(
             **filter_args).update({'updated_at': timeutils.utcnow()})
 
 
-def touch_nodes_from_host():
-    _touch(hostname=CONF.host)
+def touch_nodes_from_host(group_name):
+    _touch(hostname=CONF.host, group_name=group_name)
 
 
 def touch_node(node_uuid):
     _touch(node_uuid=node_uuid)
 
 
-def get_active_nodes(interval, from_host=False):
+def get_active_nodes(interval, group_name, from_host=False):
     session = db_api.get_reader_session()
     limit = timeutils.utcnow() - datetime.timedelta(seconds=interval)
     with session.begin():
         query = session.query(models.OVNHashRing).filter(
-            models.OVNHashRing.updated_at >= limit)
+            models.OVNHashRing.updated_at >= limit,
+            models.OVNHashRing.group_name == group_name)
         if from_host:
             query = query.filter_by(hostname=CONF.host)
         return query.all()

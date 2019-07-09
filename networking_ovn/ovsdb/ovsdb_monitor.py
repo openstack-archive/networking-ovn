@@ -351,8 +351,9 @@ class OvnIdlDistributedLock(BaseOvnIdl):
         super(OvnIdlDistributedLock, self).__init__(remote, schema)
         self.driver = driver
         self.notify_handler = OvnDbNotifyHandler(driver)
-        self._hash_ring = hash_ring_manager.HashRingManager()
         self._node_uuid = self.driver.node_uuid
+        self._hash_ring = hash_ring_manager.HashRingManager(
+            self.driver.hash_ring_group)
         self._last_touch = None
 
     def notify(self, event, row, updates=None):

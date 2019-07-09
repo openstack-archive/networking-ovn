@@ -1617,6 +1617,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
         p.start()
         self.addCleanup(p.stop)
         self.driver.node_uuid = node_uuid
+        self.driver.hash_ring_group = 'fake_hash_ring_group'
 
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj

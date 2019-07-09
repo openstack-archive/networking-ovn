@@ -24,12 +24,15 @@ from networking_ovn.common import hash_ring_manager
 from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.tests.unit.db import base as db_base
 
+HASH_RING_TEST_GROUP = 'test_group'
+
 
 class TestHashRingManager(db_base.DBTestCase):
 
     def setUp(self):
         super(TestHashRingManager, self).setUp()
-        self.hash_ring_manager = hash_ring_manager.HashRingManager()
+        self.hash_ring_manager = hash_ring_manager.HashRingManager(
+            HASH_RING_TEST_GROUP)
 
     def _verify_hashes(self, hash_dict):
         for target_node, uuid_ in hash_dict.items():
@@ -38,8 +41,8 @@ class TestHashRingManager(db_base.DBTestCase):
 
     def test_get_node(self):
         # Use pre-defined UUIDs to make the hashes predictable
-        node_1_uuid = db_hash_ring.add_node('node-1')
-        node_2_uuid = db_hash_ring.add_node('node-2')
+        node_1_uuid = db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-1')
+        node_2_uuid = db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-2')
 
         hash_dict_before = {node_1_uuid: 'fake-uuid',
                             node_2_uuid: 'fake-uuid-0'}
@@ -52,13 +55,14 @@ class TestHashRingManager(db_base.DBTestCase):
 
     def test_ring_rebalance(self):
         # Use pre-defined UUIDs to make the hashes predictable
-        node_1_uuid = db_hash_ring.add_node('node-1')
-        node_2_uuid = db_hash_ring.add_node('node-2')
+        node_1_uuid = db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-1')
+        node_2_uuid = db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-2')
 
         # Add another node from a different host
         with mock.patch.object(db_hash_ring, 'CONF') as mock_conf:
             mock_conf.host = 'another-host-52359446-c366'
-            another_host_node = db_hash_ring.add_node('another-host')
+            another_host_node = db_hash_ring.add_node(
+                HASH_RING_TEST_GROUP, 'another-host')
 
         # Assert all nodes are alive in the ring
         self.hash_ring_manager.refresh()
@@ -76,7 +80,7 @@ class TestHashRingManager(db_base.DBTestCase):
             seconds=constants.HASH_RING_NODES_TIMEOUT)
         with mock.patch.object(timeutils, 'utcnow') as mock_utcnow:
             mock_utcnow.return_value = fake_utcnow
-            db_hash_ring.touch_nodes_from_host()
+            db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Now assert that the ring was re-balanced and only the node from
         # another host is marked as alive
@@ -91,22 +95,22 @@ class TestHashRingManager(db_base.DBTestCase):
         self._verify_hashes(hash_dict_after_rebalance)
 
         # Now touch the nodes so they appear active again
-        db_hash_ring.touch_nodes_from_host()
+        db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
         self.hash_ring_manager.refresh()
 
         # The ring should re-balance and as it was before
         self._verify_hashes(hash_dict_before)
 
     def test__wait_startup_before_caching(self):
-        db_hash_ring.add_node('node-1')
-        db_hash_ring.add_node('node-2')
+        db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-1')
+        db_hash_ring.add_node(HASH_RING_TEST_GROUP, 'node-2')
 
         # Assert it will return True until created_at != updated_at
         self.assertTrue(self.hash_ring_manager._wait_startup_before_caching)
         self.assertTrue(self.hash_ring_manager._cache_startup_timeout)
 
         # Touch the nodes (== update the updated_at column)
-        db_hash_ring.touch_nodes_from_host()
+        db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Assert it's now False. Waiting is not needed anymore
         self.assertFalse(self.hash_ring_manager._wait_startup_before_caching)

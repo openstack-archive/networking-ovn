@@ -386,9 +386,15 @@ class DBInconsistenciesPeriodics(object):
 
         raise periodics.NeverAgain()
 
+
+class HashRingHealthCheckPeriodics(object):
+
+    def __init__(self, group):
+        self._group = group
+
     @periodics.periodic(spacing=ovn_const.HASH_RING_TOUCH_INTERVAL)
     def touch_hash_ring_nodes(self):
         # NOTE(lucasagomes): Note that we do not rely on the OVSDB lock
         # here because we want the maintenance tasks from each instance to
         # execute this task.
-        db_hash_ring.touch_nodes_from_host()
+        db_hash_ring.touch_nodes_from_host(self._group)
