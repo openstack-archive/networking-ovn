@@ -12,7 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from datetime import datetime
 import os
+import shutil
 import time
 
 import fixtures
@@ -110,8 +112,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                                      group='ovn')
 
         super(TestOVNFunctionalBase, self).setUp()
+        self.test_log_dir = os.path.join(DEFAULT_LOG_DIR, self.id())
         base.setup_test_logging(
-            cfg.CONF, DEFAULT_LOG_DIR, "%s.txt" % self.id())
+            cfg.CONF, self.test_log_dir, "testrun.txt")
 
         mm = directory.get_plugin().mechanism_manager
         self.mech_driver = mm.mech_drivers['ovn'].obj
@@ -119,6 +122,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.ovsdb_server_mgr = None
         self.ovn_northd_mgr = None
         self.maintenance_worker = maintenance_worker
+        self.temp_dir = self.useFixture(fixtures.TempDir()).path
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
 
@@ -155,7 +159,6 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
                               protocol=self._ovsdb_protocol))
 
     def _start_ovsdb_server_and_idls(self):
-        self.temp_dir = self.useFixture(fixtures.TempDir()).path
         # Start 2 ovsdb-servers one each for OVN NB DB and OVN SB DB
         # ovsdb-server with OVN SB DB can be used to test the chassis up/down
         # events.
@@ -229,11 +232,29 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
             trigger_cls.trigger.__self__.__class__ = worker.MaintenanceWorker
             cfg.CONF.set_override('neutron_sync_mode', 'off', 'ovn')
 
+        self.addCleanup(self._collect_processes_logs)
         self.addCleanup(self.stop)
 
         # mech_driver.post_fork_initialize creates the IDL connections
         self.mech_driver.post_fork_initialize(
             mock.ANY, mock.ANY, trigger_cls.trigger)
+
+    def _collect_processes_logs(self):
+        for database in ("nb", "sb"):
+            for file_suffix in ("log", "db"):
+                src_filename = "ovn_%(db)s.%(suffix)s" % {
+                    'db': database,
+                    'suffix': file_suffix
+                }
+                dst_filename = "ovn_%(db)s-%(timestamp)s.%(suffix)s" % {
+                    'db': database,
+                    'suffix': file_suffix,
+                    'timestamp': datetime.now().strftime('%y-%m-%d_%H-%M-%S'),
+                }
+
+                filepath = os.path.join(self.temp_dir, src_filename)
+                shutil.copyfile(
+                    filepath, os.path.join(self.test_log_dir, dst_filename))
 
     def stop(self):
         if self.maintenance_worker:
@@ -263,6 +284,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.nb_api.ovsdb_connection = None
         self.sb_api.ovsdb_connection = None
 
+        self.ovsdb_server_mgr.delete_dbs()
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
 
