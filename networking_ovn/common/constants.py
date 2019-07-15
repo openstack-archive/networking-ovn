@@ -153,6 +153,9 @@ MAINTENANCE_DELETE_TYPE_ORDER = {
 # peer router port (connecting to the logical router).
 DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
 
+# Loadbalancer constants
+LRP_PREFIX = "lrp-"
+
 # Hash Ring constants
 HASH_RING_NODES_TIMEOUT = 60
 HASH_RING_TOUCH_INTERVAL = 30

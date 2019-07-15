@@ -258,9 +258,14 @@ As explained earlier in the design section:
 - If a network N1 has a LoadBalancer LB1 associated to it and one of
   its interfaces is added to a router R1, LB1 is associated with R1 as well.
 
-- If a network N2 has a loadBalancer LB2 and one of its interfaces is added
+- If a network N2 has a LoadBalancer LB2 and one of its interfaces is added
   to the router R1, then R1 will have both LoadBalancers LB1 and LB2. N1 and
-  N2 will also have both LoadBalancers associated to them.
+  N2 will also have both the LoadBalancers associated to them. However, kindly
+  note that though network N1 would have both LB1 and LB2 LoadBalancers
+  associated with it, only LB1 would be the LoadBalancer which has a direct
+  reference to the network N1, since LB1 was created on N1. This is visible
+  in the ``ls_ref`` key of the ``external_ids`` column in LB1's entry in
+  the ``load_balancer`` table.
 
 - If a network N3 is added to the router R1, N3 will also have both
   LoadBalancers (LB1, LB2) associated to it.
