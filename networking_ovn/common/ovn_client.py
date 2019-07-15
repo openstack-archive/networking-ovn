@@ -617,9 +617,7 @@ class OVNClient(object):
         context = n_context.get_admin_context()
         fip_db = self._l3_plugin._get_floatingip(context, floatingip['id'])
 
-        func = self._nb_idl.add_nat_rule_in_lrouter
         gw_lrouter_name = utils.ovn_name(router_id)
-        nat_rule_args = (gw_lrouter_name,)
         # TODO(chandrav): Since the floating ip port is not
         # bound to any chassis, packets destined to floating ip
         # will be dropped. To overcome this, delete the floating
@@ -629,21 +627,6 @@ class OVNClient(object):
         commands.append(self._nb_idl.delete_lswitch_port(
                         fip_db['floating_port_id'],
                         utils.ovn_name(floatingip['floating_network_id'])))
-
-        # Get the list of nat rules and check if the external_ip
-        # with type 'dnat_and_snat' already exists or not.
-        # If exists, set the new value.
-        # This happens when the port associated to a floating ip
-        # is deleted before the disassociation.
-        lrouter_nat_rules = self._nb_idl.get_lrouter_nat_rules(
-            gw_lrouter_name)
-        for nat_rule in lrouter_nat_rules:
-            if (nat_rule['external_ip'] ==
-                    floatingip['floating_ip_address'] and
-                    nat_rule['type'] == 'dnat_and_snat'):
-                func = self._nb_idl.set_nat_rule_in_lrouter
-                nat_rule_args = (gw_lrouter_name, nat_rule['uuid'])
-                break
 
         ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: floatingip['id'],
@@ -671,7 +654,9 @@ class OVNClient(object):
         if self._nb_idl.is_col_present('NAT', 'external_ids'):
             columns['external_ids'] = ext_ids
 
-        commands.append(func(*nat_rule_args, **columns))
+        commands.append(self._nb_idl.add_nat_rule_in_lrouter(gw_lrouter_name,
+                                                             **columns))
+
         self._transaction(commands, txn=txn)
 
     def _delete_floatingip(self, fip, lrouter, txn=None):
