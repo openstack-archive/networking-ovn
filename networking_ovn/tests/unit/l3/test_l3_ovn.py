@@ -899,7 +899,6 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             {'external_ip': '192.168.0.10', 'logical_ip': '10.0.0.6',
              'type': 'dnat_and_snat', 'uuid': 'uuid1'}]
         self.l3_inst.create_floatingip(self.context, 'floatingip')
-        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_not_called()
         expected_ext_ids = {
             ovn_const.OVN_FIP_EXT_ID_KEY: self.fake_floating_ip['id'],
             ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
@@ -907,8 +906,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 self.fake_floating_ip['port_id'],
             ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: utils.ovn_name(
                 self.fake_floating_ip['router_id'])}
-        self.l3_inst._ovn.set_nat_rule_in_lrouter.assert_called_once_with(
-            'neutron-router-id', 'uuid1',
+        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id',
             type='dnat_and_snat',
             logical_ip='10.0.0.10',
             external_ip='192.168.0.10',
