@@ -242,6 +242,7 @@
         q-l3: false
         q-agt: false
       devstack_localrc:
+        USE_PYTHON3: true
         PHYSICAL_NETWORK: public
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
