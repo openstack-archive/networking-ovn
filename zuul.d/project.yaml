@@ -35,6 +35,8 @@
               - openstack/neutron
         - networking-ovn-tempest-slow:
             voting: false
+        - networking-ovn-tempest-full-multinode-ovs-master:
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
