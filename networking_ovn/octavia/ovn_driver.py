@@ -230,16 +230,17 @@ class OvnProviderHelper(object):
 
     def start(self):
         self.ovn_nb_idl_for_lb = OvnNbIdlForLb()
-        OvnProviderHelper.ovn_nbdb_api = self.ovn_nb_idl_for_lb.start()
-        events = [LogicalRouterPortEvent(self),
-                  LogicalSwitchPortUpdateEvent(self)]
-        self.ovn_nb_idl_for_lb.notify_handler.watch_events(events)
+        if not OvnProviderHelper.ovn_nbdb_api:
+            OvnProviderHelper.ovn_nbdb_api = self.ovn_nb_idl_for_lb.start()
+        self.events = [LogicalRouterPortEvent(self),
+                       LogicalSwitchPortUpdateEvent(self)]
+        self.ovn_nb_idl_for_lb.notify_handler.watch_events(self.events)
         self.helper_thread.start()
 
     def shutdown(self):
         self.requests.put({'type': REQ_TYPE_EXIT})
         self.helper_thread.join()
-        self.ovn_nb_idl_for_lb.stop()
+        self.ovn_nb_idl_for_lb.notify_handler.unwatch_events(self.events)
 
     @staticmethod
     def _map_val(row, col, key):
