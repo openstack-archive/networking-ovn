@@ -107,6 +107,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._ovn_client_inst = None
         self._maintenance_thread = None
         self.node_uuid = None
+        self.hash_ring_group = ovn_const.HASH_RING_ML2_GROUP
         self.sg_enabled = ovn_acl.is_sg_enabled()
         # NOTE(lucasagomes): _clean_hash_ring() must be called before
         # self.subscribe() to avoid processes racing when adding or
@@ -188,7 +189,7 @@ class OVNMechanismDriver(api.MechanismDriver):
                                events.BEFORE_DELETE)
 
     def _clean_hash_ring(self, *args, **kwargs):
-        db_hash_ring.remove_nodes_from_host()
+        db_hash_ring.remove_nodes_from_host(self.hash_ring_group)
 
     def pre_fork_initialize(self, resource, event, trigger, payload=None):
         """Pre-initialize the ML2/OVN driver."""
@@ -204,7 +205,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         is_maintenance = (utils.get_method_class(trigger) ==
                           worker.MaintenanceWorker)
         if not is_maintenance:
-            self.node_uuid = db_hash_ring.add_node()
+            self.node_uuid = db_hash_ring.add_node(self.hash_ring_group)
 
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(
             self, trigger, binding_events=not is_maintenance)
@@ -241,6 +242,9 @@ class OVNMechanismDriver(api.MechanismDriver):
             self._maintenance_thread = maintenance.MaintenanceThread()
             self._maintenance_thread.add_periodics(
                 maintenance.DBInconsistenciesPeriodics(self._ovn_client))
+            self._maintenance_thread.add_periodics(
+                maintenance.HashRingHealthCheckPeriodics(
+                    self.hash_ring_group))
             self._maintenance_thread.start()
 
     def _create_security_group_precommit(self, resource, event, trigger,

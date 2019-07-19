@@ -29,10 +29,11 @@ LOG = log.getLogger(__name__)
 
 class HashRingManager(object):
 
-    def __init__(self):
+    def __init__(self, group_name):
         self._hash_ring = None
         self._last_time_loaded = None
         self._cache_startup_timeout = True
+        self._group = group_name
 
     @property
     def _wait_startup_before_caching(self):
@@ -50,7 +51,7 @@ class HashRingManager(object):
             return False
 
         nodes = db_hash_ring.get_active_nodes(
-            constants.HASH_RING_CACHE_TIMEOUT, from_host=True)
+            constants.HASH_RING_CACHE_TIMEOUT, self._group, from_host=True)
         dont_cache = nodes and nodes[0].created_at == nodes[0].updated_at
         if not dont_cache:
             self._cache_startup_timeout = False
@@ -72,7 +73,7 @@ class HashRingManager(object):
                 not self._hash_ring.nodes or
                 cache_timeout >= self._last_time_loaded):
             nodes = db_hash_ring.get_active_nodes(
-                constants.HASH_RING_NODES_TIMEOUT)
+                constants.HASH_RING_NODES_TIMEOUT, self._group)
             self._hash_ring = hashring.HashRing({node.node_uuid
                                                  for node in nodes})
             self._last_time_loaded = timeutils.utcnow()

@@ -24,6 +24,8 @@ from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.db import models
 from networking_ovn.tests.unit.db import base as db_base
 
+HASH_RING_TEST_GROUP = 'test_group'
+
 
 class TestHashRing(db_base.DBTestCase):
 
@@ -36,10 +38,11 @@ class TestHashRing(db_base.DBTestCase):
         except exc.NoResultFound:
             pass
 
-    def _add_nodes_and_assert_exists(self, count=1):
+    def _add_nodes_and_assert_exists(self, count=1,
+                                     group_name=HASH_RING_TEST_GROUP):
         nodes = []
         for i in range(count):
-            node_uuid = db_hash_ring.add_node()
+            node_uuid = db_hash_ring.add_node(group_name)
             self.assertIsNotNone(self._get_node_row(node_uuid))
             nodes.append(node_uuid)
         return nodes
@@ -55,7 +58,7 @@ class TestHashRing(db_base.DBTestCase):
             mock_conf.host = 'another-host-52359446-c366'
             another_host_node = self._add_nodes_and_assert_exists()[0]
 
-        db_hash_ring.remove_nodes_from_host()
+        db_hash_ring.remove_nodes_from_host(HASH_RING_TEST_GROUP)
         # Assert that all nodes from that host have been removed
         for n in nodes:
             self.assertIsNone(self._get_node_row(n))
@@ -81,7 +84,7 @@ class TestHashRing(db_base.DBTestCase):
         self.assertEqual(node_db.created_at, node_db.updated_at)
 
         # Touch the nodes from our host
-        db_hash_ring.touch_nodes_from_host()
+        db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Assert that updated_at is now updated
         for node in nodes:
@@ -102,18 +105,20 @@ class TestHashRing(db_base.DBTestCase):
             another_host_node = self._add_nodes_and_assert_exists()[0]
 
         # Assert all nodes are active (within 60 seconds)
-        self.assertEqual(4, len(db_hash_ring.get_active_nodes(interval=60)))
+        self.assertEqual(4, len(db_hash_ring.get_active_nodes(
+            interval=60, group_name=HASH_RING_TEST_GROUP)))
 
         # Substract 60 seconds from utcnow() and touch the nodes from
         # our host
         fake_utcnow = timeutils.utcnow() - datetime.timedelta(seconds=60)
         with mock.patch.object(timeutils, 'utcnow') as mock_utcnow:
             mock_utcnow.return_value = fake_utcnow
-            db_hash_ring.touch_nodes_from_host()
+            db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Now assert that all nodes from our host are seeing as offline.
         # Only the node from another host should be active
-        active_nodes = db_hash_ring.get_active_nodes(interval=60)
+        active_nodes = db_hash_ring.get_active_nodes(
+            interval=60, group_name=HASH_RING_TEST_GROUP)
         self.assertEqual(1, len(active_nodes))
         self.assertEqual(another_host_node, active_nodes[0].node_uuid)
 
@@ -127,8 +132,8 @@ class TestHashRing(db_base.DBTestCase):
             self._add_nodes_and_assert_exists()
 
         # Assert only the 3 nodes from this host is returned
-        active_nodes = db_hash_ring.get_active_nodes(interval=60,
-                                                     from_host=True)
+        active_nodes = db_hash_ring.get_active_nodes(
+            interval=60, group_name=HASH_RING_TEST_GROUP, from_host=True)
         self.assertEqual(3, len(active_nodes))
         self.assertNotIn(another_host_id, active_nodes)
 
@@ -149,5 +154,61 @@ class TestHashRing(db_base.DBTestCase):
 
         # Assert the other two nodes hasn't been updated
         for node in nodes[1:]:
+            node_db = self._get_node_row(node)
+            self.assertEqual(node_db.created_at, node_db.updated_at)
+
+    def test_active_nodes_different_groups(self):
+        another_group = 'another_test_group'
+        self._add_nodes_and_assert_exists(count=3)
+        self._add_nodes_and_assert_exists(count=2, group_name=another_group)
+
+        active_nodes = db_hash_ring.get_active_nodes(
+            interval=60, group_name=HASH_RING_TEST_GROUP)
+        self.assertEqual(3, len(active_nodes))
+        for node in active_nodes:
+            self.assertEqual(HASH_RING_TEST_GROUP, node.group_name)
+
+        active_nodes = db_hash_ring.get_active_nodes(
+            interval=60, group_name=another_group)
+        self.assertEqual(2, len(active_nodes))
+        for node in active_nodes:
+            self.assertEqual(another_group, node.group_name)
+
+    def test_remove_nodes_from_host_different_groups(self):
+        another_group = 'another_test_group'
+        group1 = self._add_nodes_and_assert_exists(count=3)
+        group2 = self._add_nodes_and_assert_exists(
+            count=2, group_name=another_group)
+
+        db_hash_ring.remove_nodes_from_host(HASH_RING_TEST_GROUP)
+        # Assert that all nodes from that group have been removed
+        for node in group1:
+            self.assertIsNone(self._get_node_row(node))
+
+        # Assert that all nodes from a different group are intact
+        for node in group2:
+            self.assertIsNotNone(self._get_node_row(node))
+
+    def test_touch_nodes_from_host_different_groups(self):
+        another_group = 'another_test_group'
+        group1 = self._add_nodes_and_assert_exists(count=3)
+        group2 = self._add_nodes_and_assert_exists(
+            count=2, group_name=another_group)
+
+        # Assert that updated_at isn't updated yet
+        for node in group1 + group2:
+            node_db = self._get_node_row(node)
+            self.assertEqual(node_db.created_at, node_db.updated_at)
+
+        # Touch the nodes from group1
+        db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
+
+        # Assert that updated_at was updated for group1
+        for node in group1:
+            node_db = self._get_node_row(node)
+            self.assertGreater(node_db.updated_at, node_db.created_at)
+
+        # Assert that updated_at wasn't updated for group2
+        for node in group2:
             node_db = self._get_node_row(node)
             self.assertEqual(node_db.created_at, node_db.updated_at)

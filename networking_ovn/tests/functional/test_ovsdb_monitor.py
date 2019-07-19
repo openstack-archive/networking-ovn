@@ -187,8 +187,10 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         # Create 10 fake workers
         for _ in range(10):
             node_uuid = uuidutils.generate_uuid()
-            db_hash_ring.add_node(node_uuid)
-            fake_driver = mock.MagicMock(node_uuid=node_uuid)
+            db_hash_ring.add_node(ovn_const.HASH_RING_ML2_GROUP, node_uuid)
+            fake_driver = mock.MagicMock(
+                node_uuid=node_uuid,
+                hash_ring_group=ovn_const.HASH_RING_ML2_GROUP)
             _idl = ovsdb_monitor.OvnNbIdl.from_server(
                 self.ovsdb_server_mgr.get_ovsdb_connection_path(),
                 'OVN_Northbound', fake_driver)
@@ -204,7 +206,8 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         # Assert we have 11 active workers in the ring
         self.assertEqual(
             11, len(db_hash_ring.get_active_nodes(
-                    interval=ovn_const.HASH_RING_NODES_TIMEOUT)))
+                    interval=ovn_const.HASH_RING_NODES_TIMEOUT,
+                    group_name=ovn_const.HASH_RING_ML2_GROUP)))
 
         # Trigger the event
         self.create_port()

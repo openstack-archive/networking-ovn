@@ -43,6 +43,7 @@ class OVNRevisionNumbers(model_base.BASEV2):
 class OVNHashRing(model_base.BASEV2):
     __tablename__ = 'ovn_hash_ring'
     node_uuid = sa.Column(sa.String(36), nullable=False, primary_key=True)
+    group_name = sa.Column(sa.String(256), nullable=False, primary_key=True)
     hostname = sa.Column(sa.String(256), nullable=False)
     created_at = sa.Column(sa.DateTime(), default=sa.func.now(),
                            nullable=False)
