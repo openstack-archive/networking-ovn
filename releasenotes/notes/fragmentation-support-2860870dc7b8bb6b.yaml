@@ -1,0 +1,11 @@
+---
+features:
+  - |
+    Adds a new configuration option called ``ovn_emit_need_to_frag``
+    which defaults to False. When enabled, networking-ovn will configure
+    OVN into emitting ICMP "need to frag" packets whenever needed. By
+    default this option is disabled because it requires a newer kernel
+    version for it to work (upstream >= 5.2). It's also possible to find
+    out if it's supported by the host by running the following command
+    as root: ``ovs-appctl -t ovs-vswitchd dpif/show-dp-features br-int``
+    (check for "Check pkt length action: Yes").

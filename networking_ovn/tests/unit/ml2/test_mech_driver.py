@@ -25,6 +25,7 @@ from neutron.tests.unit.extensions import test_segment
 from neutron.tests.unit.plugins.ml2 import test_ext_portsecurity
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron.tests.unit.plugins.ml2 import test_security_group
+from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -1623,6 +1624,43 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     def test__update_dnat_entry_if_needed_down(self):
         self._test__update_dnat_entry_if_needed(up=False)
+
+    def _test_update_network_fragmentation(self, new_mtu, expected_opts):
+        network_attrs = {external_net.EXTERNAL: True}
+        network = self._make_network(
+            self.fmt, 'net1', True, arg_list=(external_net.EXTERNAL,),
+            **network_attrs)
+
+        with self.subnet(network=network) as subnet:
+            with self.port(subnet=subnet,
+                           device_owner=const.DEVICE_OWNER_ROUTER_GW) as port:
+                # Let's update the MTU to something different
+                network['network']['mtu'] = new_mtu
+                fake_ctx = mock.Mock(current=network['network'])
+                fake_ctx._plugin_context.session.is_active = False
+
+                self.mech_driver.update_network_postcommit(fake_ctx)
+
+                lrp_name = ovn_utils.ovn_lrouter_port_name(port['port']['id'])
+                self.nb_ovn.update_lrouter_port.assert_called_once_with(
+                    if_exists=True, name=lrp_name, options=expected_opts)
+
+    def test_update_network_need_to_frag_enabled(self):
+        ovn_config.cfg.CONF.set_override(
+            'ovn_emit_need_to_frag', True, group='ovn')
+        new_mtu = 1234
+        expected_opts = {ovn_const.OVN_ROUTER_PORT_GW_MTU_OPTION:
+                         str(new_mtu)}
+        self._test_update_network_fragmentation(new_mtu, expected_opts)
+
+    def test_update_network_need_to_frag_disabled(self):
+        ovn_config.cfg.CONF.set_override(
+            'ovn_emit_need_to_frag', False, group='ovn')
+        new_mtu = 1234
+        # Assert that the options column is empty (cleaning up an '
+        # existing value if set before)
+        expected_opts = {}
+        self._test_update_network_fragmentation(new_mtu, expected_opts)
 
 
 class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):

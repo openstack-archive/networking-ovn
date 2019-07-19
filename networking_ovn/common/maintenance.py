@@ -17,6 +17,7 @@ import inspect
 import threading
 
 from futurist import periodics
+from neutron_lib.api.definitions import external_net
 from neutron_lib import constants as n_const
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
@@ -432,6 +433,20 @@ class DBInconsistenciesPeriodics(object):
 
             self._nb_idl.lsp_set_addresses(
                 port.name, addresses=addresses).execute(check_error=True)
+
+        raise periodics.NeverAgain()
+
+    # A static spacing value is used here, but this method will only run
+    # once per lock due to the use of periodics.NeverAgain().
+    @periodics.periodic(spacing=600, run_immediately=True)
+    def check_for_fragmentation_support(self):
+        if not self.has_lock:
+            return
+
+        context = n_context.get_admin_context()
+        for net in self._ovn_client._plugin.get_networks(
+                context, {external_net.EXTERNAL: [True]}):
+            self._ovn_client.set_gateway_mtu(context, net)
 
         raise periodics.NeverAgain()
 

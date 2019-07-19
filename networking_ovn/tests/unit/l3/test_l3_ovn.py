@@ -20,6 +20,7 @@ from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_l3_ext_gw_mode as test_l3_gw
+from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net as pnet
 from neutron_lib.callbacks import events
@@ -51,7 +52,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
     def setUp(self):
         super(OVNL3RouterPlugin, self).setUp()
         revision_plugin.RevisionPlugin()
-        network_attrs = {'router:external': True}
+        network_attrs = {external_net.EXTERNAL: True, 'mtu': 1500}
         self.fake_network = \
             fakes.FakeNetwork.create_one_network(attrs=network_attrs).info()
         self.fake_router_port = {'device_id': '',
@@ -67,6 +68,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'name': 'lrp-router-port-id',
             'may_exist': True,
             'networks': ['10.0.0.100/24'],
+            'options': {},
             'external_ids': {
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
                 ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
@@ -128,7 +130,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                 ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
                 ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
                 utils.ovn_name(self.fake_network['id'])},
-            'gateway_chassis': ['hv1']}
+            'gateway_chassis': ['hv1'],
+            'options': {}}
         self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
                                        'fixed_ip_address': '10.0.0.10'}
         self.fake_floating_ip = fakes.FakeFloatingIp.create_one_fip(
@@ -291,6 +294,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             if_exists=False, name='lrp-router-port-id',
             ipv6_ra_configs={},
             networks=['10.0.0.100/24'],
+            options={},
             external_ids={
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
                 ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
@@ -1273,6 +1277,50 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                       gateway_chassis=['chassis2', 'chassis1', 'chassis3']),
             mock.call('lrp-foo-3',
                       gateway_chassis=['chassis3', 'chassis2', 'chassis1'])])
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_network')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
+    @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
+    @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
+    def test_add_router_interface_need_to_frag_enabled(self, ari, gr, grps,
+                                                       gs, gp, gn):
+
+        config.cfg.CONF.set_override(
+            'ovn_emit_need_to_frag', True, group='ovn')
+        router_id = 'router-id'
+        interface_info = {'port_id': 'router-port-id'}
+        ari.return_value = self.fake_router_interface_info
+        gr.return_value = self.fake_router_with_ext_gw
+        gs.return_value = self.fake_subnet
+        gn.return_value = self.fake_network
+        self.fake_router_port['device_owner'] = (
+            constants.DEVICE_OWNER_ROUTER_GW)
+        gp.return_value = self.fake_router_port
+
+        self.l3_inst.add_router_interface(self.context, router_id,
+                                          interface_info)
+
+        # Make sure that the "gateway_mtu" option was set to the router port
+        fake_router_port_assert = self.fake_router_port_assert
+        fake_router_port_assert['gateway_chassis'] = mock.ANY
+        fake_router_port_assert['options'] = {
+            ovn_const.OVN_ROUTER_PORT_GW_MTU_OPTION:
+            str(self.fake_network['mtu'])}
+
+        self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
+            **fake_router_port_assert)
+        self.l3_inst._ovn.set_lrouter_port_in_lswitch_port.\
+            assert_called_once_with(
+                'router-port-id', 'lrp-router-port-id', is_gw_port=True,
+                lsp_address=ovn_const.DEFAULT_ADDR_FOR_LSP_WITH_PEER)
+        self.l3_inst._ovn.add_nat_rule_in_lrouter.assert_called_once_with(
+            'neutron-router-id', logical_ip='10.0.0.0/24',
+            external_ip='192.168.1.1', type='snat')
+
+        self.bump_rev_p.assert_called_with(self.fake_router_port,
+                                           ovn_const.TYPE_ROUTER_PORTS)
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,

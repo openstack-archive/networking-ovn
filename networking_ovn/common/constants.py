@@ -53,6 +53,7 @@ OVN_GATEWAY_CHASSIS_KEY = 'redirect-chassis'
 OVN_CHASSIS_REDIRECT = 'chassisredirect'
 OVN_GATEWAY_NAT_ADDRESSES_KEY = 'nat-addresses'
 OVN_DROP_PORT_GROUP_NAME = 'neutron_pg_drop'
+OVN_ROUTER_PORT_GW_MTU_OPTION = 'gateway_mtu'
 
 OVN_PROVNET_PORT_NAME_PREFIX = 'provnet-'
 

@@ -180,6 +180,15 @@ ovn_opts = [
                        "- ntp_server:,wpad:1.2.3.5 - Unset ntp_server and "
                        "set wpad\n"
                        "See the ovn-nb(5) man page for available options.")),
+    cfg.BoolOpt('ovn_emit_need_to_frag',
+                default=False,
+                help=_('Configure OVN to emit "need to frag" packets in '
+                       'case of MTU mismatch.\n'
+                       'Before enabling this configuration make sure that '
+                       'its supported by the host kernel (version >= 5.2) '
+                       'or by checking the output of the following command: \n'
+                       'ovs-appctl -t ovs-vswitchd dpif/show-dp-features '
+                       'br-int | grep "Check pkt length action".')),
 ]
 
 cfg.CONF.register_opts(ovn_opts, group='ovn')
@@ -288,3 +297,7 @@ def setup_logging():
              {'prog': sys.argv[0],
               'version': version.version_info.release_string()})
     LOG.debug("command line: %s", " ".join(sys.argv))
+
+
+def is_ovn_emit_need_to_frag_enabled():
+    return cfg.CONF.ovn.ovn_emit_need_to_frag
