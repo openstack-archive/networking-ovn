@@ -22,11 +22,27 @@ import psutil
 import tenacity
 
 
-class OvnNorthd(fixtures.Fixture):
+class DaemonProcessFixture(fixtures.Fixture):
+    def __init__(self, temp_dir):
+        super(DaemonProcessFixture, self).__init__()
+        self.temp_dir = temp_dir
+
+    def _get_pid_from_pidfile(self, pidfile):
+        with open(os.path.join(self.temp_dir, pidfile), 'r') as pidfile_f:
+            pid = pidfile_f.read().strip()
+            try:
+                return int(pid)
+            except ValueError:
+                raise RuntimeError(
+                    "Pidfile %(pidfile)s contains %(pid)s that "
+                    "is not a pid" % {'pidfile': pidfile, 'pid': pid}
+                )
+
+
+class OvnNorthd(DaemonProcessFixture):
 
     def __init__(self, temp_dir, ovn_nb_db, ovn_sb_db, protocol='unix'):
-        super(OvnNorthd, self).__init__()
-        self.temp_dir = temp_dir
+        super(OvnNorthd, self).__init__(temp_dir)
         self.ovn_nb_db = ovn_nb_db
         self.ovn_sb_db = ovn_sb_db
         self.protocol = protocol
@@ -46,6 +62,7 @@ class OvnNorthd(fixtures.Fixture):
         # start the ovn-northd
         ovn_northd_cmd = [
             spawn.find_executable('ovn-northd'), '-vconsole:off',
+            '--detach',
             '--ovnnb-db=%s' % self.ovn_nb_db,
             '--ovnsb-db=%s' % self.ovn_sb_db,
             '--no-chdir',
@@ -55,7 +72,8 @@ class OvnNorthd(fixtures.Fixture):
             ovn_northd_cmd.append('--private-key=%s' % self.private_key)
             ovn_northd_cmd.append('--certificate=%s' % self.certificate)
             ovn_northd_cmd.append('--ca-cert=%s' % self.ca_cert)
-        utils.create_process(ovn_northd_cmd)
+        obj, _ = utils.create_process(ovn_northd_cmd)
+        obj.communicate()
 
     def stop(self):
         try:
@@ -65,12 +83,11 @@ class OvnNorthd(fixtures.Fixture):
             pass
 
 
-class OvsdbServer(fixtures.Fixture):
+class OvsdbServer(DaemonProcessFixture):
 
     def __init__(self, temp_dir, ovs_dir, ovn_nb_db=True, ovn_sb_db=False,
                  protocol='unix'):
-        super(OvsdbServer, self).__init__()
-        self.temp_dir = temp_dir
+        super(OvsdbServer, self).__init__(temp_dir)
         self.ovs_dir = ovs_dir
         self.ovn_nb_db = ovn_nb_db
         self.ovn_sb_db = ovn_sb_db
@@ -91,6 +108,7 @@ class OvsdbServer(fixtures.Fixture):
                  'protocol': self.protocol,
                  'remote_ip': '127.0.0.1',
                  'remote_port': '0',
+                 'pidfile': 'ovn-nb.pid',
                  'unixctl_path': self.temp_dir + '/ovnnb_db.ctl',
                  'log_file_path': self.temp_dir + '/ovn_nb.log',
                  'db_type': 'nb',
@@ -105,6 +123,7 @@ class OvsdbServer(fixtures.Fixture):
                  'protocol': self.protocol,
                  'remote_ip': '127.0.0.1',
                  'remote_port': '0',
+                 'pidfile': 'ovn-sb.pid',
                  'unixctl_path': self.temp_dir + '/ovnsb_db.ctl',
                  'log_file_path': self.temp_dir + '/ovn_sb.log',
                  'db_type': 'sb',
@@ -136,6 +155,9 @@ class OvsdbServer(fixtures.Fixture):
             # start the ovsdb-server
             ovsdb_server_cmd = [
                 spawn.find_executable('ovsdb-server'), '-vconsole:off',
+                '--detach',
+                '--pidfile=%s' % os.path.join(
+                    self.temp_dir, ovsdb_process['pidfile']),
                 '--log-file=%s' % (ovsdb_process['log_file_path']),
                 '--remote=punix:%s' % (ovsdb_process['remote_path']),
                 '--remote=%s' % (ovsdb_process['connection']),
@@ -149,6 +171,7 @@ class OvsdbServer(fixtures.Fixture):
                 ovsdb_server_cmd.append('--ca-cert=%s' % self.ca_cert)
             ovsdb_server_cmd.append(ovsdb_process['db_path'])
             obj, _ = utils.create_process(ovsdb_server_cmd)
+            obj.communicate()
 
             conn_cmd = [spawn.find_executable(ovsdb_process['ctl_cmd']),
                         '--db=unix:%s' % ovsdb_process['remote_path'],
@@ -177,8 +200,9 @@ class OvsdbServer(fixtures.Fixture):
 
             if ovsdb_process['protocol'] != 'unix':
                 _set_connection()
+                pid = self._get_pid_from_pidfile(ovsdb_process['pidfile'])
                 ovsdb_process['remote_port'] = \
-                    get_ovsdb_remote_port_retry(obj.pid)
+                    get_ovsdb_remote_port_retry(pid)
 
     def stop(self):
         for ovsdb_process in self.ovsdb_server_processes:
