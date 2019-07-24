@@ -59,6 +59,10 @@ class TestOvnOctaviaBase(base.BaseTestCase):
         self.member_port = "1010"
         self.member_pool_id = self.pool_id
         self.member_subnet_id = uuidutils.generate_uuid()
+        self.vip_dict = {'vip_network_id': uuidutils.generate_uuid(),
+                         'vip_subnet_id': uuidutils.generate_uuid()}
+        self.vip_output = {'vip_network_id': self.vip_dict['vip_network_id'],
+                           'vip_subnet_id': self.vip_dict['vip_subnet_id']}
         mock.patch(
             'ovsdbapp.backend.ovs_idl.idlutils.get_schema_helper').start()
 
@@ -207,10 +211,6 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         mock.patch.object(ovn_driver.OvnProviderHelper,
                           '_find_ovn_lb_with_pool_key',
                           return_value=self.ovn_lb).start()
-        self.vip_dict = {'vip_network_id': uuidutils.generate_uuid(),
-                         'vip_subnet_id': uuidutils.generate_uuid()}
-        self.vip_output = {'vip_network_id': self.vip_dict['vip_network_id'],
-                           'vip_subnet_id': self.vip_dict['vip_subnet_id']}
 
     def test_member_create(self):
         info = {'id': self.ref_member.member_id,
@@ -399,18 +399,15 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             port_dict = self.driver.create_vip_port(self.loadbalancer_id,
                                                     self.project_id,
                                                     self.vip_dict)
-            for key, value in self.vip_output.items():
-                self.assertEqual(value, port_dict[key])
-            self.vip_dict['vip_address'] = '10.1.10.1'
-            port_dict = self.driver.create_vip_port(self.loadbalancer_id,
-                                                    self.project_id,
-                                                    self.vip_dict)
-            # The network_driver function is mocked, therefore the
-            # created port vip_address is also mocked. Check if it exists
-            # and move on.
             self.assertIsNotNone(port_dict.pop('vip_address', None))
-            for key, value in self.vip_output.items():
-                self.assertEqual(value, port_dict[key])
+            self.assertIsNotNone(port_dict.pop('vip_port_id', None))
+            # The network_driver function is mocked, therefore the
+            # created port vip_address and vip_port_id are also mocked.
+            # Check if it exists and move on.
+            # The finally output is include vip_address, vip_port_id,
+            # vip_network_id and vip_subnet_id.
+            for key, value in port_dict.items():
+                self.assertEqual(value, self.vip_output[key])
 
 
 class TestOvnProviderHelper(TestOvnOctaviaBase):
@@ -1289,3 +1286,39 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertIs(prov_helper1.ovn_nbdb_api, prov_helper2.ovn_nbdb_api)
         prov_helper2.shutdown()
         prov_helper1.shutdown()
+
+    def test_create_vip_port_vip_selected(self):
+        expected_dict = {
+            'port': {'name': '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                                       self.loadbalancer_id),
+                     'fixed_ips': [{'subnet_id':
+                                    self.vip_dict['vip_subnet_id'],
+                                    'ip_address':'10.1.10.1'}],
+                     'network_id': self.vip_dict['vip_network_id'],
+                     'admin_state_up': True,
+                     'project_id': self.project_id}}
+        with mock.patch.object(ovn_driver, 'get_network_driver') as gn:
+            self.vip_dict['vip_address'] = '10.1.10.1'
+            self.helper.create_vip_port(self.project_id,
+                                        self.loadbalancer_id,
+                                        self.vip_dict)
+            expected_call = [
+                mock.call().neutron_client.create_port(expected_dict)]
+            gn.assert_has_calls(expected_call)
+
+    def test_create_vip_port_vip_not_selected(self):
+        expected_dict = {
+            'port': {'name': '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                                       self.loadbalancer_id),
+                     'fixed_ips': [{'subnet_id':
+                                    self.vip_dict['vip_subnet_id']}],
+                     'network_id': self.vip_dict['vip_network_id'],
+                     'admin_state_up': True,
+                     'project_id': self.project_id}}
+        with mock.patch.object(ovn_driver, 'get_network_driver') as gn:
+            self.helper.create_vip_port(self.project_id,
+                                        self.loadbalancer_id,
+                                        self.vip_dict)
+            expected_call = [
+                mock.call().neutron_client.create_port(expected_dict)]
+            gn.assert_has_calls(expected_call)
