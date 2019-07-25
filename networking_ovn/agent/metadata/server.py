@@ -15,8 +15,8 @@
 import hashlib
 import hmac
 
-import httplib2
 from neutron.agent.linux import utils as agent_utils
+from neutron.common import ipv6_utils
 from neutron.conf.agent.metadata import config
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
@@ -24,6 +24,7 @@ from neutron_lib.callbacks import resources
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import encodeutils
+import requests
 import six
 import six.moves.urllib.parse as urlparse
 import webob
@@ -91,15 +92,15 @@ class MetadataProxyHandler(object):
     def _proxy_request(self, instance_id, tenant_id, req):
         headers = {
             'X-Forwarded-For': req.headers.get('X-Forwarded-For'),
-            'X-Instance-ID': str(instance_id),
-            'X-Tenant-ID': str(tenant_id),
+            'X-Instance-ID': instance_id,
+            'X-Tenant-ID': tenant_id,
             'X-Instance-ID-Signature': self._sign_instance_id(instance_id)
         }
 
-        nova_host_port = '%s:%s' % (self.conf.nova_metadata_host,
-                                    self.conf.nova_metadata_port)
-        LOG.debug('Request to Nova at %s', nova_host_port)
-        LOG.debug(headers)
+        nova_host_port = ipv6_utils.valid_ipv6_url(
+            self.conf.nova_metadata_host,
+            self.conf.nova_metadata_port)
+
         url = urlparse.urlunsplit((
             self.conf.nova_metadata_protocol,
             nova_host_port,
@@ -107,43 +108,50 @@ class MetadataProxyHandler(object):
             req.query_string,
             ''))
 
-        h = httplib2.Http(
-            ca_certs=self.conf.auth_ca_cert,
-            disable_ssl_certificate_validation=self.conf.nova_metadata_insecure
-        )
-        if self.conf.nova_client_cert and self.conf.nova_client_priv_key:
-            h.add_certificate(self.conf.nova_client_priv_key,
-                              self.conf.nova_client_cert,
-                              nova_host_port)
-        resp, content = h.request(url, method=req.method, headers=headers,
-                                  body=req.body)
+        disable_ssl_certificate_validation = self.conf.nova_metadata_insecure
+        if self.conf.auth_ca_cert and not disable_ssl_certificate_validation:
+            verify_cert = self.conf.auth_ca_cert
+        else:
+            verify_cert = not disable_ssl_certificate_validation
 
-        if resp.status == 200:
-            req.response.content_type = resp['content-type']
-            req.response.body = content
+        client_cert = None
+        if self.conf.nova_client_cert and self.conf.nova_client_priv_key:
+            client_cert = (self.conf.nova_client_cert,
+                           self.conf.nova_client_priv_key)
+
+        resp = requests.request(method=req.method, url=url,
+                                headers=headers,
+                                data=req.body,
+                                cert=client_cert,
+                                verify=verify_cert)
+
+        if resp.status_code == 200:
+            req.response.content_type = resp.headers['content-type']
+            req.response.body = resp.content
             LOG.debug(str(resp))
             return req.response
-        elif resp.status == 403:
+        elif resp.status_code == 403:
             LOG.warning(
                 'The remote metadata server responded with Forbidden. This '
                 'response usually occurs when shared secrets do not match.'
             )
             return webob.exc.HTTPForbidden()
-        elif resp.status == 400:
+        elif resp.status_code == 400:
             return webob.exc.HTTPBadRequest()
-        elif resp.status == 404:
+        elif resp.status_code == 404:
             return webob.exc.HTTPNotFound()
-        elif resp.status == 409:
+        elif resp.status_code == 409:
             return webob.exc.HTTPConflict()
-        elif resp.status == 500:
+        elif resp.status_code == 500:
             msg = _(
                 'Remote metadata server experienced an internal server error.'
             )
-            LOG.debug(msg)
+            LOG.warning(msg)
             explanation = six.text_type(msg)
             return webob.exc.HTTPInternalServerError(explanation=explanation)
         else:
-            raise Exception(_('Unexpected response code: %s') % resp.status)
+            raise Exception(_('Unexpected response code: %s') %
+                            resp.status_code)
 
     def _sign_instance_id(self, instance_id):
         secret = self.conf.metadata_proxy_shared_secret
