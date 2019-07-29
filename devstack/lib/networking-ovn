@@ -44,15 +44,8 @@ GITDIR["ovsdbapp"]=$DEST/ovsdbapp
 # Defaults
 # --------
 
-# The git repo to use
-OVN_REPO=${OVN_REPO:-https://github.com/openvswitch/ovs.git}
-OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
-
 # The project directory
 NETWORKING_OVN_DIR=$DEST/networking-ovn
-
-# The branch to use from $OVN_REPO
-OVN_BRANCH=${OVN_BRANCH:-branch-2.12}
 
 # How to connect to ovsdb-server hosting the OVN SB database.
 OVN_SB_REMOTE=${OVN_SB_REMOTE:-tcp:$SERVICE_HOST:6642}
@@ -102,11 +95,6 @@ NEUTRON_DIR=$DEST/neutron
 
 OVN_META_CONF=$NEUTRON_CONF_DIR/networking_ovn_metadata_agent.ini
 
-# Set variables for building OVS from source
-OVS_REPO=$OVN_REPO
-OVS_REPO_NAME=$OVN_REPO_NAME
-OVS_BRANCH=$OVN_BRANCH
-
 OVS_PREFIX=/usr/local
 OVS_SBINDIR=$OVS_PREFIX/sbin
 OVS_BINDIR=$OVS_PREFIX/bin
@@ -114,6 +102,11 @@ OVS_RUNDIR=$OVS_PREFIX/var/run/openvswitch
 OVS_SHAREDIR=$OVS_PREFIX/share/openvswitch
 OVS_SCRIPTDIR=$OVS_SHAREDIR/scripts
 OVS_DATADIR=$DATA_DIR/ovs
+
+OVN_DATADIR=$DATA_DIR/ovn
+OVN_SHAREDIR=$OVS_PREFIX/share/ovn
+OVN_SCRIPTDIR=$OVN_SHAREDIR/scripts
+OVN_RUNDIR=$OVS_PREFIX/var/run/ovn
 
 NETWORKING_OVN_BIN_DIR=$(get_python_exec_prefix)
 NETWORKING_OVN_METADATA_BINARY="networking-ovn-metadata-agent"
@@ -128,6 +121,7 @@ source $TOP_DIR/lib/neutron_plugins/ovs_base
 source $TOP_DIR/lib/neutron_plugins/openvswitch_agent
 source $NETWORKING_OVN_DIR/devstack/override-defaults
 source $NETWORKING_OVN_DIR/devstack/network_utils.sh
+source $NETWORKING_OVN_DIR/devstack/lib/ovn
 
 # NOTE(rtheis): Function copied from DevStack _neutron_ovs_base_setup_bridge
 # and _neutron_ovs_base_add_bridge with the call to neutron-ovs-cleanup
@@ -152,7 +146,7 @@ function _start_process {
     $SYSTEMCTL restart $1
 }
 
-function _ovn_run_process {
+function _run_process {
     local service=$1
     local cmd="$2"
     local stop_cmd="$3"
@@ -161,7 +155,7 @@ function _ovn_run_process {
 
     local systemd_service="devstack@$service.service"
     local unit_file="$SYSTEMD_DIR/$systemd_service"
-    local environment="OVS_RUNDIR=$OVS_RUNDIR OVS_DBDIR=$OVS_DATADIR OVS_LOGDIR=$LOGDIR"
+    local environment="OVN_RUNDIR=$OVS_RUNDIR OVN_DBDIR=$OVN_DATADIR OVN_LOGDIR=$LOGDIR OVS_RUNDIR=$OVS_RUNDIR OVS_DBDIR=$OVS_DATADIR OVS_LOGDIR=$LOGDIR"
 
     echo "Starting $service executed command": $cmd
 
@@ -182,19 +176,33 @@ function _ovn_run_process {
     sudo ovs-appctl -t $service vlog/set console:off syslog:info file:info
 }
 
-
 # Entry Points
 # ------------
+
+function _cleanup {
+    local path=${1:-$DEST/$OVN_REPO_NAME}
+    pushd $path
+    cd $path
+    sudo make uninstall
+    sudo make distclean
+    popd
+}
 
 # cleanup_ovn() - Remove residual data files, anything left over from previous
 # runs that a clean run would need to clean up
 function cleanup_ovn {
-    local _pwd=$(pwd)
-    local ovs_path=${1:-$DEST/$OVN_REPO_NAME}
-    cd $ovs_path
-    sudo make uninstall
-    sudo make distclean
-    cd $_pwd
+    local ovn_path=$DEST/$OVN_REPO_NAME
+    local ovs_path=$DEST/$OVS_REPO_NAME
+
+    if [ -d $ovn_path ]; then
+        _cleanup $ovn_path
+    fi
+
+    if [ -d $ovs_path ]; then
+        _cleanup $ovs_path
+    fi
+
+    sudo rm -f $OVN_RUNDIR
 }
 
 # configure_ovn() - Set config files, create data dirs, etc
@@ -291,10 +299,13 @@ function init_ovn {
     # in the ovn, ovn-nb, or ovs databases.  We're going to trash them and
     # create new ones on each devstack run.
 
+    mkdir -p $OVN_DATADIR
     mkdir -p $OVS_DATADIR
 
     rm -f $OVS_DATADIR/*.db
     rm -f $OVS_DATADIR/.*.db.~lock~
+    rm -f $OVN_DATADIR/*.db
+    rm -f $OVN_DATADIR/.*.db.~lock~
 }
 
 # install_ovn() - Collect source and prepare
@@ -323,11 +334,18 @@ function install_ovn {
     remove_ovs_packages
     sudo rm -f $OVS_RUNDIR/*
 
-    compile_ovs $OVN_BUILD_MODULES
+    if use_new_ovn_repository; then
+        compile_ovn $OVN_BUILD_MODULES
+    else
+        compile_ovs $OVN_BUILD_MODULES
+    fi
+
     sudo mkdir -p $OVS_RUNDIR
     sudo chown $(whoami) $OVS_RUNDIR
     sudo mkdir -p $OVS_PREFIX/var/log/openvswitch
     sudo chown $(whoami) $OVS_PREFIX/var/log/openvswitch
+    sudo mkdir -p $OVS_PREFIX/var/log/ovn
+    sudo chown $(whoami) $OVS_PREFIX/var/log/ovn
 
     # Archive log files and create new
     local log_archive_dir=$LOGDIR/archive
@@ -349,6 +367,8 @@ function install_ovn {
     # Install ovs python module from ovs source.
     if [[ "$OVN_INSTALL_OVS_PYTHON_MODULE" == "True" ]]; then
         sudo pip uninstall -y ovs
+        # Clone the OVS repository if it's not yet present
+        clone_repository $OVS_REPO $OVS_BRANCH
         sudo pip install -e $DEST/$OVS_REPO_NAME/python
     fi
 }
@@ -376,7 +396,7 @@ function start_ovs {
             dbcmd+=" --remote=db:hardware_vtep,Global,managers $OVS_DATADIR/vtep.db"
         fi
         dbcmd+=" $OVS_DATADIR/conf.db"
-        _ovn_run_process ovsdb-server "$dbcmd"
+        _run_process ovsdb-server "$dbcmd"
 
         echo "Configuring OVSDB"
         ovs-vsctl --no-wait set open_vswitch . system-type="devstack"
@@ -394,7 +414,7 @@ function start_ovs {
         ovs-vsctl --no-wait set bridge br-int fail-mode=secure other-config:disable-in-band=true
 
         local ovscmd="$OVS_SBINDIR/ovs-vswitchd --log-file --pidfile --detach"
-        _ovn_run_process ovs-vswitchd "$ovscmd" "" "$STACK_USER" "root"
+        _run_process ovs-vswitchd "$ovscmd" "" "$STACK_USER" "root"
 
         if is_provider_network || [[ $Q_USE_PROVIDERNET_FOR_PUBLIC == "True" ]]; then
             ovn_base_setup_bridge $OVS_PHYSICAL_BRIDGE
@@ -408,7 +428,7 @@ function start_ovs {
 
             enable_service ovs-vtep
             local vtepcmd="$OVS_SCRIPTDIR/ovs-vtep --log-file --pidfile --detach br-v"
-            _ovn_run_process ovs-vtep "$vtepcmd" "" "$STACK_USER" "root"
+            _run_process ovs-vtep "$vtepcmd" "" "$STACK_USER" "root"
 
             vtep-ctl set-manager tcp:$HOST_IP:6640
         fi
@@ -421,11 +441,16 @@ function start_ovs {
 function start_ovn {
     echo "Starting OVN"
 
-    if is_service_enabled ovn-northd ; then
-        local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_northd"
-        local stop_cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl stop_northd"
+    local SCRIPTDIR=$OVN_SCRIPTDIR
+    if ! use_new_ovn_repository; then
+        SCRIPTDIR=$OVS_SCRIPTDIR
+    fi
 
-        _ovn_run_process ovn-northd "$cmd" "$stop_cmd"
+    if is_service_enabled ovn-northd ; then
+        local cmd="/bin/bash $SCRIPTDIR/ovn-ctl --no-monitor start_northd"
+        local stop_cmd="/bin/bash $SCRIPTDIR/ovn-ctl stop_northd"
+
+        _run_process ovn-northd "$cmd" "$stop_cmd"
         ovn-nbctl --db=unix:$OVS_RUNDIR/ovnnb_db.sock set-connection ptcp:6641:0.0.0.0 -- set connection . inactivity_probe=60000
         ovn-sbctl --db=unix:$OVS_RUNDIR/ovnsb_db.sock set-connection ptcp:6642:0.0.0.0 -- set connection . inactivity_probe=60000
         sudo ovs-appctl -t $OVS_RUNDIR/ovnnb_db.ctl vlog/set console:off syslog:$OVN_DBS_LOG_LEVEL file:$OVN_DBS_LOG_LEVEL
@@ -433,16 +458,16 @@ function start_ovn {
     fi
 
     if is_service_enabled ovn-controller ; then
-        local cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl --no-monitor start_controller"
-        local stop_cmd="/bin/bash $OVS_SCRIPTDIR/ovn-ctl stop_controller"
+        local cmd="/bin/bash $SCRIPTDIR/ovn-ctl --no-monitor start_controller"
+        local stop_cmd="/bin/bash $SCRIPTDIR/ovn-ctl stop_controller"
 
-        _ovn_run_process ovn-controller "$cmd" "$stop_cmd" "$STACK_USER" "root"
+        _run_process ovn-controller "$cmd" "$stop_cmd" "$STACK_USER" "root"
     fi
 
     if is_service_enabled ovn-controller-vtep ; then
         local cmd="$OVS_BINDIR/ovn-controller-vtep --log-file --pidfile --detach --ovnsb-db=$OVN_SB_REMOTE"
 
-        _ovn_run_process ovn-controller-vtep "$cmd" "" "$STACK_USER" "root"
+        _run_process ovn-controller-vtep "$cmd" "" "$STACK_USER" "root"
     fi
 
     if is_service_enabled networking-ovn-metadata-agent; then
@@ -459,6 +484,13 @@ function start_ovn {
 
     if is_service_enabled br-int-flows ; then
         run_process br-int-flows "/bin/sh -c \"set +e; while true; do echo ovs-ofctl dump-flows br-int; ovs-ofctl dump-flows br-int ; sleep 30; done; \"" $STACK_USER root
+    fi
+
+    # NOTE(lucasagomes): To keep things simpler, let's reuse the same
+    # RUNDIR for both OVS and OVN. This way we avoid having to specify the
+    # --db option in the ovn-{n,s}bctl commands while playing with DevStack
+    if use_new_ovn_repository; then
+        sudo ln -s $OVS_RUNDIR $OVN_RUNDIR
     fi
 }
 
