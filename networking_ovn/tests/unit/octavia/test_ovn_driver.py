@@ -11,6 +11,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
+import os
+
 import mock
 from neutron.tests import base
 from octavia_lib.api.drivers import data_models
@@ -18,11 +20,17 @@ from octavia_lib.api.drivers import driver_lib
 from octavia_lib.api.drivers import exceptions
 from octavia_lib.common import constants
 from oslo_utils import uuidutils
+from ovs.db import idl as ovs_idl
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.octavia import ovn_driver
 from networking_ovn.tests.unit import fakes
+
+basedir = os.path.dirname(os.path.abspath(__file__))
+schema_files = {
+    'OVN_Northbound': os.path.join(basedir.replace('octavia', 'ovsdb'),
+                                   'schemas', 'ovn-nb.ovsschema')}
 
 
 # TODO(mjozefcz): Move it to unittest fakes.
@@ -35,6 +43,50 @@ class MockedLB(data_models.LoadBalancer):
     def __hash__(self):
         # Required for Python3, not for Python2
         return self.__sizeof__()
+
+
+class TestOvnNbIdlForLb(base.BaseTestCase):
+    def setUp(self):
+        super(TestOvnNbIdlForLb, self).setUp()
+        self.mock_gsh = mock.patch.object(
+            idlutils, 'get_schema_helper',
+            side_effect=lambda x, y: ovs_idl.SchemaHelper(
+                location=schema_files['OVN_Northbound'])).start()
+        self.idl = ovn_driver.OvnNbIdlForLb()
+
+    def test__get_ovsdb_helper(self):
+        self.mock_gsh.reset_mock()
+        self.idl._get_ovsdb_helper('foo')
+        self.mock_gsh.assert_called_once_with('foo', 'OVN_Northbound')
+
+    def test_start(self):
+        with mock.patch('ovsdbapp.backend.ovs_idl.connection.Connection',
+                        side_effect=lambda x, timeout: mock.Mock()):
+            idl1 = ovn_driver.OvnNbIdlForLb()
+            ret1 = idl1.start()
+            id1 = id(ret1.ovsdb_connection)
+            idl2 = ovn_driver.OvnNbIdlForLb()
+            ret2 = idl2.start()
+            id2 = id(ret2.ovsdb_connection)
+            self.assertNotEqual(id1, id2)
+
+    @mock.patch('ovsdbapp.backend.ovs_idl.connection.Connection')
+    def test_stop(self, mock_conn):
+        mock_conn.stop.return_value = False
+        with (
+            mock.patch.object(
+                self.idl.notify_handler, 'shutdown')) as mock_notify, (
+                mock.patch.object(self.idl, 'close')) as mock_close:
+            self.idl.start()
+            self.idl.stop()
+        mock_notify.assert_called_once_with()
+        mock_close.assert_called_once_with()
+
+    def test_setlock(self):
+        with mock.patch.object(ovn_driver.OvnNbIdlForLb,
+                               'set_lock') as set_lock:
+            self.idl = ovn_driver.OvnNbIdlForLb(event_lock_name='foo')
+        set_lock.assert_called_once_with('foo')
 
 
 class TestOvnOctaviaBase(base.BaseTestCase):
@@ -1287,12 +1339,24 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                           '172.26.21.20:80': '192.168.2.149:1010'}))]
         self.helper.ovn_nbdb_api.assert_has_calls(calls)
 
-    def test_single_ovsdb_connection(self):
+    @mock.patch.object(ovn_driver, 'atexit')
+    def test_ovsdb_connections(self, mock_atexit):
+        ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
+        ovn_driver.OvnProviderHelper.ovn_nbdb_api_for_events = None
         prov_helper1 = ovn_driver.OvnProviderHelper()
         prov_helper2 = ovn_driver.OvnProviderHelper()
-        self.assertIs(prov_helper1.ovn_nbdb_api, prov_helper2.ovn_nbdb_api)
+        # One connection for API requests
+        self.assertIs(prov_helper1.ovn_nbdb_api,
+                      prov_helper2.ovn_nbdb_api)
+        # One connection to handle events
+        self.assertIs(prov_helper1.ovn_nbdb_api_for_events,
+                      prov_helper2.ovn_nbdb_api_for_events)
         prov_helper2.shutdown()
         prov_helper1.shutdown()
+        # Assert at_exit calls
+        mock_atexit.assert_has_calls([
+            mock.call.register(prov_helper1.shutdown),
+            mock.call.register(prov_helper2.shutdown)])
 
     def test_create_vip_port_vip_selected(self):
         expected_dict = {
