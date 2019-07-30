@@ -300,13 +300,13 @@ can be found in https://docs.openstack.org/octavia/latest/user/feature-classific
 Other References
 ----------------
 [1] Octavia API:
-https://developer.openstack.org/api-ref/load-balancer/v2/
+https://docs.openstack.org/api-ref/load-balancer/v2/
 
 [2] Octavia Glossary:
 https://docs.openstack.org/octavia/queens/reference/glossary.html
 
 [3] https://github.com/openvswitch/ovs/commit/612f80fa8ebf88dad2e204364c6c02b451dca36c
 
-[4] https://developer.openstack.org/api-ref/load-balancer/v2/index.html#status-codes
+[4] https://docs.openstack.org/api-ref/load-balancer/v2/index.html#status-codes
 
 [5] https://github.com/openvswitch/ovs/blob/d1b235d7a6246e00d4afc359071d3b6b3ed244c3/ovn/ovn-nb.ovsschema#L117
