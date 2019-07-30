@@ -31,7 +31,6 @@ future==0.16.0
 futurist==1.2.0
 greenlet==0.4.10
 hacking==1.1.0
-httplib2==0.9.1
 idna==2.6
 imagesize==0.7.1
 iso8601==0.1.11
