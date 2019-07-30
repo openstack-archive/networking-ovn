@@ -11,3 +11,4 @@ Design Notes
    metadata_api
    database_consistency
    acl_optimizations
+   loadbalancer
