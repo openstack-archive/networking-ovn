@@ -395,7 +395,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         expected_status = {
             'pools': [{'id': m_pool.pool_id,
                        'provisioning_status': 'ACTIVE',
-                       'operating_status': o_constants.ONLINE}],
+                       'operating_status': o_constants.OFFLINE}],
             'loadbalancers': [{'id': m_pool.loadbalancer_id,
                                'provisioning_status': 'ACTIVE'}]
         }
@@ -454,7 +454,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         for m in p.members:
             expected_status.append(
                 {'pools': [{"id": p.pool_id,
-                            "provisioning_status": "ACTIVE"}],
+                            "provisioning_status": o_constants.ACTIVE,
+                            "operating_status": o_constants.ONLINE}],
                  'members': [{"id": m.member_id,
                               "provisioning_status": "DELETED"}],
                  'loadbalancers': [{"id": p.loadbalancer_id,
@@ -462,7 +463,11 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                  'listeners': []})
             self._update_ls_refs(
                 lb_data, self._local_net_cache[m.subnet_id], add_ref=False)
-
+        if p.members:
+            # If Pool has members, delete all members of the pool. When the
+            # last member is processed set Operating status of Pool as Offline
+            expected_status[-1]['pools'][0][
+                'operating_status'] = o_constants.OFFLINE
         pool_dict = {
             'pools': [{'id': p.pool_id,
                        'provisioning_status': 'DELETED'}],
@@ -501,6 +506,9 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                     network_id, address):
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
+        pool_status = {'id': pool.pool_id,
+                       'provisioning_status': o_constants.ACTIVE,
+                       'operating_status': o_constants.ONLINE}
 
         m_member = self._create_member_model(pool.pool_id, subnet_id, address)
         pool.members.append(m_member)
@@ -508,14 +516,12 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.ovn_driver.member_create(m_member)
         self._update_ls_refs(lb_data, network_id)
         pool_listeners = self._get_pool_listeners(lb_data, pool_id)
-
         expected_listener_status = [
             {'id': l.listener_id, 'provisioning_status': 'ACTIVE'}
             for l in pool_listeners]
 
         expected_status = {
-            'pools': [{'id': pool.pool_id,
-                       'provisioning_status': 'ACTIVE'}],
+            'pools': [pool_status],
             'members': [{"id": m_member.member_id,
                          "provisioning_status": "ACTIVE"}],
             'loadbalancers': [{'id': pool.loadbalancer_id,
@@ -539,12 +545,17 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             'pools': [{'id': pool.pool_id,
                        'provisioning_status': 'ACTIVE'}],
             'members': [{"id": member.member_id,
-                         'provisioning_status': 'ACTIVE',
-                         'operating_status': 'ONLINE'}],
+                         'provisioning_status': 'ACTIVE'}],
             'loadbalancers': [{'id': pool.loadbalancer_id,
                                'provisioning_status': 'ACTIVE'}],
             'listeners': []
         }
+        if getattr(member, 'admin_state_up', None):
+            expected_status['members'][0]['operating_status'] = \
+                "ONLINE"
+        else:
+            expected_status['members'][0]['operating_status'] = \
+                "OFFLINE"
         self._wait_for_status_and_validate(lb_data, [expected_status])
 
     def _update_members_in_batch_and_validate(self, lb_data, pool_id,
@@ -586,11 +597,16 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
         member = self._get_pool_member(pool, member_address)
         pool.members.remove(member)
+        pool_status = {"id": pool.pool_id,
+                       "provisioning_status": o_constants.ACTIVE,
+                       "operating_status": o_constants.ONLINE}
+        if not pool.members:
+            pool_status['operating_status'] = o_constants.OFFLINE
+
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
         self.ovn_driver.member_delete(member)
         expected_status = {
-            'pools': [{"id": pool.pool_id,
-                       "provisioning_status": "ACTIVE"}],
+            'pools': [pool_status],
             'members': [{"id": member.member_id,
                          "provisioning_status": "DELETED"}],
             'loadbalancers': [{"id": pool.loadbalancer_id,
