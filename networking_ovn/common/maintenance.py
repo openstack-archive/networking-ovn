@@ -431,6 +431,19 @@ class DBInconsistenciesPeriodics(object):
                 elif not type_ and ovn_const.UNKNOWN_ADDR in addresses:
                     addresses.remove(ovn_const.UNKNOWN_ADDR)
 
+            addresses = port.addresses
+            type_ = port.type.strip()
+            if not port.port_security:
+                if not type_ and ovn_const.UNKNOWN_ADDR not in addresses:
+                    addresses.append(ovn_const.UNKNOWN_ADDR)
+                elif type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
+            else:
+                if type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
+                elif not type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
+
             self._nb_idl.lsp_set_addresses(
                 port.name, addresses=addresses).execute(check_error=True)
 
