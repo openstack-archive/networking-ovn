@@ -15,6 +15,7 @@ import os
 
 import mock
 from neutron.tests import base
+from neutronclient.common import exceptions as n_exc
 from octavia_lib.api.drivers import data_models
 from octavia_lib.api.drivers import driver_lib
 from octavia_lib.api.drivers import exceptions
@@ -95,9 +96,12 @@ class TestOvnOctaviaBase(base.BaseTestCase):
         super(TestOvnOctaviaBase, self).setUp()
         self.listener_id = uuidutils.generate_uuid()
         self.loadbalancer_id = uuidutils.generate_uuid()
+        self.pool_id = uuidutils.generate_uuid()
         self.member_id = uuidutils.generate_uuid()
         self.member_subnet_id = uuidutils.generate_uuid()
-        self.pool_id = uuidutils.generate_uuid()
+        self.member_port = "1010"
+        self.member_pool_id = self.pool_id
+        self.member_address = "192.168.2.149"
         self.port1_id = uuidutils.generate_uuid()
         self.port2_id = uuidutils.generate_uuid()
         self.project_id = uuidutils.generate_uuid()
@@ -109,9 +113,6 @@ class TestOvnOctaviaBase(base.BaseTestCase):
             "networking_ovn.octavia.ovn_driver.OvnNbIdlForLb").start()
         self.member_address = "192.168.2.149"
         self.vip_address = '192.148.210.109'
-        self.member_port = "1010"
-        self.member_pool_id = self.pool_id
-        self.member_subnet_id = uuidutils.generate_uuid()
         self.vip_dict = {'vip_network_id': uuidutils.generate_uuid(),
                          'vip_subnet_id': uuidutils.generate_uuid()}
         self.vip_output = {'vip_network_id': self.vip_dict['vip_network_id'],
@@ -307,6 +308,42 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_create, self.ref_member)
 
+    def test_member_create_different_ip_version_lb_disable(self):
+        self.driver._ovn_helper._find_ovn_lb_with_pool_key.side_effect = [
+            None, self.ovn_lb]
+        self.ref_member.address = 'fc00::1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+        self.driver._ovn_helper._find_ovn_lb_with_pool_key.assert_has_calls(
+            [mock.call('pool_%s' % self.pool_id),
+             mock.call('pool_%s%s' % (self.pool_id, ':D'))])
+
+    def test_member_create_no_subnet_provided(self):
+        self.ref_member.subnet_id = data_models.UnsetType()
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+
+    def test_member_create_monitor_opts(self):
+        self.ref_member.monitor_address = '172.20.20.1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+        self.ref_member.monitor_port = '80'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+
+    def test_member_create_no_set_admin_state_up(self):
+        self.ref_member.admin_state_up = data_models.UnsetType()
+        info = {'id': self.ref_member.member_id,
+                'address': self.ref_member.address,
+                'protocol_port': self.ref_member.protocol_port,
+                'pool_id': self.ref_member.pool_id,
+                'subnet_id': self.ref_member.subnet_id,
+                'admin_state_up': True}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_MEMBER_CREATE,
+                         'info': info}
+        self.driver.member_create(self.ref_member)
+        self.mock_add_request.assert_called_once_with(expected_dict)
+
     def test_member_update(self):
         info = {'id': self.update_member.member_id,
                 'address': self.ref_member.address,
@@ -325,9 +362,35 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.driver.member_update(self.ref_member, self.update_member)
         mock_ip_differs.assert_not_called()
 
-    def test_member_update_batch(self):
+    def test_member_batch_update(self):
         self.driver.member_batch_update([self.ref_member, self.update_member])
         self.assertEqual(self.mock_add_request.call_count, 3)
+
+    def test_member_batch_update_no_members(self):
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_batch_update, [])
+
+    def test_member_batch_update_missing_pool(self):
+        delattr(self.ref_member, 'pool_id')
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_batch_update, [self.ref_member])
+
+    def test_member_batch_update_skipped_monitor(self):
+        self.ref_member.monitor_address = '10.11.1.1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_batch_update,
+                          [self.ref_member])
+
+    def test_member_batch_update_skipped_mixed_ip(self):
+        self.ref_member.address = 'fc00::1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_batch_update,
+                          [self.ref_member])
+
+    def test_member_batch_update_unset_admin_state_up(self):
+        self.ref_member.admin_state_up = data_models.UnsetType()
+        self.driver.member_batch_update([self.ref_member])
+        self.assertEqual(self.mock_add_request.call_count, 2)
 
     def test_member_update_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
@@ -357,6 +420,19 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
                 'protocol_port': self.ref_listener.protocol_port,
                 'default_pool_id': self.ref_listener.default_pool_id,
                 'admin_state_up': self.ref_listener.admin_state_up,
+                'loadbalancer_id': self.ref_listener.loadbalancer_id}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_LISTENER_CREATE,
+                         'info': info}
+        self.driver.listener_create(self.ref_listener)
+        self.mock_add_request.assert_called_once_with(expected_dict)
+
+    def test_listener_create_unset_admin_state_up(self):
+        self.ref_listener.admin_state_up = data_models.UnsetType()
+        info = {'id': self.ref_listener.listener_id,
+                'protocol': self.ref_listener.protocol,
+                'protocol_port': self.ref_listener.protocol_port,
+                'default_pool_id': self.ref_listener.default_pool_id,
+                'admin_state_up': True,
                 'loadbalancer_id': self.ref_listener.loadbalancer_id}
         expected_dict = {'type': ovn_driver.REQ_TYPE_LISTENER_CREATE,
                          'info': info}
@@ -407,6 +483,17 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.driver.loadbalancer_create(self.ref_lb0)
         self.mock_add_request.assert_called_once_with(expected_dict)
 
+    def test_loadbalancer_create_unset_admin_state_up(self):
+        self.ref_lb0.admin_state_up = data_models.UnsetType()
+        info = {'id': self.ref_lb0.loadbalancer_id,
+                'vip_address': self.ref_lb0.vip_address,
+                'vip_network_id': self.ref_lb0.vip_network_id,
+                'admin_state_up': True}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_LB_CREATE,
+                         'info': info}
+        self.driver.loadbalancer_create(self.ref_lb0)
+        self.mock_add_request.assert_called_once_with(expected_dict)
+
     def test_loadbalancer_update(self):
         info = {'id': self.ref_lb1.loadbalancer_id,
                 'admin_state_up': self.ref_lb1.admin_state_up}
@@ -431,18 +518,31 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.mock_add_request.assert_called_once_with(expected_dict)
 
     def test_pool_create_http(self):
+        self.ref_pool.protocol = 'HTTP'
         self.assertRaises(exceptions.UnsupportedOptionError,
-                          self.driver.pool_create, self.ref_http_pool)
+                          self.driver.pool_create, self.ref_pool)
 
     def test_pool_create_leastcount_algo(self):
+        self.ref_pool.lb_algorithm = constants.LB_ALGORITHM_LEAST_CONNECTIONS
         self.assertRaises(exceptions.UnsupportedOptionError,
-                          self.driver.pool_create, self.ref_lc_pool)
+                          self.driver.pool_create, self.ref_pool)
 
-    def test_pool_create_tcp(self):
+    def test_pool_create(self):
         info = {'id': self.ref_pool.pool_id,
                 'loadbalancer_id': self.ref_pool.loadbalancer_id,
                 'listener_id': self.ref_pool.listener_id,
                 'admin_state_up': self.ref_pool.admin_state_up}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_POOL_CREATE,
+                         'info': info}
+        self.driver.pool_create(self.ref_pool)
+        self.mock_add_request.assert_called_once_with(expected_dict)
+
+    def test_pool_create_unset_admin_state_up(self):
+        self.ref_pool.admin_state_up = data_models.UnsetType()
+        info = {'id': self.ref_pool.pool_id,
+                'loadbalancer_id': self.ref_pool.loadbalancer_id,
+                'listener_id': self.ref_pool.listener_id,
+                'admin_state_up': True}
         expected_dict = {'type': ovn_driver.REQ_TYPE_POOL_CREATE,
                          'info': info}
         self.driver.pool_create(self.ref_pool)
@@ -500,6 +600,16 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             for key, value in port_dict.items():
                 self.assertEqual(value, self.vip_output[key])
 
+    def test_create_vip_port_exception(self):
+        with mock.patch.object(ovn_driver, 'get_network_driver',
+                               side_effect=[RuntimeError]):
+            self.assertRaises(
+                exceptions.DriverError,
+                self.driver.create_vip_port,
+                self.loadbalancer_id,
+                self.project_id,
+                self.vip_dict)
+
 
 class TestOvnProviderHelper(TestOvnOctaviaBase):
 
@@ -536,17 +646,26 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         add_req_thread = mock.patch.object(ovn_driver.OvnProviderHelper,
                                            'add_request')
         self.mock_add_request = add_req_thread.start()
-        self.logical_sw = self.helper.ovn_nbdb_api.ls_get.return_value
-        self.logical_sw.execute.return_value.ports = []
         self.ovn_lb = mock.MagicMock()
         self.ovn_lb.uuid = uuidutils.generate_uuid()
-        self.ovn_lb.external_ids.get.return_value = {}
+        self.member_line = (
+            'member_%s_%s:%s' %
+            (self.member_id, self.member_address, self.member_port))
+        self.ovn_lb.external_ids = {
+            ovn_driver.LB_EXT_IDS_VIP_KEY: '10.22.33.4',
+            ovn_driver.LB_EXT_IDS_VIP_FIP_KEY: '123.123.123.123',
+            ovn_driver.LB_EXT_IDS_VIP_PORT_ID_KEY: 'foo_port',
+            'enabled': True,
+            'pool_%s' % self.pool_id: self.member_line,
+            'listener_%s' % self.listener_id: '80:pool_%s' % self.pool_id}
         self.helper.ovn_nbdb_api.db_find.return_value.\
             execute.return_value = [self.ovn_lb]
         self.helper.ovn_nbdb_api.db_list_rows.return_value.\
             execute.return_value = [self.ovn_lb]
         mock.patch.object(self.helper,
                           '_find_ovn_lb_with_pool_key',
+                          return_value=self.ovn_lb).start()
+        mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ovn_lb',
                           return_value=self.ovn_lb).start()
         mock.patch.object(self.helper,
                           '_get_pool_listeners',
@@ -600,14 +719,18 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.network = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'load_balancer': [self.ref_lb2],
                    'name': 'neutron-%s' % net_id,
+                   'ports': [],
                    'uuid': net_id})
         self.mock_get_nw = mock.patch.object(
             self.helper, "_get_nw_router_info_on_interface_event",
             return_value=(self.router, self.network))
         self.mock_get_nw.start()
+        (self.helper.ovn_nbdb_api.ls_get.return_value.
+            execute.return_value) = self.network
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
-    def test_lb_create(self, net_dr):
+    def test_lb_create_disabled(self, net_dr):
+        self.lb['admin_state_up'] = False
         net_dr.return_value.neutron_client.list_ports.return_value = (
             self.ports)
         status = self.helper.lb_create(self.lb)
@@ -615,50 +738,243 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                          constants.ACTIVE)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.OFFLINE)
+        self.helper.ovn_nbdb_api.db_create.assert_called_once_with(
+            'Load_Balancer', external_ids={
+                ovn_driver.LB_EXT_IDS_VIP_KEY: mock.ANY,
+                ovn_driver.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
+                'enabled': 'False'},
+            name=mock.ANY,
+            protocol='tcp')
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_create_enabled(self, net_dr):
         self.lb['admin_state_up'] = True
+        net_dr.return_value.neutron_client.list_ports.return_value = (
+            self.ports)
         status = self.helper.lb_create(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.ONLINE)
+        self.helper.ovn_nbdb_api.db_create.assert_called_once_with(
+            'Load_Balancer', external_ids={
+                ovn_driver.LB_EXT_IDS_VIP_KEY: mock.ANY,
+                ovn_driver.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
+                'enabled': 'True'},
+            name=mock.ANY,
+            protocol='tcp')
 
-    @mock.patch('networking_ovn.octavia.ovn_driver.OvnProviderHelper.'
-                '_find_ovn_lb')
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
-    def test_lb_delete(self, net_dr, lb):
+    @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
+    def test_lb_create_exception(self, del_port, net_dr):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        net_dr.return_value.neutron_client.list_ports.return_value = (
+            self.ports)
+        status = self.helper.lb_create(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ERROR)
+        del_port.assert_called_once_with(self.ports.get('ports')[0]['id'])
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
+    def test_lb_delete(self, del_port, net_dr):
         net_dr.return_value.neutron_client.delete_port.return_value = None
-        lb.return_value.external_ids.get.return_value = {}
+        status = self.helper.lb_delete(self.ovn_lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.OFFLINE)
+        self.helper.ovn_nbdb_api.lb_del.assert_called_once_with(
+            self.ovn_lb.uuid)
+        del_port.assert_called_once_with('foo_port')
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
+    def test_lb_delete_row_not_found(self, del_port):
+        self.helper._find_ovn_lb.side_effect = [idlutils.RowNotFound]
         status = self.helper.lb_delete(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.DELETED)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.OFFLINE)
+        self.helper.ovn_nbdb_api.lb_del.assert_not_called()
+        del_port.assert_not_called()
 
-    @mock.patch('networking_ovn.octavia.ovn_driver.OvnProviderHelper.'
-                '_find_ovn_lb')
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
-    def test_lb_cascade_delete(self, net_dr, lb):
+    @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
+    def test_lb_delete_exception(self, del_port, net_dr):
+        del_port.side_effect = [RuntimeError]
+        status = self.helper.lb_delete(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ERROR)
+        self.helper.ovn_nbdb_api.lb_del.assert_not_called()
+        del_port.assert_called_once_with('foo_port')
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
+    def test_lb_delete_port_not_found(self, del_port, net_dr):
         net_dr.return_value.neutron_client.delete_port.return_value = None
-        lb.return_value.external_ids.get.return_value = {}
+        del_port.side_effect = [n_exc.PortNotFoundClient]
+        status = self.helper.lb_delete(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.OFFLINE)
+        self.helper.ovn_nbdb_api.lb_del.assert_not_called()
+        del_port.assert_called_once_with('foo_port')
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_delete_cascade(self, net_dr):
+        net_dr.return_value.neutron_client.delete_port.return_value = None
         self.lb['cascade'] = True
         status = self.helper.lb_delete(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.DELETED)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.OFFLINE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['members'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.helper.ovn_nbdb_api.lb_del.assert_called_once_with(
+            self.ovn_lb.uuid)
 
-    def test_lb_update(self):
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_delete_ls_lr(self, net_dr):
+        self.ovn_lb.external_ids.update({
+            ovn_driver.LB_EXT_IDS_LR_REF_KEY: self.router.name,
+            ovn_driver.LB_EXT_IDS_LS_REFS_KEY:
+                '{\"neutron-%s\": 1}' % self.network.uuid})
+        net_dr.return_value.neutron_client.delete_port.return_value = None
+        (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
+            return_value) = self.network
+        (self.helper.ovn_nbdb_api.tables['Logical_Router'].rows.
+            values.return_value) = [self.router]
+        self.helper.lb_delete(self.ovn_lb)
+        self.helper.ovn_nbdb_api.ls_lb_del.assert_called_once_with(
+            self.network.uuid, self.ovn_lb.uuid)
+        self.helper.ovn_nbdb_api.lr_lb_del.assert_called_once_with(
+            self.router.uuid, self.ovn_lb.uuid)
+
+    def test_lb_failover(self):
+        status = self.helper.lb_failover(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_lb_update_disabled(self, refresh_vips):
         status = self.helper.lb_update(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.OFFLINE)
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
+        self.helper.ovn_nbdb_api.db_set.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            ('external_ids', {'enabled': 'False'}))
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_lb_update_enabled(self, refresh_vips):
         self.lb['admin_state_up'] = True
         status = self.helper.lb_update(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['loadbalancers'][0]['operating_status'],
                          constants.ONLINE)
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
+        self.helper.ovn_nbdb_api.db_set.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            ('external_ids', {'enabled': 'True'}))
+
+    def test_lb_update_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.lb_update(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ERROR)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_listener_create_disabled(self, refresh_vips):
+        self.ovn_lb.external_ids.pop('listener_%s' % self.listener_id)
+        status = self.helper.listener_create(self.listener)
+        # Set expected as disabled
+        self.ovn_lb.external_ids.update({
+            'listener_%s:D' % self.listener_id: '80:pool_%s' % self.pool_id})
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
+        expected_calls = [
+            mock.call(
+                'Load_Balancer', self.ovn_lb.uuid,
+                ('external_ids', {
+                    'listener_%s:D' % self.listener_id:
+                        '80:pool_%s' % self.pool_id})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid, ('protocol', 'tcp'))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(expected_calls)
+        self.assertEqual(
+            len(expected_calls),
+            self.helper.ovn_nbdb_api.db_set.call_count)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.OFFLINE)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_listener_create_enabled(self, refresh_vips):
+        self.listener['admin_state_up'] = True
+        status = self.helper.listener_create(self.listener)
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
+        expected_calls = [
+            mock.call(
+                'Load_Balancer', self.ovn_lb.uuid,
+                ('external_ids', {
+                    'listener_%s' % self.listener_id:
+                        '80:pool_%s' % self.pool_id}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(expected_calls)
+        self.assertEqual(
+            len(expected_calls),
+            self.helper.ovn_nbdb_api.db_set.call_count)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.ONLINE)
+
+    def test_listener_create_no_default_pool(self):
+        self.listener['admin_state_up'] = True
+        self.listener.pop('default_pool_id')
+        self.helper.listener_create(self.listener)
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid, ('external_ids', {
+                'listener_%s' % self.listener_id: '80:'})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('vips', {}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+        self.assertEqual(
+            len(expected_calls),
+            self.helper.ovn_nbdb_api.db_set.call_count)
+
+    def test_listener_create_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.listener_create(self.listener)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.ERROR)
 
     def test_listener_update(self):
         status = self.helper.listener_update(self.listener)
@@ -666,36 +982,80 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                          constants.ACTIVE)
         self.assertEqual(status['listeners'][0]['provisioning_status'],
                          constants.ACTIVE)
-        self.assertEqual(status['pools'], [])
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.OFFLINE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
         self.listener['admin_state_up'] = True
         status = self.helper.listener_update(self.listener)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['listeners'][0]['provisioning_status'],
                          constants.ACTIVE)
-        self.assertEqual(status['pools'], [])
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.ONLINE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
 
-    def test_listener_create(self):
-        status = self.helper.listener_create(self.listener)
+    def test_listener_update_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.listener_update(self.listener)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['listeners'][0]['provisioning_status'],
-                         constants.ACTIVE)
-        self.assertEqual(status['listeners'][0]['operating_status'],
-                         constants.OFFLINE)
+                         constants.ERROR)
+        self.helper.ovn_nbdb_api.db_set.assert_not_called()
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_listener_update_listener_enabled(self, refresh_vips):
         self.listener['admin_state_up'] = True
-        status = self.helper.listener_create(self.listener)
+        # Update the listener port.
+        self.listener.update({'protocol_port': 123})
+        status = self.helper.listener_update(self.listener)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['listeners'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['listeners'][0]['operating_status'],
                          constants.ONLINE)
-        mock.patch.object(self.helper, "_is_listener_in_lb",
-                          return_value=True).start()
-        status = self.helper.listener_create(self.listener)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.helper.ovn_nbdb_api.db_set.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            ('external_ids', {
+                'listener_%s' % self.listener_id:
+                '123:pool_%s' % self.pool_id}))
+        # Update expected listener, because it was updated.
+        self.ovn_lb.external_ids.pop('listener_%s' % self.listener_id)
+        self.ovn_lb.external_ids.update(
+            {'listener_%s' % self.listener_id: '123:pool_%s' % self.pool_id})
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
 
-    def test_listener_delete(self):
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_listener_update_listener_disabled(self, refresh_vips):
+        self.listener['admin_state_up'] = False
+        status = self.helper.listener_update(self.listener)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.OFFLINE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid, 'external_ids',
+            'listener_%s' % self.listener_id)
+        # It gets disabled, so update the key
+        self.ovn_lb.external_ids.pop('listener_%s' % self.listener_id)
+        self.ovn_lb.external_ids.update(
+            {'listener_%s:D' % self.listener_id: '80:pool_%s' % self.pool_id})
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
+
+    def test_listener_delete_no_external_id(self):
+        self.ovn_lb.external_ids.pop('listener_%s' % self.listener_id)
         status = self.helper.listener_delete(self.listener)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
@@ -703,6 +1063,33 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                          constants.DELETED)
         self.assertEqual(status['listeners'][0]['operating_status'],
                          constants.OFFLINE)
+        self.helper.ovn_nbdb_api.db_remove.assert_not_called()
+
+    def test_listener_delete_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.listener_delete(self.listener)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.ERROR)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
+    def test_listener_delete_external_id(self, refresh_vips):
+        status = self.helper.listener_delete(self.listener)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['listeners'][0]['operating_status'],
+                         constants.OFFLINE)
+        self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            'external_ids', 'listener_%s' % self.listener_id)
+        self.ovn_lb.external_ids.pop('listener_%s' % self.listener_id)
+        refresh_vips.assert_called_once_with(
+            self.ovn_lb.uuid, self.ovn_lb.external_ids)
 
     def test_pool_create(self):
         status = self.helper.pool_create(self.pool)
@@ -724,6 +1111,14 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['pools'][0]['operating_status'],
                          constants.OFFLINE)
 
+    def test_pool_create_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
     def test_pool_update(self):
         status = self.helper.pool_update(self.pool)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
@@ -739,7 +1134,69 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['pools'][0]['provisioning_status'],
                          constants.ACTIVE)
         self.assertEqual(status['pools'][0]['operating_status'],
+                         constants.ONLINE)
+
+    def test_pool_update_exception(self):
+        self.helper._get_pool_listeners.side_effect = [RuntimeError]
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ERROR)
+
+    def test_pool_update_unset_admin_state_up(self):
+        self.pool.pop('admin_state_up')
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
+    def test_pool_update_pool_disabled_change_to_up(self):
+        self.pool.update({'admin_state_up': True})
+        disabled_p_key = self.helper._get_pool_key(self.pool_id,
+                                                   is_enabled=False)
+        p_key = self.helper._get_pool_key(self.pool_id)
+        self.ovn_lb.external_ids.update({
+            disabled_p_key: self.member_line})
+        self.ovn_lb.external_ids.pop(p_key)
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['operating_status'],
+                         constants.ONLINE)
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('external_ids',
+                          {'pool_%s' % self.pool_id: self.member_line})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('vips', {'10.22.33.4:80': '192.168.2.149:1010',
+                                '123.123.123.123:80': '192.168.2.149:1010'}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
+    def test_pool_update_pool_up_change_to_disabled(self):
+        self.pool.update({'admin_state_up': False})
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['operating_status'],
                          constants.OFFLINE)
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('external_ids',
+                          {'pool_%s:D' % self.pool_id: self.member_line})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid, ('vips', {}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
+    def test_pool_update_listeners(self):
+        self.helper._get_pool_listeners.return_value = ['listener1']
+        status = self.helper.pool_update(self.pool)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
 
     def test_pool_delete(self):
         status = self.helper.pool_delete(self.pool)
@@ -747,8 +1204,68 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                          constants.ACTIVE)
         self.assertEqual(status['pools'][0]['provisioning_status'],
                          constants.DELETED)
+        self.helper.ovn_nbdb_api.db_clear.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid, 'vips')
+        self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            'external_ids', 'pool_%s' % self.pool_id)
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid, ('vips', {})),
+            mock.call(
+                'Load_Balancer', self.ovn_lb.uuid,
+                ('external_ids', {
+                    ovn_driver.LB_EXT_IDS_VIP_KEY: '10.22.33.4',
+                    ovn_driver.LB_EXT_IDS_VIP_FIP_KEY: '123.123.123.123',
+                    ovn_driver.LB_EXT_IDS_VIP_PORT_ID_KEY: 'foo_port',
+                    'enabled': True,
+                    'listener_%s' % self.listener_id: '80:'}))]
+        self.assertEqual(self.helper.ovn_nbdb_api.db_set.call_count,
+                         len(expected_calls))
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
+    def test_pool_delete_exception(self):
+        self.helper._find_ovn_lb.side_effect = [RuntimeError]
+        status = self.helper.pool_delete(self.pool)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.helper.ovn_nbdb_api.db_remove.assert_not_called()
+        self.helper.ovn_nbdb_api.db_set.assert_not_called()
+
+    def test_pool_delete_associated_listeners(self):
+        self.helper._get_pool_listeners.return_value = ['listener1']
+        status = self.helper.pool_delete(self.pool)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.helper.ovn_nbdb_api.db_set.assert_called_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            ('external_ids', {
+                'enabled': True,
+                'listener_%s' % self.listener_id: '80:',
+                ovn_driver.LB_EXT_IDS_VIP_KEY: '10.22.33.4',
+                ovn_driver.LB_EXT_IDS_VIP_FIP_KEY: '123.123.123.123',
+                ovn_driver.LB_EXT_IDS_VIP_PORT_ID_KEY: 'foo_port'}))
+
+    def test_pool_delete_pool_disabled(self):
+        disabled_p_key = self.helper._get_pool_key(self.pool_id,
+                                                   is_enabled=False)
+        p_key = self.helper._get_pool_key(self.pool_id)
+        self.ovn_lb.external_ids.update({
+            disabled_p_key: self.member_line})
+        self.ovn_lb.external_ids.pop(p_key)
+        status = self.helper.pool_delete(self.pool)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
+            'Load_Balancer', self.ovn_lb.uuid,
+            'external_ids', 'pool_%s:D' % self.pool_id)
 
     def test_member_create(self):
+        self.ovn_lb.external_ids = mock.MagicMock()
         status = self.helper.member_create(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
@@ -765,7 +1282,79 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['members'][0]['provisioning_status'],
                          constants.ACTIVE)
 
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_add_member')
+    def test_member_create_exception(self, mock_add_member):
+        mock_add_member.side_effect = [RuntimeError]
+        status = self.helper.member_create(self.member)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ERROR)
+
+    def test_member_create_lb_disabled(self):
+        self.helper._find_ovn_lb_with_pool_key.side_effect = [
+            None, self.ovn_lb]
+        self.helper.member_create(self.member)
+        self.helper._find_ovn_lb_with_pool_key.assert_has_calls(
+            [mock.call('pool_%s' % self.pool_id),
+             mock.call('pool_%s%s' % (self.pool_id, ':D'))])
+
+    def test_member_create_listener(self):
+        self.ovn_lb.external_ids = mock.MagicMock()
+        self.helper._get_pool_listeners.return_value = ['listener1']
+        status = self.helper.member_create(self.member)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['id'],
+                         'listener1')
+
+    def test_member_create_already_exists(self):
+        self.helper.member_create(self.member)
+        self.helper.ovn_nbdb_api.db_set.assert_not_called()
+
+    def test_member_create_first_member_in_pool(self):
+        self.ovn_lb.external_ids.update({
+            'pool_' + self.pool_id: ''})
+        self.helper.member_create(self.member)
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('external_ids',
+                       {'pool_%s' % self.pool_id: self.member_line})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('vips', {
+                          '10.22.33.4:80': '192.168.2.149:1010',
+                          '123.123.123.123:80': '192.168.2.149:1010'}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
+    def test_member_create_second_member_in_pool(self):
+        member2_id = uuidutils.generate_uuid()
+        member2_port = "1010"
+        member2_address = "192.168.2.150"
+        member2_line = ('member_%s_%s:%s' %
+                        (member2_id, member2_address, member2_port))
+        self.ovn_lb.external_ids.update(
+            {'pool_%s' % self.pool_id: member2_line})
+        self.helper.member_create(self.member)
+        all_member_line = (
+            '%s,member_%s_%s:%s' %
+            (member2_line, self.member_id,
+             self.member_address, self.member_port))
+        # We have two members now.
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('external_ids', {
+                          'pool_%s' % self.pool_id: all_member_line})),
+            mock.call(
+                'Load_Balancer', self.ovn_lb.uuid,
+                ('vips', {
+                    '10.22.33.4:80':
+                        '192.168.2.150:1010,192.168.2.149:1010',
+                    '123.123.123.123:80':
+                        '192.168.2.150:1010,192.168.2.149:1010'}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
     def test_member_update(self):
+        self.ovn_lb.external_ids = mock.MagicMock()
         status = self.helper.member_update(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
@@ -786,12 +1375,53 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['members'][0]['operating_status'],
                          constants.OFFLINE)
 
+    def test_member_update_disabled_lb(self):
+        self.helper._find_ovn_lb_with_pool_key.side_effect = [
+            None, self.ovn_lb]
+        self.helper.member_update(self.member)
+        self.helper._find_ovn_lb_with_pool_key.assert_has_calls(
+            [mock.call('pool_%s' % self.pool_id),
+             mock.call('pool_%s%s' % (self.pool_id, ':D'))])
+
+    def test_member_update_pool_listeners(self):
+        self.ovn_lb.external_ids = mock.MagicMock()
+        self.helper._get_pool_listeners.return_value = ['listener1']
+        status = self.helper.member_update(self.member)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['id'],
+                         'listener1')
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_update_member')
+    def test_member_update_exception(self, mock_update_member):
+        mock_update_member.side_effect = [RuntimeError]
+        status = self.helper.member_update(self.member)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
+    def test_member_update_new_port(self):
+        new_port = 11
+        member_line = ('member_%s_%s:%s' %
+                       (self.member_id, self.member_address, new_port))
+        self.ovn_lb.external_ids.update(
+            {'pool_%s' % self.pool_id: member_line})
+        self.helper.member_update(self.member)
+        new_member_line = (
+            'member_%s_%s:%s' %
+            (self.member_id, self.member_address, self.member_port))
+        expected_calls = [
+            mock.call('Load_Balancer', self.ovn_lb.uuid,
+                      ('external_ids', {
+                          'pool_%s' % self.pool_id: new_member_line})),
+            mock.call('Load_Balancer', self.ovn_lb.uuid, ('vips', {
+                '10.22.33.4:80': '192.168.2.149:1010',
+                '123.123.123.123:80': '192.168.2.149:1010'}))]
+        self.helper.ovn_nbdb_api.db_set.assert_has_calls(
+            expected_calls)
+
     @mock.patch('networking_ovn.octavia.ovn_driver.OvnProviderHelper.'
                 '_refresh_lb_vips')
     def test_member_delete(self, mock_vip_command):
-        self.ovn_lb.external_ids = {
-            'pool_' + self.pool_id: 'member_' + self.member_id + '_' +
-            self.member_address + ':' + self.member_port}
         status = self.helper.member_delete(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
@@ -799,6 +1429,48 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                          constants.ACTIVE)
         self.assertEqual(status['members'][0]['provisioning_status'],
                          constants.DELETED)
+
+    def test_member_delete_one_left(self):
+        member2_id = uuidutils.generate_uuid()
+        member2_port = "1010"
+        member2_address = "192.168.2.150"
+        member_line = (
+            'member_%s_%s:%s,member_%s_%s:%s' %
+            (self.member_id, self.member_address, self.member_port,
+             member2_id, member2_address, member2_port))
+        self.ovn_lb.external_ids.update({
+            'pool_' + self.pool_id: member_line})
+        status = self.helper.member_delete(self.member)
+        self.assertEqual(status['members'][0]['provisioning_status'],
+                         constants.DELETED)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_remove_member')
+    def test_member_delete_exception(self, mock_remove_member):
+        mock_remove_member.side_effect = [RuntimeError]
+        status = self.helper.member_delete(self.member)
+        self.assertEqual(status['pools'][0]['provisioning_status'],
+                         constants.ACTIVE)
+
+    def test_member_delete_disabled_lb(self):
+        self.helper._find_ovn_lb_with_pool_key.side_effect = [
+            None, self.ovn_lb]
+        self.helper.member_delete(self.member)
+        self.helper._find_ovn_lb_with_pool_key.assert_has_calls(
+            [mock.call('pool_%s' % self.pool_id),
+             mock.call('pool_%s%s' % (self.pool_id, ':D'))])
+
+    def test_member_delete_pool_listeners(self):
+        self.ovn_lb.external_ids.update({
+            'pool_' + self.pool_id: 'member_' + self.member_id + '_' +
+            self.member_address + ':' + self.member_port})
+        self.helper._get_pool_listeners.return_value = ['listener1']
+        status = self.helper.member_delete(self.member)
+        self.assertEqual(status['listeners'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['listeners'][0]['id'],
+                         'listener1')
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     def test_logical_router_port_event_create(self, net_dr):
@@ -958,6 +1630,17 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                  'network': self.network},
             'type': 'lb_create_lrp_assoc'}
         self.mock_add_request.assert_called_once_with(expected)
+
+    def test_lb_create_lrp_assoc_handler_row_not_found(self):
+        self.mock_get_nw.stop()
+        self.helper.ovn_nbdb_api.lookup.side_effect = [idlutils.RowNotFound]
+        lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={
+                'external_ids': {
+                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router1'}
+            })
+        self.helper.lb_create_lrp_assoc_handler(lrp)
+        self.mock_add_request.assert_not_called()
 
     @mock.patch.object(ovn_driver.OvnProviderHelper,
                        '_execute_commands')
@@ -1380,6 +2063,15 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                           '172.26.21.20:80': '192.168.2.149:1010'}))]
         self.helper.ovn_nbdb_api.assert_has_calls(calls)
 
+    @mock.patch('networking_ovn.octavia.ovn_driver.OvnProviderHelper.'
+                '_find_ovn_lb')
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_handle_vip_fip_lb_not_found(self, net_dr, fb):
+        fip_info = {'lb_id': 'foo'}
+        fb.side_effect = [idlutils.RowNotFound]
+        self.helper.handle_vip_fip(fip_info)
+        self.helper.ovn_nbdb_api.assert_not_called()
+
     @mock.patch.object(ovn_driver, 'atexit')
     def test_ovsdb_connections(self, mock_atexit):
         ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
@@ -1434,3 +2126,17 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             expected_call = [
                 mock.call().neutron_client.create_port(expected_dict)]
             gn.assert_has_calls(expected_call)
+
+    def test_get_member_info(self):
+        ret = self.helper.get_member_info(self.pool_id)
+        self.assertEqual([(self.member_id, '%s:%s' % (self.member_address,
+                           self.member_port))], ret)
+
+    def test_get_pool_member_id(self):
+        ret = self.helper.get_pool_member_id(
+            self.pool_id, mem_addr_port='192.168.2.149:1010')
+        self.assertEqual(self.member_id, ret)
+
+    def test__get_existing_pool_members(self):
+        ret = self.helper._get_existing_pool_members(self.pool_id)
+        self.assertEqual(ret, self.member_line)
