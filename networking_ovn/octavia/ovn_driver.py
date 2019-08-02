@@ -861,8 +861,7 @@ class OvnProviderHelper(object):
                     check_error=True)
                 if ovn_ls:
                     commands.append(
-                        self.ovn_nbdb_api.ls_lb_del(ovn_ls.uuid, ovn_lb.uuid)
-                    )
+                        self.ovn_nbdb_api.ls_lb_del(ovn_ls.uuid, ovn_lb.uuid))
             # Delete LB from all Networks the LB is indirectly associated
             for ls in self._find_lb_in_table(ovn_lb, 'Logical_Switch'):
                 commands.append(
@@ -922,12 +921,9 @@ class OvnProviderHelper(object):
                 ovn_lb.external_ids['enabled'] = str(lb_enabled)
                 commands.append(
                     self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
-                                             ('external_ids', enable_info))
-                )
-
+                                             ('external_ids', enable_info)))
                 commands.extend(
                     self._refresh_lb_vips(ovn_lb.uuid, ovn_lb.external_ids))
-
                 self._execute_commands(commands)
             if lb_enabled:
                 operating_status = constants.ONLINE
@@ -938,7 +934,6 @@ class OvnProviderHelper(object):
             LOG.exception(EXCEPTION_MSG, "update of loadbalancer")
             lb_status['provisioning_status'] = constants.ERROR
             lb_status['operating_status'] = constants.ERROR
-
         return status
 
     def listener_create(self, listener):
@@ -949,7 +944,7 @@ class OvnProviderHelper(object):
             listener_key = self._get_listener_key(
                 listener['id'], is_enabled=listener['admin_state_up'])
 
-            if listener['default_pool_id']:
+            if listener.get('default_pool_id'):
                 pool_key = self._get_pool_key(listener['default_pool_id'])
             else:
                 pool_key = ''
@@ -1164,12 +1159,12 @@ class OvnProviderHelper(object):
             ovn_lb = self._find_ovn_lb(pool['loadbalancer_id'])
             pool_key = self._get_pool_key(pool['id'])
             commands = []
+            external_ids = copy.deepcopy(ovn_lb.external_ids)
             if pool_key in ovn_lb.external_ids:
                 commands.append(
                     self.ovn_nbdb_api.db_remove('Load_Balancer', ovn_lb.uuid,
                                                 'external_ids', (pool_key))
                 )
-                external_ids = copy.deepcopy(ovn_lb.external_ids)
                 del external_ids[pool_key]
                 commands.extend(
                     self._refresh_lb_vips(ovn_lb.uuid, external_ids))
@@ -1264,10 +1259,7 @@ class OvnProviderHelper(object):
                 commands.extend(
                     self._refresh_lb_vips(ovn_lb.uuid, external_ids))
                 self._execute_commands(commands)
-            if pool['admin_state_up'] and not external_ids.get(pool_key):
-                # Operating status can be ONLINE if members are present and
-                # admin_state_up is True. If either is false, operating_status
-                # is OFFLINE
+            if pool['admin_state_up']:
                 operating_status = constants.ONLINE
             else:
                 operating_status = constants.OFFLINE
@@ -1714,12 +1706,12 @@ class OvnProviderDriver(driver_base.ProviderDriver):
 
     # Member
     def _check_monitor_options(self, member):
-        if not(member.monitor_address or member.monitor_port):
+        if (isinstance(member.monitor_address, o_datamodels.UnsetType) and
+                isinstance(member.monitor_port, o_datamodels.UnsetType)):
             return False
-        else:
-            return not (isinstance(
-                member.monitor_address, o_datamodels.UnsetType) or isinstance(
-                    member.monitor_port, o_datamodels.UnsetType))
+        if member.monitor_address or member.monitor_port:
+            return True
+        return False
 
     def _ip_version_differs(self, member):
         _, ovn_lb = self._ovn_helper._find_ovn_lb_by_id(member.pool_id)
