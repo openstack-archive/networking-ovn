@@ -16,6 +16,7 @@ import atexit
 import copy
 import threading
 
+import netaddr
 from neutronclient.common import exceptions as n_exc
 from octavia_lib.api.drivers import data_models as o_datamodels
 from octavia_lib.api.drivers import driver_lib as o_driver_lib
@@ -82,6 +83,13 @@ OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
 OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_ROUND_ROBIN, ]
 EXCEPTION_MSG = "Exception occurred during %s"
 OVN_EVENT_LOCK_NAME = "neutron_ovn_octavia_event_lock"
+
+
+class IPVersionsMixingNotSupportedError(
+        driver_exceptions.UnsupportedOptionError):
+    user_fault_string = _('OVN provider does not support mixing IPv4/IPv6 '
+                          'configuration within the same Load Balancer.')
+    operator_fault_string = user_fault_string
 
 
 def get_network_driver():
@@ -1719,12 +1727,25 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                 member.monitor_address, o_datamodels.UnsetType) or isinstance(
                     member.monitor_port, o_datamodels.UnsetType))
 
+    def _ip_version_differs(self, member):
+        pool_key = self._ovn_helper._get_pool_key(member.pool_id)
+        ovn_lb = self._ovn_helper._find_ovn_lb_with_pool_key(pool_key)
+        if not ovn_lb:
+            pool_key = self._ovn_helper._get_pool_key(member.pool_id,
+                                                      is_enabled=False)
+            ovn_lb = self._ovn_helper._find_ovn_lb_with_pool_key(pool_key)
+        lb_vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
+        return netaddr.IPNetwork(lb_vip).version != (
+            netaddr.IPNetwork(member.address).version)
+
     def member_create(self, member):
         if self._check_monitor_options(member):
             msg = _('OVN provider does not support monitor options')
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
+        if self._ip_version_differs(member):
+            raise IPVersionsMixingNotSupportedError()
         admin_state_up = member.admin_state_up
         if isinstance(member.subnet_id, o_datamodels.UnsetType):
             msg = _('Subnet is required for Member creation'
@@ -1761,6 +1782,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
+        if self._ip_version_differs(new_member):
+            raise IPVersionsMixingNotSupportedError()
         request_info = {'id': new_member.member_id,
                         'address': old_member.address,
                         'protocol_port': old_member.protocol_port,
@@ -1792,7 +1815,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         current_members = self._ovn_helper.get_member_info(pool_id)
         # current_members gets a list of tuples (ID, IP:Port) for pool members
         for member in members:
-            if self._check_monitor_options(member):
+            if (self._check_monitor_options(member) or
+                    self._ip_version_differs(member)):
                 skipped_members.append(member.member_id)
                 continue
             admin_state_up = member.admin_state_up
