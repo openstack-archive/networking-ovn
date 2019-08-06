@@ -62,8 +62,12 @@ REQ_TYPE_MEMBER_DELETE = 'member_delete'
 REQ_TYPE_MEMBER_UPDATE = 'member_update'
 REQ_TYPE_LB_CREATE_LRP_ASSOC = 'lb_create_lrp_assoc'
 REQ_TYPE_LB_DELETE_LRP_ASSOC = 'lb_delete_lrp_assoc'
+REQ_TYPE_HANDLE_VIP_FIP = 'handle_vip_fip'
 
 REQ_TYPE_EXIT = 'exit'
+
+REQ_INFO_ACTION_ASSOCIATE = 'associate'
+REQ_INFO_ACTION_DISASSOCIATE = 'disassociate'
 
 DISABLED_RESOURCE_SUFFIX = 'D'
 
@@ -73,6 +77,7 @@ LB_EXT_IDS_POOL_PREFIX = 'pool_'
 LB_EXT_IDS_LISTENER_PREFIX = 'listener_'
 LB_EXT_IDS_MEMBER_PREFIX = 'member_'
 LB_EXT_IDS_VIP_KEY = 'neutron:vip'
+LB_EXT_IDS_VIP_FIP_KEY = 'neutron:vip_fip'
 LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
 OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
@@ -113,6 +118,28 @@ class LogicalRouterPortEvent(row_event.RowEvent):
             self.driver.lb_create_lrp_assoc_handler(row)
         elif event == self.ROW_DELETE:
             self.driver.lb_delete_lrp_assoc_handler(row)
+
+
+class LogicalSwitchPortUpdateEvent(row_event.RowEvent):
+
+    driver = None
+
+    def __init__(self, driver):
+        table = 'Logical_Switch_Port'
+        events = (self.ROW_UPDATE,)
+        super(LogicalSwitchPortUpdateEvent, self).__init__(
+            events, table, None)
+        self.event_name = 'LogicalSwitchPortUpdateEvent'
+        self.driver = driver
+
+    def run(self, event, row, old):
+        # Get the neutron:port_name from external_ids and check if
+        # it's a vip port or not.
+        port_name = row.external_ids.get(ovn_const.OVN_PORT_NAME_EXT_ID_KEY)
+        if self.driver and port_name.startswith(ovn_const.LB_VIP_PORT_PREFIX):
+            # Handle port update only for vip ports created by
+            # this driver.
+            self.driver.vip_port_update_handler(row)
 
 
 class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
@@ -184,6 +211,7 @@ class OvnProviderHelper(object):
             REQ_TYPE_MEMBER_UPDATE: self.member_update,
             REQ_TYPE_LB_CREATE_LRP_ASSOC: self.lb_create_lrp_assoc,
             REQ_TYPE_LB_DELETE_LRP_ASSOC: self.lb_delete_lrp_assoc,
+            REQ_TYPE_HANDLE_VIP_FIP: self.handle_vip_fip,
         }
 
     def _check_and_set_ssl_files(self):
@@ -206,7 +234,8 @@ class OvnProviderHelper(object):
     def start(self):
         self.ovn_nb_idl_for_lb = OvnNbIdlForLb()
         OvnProviderHelper.ovn_nbdb_api = self.ovn_nb_idl_for_lb.start()
-        events = [LogicalRouterPortEvent(self)]
+        events = [LogicalRouterPortEvent(self),
+                  LogicalSwitchPortUpdateEvent(self)]
         self.ovn_nb_idl_for_lb.notify_handler.watch_events(events)
         self.helper_thread.start()
 
@@ -307,6 +336,41 @@ class OvnProviderHelper(object):
                             info['network'].uuid, lb.uuid, may_exist=True))
         if commands:
             self._execute_commands(commands)
+
+    def vip_port_update_handler(self, vip_lp):
+        """Handler for VirtualIP port updates.
+
+        If a floating ip is associated to a vip port, then networking-ovn sets
+        the fip in the external_ids column of the logical port as:
+        Logical_Switch_Port.external_ids:port_fip = <FIP>.
+        Then, in the Load_Balancer table for the vip, networking-ovn creates
+        another vip entry for the FIP.
+        If a floating ip is disassociated from the vip, then it deletes
+        the vip entry for the FIP.
+        """
+
+        port_name = vip_lp.external_ids.get(ovn_const.OVN_PORT_NAME_EXT_ID_KEY)
+        lb_id = port_name[len(ovn_const.LB_VIP_PORT_PREFIX):]
+        try:
+            ovn_lb = self._find_ovn_lb(lb_id)
+        except idlutils.RowNotFound:
+            LOG.debug("Loadbalancer %s not found!", lb_id)
+            return
+
+        fip = vip_lp.external_ids.get(ovn_const.OVN_PORT_FIP_EXT_ID_KEY)
+        lb_vip_fip = ovn_lb.external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
+        request_info = {'lb_id': lb_id,
+                        'vip_fip': fip}
+
+        if fip and fip != lb_vip_fip:
+            request_info['action'] = REQ_INFO_ACTION_ASSOCIATE
+        elif fip is None and fip != lb_vip_fip:
+            request_info['action'] = REQ_INFO_ACTION_DISASSOCIATE
+        else:
+            return
+
+        self.add_request({'type': REQ_TYPE_HANDLE_VIP_FIP,
+                          'info': request_info})
 
     def _find_lb_in_ls(self, network):
         """Find LB associated to a Network using Network information
@@ -599,6 +663,8 @@ class OvnProviderHelper(object):
             return vip_ips
 
         lb_vip = lb_external_ids[LB_EXT_IDS_VIP_KEY]
+        vip_fip = lb_external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
+
         for k, v in lb_external_ids.items():
             if LB_EXT_IDS_LISTENER_PREFIX not in k or (
                 self._is_listener_disabled(k)):
@@ -613,6 +679,9 @@ class OvnProviderHelper(object):
 
             ips = self._extract_member_info(lb_external_ids[pool_id])
             vip_ips[lb_vip + ':' + vip_port] = ips
+
+            if vip_fip:
+                vip_ips[vip_fip + ':' + vip_port] = ips
 
         return vip_ips
 
@@ -1435,7 +1504,7 @@ class OvnProviderHelper(object):
             '_')[2]) for meminf in existing_members.split(',')]
 
     def create_vip_port(self, project_id, lb_id, vip_d):
-        port = {'port': {'name': 'ovn-lb-vip-' + str(lb_id),
+        port = {'port': {'name': ovn_const.LB_VIP_PORT_PREFIX + str(lb_id),
                          'network_id': vip_d['vip_network_id'],
                          'fixed_ips': [{'subnet_id': vip_d['vip_subnet_id']}],
                          'admin_state_up': True,
@@ -1446,6 +1515,35 @@ class OvnProviderHelper(object):
     def delete_vip_port(self, port_id):
         network_driver = get_network_driver()
         network_driver.neutron_client.delete_port(port_id)
+
+    def handle_vip_fip(self, fip_info):
+        try:
+            ovn_lb = self._find_ovn_lb(fip_info['lb_id'])
+        except idlutils.RowNotFound:
+            LOG.debug("Loadbalancer %s not found!", fip_info['lb_id'])
+            return
+        external_ids = copy.deepcopy(ovn_lb.external_ids)
+        commands = []
+
+        if fip_info['action'] == REQ_INFO_ACTION_ASSOCIATE:
+            external_ids[LB_EXT_IDS_VIP_FIP_KEY] = fip_info['vip_fip']
+            vip_fip_info = {LB_EXT_IDS_VIP_FIP_KEY: fip_info['vip_fip']}
+            commands.append(
+                self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
+                                         ('external_ids', vip_fip_info))
+            )
+        else:
+            external_ids.pop(LB_EXT_IDS_VIP_FIP_KEY)
+            commands.append(
+                self.ovn_nbdb_api.db_remove(
+                    'Load_Balancer', ovn_lb.uuid, 'external_ids',
+                    (LB_EXT_IDS_VIP_FIP_KEY))
+            )
+
+        commands.extend(
+            self._refresh_lb_vips(ovn_lb.uuid, external_ids)
+        )
+        self._execute_commands(commands)
 
 
 class OvnProviderDriver(driver_base.ProviderDriver):
