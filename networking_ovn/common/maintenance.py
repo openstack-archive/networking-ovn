@@ -20,6 +20,7 @@ from futurist import periodics
 from neutron.common import config as n_conf
 from neutron_lib import context as n_context
 from neutron_lib import worker
+from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
@@ -27,9 +28,12 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.db import maintenance as db_maint
 from networking_ovn.db import revision as db_rev
 
+CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
 DB_CONSISTENCY_CHECK_INTERVAL = 300  # 5 minutes
+INCONSISTENCY_TYPE_CREATE_UPDATE = 'create/update'
+INCONSISTENCY_TYPE_DELETE = 'delete'
 
 
 class MaintenanceWorker(worker.BaseWorker):
@@ -203,6 +207,30 @@ class DBInconsistenciesPeriodics(object):
         else:
             self._ovn_client.update_subnet(sn_db_obj, n_db_obj)
 
+    def _log_maintenance_inconsistencies(self, create_update_inconsistencies,
+                                         delete_inconsistencies):
+        if not CONF.debug:
+            return
+
+        def _log(inconsistencies, type_):
+            if not inconsistencies:
+                return
+
+            c = {}
+            for f in inconsistencies:
+                if f.resource_type not in c:
+                    c[f.resource_type] = 1
+                else:
+                    c[f.resource_type] += 1
+
+            fail_str = ', '.join('{}={}'.format(k, v) for k, v in c.items())
+            LOG.debug('Maintenance task: Number of inconsistencies '
+                      'found at %(type_)s: %(fail_str)s',
+                      {'type_': type_, 'fail_str': fail_str})
+
+        _log(create_update_inconsistencies, INCONSISTENCY_TYPE_CREATE_UPDATE)
+        _log(delete_inconsistencies, INCONSISTENCY_TYPE_DELETE)
+
     @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
@@ -214,12 +242,22 @@ class DBInconsistenciesPeriodics(object):
         create_update_inconsistencies = db_maint.get_inconsistent_resources()
         delete_inconsistencies = db_maint.get_deleted_resources()
         if not any([create_update_inconsistencies, delete_inconsistencies]):
+            LOG.debug('Maintenance task: No inconsistencies found. Skipping')
             return
-        LOG.warning('Inconsistencies found in the database!')
+
+        LOG.debug('Maintenance task: Synchronizing Neutron '
+                  'and OVN databases')
+        self._log_maintenance_inconsistencies(create_update_inconsistencies,
+                                              delete_inconsistencies)
         self._sync_timer.restart()
 
+        dbg_log_msg = ('Maintenance task: Fixing resource %(res_uuid)s '
+                       '(type: %(res_type)s) at %(type_)s')
         # Fix the create/update resources inconsistencies
         for row in create_update_inconsistencies:
+            LOG.debug(dbg_log_msg, {'res_uuid': row.resource_uuid,
+                                    'res_type': row.resource_type,
+                                    'type_': INCONSISTENCY_TYPE_CREATE_UPDATE})
             try:
                 # NOTE(lucasagomes): The way to fix subnets is bit
                 # different than other resources. A subnet in OVN language
@@ -232,25 +270,28 @@ class DBInconsistenciesPeriodics(object):
                 else:
                     self._fix_create_update(row)
             except Exception:
-                LOG.exception('Failed to fix resource %(res_uuid)s '
-                              '(type: %(res_type)s)',
+                LOG.exception('Maintenance task: Failed to fix resource '
+                              '%(res_uuid)s (type: %(res_type)s)',
                               {'res_uuid': row.resource_uuid,
                                'res_type': row.resource_type})
 
         # Fix the deleted resources inconsistencies
         for row in delete_inconsistencies:
+            LOG.debug(dbg_log_msg, {'res_uuid': row.resource_uuid,
+                                    'res_type': row.resource_type,
+                                    'type_': INCONSISTENCY_TYPE_DELETE})
             try:
                 if row.resource_type == ovn_const.TYPE_SUBNETS:
                     self._ovn_client.delete_subnet(row.resource_uuid)
                 else:
                     self._fix_delete(row)
             except Exception:
-                LOG.exception('Failed to fix deleted resource %(res_uuid)s '
-                              '(type: %(res_type)s)',
+                LOG.exception('Maintenance task: Failed to fix deleted '
+                              'resource %(res_uuid)s (type: %(res_type)s)',
                               {'res_uuid': row.resource_uuid,
                                'res_type': row.resource_type})
 
-        LOG.info('Maintenance thread synchronization finished '
+        LOG.info('Maintenance task: Synchronization finished '
                  '(took %.2f seconds)', self._sync_timer.elapsed())
         self._sync_timer.stop()
 

@@ -18,6 +18,7 @@ import mock
 from neutron.tests.unit.plugins.ml2 import test_security_group as test_sg
 from neutron_lib.db import api as db_api
 
+from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants
 from networking_ovn.common import maintenance
 from networking_ovn.common import utils
@@ -176,3 +177,41 @@ class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
         l3_mock.add_router_interface.assert_called_once_with(
             mock.ANY, port['device_id'], {'port_id': port['id']},
             may_exist=True)
+
+    @mock.patch.object(maintenance.LOG, 'debug')
+    def test__log_maintenance_inconsistencies(self, mock_log):
+        ovn_config.cfg.CONF.set_override('debug', True)
+
+        # Create fake inconsistencies: 2 networks, 4 subnets and 8 ports
+        incst = []
+        incst += [mock.Mock(resource_type=constants.TYPE_NETWORKS)] * 2
+        incst += [mock.Mock(resource_type=constants.TYPE_SUBNETS)] * 4
+        incst += [mock.Mock(resource_type=constants.TYPE_PORTS)] * 8
+
+        # Create fake inconsistencies for delete: 3 routers and 6 router ports
+        incst_del = []
+        incst_del += [mock.Mock(resource_type=constants.TYPE_ROUTERS)] * 3
+        incst_del += [mock.Mock(resource_type=constants.TYPE_ROUTER_PORTS)] * 6
+
+        self.periodic._log_maintenance_inconsistencies(incst, incst_del)
+
+        # Assert LOG.debug was called twice
+        self.assertEqual(2, len(mock_log.call_args_list))
+
+        # Assert the log matches the number of inconsistencies
+        fail_str_create_update = mock_log.call_args_list[0][0][1]['fail_str']
+        self.assertIn('networks=2', fail_str_create_update)
+        self.assertIn('subnets=4', fail_str_create_update)
+        self.assertIn('ports=8', fail_str_create_update)
+
+        fail_str_delete = mock_log.call_args_list[1][0][1]['fail_str']
+        self.assertIn('routers=3', fail_str_delete)
+        self.assertIn('router_ports=6', fail_str_delete)
+
+    @mock.patch.object(maintenance.LOG, 'debug')
+    def test__log_maintenance_inconsistencies_debug_disabled(self, mock_log):
+        ovn_config.cfg.CONF.set_override('debug', False)
+
+        incst = [mock.Mock(resource_type=constants.TYPE_NETWORKS)] * 2
+        self.periodic._log_maintenance_inconsistencies(incst, [])
+        self.assertFalse(mock_log.called)
