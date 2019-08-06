@@ -152,3 +152,6 @@ MAINTENANCE_DELETE_TYPE_ORDER = {
 # The addresses field to set in the logical switch port which has a
 # peer router port (connecting to the logical router).
 DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
+
+# Loadbalancer constants
+LRP_PREFIX = "lrp-"

@@ -55,7 +55,7 @@ def ovn_lrouter_port_name(id):
     #   - patch-lrp-<UUID>-to-<UUID>
     #   - patch-<UUID>-to-lrp-<UUID>
     # lrp stands for Logical Router Port
-    return 'lrp-%s' % id
+    return constants.LRP_PREFIX + '%s' % id
 
 
 def ovn_provnet_port_name(network_id):
