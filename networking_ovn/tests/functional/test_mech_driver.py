@@ -12,11 +12,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+from oslo_config import cfg
+from oslo_utils import uuidutils
+
+from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils
 from networking_ovn.db import revision as db_rev
 from networking_ovn.tests.functional import base
-from oslo_config import cfg
-from oslo_utils import uuidutils
 
 
 class TestPortBinding(base.TestOVNFunctionalBase):
@@ -174,3 +177,239 @@ class TestNetworkMTUUpdate(base.TestOVNFunctionalBase):
         self.assertEqual(
             base_revision.updated_at,
             second_revision.updated_at)
+
+
+@mock.patch('networking_ovn.common.ovn_client.OVNClient'
+            '._is_virtual_port_supported', lambda *args: True)
+class TestVirtualPorts(base.TestOVNFunctionalBase):
+
+    def setUp(self):
+        super(TestVirtualPorts, self).setUp()
+        self._ovn_client = self.mech_driver._ovn_client
+        self.n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, self.n1['network']['id'],
+                                  '10.0.0.0/24')
+        self.sub = self.deserialize(self.fmt, res)
+
+    def _create_port(self, fixed_ip=None, allowed_address=None):
+        port_data = {
+            'port': {'network_id': self.n1['network']['id'],
+                     'tenant_id': self._tenant_id}}
+        if fixed_ip:
+            port_data['port']['fixed_ips'] = [{'ip_address': fixed_ip}]
+
+        if allowed_address:
+            port_data['port']['allowed_address_pairs'] = [
+                {'ip_address': allowed_address}]
+
+        port_req = self.new_create_request('ports', port_data, self.fmt)
+        port_res = port_req.get_response(self.api)
+        self.assertEqual(201, port_res.status_int)
+        return self.deserialize(self.fmt, port_res)['port']
+
+    def _update_allowed_address_pair(self, port_id, data):
+        port_data = {
+            'port': {'allowed_address_pairs': data}}
+        port_req = self.new_update_request('ports', port_data, port_id,
+                                           self.fmt)
+        port_res = port_req.get_response(self.api)
+        self.assertEqual(200, port_res.status_int)
+        return self.deserialize(self.fmt, port_res)['port']
+
+    def _set_allowed_address_pair(self, port_id, ip):
+        return self._update_allowed_address_pair(port_id, [{'ip_address': ip}])
+
+    def _unset_allowed_address_pair(self, port_id):
+        return self._update_allowed_address_pair(port_id, [])
+
+    def _find_port_row(self, port_id):
+        for row in self.nb_api._tables['Logical_Switch_Port'].rows.values():
+            if row.name == port_id:
+                return row
+
+    def test_virtual_port_created_before(self):
+        virt_port = self._create_port()
+        virt_ip = virt_port['fixed_ips'][0]['ip_address']
+
+        # Create the master port with the VIP address already set in
+        # the allowed_address_pairs field
+        master = self._create_port(allowed_address=virt_ip)
+
+        # Assert the virt port has the type virtual and master is set
+        # as parent
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertEqual(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Create the backport parent port
+        backup = self._create_port(allowed_address=virt_ip)
+
+        # Assert the virt port now also includes the backup port as a parent
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertIn(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+        self.assertIn(
+            backup['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+    def test_virtual_port_update_address_pairs(self):
+        master = self._create_port()
+        backup = self._create_port()
+        virt_port = self._create_port()
+        virt_ip = virt_port['fixed_ips'][0]['ip_address']
+
+        # Assert the virt port does not yet have the type virtual (no
+        # address pairs were set yet)
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual("", ovn_vport.type)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY,
+                         ovn_vport.options)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY,
+                         ovn_vport.options)
+
+        # Set the virt IP to the allowed address pairs of the master port
+        self._set_allowed_address_pair(master['id'], virt_ip)
+
+        # Assert the virt port is now updated
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertEqual(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Set the virt IP to the allowed address pairs of the backup port
+        self._set_allowed_address_pair(backup['id'], virt_ip)
+
+        # Assert the virt port now includes the backup port as a parent
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertIn(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+        self.assertIn(
+            backup['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Remove the address pairs from the master port
+        self._unset_allowed_address_pair(master['id'])
+
+        # Assert the virt port now only has the backup port as a parent
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertEqual(
+            backup['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Remove the address pairs from the backup port
+        self._unset_allowed_address_pair(backup['id'])
+
+        # Assert the virt port is not type virtual anymore and the virtual
+        # port options are cleared
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual("", ovn_vport.type)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY,
+                         ovn_vport.options)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY,
+                         ovn_vport.options)
+
+    def test_virtual_port_created_after(self):
+        master = self._create_port(fixed_ip='10.0.0.11')
+        backup = self._create_port(fixed_ip='10.0.0.12')
+        virt_ip = '10.0.0.55'
+
+        # Set the virt IP to the master and backup ports *before* creating
+        # the virtual port
+        self._set_allowed_address_pair(master['id'], virt_ip)
+        self._set_allowed_address_pair(backup['id'], virt_ip)
+
+        virt_port = self._create_port(fixed_ip=virt_ip)
+
+        # Assert the virtual port has been created with the
+        # right type and parents
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertIn(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+        self.assertIn(
+            backup['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+    def test_virtual_port_delete_parents(self):
+        master = self._create_port()
+        backup = self._create_port()
+        virt_port = self._create_port()
+        virt_ip = virt_port['fixed_ips'][0]['ip_address']
+
+        # Assert the virt port does not yet have the type virtual (no
+        # address pairs were set yet)
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual("", ovn_vport.type)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY,
+                         ovn_vport.options)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY,
+                         ovn_vport.options)
+
+        # Set allowed address paris to the master and backup ports
+        self._set_allowed_address_pair(master['id'], virt_ip)
+        self._set_allowed_address_pair(backup['id'], virt_ip)
+
+        # Assert the virtual port is correct
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertIn(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+        self.assertIn(
+            backup['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Delete the backup port
+        self._delete('ports', backup['id'])
+
+        # Assert the virt port now only has the master port as a parent
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, ovn_vport.type)
+        self.assertEqual(
+            virt_ip,
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertEqual(
+            master['id'],
+            ovn_vport.options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+        # Delete the master port
+        self._delete('ports', master['id'])
+
+        # Assert the virt port is not type virtual anymore and the virtual
+        # port options are cleared
+        ovn_vport = self._find_port_row(virt_port['id'])
+        self.assertEqual("", ovn_vport.type)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY,
+                         ovn_vport.options)
+        self.assertNotIn(ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY,
+                         ovn_vport.options)

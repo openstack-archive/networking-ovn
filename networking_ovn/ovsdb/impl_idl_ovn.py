@@ -738,6 +738,16 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def check_liveness(self):
         return cmd.CheckLivenessCommand(self)
 
+    def set_lswitch_port_to_virtual_type(self, lport_name, vip,
+                                         virtual_parent, if_exists=True):
+        return cmd.SetLSwitchPortToVirtualTypeCommand(
+            self, lport_name, vip, virtual_parent, if_exists)
+
+    def unset_lswitch_port_to_virtual_type(self, lport_name,
+                                           virtual_parent, if_exists=True):
+        return cmd.UnsetLSwitchPortToVirtualTypeCommand(
+            self, lport_name, virtual_parent, if_exists)
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):
