@@ -1282,3 +1282,10 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                 ('vips', {'10.0.0.123:80': '192.168.2.149:1010',
                           '172.26.21.20:80': '192.168.2.149:1010'}))]
         self.helper.ovn_nbdb_api.assert_has_calls(calls)
+
+    def test_single_ovsdb_connection(self):
+        prov_helper1 = ovn_driver.OvnProviderHelper()
+        prov_helper2 = ovn_driver.OvnProviderHelper()
+        self.assertIs(prov_helper1.ovn_nbdb_api, prov_helper2.ovn_nbdb_api)
+        prov_helper2.shutdown()
+        prov_helper1.shutdown()
