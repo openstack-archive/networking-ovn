@@ -174,3 +174,6 @@ UNKNOWN_ADDR = 'unknown'
 
 # TODO(lucasagomes): Create constants for other LSP types
 LSP_TYPE_LOCALNET = 'localnet'
+LSP_TYPE_VIRTUAL = 'virtual'
+LSP_OPTIONS_VIRTUAL_PARENTS_KEY = 'virtual-parents'
+LSP_OPTIONS_VIRTUAL_IP_KEY = 'virtual-ip'
