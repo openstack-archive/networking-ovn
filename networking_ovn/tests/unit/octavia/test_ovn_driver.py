@@ -14,6 +14,7 @@
 import mock
 from neutron.tests import base
 from octavia_lib.api.drivers import data_models
+from octavia_lib.api.drivers import driver_lib
 from octavia_lib.api.drivers import exceptions
 from octavia_lib.common import constants
 from oslo_utils import uuidutils
@@ -65,6 +66,12 @@ class TestOvnOctaviaBase(base.BaseTestCase):
                            'vip_subnet_id': self.vip_dict['vip_subnet_id']}
         mock.patch(
             'ovsdbapp.backend.ovs_idl.idlutils.get_schema_helper').start()
+        try:
+            mock.patch.object(
+                driver_lib.DriverLibrary, '_check_for_socket_ready').start()
+        except AttributeError:
+            # Backward compatiblity with octavia-lib < 1.3.1
+            pass
 
 
 class TestOvnProviderDriver(TestOvnOctaviaBase):

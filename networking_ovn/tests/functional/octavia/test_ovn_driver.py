@@ -18,6 +18,7 @@ import mock
 from neutron.common import utils as n_utils
 from neutron_lib.plugins import directory
 from octavia_lib.api.drivers import data_models as octavia_data_model
+from octavia_lib.api.drivers import driver_lib
 from octavia_lib.api.drivers import exceptions as o_exceptions
 from octavia_lib.common import constants as o_constants
 from oslo_serialization import jsonutils
@@ -40,6 +41,15 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # use the old object.
         idl_ovn.OvnNbApiIdlImpl.ovsdb_connection = None
         ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
+        # TODO(mjozefcz): Use octavia listeners to provide needed
+        # sockets and modify tests in order to verify if fake
+        # listener (status) has received valid value.
+        try:
+            mock.patch.object(
+                driver_lib.DriverLibrary, '_check_for_socket_ready').start()
+        except AttributeError:
+            # Backward compatiblity with octavia-lib < 1.3.1
+            pass
         self.ovn_driver = ovn_driver.OvnProviderDriver()
         self.ovn_driver._ovn_helper._octavia_driver_lib = mock.MagicMock()
         self._o_driver_lib = self.ovn_driver._ovn_helper._octavia_driver_lib

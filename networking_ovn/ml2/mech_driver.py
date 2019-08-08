@@ -13,6 +13,7 @@
 #
 
 import atexit
+import copy
 import functools
 import operator
 import signal
@@ -512,7 +513,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         drastically affect performance.  Raising an exception will
         result in the deletion of the resource.
         """
-        port = context.current
+        port = copy.deepcopy(context.current)
         port['network'] = context.network.current
         self._ovn_client.create_port(port)
         self._notify_dhcp_updated(port['id'])
@@ -566,9 +567,9 @@ class OVNMechanismDriver(api.MechanismDriver):
         state. It is up to the mechanism driver to ignore state or
         state changes that it does not know or care about.
         """
-        port = context.current
+        port = copy.deepcopy(context.current)
         port['network'] = context.network.current
-        original_port = context.original
+        original_port = copy.deepcopy(context.original)
         original_port['network'] = context.network.current
         self._ovn_client.update_port(port, port_object=original_port)
         self._notify_dhcp_updated(port['id'])
@@ -585,7 +586,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         expected, and will not prevent the resource from being
         deleted.
         """
-        port = context.current
+        port = copy.deepcopy(context.current)
         port['network'] = context.network.current
         self._ovn_client.delete_port(port['id'], port_object=port)
 
