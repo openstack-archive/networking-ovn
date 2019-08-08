@@ -279,12 +279,12 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
             return port_physnet_dict
         context = n_context.get_admin_context()
         for net in l3plugin._plugin.get_networks(
-            context, {external_net.EXTERNAL: [True]}):
+                context, {external_net.EXTERNAL: [True]}):
             if net.get(pnet.NETWORK_TYPE) in [n_const.TYPE_FLAT,
                                               n_const.TYPE_VLAN]:
                 net_physnet_dict[net['id']] = net.get(pnet.PHYSICAL_NETWORK)
         for port in l3plugin._plugin.get_ports(context, filters={
-            'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW]}):
+                'device_owner': [n_const.DEVICE_OWNER_ROUTER_GW]}):
             port_physnet_dict[port['id']] = net_physnet_dict.get(
                 port['network_id'])
         return port_physnet_dict

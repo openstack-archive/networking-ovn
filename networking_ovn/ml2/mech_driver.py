@@ -719,8 +719,8 @@ class OVNMechanismDriver(api.MechanismDriver):
                           'chassis_physnets': chassis_physnets,
                           'physical_network': physical_network})
             else:
-                if datapath_type == ovn_const.CHASSIS_DATAPATH_NETDEV and (
-                    ovn_const.CHASSIS_IFACE_DPDKVHOSTUSER in iface_types):
+                if (datapath_type == ovn_const.CHASSIS_DATAPATH_NETDEV and
+                        ovn_const.CHASSIS_IFACE_DPDKVHOSTUSER in iface_types):
                     vhost_user_socket = utils.ovn_vhu_sockpath(
                         config.get_ovn_vhost_sock_dir(), port['id'])
                     vif_type = portbindings.VIF_TYPE_VHOST_USER

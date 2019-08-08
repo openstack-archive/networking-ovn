@@ -349,7 +349,7 @@ class TestOvnConnection(base.TestCase):
         _idl = idl_class.from_server('punix:/tmp/fake', schema, mock.Mock())
         self.ovn_connection = connection.Connection(_idl, mock.Mock())
         with mock.patch.object(poller, 'Poller'), \
-            mock.patch('threading.Thread'):
+                mock.patch('threading.Thread'):
             self.ovn_connection.start()
             # A second start attempt shouldn't re-register.
             self.ovn_connection.start()

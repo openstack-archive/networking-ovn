@@ -508,10 +508,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
            port update will set the adresses corectly during
            binding process.
         """
-        with (
-            self.network(set_context=True, tenant_id='test')) as net1, (
-            self.subnet(network=net1)) as subnet1, (
-            self.port(subnet=subnet1, set_context=True, tenant_id='test')):
+        with (self.network(set_context=True, tenant_id='test')) as net1, (
+                self.subnet(network=net1)) as subnet1, (
+                self.port(subnet=subnet1, set_context=True, tenant_id='test')):
 
             self.assertTrue(self.nb_ovn.create_lswitch_port.called)
             called_args_dict = (
@@ -2185,8 +2184,8 @@ class TestOVNMechanismDriverDHCPOptions(OVNMechanismDriverTestCase):
     def test__get_port_dhcp_options_port_dhcp_opts_set_v6(self):
         self._test__get_port_dhcp_options_port_dhcp_opts_set(ip_version=6)
 
-    def _test__get_port_dhcp_options_port_dhcp_opts_not_set(
-        self, ip_version=4):
+    def _test__get_port_dhcp_options_port_dhcp_opts_not_set(self,
+                                                            ip_version=4):
         if ip_version == 4:
             port = {'id': 'foo-port',
                     'device_owner': 'compute:None',
@@ -2355,7 +2354,7 @@ class TestOVNMechanismDriverDHCPOptions(OVNMechanismDriverTestCase):
 
 
 class TestOVNMechanismDriverSecurityGroup(
-    test_security_group.Ml2SecurityGroupsTestCase):
+        test_security_group.Ml2SecurityGroupsTestCase):
     # This set of test cases is supplement to test_acl.py, the purpose is to
     # test acl methods invoking. Content correctness of args of acl methods
     # is mainly guaranteed by acl_test.py.

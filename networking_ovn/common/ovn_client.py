@@ -142,7 +142,7 @@ class OVNClient(object):
                     # should have unicode type 'true' if they were defined as
                     # dhcpv6 stateless.
                     if opts['options'].get(
-                        ovn_const.DHCPV6_STATELESS_OPT) != 'true':
+                            ovn_const.DHCPV6_STATELESS_OPT) != 'true':
                         return opts
             return get_opts[0]
 
@@ -1052,7 +1052,7 @@ class OVNClient(object):
                     # Check if external gateway has changed, if yes, delete
                     # the old gateway and add the new gateway
                     if self._check_external_ips_changed(
-                        context, ovn_snats, gateway_old, new_router):
+                            context, ovn_snats, gateway_old, new_router):
                         txn.add(self._nb_idl.delete_lrouter_ext_gw(
                             router_name))
                         if router_object:

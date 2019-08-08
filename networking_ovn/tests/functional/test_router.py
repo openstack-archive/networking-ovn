@@ -327,7 +327,7 @@ class TestRouter(base.TestOVNFunctionalBase):
         def _get_result_dict():
             sched_info = {}
             for row in self.nb_api.tables[
-                'Logical_Router_Port'].rows.values():
+                    'Logical_Router_Port'].rows.values():
                 for gwc in row.gateway_chassis:
                     chassis = sched_info.setdefault(gwc.chassis_name, {})
                     chassis[gwc.priority] = chassis.get(gwc.priority, 0) + 1
@@ -401,6 +401,6 @@ class TestRouter(base.TestOVNFunctionalBase):
 
         self.l3_plugin.schedule_unhosted_gateways()
         for row in self.nb_api.tables[
-            'Logical_Router_Port'].rows.values():
+                'Logical_Router_Port'].rows.values():
             self.assertEqual(ovn_const.MAX_GW_CHASSIS,
                              len(row.gateway_chassis))

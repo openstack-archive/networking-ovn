@@ -333,7 +333,7 @@ def get_lrouter_non_gw_routes(ovn_router):
         for route in getattr(ovn_router, 'static_routes', []):
             external_ids = getattr(route, 'external_ids', {})
             if strutils.bool_from_string(
-                external_ids.get(constants.OVN_ROUTER_IS_EXT_GW, 'false')):
+                    external_ids.get(constants.OVN_ROUTER_IS_EXT_GW, 'false')):
                 continue
 
             routes.append({'destination': route.ip_prefix,

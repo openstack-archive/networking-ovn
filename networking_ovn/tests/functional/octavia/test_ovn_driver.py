@@ -413,7 +413,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             pool_info[p.pool_id] = p_members
 
         for net_id, ref_ct in lb_data[
-            ovn_driver.LB_EXT_IDS_LS_REFS_KEY].items():
+                ovn_driver.LB_EXT_IDS_LS_REFS_KEY].items():
             external_ids[ovn_driver.LB_EXT_IDS_LS_REFS_KEY][net_id] = ref_ct
 
         if lb_data.get(ovn_driver.LB_EXT_IDS_LR_REF_KEY):

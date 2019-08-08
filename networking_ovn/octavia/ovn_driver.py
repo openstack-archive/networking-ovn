@@ -664,8 +664,8 @@ class OvnProviderHelper(object):
         vip_fip = lb_external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
 
         for k, v in lb_external_ids.items():
-            if LB_EXT_IDS_LISTENER_PREFIX not in k or (
-                self._is_listener_disabled(k)):
+            if (LB_EXT_IDS_LISTENER_PREFIX not in k or
+                    self._is_listener_disabled(k)):
                 continue
 
             vip_port, pool_id = self._extract_listener_key_value(v)
@@ -1142,8 +1142,8 @@ class OvnProviderHelper(object):
             # Remove Pool from Listener if it is associated
             listener_id = None
             for key, value in ovn_lb.external_ids.items():
-                if key.startswith(
-                    LB_EXT_IDS_LISTENER_PREFIX) and pool_key in value:
+                if (key.startswith(LB_EXT_IDS_LISTENER_PREFIX) and
+                        pool_key in value):
                     external_ids[key] = value.split(':')[0] + ':'
                     commands.append(
                         self.ovn_nbdb_api.db_set(
@@ -1398,8 +1398,8 @@ class OvnProviderHelper(object):
         existing_members = external_ids[pool_key].split(",")
         member_info = self._get_member_key(member)
         for mem in existing_members:
-            if member_info.split('_')[1] == mem.split(
-                '_')[1] and mem != member_info:
+            if (member_info.split('_')[1] == mem.split('_')[1] and
+                    mem != member_info):
                 existing_members.remove(mem)
                 existing_members.append(member_info)
                 pool_data = {pool_key: ",".join(existing_members)}
@@ -1596,7 +1596,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
     def loadbalancer_update(self, old_loadbalancer, new_loadbalncer):
         request_info = {'id': new_loadbalncer.loadbalancer_id}
         if not isinstance(
-            new_loadbalncer.admin_state_up, o_datamodels.UnsetType):
+                new_loadbalncer.admin_state_up, o_datamodels.UnsetType):
             request_info['admin_state_up'] = new_loadbalncer.admin_state_up
         request = {'type': REQ_TYPE_LB_UPDATE,
                    'info': request_info}
@@ -1645,7 +1645,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
     def _check_listener_protocol(self, listener):
         self._check_for_supported_protocols(listener.protocol)
         if not self._ovn_helper.check_lb_protocol(
-            listener.loadbalancer_id, listener.protocol):
+                listener.loadbalancer_id, listener.protocol):
             msg = (_('The loadbalancer %(lb)s does not support %(proto)s '
                      'protocol') % {
                 'lb': listener.loadbalancer_id,

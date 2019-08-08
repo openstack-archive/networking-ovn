@@ -258,7 +258,7 @@ class TestMetadataAgent(base.BaseTestCase):
             update_chassis.assert_called_once_with('1')
 
     def _test_update_chassis_metadata_networks_helper(
-        self, dp, remove, expected_dps, txn_called=True):
+            self, dp, remove, expected_dps, txn_called=True):
         current_dps = ['0', '1', '2']
         with mock.patch.object(self.agent.sb_idl,
                                'get_chassis_metadata_networks',

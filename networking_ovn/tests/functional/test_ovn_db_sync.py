@@ -988,8 +988,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
 
             # Check if unknow address is set for the expected lports.
             for row in (
-                self.nb_api.tables['Logical_Switch_Port'].
-                rows.values()):
+                    self.nb_api.tables['Logical_Switch_Port'].rows.values()):
                 if row.name in self.expected_ports_with_unknown_addr:
                     self.assertIn('unknown', row.addresses)
 

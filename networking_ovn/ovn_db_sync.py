@@ -763,8 +763,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         db_subnets = {}
         filters = {'enable_dhcp': [1]}
         for subnet in self.core_plugin.get_subnets(ctx, filters=filters):
-            if subnet['ip_version'] == constants.IP_VERSION_6 and (
-                subnet.get('ipv6_address_mode') == constants.IPV6_SLAAC):
+            if (subnet['ip_version'] == constants.IP_VERSION_6 and
+                    subnet.get('ipv6_address_mode') == constants.IPV6_SLAAC):
                 continue
             db_subnets[subnet['id']] = subnet
 
