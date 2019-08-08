@@ -12,6 +12,7 @@
 #    under the License.
 #
 
+import copy
 import datetime
 import uuid
 
@@ -1491,10 +1492,10 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         fake_port = fakes.FakePort.create_one_port(
             attrs={'status': const.PORT_STATUS_DOWN}).info()
         fake_ctx = mock.Mock(current=fake_port)
-
         self.mech_driver.create_port_postcommit(fake_ctx)
-
-        mock_create_port.assert_called_once_with(fake_port)
+        passed_fake_port = copy.deepcopy(fake_port)
+        passed_fake_port['network'] = fake_ctx.network.current
+        mock_create_port.assert_called_once_with(passed_fake_port)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
     @mock.patch.object(mech_driver.OVNMechanismDriver,
@@ -1507,8 +1508,14 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             attrs={'status': const.PORT_STATUS_ACTIVE}).info()
         fake_ctx = mock.Mock(current=fake_port, original=fake_port)
         self.mech_driver.update_port_postcommit(fake_ctx)
+
+        passed_fake_port = copy.deepcopy(fake_port)
+        passed_fake_port['network'] = fake_ctx.network.current
+        passed_fake_port_orig = copy.deepcopy(fake_ctx.original)
+        passed_fake_port_orig['network'] = fake_ctx.network.current
+
         mock_update_port.assert_called_once_with(
-            fake_port, port_object=fake_ctx.original)
+            passed_fake_port, port_object=passed_fake_port_orig)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
     def _add_chassis_agent(self, nb_cfg, agent_type, updated_at=None):
