@@ -2,16 +2,24 @@
 - name: Install migration tool
   hosts: undercloud
   become: true
+  vars:
+    python_major_version: "{{ ansible_facts.python_version.split('.')[0] }}"
   tasks:
-      - name: Install python virtualenv
+      - name: Install python 2 virtualenv and networking ovn migration tool
         yum:
-            name: python-virtualenv
+            name:
+              - python-virtualenv
+              - python-networking-ovn-migration-tool
             state: present
+        when: python_major_version | int == 2
 
-      - name: Install python networking ovn migration tool
+      - name: Install python 3 virtualenv and networking ovn migration tool
         yum:
-            name: python-networking-ovn-migration-tool
+            name:
+              - python3-virtualenv
+              - python3-networking-ovn-migration-tool
             state: present
+        when: python_major_version | int == 3
 
       - name: Set host_key_checking to False in ansible.cfg
         ini_file:

@@ -94,10 +94,16 @@
     command: "ovn-sbctl set-connection ptcp:6642:{{ ovn_db_ip }}"
     when: ovn_central is defined
     changed_when: False
-  - name: Ensure the Neutron ML2 plugin is installed on neutron-api hosts.
+  - name: Ensure the Neutron ML2 plugin Python 2 is installed on neutron-api hosts.
     yum:
       name: python-networking-ovn
       state: present
+    when: ansible_facts.python_version.split('.')[0] | int == 2
+  - name: Ensure the Neutron ML2 plugin Python 3 is installed on neutron-api hosts.
+    yum:
+      name: python-networking-ovn
+      state: present
+    when: ansible_facts.python_version.split('.')[0] | int == 3
   - name: Update Neutron configuration files
     ini_file: dest={{ item.dest }} section={{ item.section }} option={{ item.option }} value={{ item.value }}
     with_items:
