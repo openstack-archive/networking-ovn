@@ -543,6 +543,26 @@ class OVNMechanismDriver(api.MechanismDriver):
         port['network'] = context.network.current
         original_port = copy.deepcopy(context.original)
         original_port['network'] = context.network.current
+
+        # NOTE(mjozefcz): Check if port is in migration state. If so update
+        # the port status from DOWN to UP in order to generate 'fake'
+        # vif-interface-plugged event. This workaround is needed to
+        # perform live-migration with live_migration_wait_for_vif_plug=True.
+        if ((port['status'] == const.PORT_STATUS_DOWN and
+             ovn_const.MIGRATING_ATTR in port[portbindings.PROFILE].keys() and
+             port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_OVS)):
+            admin_context = n_context.get_admin_context()
+            LOG.info("Setting port %s status from DOWN to UP in order "
+                     "to emit vif-interface-plugged event.",
+                     port['id'])
+            self._plugin.update_port_status(admin_context, port['id'],
+                                            const.PORT_STATUS_ACTIVE)
+            # The revision has been changed. In the meantime
+            # port-update event already updated the OVN configuration,
+            # So there is no need to update it again here. Anyway it
+            # will fail that OVN has port with bigger revision.
+            return
+
         self._ovn_client.update_port(port, port_object=original_port)
         self._notify_dhcp_updated(port['id'])
 

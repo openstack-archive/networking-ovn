@@ -1518,6 +1518,30 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             passed_fake_port, port_object=passed_fake_port_orig)
         mock_notify_dhcp.assert_called_once_with(fake_port['id'])
 
+    @mock.patch.object(mech_driver.OVNMechanismDriver,
+                       '_is_port_provisioning_required', lambda *_: True)
+    @mock.patch.object(mech_driver.OVNMechanismDriver, '_notify_dhcp_updated')
+    @mock.patch.object(ovn_client.OVNClient, 'update_port')
+    @mock.patch.object(context, 'get_admin_context')
+    def test_update_port_postcommit_live_migration(
+            self, mock_admin_context, mock_update_port, mock_notify_dhcp):
+        self.plugin.update_port_status = mock.Mock()
+        foo_admin_context = mock.Mock()
+        mock_admin_context.return_value = foo_admin_context
+        fake_port = fakes.FakePort.create_one_port(
+            attrs={
+                'status': const.PORT_STATUS_DOWN,
+                portbindings.PROFILE: {ovn_const.MIGRATING_ATTR: 'foo'},
+                portbindings.VIF_TYPE: portbindings.VIF_TYPE_OVS}).info()
+        fake_ctx = mock.Mock(current=fake_port, original=fake_port)
+
+        self.mech_driver.update_port_postcommit(fake_ctx)
+
+        mock_update_port.assert_not_called()
+        mock_notify_dhcp.assert_not_called()
+        self.plugin.update_port_status.assert_called_once_with(
+            foo_admin_context, fake_port['id'], const.PORT_STATUS_ACTIVE)
+
     def _add_chassis_agent(self, nb_cfg, agent_type, updated_at=None):
         chassis = mock.Mock()
         chassis.nb_cfg = nb_cfg
