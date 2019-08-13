@@ -11,7 +11,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-
+import collections
 import copy
 
 import mock
@@ -582,19 +582,12 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         # Test only host-1 in the valid list
         unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
             {}, {'host-1': 'physnet1'}, [])
-        expected = {
-            utils.ovn_lrouter_port_name('orp-id-b2'): {
-                ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'},
-            utils.ovn_lrouter_port_name('orp-id-a3'): {
-                ovn_const.OVN_GATEWAY_CHASSIS_KEY:
-                    ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
+        expected = ['lrp-orp-id-a1', 'lrp-orp-id-a2',
+                    'lrp-orp-id-a3', 'lrp-orp-id-b2']
         self.assertItemsEqual(unhosted_gateways, expected)
         # Test both host-1, host-2 in valid list
         unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
             {}, {'host-1': 'physnet1', 'host-2': 'physnet2'}, [])
-        expected = {utils.ovn_lrouter_port_name('orp-id-a3'): {
-            ovn_const.OVN_GATEWAY_CHASSIS_KEY:
-                ovn_const.OVN_GATEWAY_INVALID_CHASSIS}}
         self.assertItemsEqual(unhosted_gateways, expected)
         # Schedule unhosted_gateways on host-2
         for unhosted_gateway in unhosted_gateways:
@@ -604,7 +597,25 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
                 ovn_const.OVN_GATEWAY_CHASSIS_KEY: 'host-2'})
         unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
             {}, {'host-1': 'physnet1', 'host-2': 'physnet2'}, [])
-        self.assertItemsEqual(unhosted_gateways, {})
+        self.assertItemsEqual(unhosted_gateways, expected)
+
+    def test_unhosted_gateway_max_chassis(self):
+        gw_chassis_table = fakes.FakeOvsdbTable.create_one_ovsdb_table()
+        self._tables['Gateway_Chassis'] = gw_chassis_table
+        gw_chassis = collections.namedtuple('gw_chassis',
+                                            'chassis_name priority')
+        TestNBImplIdlOvn.fake_set['lrouter_ports'][0]['gateway_chassis'] = [
+            gw_chassis(chassis_name='host-%s' % x,
+                       priority=x) for x in range(1, 6)]
+        for port in TestNBImplIdlOvn.fake_set['lrouter_ports'][1:]:
+            port['gateway_chassis'] = []
+        self._load_nb_db()
+        unhosted_gateways = self.nb_ovn_idl.get_unhosted_gateways(
+            {}, {'host-1': 'physnet1', 'host-2': 'physnet2',
+                 'host-3': 'physnet1', 'host-4': 'physnet2',
+                 'host-5': 'physnet1', 'host-6': 'physnet2'}, [])
+        expected = []
+        self.assertItemsEqual(unhosted_gateways, expected)
 
     def test_get_subnet_dhcp_options(self):
         self._load_nb_db()

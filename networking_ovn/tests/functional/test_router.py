@@ -322,3 +322,85 @@ class TestRouter(base.TestOVNFunctionalBase):
     def test_router_port_ipv6_ra_configs_ipv4(self):
         self._test_router_port_ipv6_ra_configs_helper(
             ip_version=4)
+
+    def test_gateway_chassis_rebalance(self):
+        def _get_result_dict():
+            sched_info = {}
+            for row in self.nb_api.tables[
+                'Logical_Router_Port'].rows.values():
+                for gwc in row.gateway_chassis:
+                    chassis = sched_info.setdefault(gwc.chassis_name, {})
+                    chassis[gwc.priority] = chassis.get(gwc.priority, 0) + 1
+            return sched_info
+
+        if not self._l3_ha_supported():
+            self.skipTest('L3 HA not supported')
+        ovn_client = self.l3_plugin._ovn_client
+        chassis4 = self.add_fake_chassis(
+            'ovs-host4', physical_nets=['physnet4'], external_ids={
+                'ovn-cms-options': 'enable-chassis-as-gw'})
+        ovn_client._ovn_scheduler = l3_sched.OVNGatewayLeastLoadedScheduler()
+        ext1 = self._create_ext_network(
+            'ext1', 'flat', 'physnet4', None, "30.0.0.1", "30.0.0.0/24")
+        gw_info = {'network_id': ext1['network']['id']}
+        # Create 20 routers with a gateway. Since we're using physnet4, the
+        # chassis candidates will be chassis4 initially.
+        for i in range(20):
+            router = self._create_router('router%d' % i, gw_info=gw_info)
+            gw_port_id = router.get('gw_port_id')
+            logical_port = 'cr-lrp-%s' % gw_port_id
+            self.sb_api.lsp_bind(logical_port, chassis4,
+                                 may_exist=True).execute(check_error=True)
+        self.l3_plugin.schedule_unhosted_gateways()
+        expected = {chassis4: {1: 20}}
+        self.assertEqual(expected, _get_result_dict())
+
+        # Add another chassis as a gateway chassis
+        chassis5 = self.add_fake_chassis(
+            'ovs-host5', physical_nets=['physnet4'], external_ids={
+                'ovn-cms-options': 'enable-chassis-as-gw'})
+        # Add a node as compute node. Compute node wont be
+        # used to schedule the router gateway ports therefore
+        # priority values wont be changed. Therefore chassis4 would
+        # still have priority 2
+        self.add_fake_chassis('ovs-host6', physical_nets=['physnet4'])
+
+        # Chassis4 should have all ports at Priority 2
+        self.l3_plugin.schedule_unhosted_gateways()
+        self.assertEqual({2: 20}, _get_result_dict()[chassis4])
+        # Chassis5 should have all ports at Priority 1
+        self.assertEqual({1: 20}, _get_result_dict()[chassis5])
+
+        # delete chassis that hosts all the gateways
+        self.del_fake_chassis(chassis4)
+        self.l3_plugin.schedule_unhosted_gateways()
+
+        # As Chassis4 has been removed so all gateways that were
+        # hosted there are now masters on chassis5 and have
+        # priority 1.
+        self.assertEqual({1: 20}, _get_result_dict()[chassis5])
+
+    def test_gateway_chassis_rebalance_max_chassis(self):
+        chassis_list = []
+        # spawn 6 chassis and check if port has MAX_CHASSIS candidates.
+        for i in range(0, ovn_const.MAX_GW_CHASSIS + 1):
+            chassis_list.append(
+                self.add_fake_chassis(
+                    'ovs-host%s' % i, physical_nets=['physnet1'],
+                    external_ids={
+                        'ovn-cms-options': 'enable-chassis-as-gw'}))
+
+        ext1 = self._create_ext_network(
+            'ext1', 'vlan', 'physnet1', 1, "10.0.0.1", "10.0.0.0/24")
+        gw_info = {'network_id': ext1['network']['id']}
+        router = self._create_router('router', gw_info=gw_info)
+        gw_port_id = router.get('gw_port_id')
+        logical_port = 'cr-lrp-%s' % gw_port_id
+        self.sb_api.lsp_bind(logical_port, chassis_list[0],
+                             may_exist=True).execute(check_error=True)
+
+        self.l3_plugin.schedule_unhosted_gateways()
+        for row in self.nb_api.tables[
+            'Logical_Router_Port'].rows.values():
+            self.assertEqual(ovn_const.MAX_GW_CHASSIS,
+                             len(row.gateway_chassis))

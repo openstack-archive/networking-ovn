@@ -44,6 +44,19 @@ network attached to the router it will schedule the router gateway port
 to multiple chassis, making use of the ``gateway_chassis`` column on OVN's
 ``Logical_Router_Port`` table.
 
+In order to have external connectivity, either:
+
+* Some gateway nodes have ``ovn-cms-options`` with the value
+  ``enable-chassis-as-gw`` in Open_vSwitch table's external_ids column, or
+
+* if no gateway node exists with the external ids column set with that
+  value, then all nodes would be eligible to host gateway chassis.
+
+Example to how to enabled chassis to host gateways:
+ .. code-block:: console
+
+  $ ovs-vsctl set open . external-ids:ovn-cms-options="enable-chassis-as-gw"
+
 At the low level, functionality is all implemented mostly by OpenFlow rules
 with bundle active_passive outputs. The ARP responder and router
 enablement/disablement is handled by ovn-controller. Gratuitous ARPs for FIPs
