@@ -28,6 +28,7 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
+from networking_ovn.tests.unit import fakes
 from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -367,3 +368,32 @@ class TestOvnConnection(base.TestCase):
     def test_connection_sb_start(self):
         self._test_connection_start(idl_class=ovsdb_monitor.OvnSbIdl,
                                     schema='OVN_Southbound')
+
+
+class TestPortBindingChassisUpdateEvent(base.TestCase):
+    def setUp(self):
+        super(TestPortBindingChassisUpdateEvent, self).setUp()
+        self.driver = mock.Mock()
+        self.event = ovsdb_monitor.PortBindingChassisUpdateEvent(self.driver)
+
+    def _test_event(self, event, row, old):
+        if self.event.matches(event, row, old):
+            self.event.run(event, row, old)
+            self.driver.set_port_status_up.assert_called()
+        else:
+            self.driver.set_port_status_up.assert_not_called()
+
+    def test_event_matches(self):
+        # NOTE(twilson) This primarily tests implementation details. If a
+        # scenario test is written that handles shutting down a compute
+        # node uncleanly and performing a 'host-evacuate', this can be removed
+        pbtable = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'name': 'Port_Binding'})
+        ovsdb_row = fakes.FakeOvsdbRow.create_one_ovsdb_row
+        self.driver._nb_ovn.lookup.return_value = ovsdb_row(attrs={'up': True})
+        self._test_event(
+            self.event.ROW_UPDATE,
+            ovsdb_row(attrs={'_table': pbtable, 'chassis': 'one',
+                             'type': '_fake_', 'logical_port': 'foo'}),
+            ovsdb_row(attrs={'_table': pbtable, 'chassis': 'two',
+                             'type': '_fake_'}))
