@@ -128,6 +128,46 @@ class ChassisEvent(row_event.RowEvent):
             self.l3_plugin.schedule_unhosted_gateways()
 
 
+class PortBindingChassisUpdateEvent(BaseEvent):
+    """Event for matching a port moving chassis
+
+    If the LSP is up and the Port_Binding chassis has just changed,
+    there is a good chance the host died without cleaning up the chassis
+    column on the Port_Binding. The port never goes down, so we won't
+    see update the driver with the LogicalSwitchPortUpdateUpEvent which
+    only monitors for transitions from DOWN to UP.
+    """
+
+    table = 'Port_Binding'
+    events = (BaseEvent.ROW_UPDATE,)
+
+    def __init__(self, driver):
+        self.driver = driver
+        super(PortBindingChassisUpdateEvent, self).__init__()
+
+    def match_fn(self, event, row, old=None):
+        # NOTE(twilson) ROW_UPDATE events always pass old, but chassis will
+        # only be set if chassis has changed
+        old_chassis = getattr(old, 'chassis', None)
+        if not (row.chassis and old_chassis) or row.chassis == old_chassis:
+            return False
+        if row.type == 'chassisredirect':
+            return False
+        try:
+            lsp = self.driver._nb_ovn.lookup('Logical_Switch_Port',
+                                             row.logical_port)
+        except idlutils.RowNotFound:
+            LOG.warning("Logical Switch Port %(port)s not found for "
+                        "Port_Binding %(binding)s",
+                        {'port': row.logical_port, 'binding': row.uuid})
+            return False
+
+        return bool(lsp.up)
+
+    def run(self, event, row, old=None):
+        self.driver.set_port_status_up(row.logical_port)
+
+
 class PortBindingChassisEvent(row_event.RowEvent):
     """Port_Binding update event - set chassis for chassisredirect port.
 
@@ -404,8 +444,9 @@ class OvnSbIdl(OvnIdl):
         """
         self._chassis_event = ChassisEvent(self.driver)
         self._portbinding_event = PortBindingChassisEvent(self.driver)
-        self.notify_handler.watch_events([self._chassis_event,
-                                          self._portbinding_event])
+        self.notify_handler.watch_events(
+            [self._chassis_event, self._portbinding_event,
+             PortBindingChassisUpdateEvent(self.driver)])
 
 
 def _check_and_set_ssl_files(schema_name):
