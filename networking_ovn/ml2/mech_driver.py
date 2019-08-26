@@ -151,7 +151,9 @@ class OVNMechanismDriver(api.MechanismDriver):
                 portbindings.VHOST_USER_MODE:
                 portbindings.VHOST_USER_MODE_SERVER,
                 portbindings.VHOST_USER_OVS_PLUG: True
-            }
+            },
+            portbindings.VIF_DETAILS_CONNECTIVITY:
+                portbindings.CONNECTIVITY_L2,
         }
 
     def subscribe(self):
