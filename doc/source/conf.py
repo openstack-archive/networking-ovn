@@ -25,6 +25,7 @@ extensions = [
     'openstackdocstheme',
     'oslo_config.sphinxext',
     'oslo_config.sphinxconfiggen',
+    'sphinxcontrib.rsvgconverter',
 ]
 
 # openstackdocstheme options
