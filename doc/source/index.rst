@@ -2,8 +2,17 @@
 networking-ovn - OpenStack Neutron integration with OVN
 =======================================================
 
-.. image:: https://governance.openstack.org/tc/badges/networking-ovn.svg
-    :target: https://governance.openstack.org/tc/reference/tags/index.html
+.. NOTE(amotoki): Use a project badge only in HTML doc.
+   The badge filename matches the repository name.
+   In the PDF doc build, SVG file is converted into PDF file in advance.
+   We use the repository name as the generated PDF doc, so the badge
+   converted into PDF conflicts with the generated PDF doc.
+   This causes PDF build failure.
+
+.. only:: html
+
+   .. image:: https://governance.openstack.org/tc/badges/networking-ovn.svg
+       :target: https://governance.openstack.org/tc/reference/tags/index.html
 
 OVN provides virtual networking for Open vSwitch and is a component of the
 Open vSwitch project. This project provides integration between OpenStack
@@ -36,8 +45,9 @@ Links
 * IRC: #openstack-neutron-ovn on Freenode.
 * Docs: https://docs.openstack.org/networking-ovn/latest
 
-.. rubric:: Indices and tables
+.. only:: html
 
-* :ref:`genindex`
-* :ref:`search`
+   .. rubric:: Indices and tables
 
+   * :ref:`genindex`
+   * :ref:`search`
