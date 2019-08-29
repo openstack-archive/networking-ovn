@@ -167,3 +167,8 @@ HASH_RING_ML2_GROUP = 'mechanism_driver'
 
 # Maximum chassis count where a gateway port can be hosted
 MAX_GW_CHASSIS = 5
+
+UNKNOWN_ADDR = 'unknown'
+
+# TODO(lucasagomes): Create constants for other LSP types
+LSP_TYPE_LOCALNET = 'localnet'

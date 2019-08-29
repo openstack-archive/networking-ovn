@@ -204,7 +204,7 @@ class OVNClient(object):
             port_type = 'vtep'
             options = {'vtep-physical-switch': vtep_physical_switch,
                        'vtep-logical-switch': vtep_logical_switch}
-            addresses = ["unknown"]
+            addresses = [ovn_const.UNKNOWN_ADDR]
             parent_name = []
             tag = []
             port_security = []
@@ -227,19 +227,21 @@ class OVNClient(object):
             addresses = [address]
             addresses.extend(new_macs)
 
-            if not port_security:
-                # Port security is disabled for this port.
-                # So this port can send traffic with any mac address.
-                # OVN allows any mac address from a port if "unknown"
-                # is added to the Logical_Switch_Port.addresses column.
-                # So add it.
-                addresses.append("unknown")
-
             # Only adjust the OVN type if the port is not owned by Neutron
             # DHCP agents.
             if (port['device_owner'] == const.DEVICE_OWNER_DHCP and
                     not port['device_id'].startswith('dhcp')):
                 port_type = 'localport'
+
+            # The "unknown" address should only be set for the normal LSP
+            # ports (the ones which type is empty)
+            if not port_security and not port_type:
+                # Port security is disabled for this port.
+                # So this port can send traffic with any mac address.
+                # OVN allows any mac address from a port if "unknown"
+                # is added to the Logical_Switch_Port.addresses column.
+                # So add it.
+                addresses.append(ovn_const.UNKNOWN_ADDR)
 
         dhcpv4_options = self._get_port_dhcp_options(port, const.IP_VERSION_4)
         dhcpv6_options = self._get_port_dhcp_options(port, const.IP_VERSION_6)
@@ -1362,9 +1364,9 @@ class OVNClient(object):
         txn.add(self._nb_idl.create_lswitch_port(
             lport_name=utils.ovn_provnet_port_name(network['id']),
             lswitch_name=utils.ovn_name(network['id']),
-            addresses=['unknown'],
+            addresses=[ovn_const.UNKNOWN_ADDR],
             external_ids={},
-            type='localnet',
+            type=ovn_const.LSP_TYPE_LOCALNET,
             tag=tag if tag else [],
             options={'network_name': physnet}))
 
