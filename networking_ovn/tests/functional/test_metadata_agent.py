@@ -28,6 +28,7 @@ from networking_ovn.agent.metadata import ovsdb
 from networking_ovn.agent.metadata import server as metadata_server
 from networking_ovn.agent import stats
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.conf.agent.metadata import config as meta
 from networking_ovn.tests.functional import base
 
@@ -139,18 +140,29 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         self.assertTrue(row_event.wait())
 
     def test_updating_metadata_doesnt_update_controller_stats(self):
+        self.nb_cfg = None
+
+        def read_stats():
+            try:
+                self.nb_cfg = stats.AgentStats.get_stat(chassis.uuid).nb_cfg
+            except ovn_exc.AgentStatsNotFound:
+                return False
+            return True
+
         chassis = self.sb_api.lookup('Chassis', self.chassis_name)
         self.assertNotIn(ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY,
                          chassis.external_ids)
-        nb_cfg = stats.AgentStats.get_stat(chassis.uuid).nb_cfg
-        new_nb_cfg = nb_cfg + 1
+        exc = AssertionError('AgentStats for chassis %(chassis_uuid)s not '
+                             'found' % {'chassis_uuid': chassis.uuid})
+        n_utils.wait_until_true(read_stats, timeout=5, exception=exc)
+        new_nb_cfg = self.nb_cfg + 1
         row_event = MetadataAgentHealthEvent(chassis.name, new_nb_cfg)
         self.handler.watch_event(row_event)
         self.sb_api.update_metadata_health_status(
             chassis.name, new_nb_cfg).execute(check_error=True)
         self.assertTrue(row_event.wait())
         self.assertEqual(stats.AgentStats.get_stat(chassis.uuid).nb_cfg,
-                         nb_cfg)
+                         self.nb_cfg)
 
     def _create_metadata_port(self, txn, lswitch_name):
         mdt_port_name = 'ovn-mdt-' + uuidutils.generate_uuid()
