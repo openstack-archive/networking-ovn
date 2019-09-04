@@ -67,7 +67,7 @@ OVN_UUID=${OVN_UUID:-}
 
 # Whether or not to build the openvswitch kernel module from ovs.  This is required
 # unless the distro kernel includes ovs+conntrack support.
-OVN_BUILD_MODULES=$(trueorfalse True OVN_BUILD_MODULES)
+OVN_BUILD_MODULES=$(trueorfalse False OVN_BUILD_MODULES)
 
 # Whether or not to install the ovs python module from ovs source.  This can be
 # used to test and validate new ovs python features.  This should only be used
