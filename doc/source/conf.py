@@ -70,7 +70,7 @@ htmlhelp_basename = 'networking-ovndoc'
 # [howto/manual]).
 latex_documents = [
     ('index',
-     'networking-ovn.tex',
+     'doc-networking-ovn.tex',
      u'networking-ovn Documentation',
      u'OpenStack Foundation', 'manual'),
 ]
