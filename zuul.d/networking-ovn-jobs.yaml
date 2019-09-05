@@ -287,6 +287,8 @@
       devstack_services:
         ovn-northd: true
         ovn-controller: true
+        ovs-vswitchd: true
+        ovsdb-server: true
         networking-ovn-metadata-agent: true
         br-ex-tcpdump: true
         br-int-flows: true
