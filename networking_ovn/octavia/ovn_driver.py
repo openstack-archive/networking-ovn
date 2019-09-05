@@ -135,7 +135,8 @@ class LogicalSwitchPortUpdateEvent(row_event.RowEvent):
     def run(self, event, row, old):
         # Get the neutron:port_name from external_ids and check if
         # it's a vip port or not.
-        port_name = row.external_ids.get(ovn_const.OVN_PORT_NAME_EXT_ID_KEY)
+        port_name = row.external_ids.get(
+            ovn_const.OVN_PORT_NAME_EXT_ID_KEY, '')
         if self.driver and port_name.startswith(ovn_const.LB_VIP_PORT_PREFIX):
             # Handle port update only for vip ports created by
             # this driver.

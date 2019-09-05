@@ -1193,6 +1193,15 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             'type': 'handle_vip_fip'}
         self.mock_add_request.assert_called_once_with(expected_call)
 
+    def test_logical_switch_port_update_event_missing_port_name(self):
+        self.switch_port_event = ovn_driver.LogicalSwitchPortUpdateEvent(
+            self.helper)
+        attrs = {'external_ids': {}}
+        row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs=attrs)
+        self.switch_port_event.run(mock.ANY, row, mock.ANY)
+        self.mock_add_request.assert_not_called()
+
     def test_logical_switch_port_update_event_empty_fip(self):
         self.switch_port_event = ovn_driver.LogicalSwitchPortUpdateEvent(
             self.helper)
