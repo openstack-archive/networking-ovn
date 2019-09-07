@@ -797,7 +797,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                                   '_update_dnat_entry_if_needed') as ude, \
                 mock.patch.object(
                     self.mech_driver,
-                    '_wait_for_metadata_provisioned_if_needed') as wmp:
+                    '_wait_for_metadata_provisioned_if_needed') as wmp, \
+                mock.patch.object(self.mech_driver, '_should_notify_nova',
+                                  return_value=is_compute_port):
             self.mech_driver.set_port_status_up(port1['port']['id'])
             pc.assert_called_once_with(
                 mock.ANY,
@@ -836,7 +838,9 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                 mock.patch('neutron.db.provisioning_blocks.'
                            'add_provisioning_component') as apc, \
                 mock.patch.object(self.mech_driver,
-                                  '_update_dnat_entry_if_needed') as ude:
+                                  '_update_dnat_entry_if_needed') as ude, \
+                mock.patch.object(self.mech_driver, '_should_notify_nova',
+                                  return_value=is_compute_port):
             self.mech_driver.set_port_status_down(port1['port']['id'])
             apc.assert_called_once_with(
                 mock.ANY,
