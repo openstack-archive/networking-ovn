@@ -9,7 +9,7 @@ devstack_localrc base enable_plugin networking-ovn http://opendev.org/openstack/
 devstack_localrc base OVN_BRANCH="branch-2.11"
 
 devstack_localrc target enable_plugin networking-ovn http://opendev.org/openstack/networking-ovn
-devstack_localrc target OVN_BRANCH="master"
+devstack_localrc target OVN_BRANCH="branch-2.12"
 
 # Common options for both base and target DevStack
 for i in base target; do
