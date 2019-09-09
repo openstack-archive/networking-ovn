@@ -31,7 +31,7 @@ case $VENV in
     remove_ovs_packages
     # compile_ovs expects "DEST" to be defined
     DEST=$GATE_DEST
-    OVS_BRANCH=branch-2.9
+    OVS_BRANCH=branch-2.11
     compile_ovs True /usr/local /var
 
     # Make the workspace owned by GATE_STACK_USER

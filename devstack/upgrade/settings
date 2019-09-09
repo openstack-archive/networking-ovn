@@ -6,3 +6,4 @@ devstack_localrc target enable_plugin networking-ovn http://git.openstack.org/op
 devstack_localrc target PUBLIC_BRIDGE=br-ex
 devstack_localrc target enable_service s-account s-container s-object s-proxy
 devstack_localrc target disable_service q-agt
+devstack_localrc target OVN_BRANCH="branch-2.11"

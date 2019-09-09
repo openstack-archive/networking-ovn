@@ -52,11 +52,11 @@ class TestSbApi(base.FunctionalTestCase):
 
     def load_test_data(self):
         with self.api.transaction(check_error=True) as txn:
-            for i, chassis in enumerate(self.data['chassis']):
+            for chassis in self.data['chassis']:
                 chassis['name'] = utils.get_rand_device_name('chassis')
                 chassis['hostname'] = '%s.localdomain.com' % chassis['name']
                 txn.add(self.api.chassis_add(
-                    chassis['name'], ['geneve'], '192.0.2.%d' % (i + 1,),
+                    chassis['name'], ['geneve'], chassis['hostname'],
                     hostname=chassis['hostname'],
                     external_ids=chassis['external_ids']))
 

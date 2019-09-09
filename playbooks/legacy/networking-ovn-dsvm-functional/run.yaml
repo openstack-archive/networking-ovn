@@ -42,7 +42,8 @@
           # our project repository. This makes zuul do the right
           # reference magic for testing changes.
           export PROJECTS="openstack/networking-ovn $PROJECTS"
-
+          export OVN_BRANCH="branch-2.11"
+          export OVS_BRANCH="branch-2.11"
           function gate_hook {
               bash -xe $BASE/new/networking-ovn/networking_ovn/tests/contrib/gate_hook.sh dsvm-functional
           }
