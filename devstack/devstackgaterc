@@ -30,14 +30,6 @@ fi
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"Q_USE_PROVIDERNET_FOR_PUBLIC=True"
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 
-if [[ "${OVN_OPTS}" == *"latest-release"* ]] ; then
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=branch-2.11"
-elif [[ "${OVN_OPTS}" == *"master"* ]] ; then
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
-else
-    echo "No ovs branch specified, using the default from the devstack plugin"
-fi
-
 # Enable controller to host gateway routers
 export DEVSTACK_LOCAL_CONFIG+=$'\n'"ENABLE_CHASSIS_AS_GW=True"
 
