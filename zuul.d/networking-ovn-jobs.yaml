@@ -82,14 +82,6 @@
         s-proxy: false
 
 - job:
-    name: networking-ovn-tempest-dsvm-ovs-master
-    description: Job testing for devstack/tempest testing networking-ovn with OVN master branch
-    parent: networking-ovn-base
-    vars:
-      devstack_localrc:
-        OVN_BRANCH: master
-
-- job:
     name: networking-ovn-tempest-dsvm-ovs-release
     description: Job testing for devstack/tempest testing networking-ovn with the latest released OVN branch
     parent: networking-ovn-base
@@ -105,12 +97,6 @@
       devstack_localrc:
         OVN_BRANCH: branch-2.11
         USE_PYTHON3: False
-
-- job:
-    name: networking-ovn-tempest-dsvm-ovs-master-fedora
-    description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
-    parent: networking-ovn-tempest-dsvm-ovs-master
-    nodeset: fedora-latest
 
 - job:
     name: networking-ovn-rally-task
@@ -149,6 +135,7 @@
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
+        OVN_BRANCH: branch-2.11
       rally_task: rally-jobs/ovn.yaml
     timeout: 7800
 

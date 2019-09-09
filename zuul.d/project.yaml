@@ -10,8 +10,6 @@
       - openstack-lower-constraints-jobs-neutron
     check:
       jobs:
-        - networking-ovn-tempest-dsvm-ovs-master:
-            voting: false
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
@@ -54,7 +52,4 @@
             voting: false
             branches: ^(?!stable/newton).*$
         - kuryr-kubernetes-tempest-ovn
-    periodic:
-      jobs:
-        - networking-ovn-tempest-dsvm-ovs-master-fedora
 
