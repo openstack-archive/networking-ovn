@@ -15,6 +15,7 @@ import os
 import re
 
 import netaddr
+from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
@@ -414,3 +415,7 @@ def is_gateway_chassis_invalid(chassis_name, gw_chassis,
     elif gw_chassis and chassis_name not in gw_chassis:
         return True
     return False
+
+
+def is_provider_network(network):
+    return external_net.EXTERNAL in network

@@ -1157,6 +1157,27 @@ class OVNClient(object):
 
         return ext_ids
 
+    def _gen_router_port_options(self, port, network=None):
+        options = {}
+        if network is None:
+            network = self._plugin.get_network(n_context.get_admin_context(),
+                                               port['network_id'])
+        # For VLAN type networks we need to set the
+        # "reside-on-redirect-chassis" option so the routing for this
+        # logical router port is centralized in the chassis hosting the
+        # distributed gateway port.
+        # https://github.com/openvswitch/ovs/commit/85706c34d53d4810f54bec1de662392a3c06a996
+        if network.get(pnet.NETWORK_TYPE) == const.TYPE_VLAN:
+            options['reside-on-redirect-chassis'] = 'true'
+
+        is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
+            'device_owner')
+        if is_gw_port and config.is_ovn_emit_need_to_frag_enabled():
+            options[ovn_const.OVN_ROUTER_PORT_GW_MTU_OPTION] = str(
+                network['mtu'])
+
+        return options
+
     def _create_lrouter_port(self, router_id, port, txn=None):
         """Create a logical router port."""
         lrouter = utils.ovn_name(router_id)
@@ -1167,17 +1188,11 @@ class OVNClient(object):
         is_gw_port = const.DEVICE_OWNER_ROUTER_GW == port.get(
             'device_owner')
         columns = {}
-        port_net = self._plugin.get_network(n_context.get_admin_context(),
-                                            port['network_id'])
-        # For VLAN type networks we need to set the
-        # "reside-on-redirect-chassis" option so the routing for this
-        # logical router port is centralized in the chassis hosting the
-        # distributed gateway port.
-        # https://github.com/openvswitch/ovs/commit/85706c34d53d4810f54bec1de662392a3c06a996
-        if port_net.get(pnet.NETWORK_TYPE) == const.TYPE_VLAN:
-            columns['options'] = {'reside-on-redirect-chassis': 'true'}
+        columns['options'] = self._gen_router_port_options(port)
 
         if is_gw_port:
+            port_net = self._plugin.get_network(n_context.get_admin_context(),
+                                                port['network_id'])
             physnet = self._get_physnet(port_net)
             candidates = self.get_candidates_for_scheduling(physnet)
             selected_chassis = self._ovn_scheduler.select(
@@ -1254,6 +1269,7 @@ class OVNClient(object):
             self._nb_idl.update_lrouter_port(
                 name=lrp_name,
                 external_ids=self._gen_router_port_ext_ids(port),
+                options=self._gen_router_port_options(port),
                 if_exists=if_exists,
                 **update),
             self._nb_idl.set_lrouter_port_in_lswitch_port(
@@ -1429,6 +1445,21 @@ class OVNClient(object):
         return new_qos_id != ovn_net.external_ids[
             ovn_const.OVN_QOS_POLICY_EXT_ID_KEY]
 
+    def set_gateway_mtu(self, context, prov_net, txn=None):
+        ports = self._plugin.get_ports(
+            context, filters=dict(network_id=[prov_net['id']],
+                                  device_owner=[const.DEVICE_OWNER_ROUTER_GW]))
+        commands = []
+        for port in ports:
+            lrp_name = utils.ovn_lrouter_port_name(port['id'])
+            # TODO(lucasagomes): Use lrp_set_options() once
+            # https://review.opendev.org/671765 is merged and a new version
+            # of ovsdbapp is released
+            options = self._gen_router_port_options(port, prov_net)
+            commands.append(self._nb_idl.update_lrouter_port(
+                            name=lrp_name, if_exists=True, options=options))
+        self._transaction(commands, txn=txn)
+
     def update_network(self, network):
         lswitch_name = utils.ovn_name(network['id'])
         # Check if QoS needs to be update, before updating OVNDB
@@ -1479,6 +1510,9 @@ class OVNClient(object):
                     context, network['id'])
                 for subnet in subnets:
                     self.update_subnet(subnet, network, txn)
+
+                if utils.is_provider_network(network):
+                    self.set_gateway_mtu(context, network, txn)
 
         if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
             if qos_update_required:
