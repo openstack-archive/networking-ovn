@@ -29,7 +29,6 @@ from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import idlutils
-from ovsdbapp.schema.ovn_northbound import impl_idl as idl_ovn
 from six.moves import queue as Queue
 from stevedore import driver
 import tenacity
@@ -38,6 +37,7 @@ from networking_ovn._i18n import _
 from networking_ovn.common import config as ovn_cfg
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
+from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 
 CONF = cfg.CONF  # Gets Octavia Conf as it runs under o-api domain
@@ -81,6 +81,7 @@ OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
                            constants.PROTOCOL_UDP, ]
 OVN_NATIVE_LB_ALGORITHMS = [constants.LB_ALGORITHM_ROUND_ROBIN, ]
 EXCEPTION_MSG = "Exception occurred during %s"
+OVN_EVENT_LOCK_NAME = "neutron_ovn_octavia_event_lock"
 
 
 def get_network_driver():
@@ -140,20 +141,22 @@ class LogicalSwitchPortUpdateEvent(row_event.RowEvent):
 
 
 class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
-
     SCHEMA = "OVN_Northbound"
+    TABLES = ('Logical_Switch', 'Load_Balancer', 'Logical_Router',
+              'Logical_Switch_Port', 'Logical_Router_Port',
+              'Gateway_Chassis')
 
-    def __init__(self):
-        self.tables = ('Logical_Switch', 'Load_Balancer', 'Logical_Router',
-                       'Logical_Switch_Port', 'Logical_Router_Port',
-                       'Gateway_Chassis')
+    def __init__(self, event_lock_name=None):
         self.conn_string = ovn_cfg.get_ovn_nb_connection()
         helper = self._get_ovsdb_helper(self.conn_string)
-        for table in self.tables:
+        for table in OvnNbIdlForLb.TABLES:
             helper.register_table(table)
         super(OvnNbIdlForLb, self).__init__(
             driver=None, remote=self.conn_string, schema=helper)
-        self.event_lock_name = "neutron_ovn_octavia_event_lock"
+        self.event_lock_name = event_lock_name
+        if self.event_lock_name:
+            self.set_lock(self.event_lock_name)
+        atexit.register(self.stop)
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=180),
@@ -164,11 +167,12 @@ class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
     def start(self):
         self.conn = connection.Connection(
             self, timeout=ovn_cfg.get_ovn_ovsdb_timeout())
-        return idl_ovn.OvnNbApiIdlImpl(self.conn)
+        return impl_idl_ovn.OvsdbNbOvnIdl(self.conn)
 
     def stop(self):
-        # Close the running connection
-        if not self.conn.stop(timeout=ovn_cfg.get_ovn_ovsdb_timeout()):
+        # Close the running connection if it has been initalized
+        if ((hasattr(self, 'conn') and not
+             self.conn.stop(timeout=ovn_cfg.get_ovn_ovsdb_timeout()))):
             LOG.debug("Connection terminated to OvnNb "
                       "but a thread is still alive")
         # complete the shutdown for the event handler
@@ -179,6 +183,8 @@ class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
 
 class OvnProviderHelper(object):
 
+    ovn_nbdb_api_for_events = None
+    ovn_nb_idl_for_events = None
     ovn_nbdb_api = None
 
     def __init__(self):
@@ -189,6 +195,8 @@ class OvnProviderHelper(object):
         self._octavia_driver_lib = o_driver_lib.DriverLibrary()
         self._check_and_set_ssl_files()
         self._init_lb_actions()
+        self.events = [LogicalRouterPortEvent(self),
+                       LogicalSwitchPortUpdateEvent(self)]
         self.start()
 
     def _init_lb_actions(self):
@@ -229,18 +237,24 @@ class OvnProviderHelper(object):
             Stream.ssl_set_ca_cert_file(ca_cert_file)
 
     def start(self):
-        self.ovn_nb_idl_for_lb = OvnNbIdlForLb()
+        # NOTE(mjozefcz): This API is only for handling octavia API requests.
         if not OvnProviderHelper.ovn_nbdb_api:
-            OvnProviderHelper.ovn_nbdb_api = self.ovn_nb_idl_for_lb.start()
-        self.events = [LogicalRouterPortEvent(self),
-                       LogicalSwitchPortUpdateEvent(self)]
-        self.ovn_nb_idl_for_lb.notify_handler.watch_events(self.events)
+            OvnProviderHelper.ovn_nbdb_api = OvnNbIdlForLb().start()
+
+        # NOTE(mjozefcz): This API is only for handling OVSDB events!
+        if not OvnProviderHelper.ovn_nbdb_api_for_events:
+            OvnProviderHelper.ovn_nb_idl_for_events = OvnNbIdlForLb(
+                event_lock_name=OVN_EVENT_LOCK_NAME)
+            (OvnProviderHelper.ovn_nb_idl_for_events.notify_handler.
+             watch_events(self.events))
+            OvnProviderHelper.ovn_nbdb_api_for_events = (
+                OvnProviderHelper.ovn_nb_idl_for_events.start())
         self.helper_thread.start()
 
     def shutdown(self):
         self.requests.put({'type': REQ_TYPE_EXIT})
         self.helper_thread.join()
-        self.ovn_nb_idl_for_lb.notify_handler.unwatch_events(self.events)
+        self.ovn_nb_idl_for_events.notify_handler.unwatch_events(self.events)
 
     @staticmethod
     def _map_val(row, col, key):
@@ -436,7 +450,8 @@ class OvnProviderHelper(object):
         return self.ovn_nbdb_api.lookup('Load_Balancer', lb_id)
 
     def _find_ovn_lb_with_pool_key(self, pool_key):
-        lbs = self.ovn_nbdb_api.db_list_rows('Load_Balancer').execute()
+        lbs = self.ovn_nbdb_api.db_list_rows(
+            'Load_Balancer').execute(check_error=True)
         for lb in lbs:
             if pool_key in lb.external_ids:
                 return lb

@@ -41,6 +41,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # use the old object.
         idl_ovn.OvnNbApiIdlImpl.ovsdb_connection = None
         ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
+        ovn_driver.OvnProviderHelper.ovn_nbdb_api_for_events = None
         # TODO(mjozefcz): Use octavia listeners to provide needed
         # sockets and modify tests in order to verify if fake
         # listener (status) has received valid value.
