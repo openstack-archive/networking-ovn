@@ -396,6 +396,7 @@ class DelLRouterPortCommand(command.BaseCommand):
             raise RuntimeError(msg)
 
         _delvalue_from_list(lrouter, 'ports', lrouter_port)
+        lrouter_port.delete()
 
 
 class SetLRouterPortInLSwitchPortCommand(command.BaseCommand):
