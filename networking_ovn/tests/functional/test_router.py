@@ -59,7 +59,9 @@ class TestRouter(base.TestOVNFunctionalBase):
             net_arg[pnet.PHYSICAL_NETWORK] = physnet
         network = self._make_network(self.fmt, name, True,
                                      arg_list=arg_list, **net_arg)
-        self._make_subnet(self.fmt, network, gateway, cidr, ip_version=4)
+        if cidr:
+            self._make_subnet(self.fmt, network, gateway, cidr,
+                              ip_version=n_consts.IP_VERSION_4)
         return network
 
     def _set_redirect_chassis_to_invalid_chassis(self, ovn_client):
@@ -188,6 +190,89 @@ class TestRouter(base.TestOVNFunctionalBase):
                 rc = row.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
                 sched_info[rc] = sched_info.get(rc, 0) + 1
         self.assertEqual(expected, sched_info)
+
+    def _get_gw_port(self, router_id):
+        router = self.l3_plugin._get_router(self.context, router_id)
+        gw_port_id = router.get('gw_port_id', '')
+        for row in self.nb_api.tables['Logical_Router_Port'].rows.values():
+            if row.name == 'lrp-%s' % gw_port_id:
+                return row
+
+    def test_gateway_chassis_with_subnet_changes(self):
+        """Launchpad bug #1843485: logical router port is getting lost
+
+        Test cases when subnets are added to an external network after router
+        has been configured to use that network via "set --external-gateway"
+        """
+
+        ovn_client = self.l3_plugin._ovn_client
+
+        with mock.patch.object(
+                ovn_client._ovn_scheduler, 'select',
+                return_value=[ovn_const.OVN_GATEWAY_INVALID_CHASSIS]) as \
+                client_select:
+            router1 = self._create_router('router1', gw_info=None)
+            router_id = router1['id']
+            self.assertIsNone(self._get_gw_port(router_id),
+                              "router logical port unexpected before ext net")
+
+            # Create external network with no subnets and assign it to router
+            ext1 = self._create_ext_network(
+                'ext1', 'flat', 'physnet3', None, gateway=None, cidr=None)
+            net_id = ext1['network']['id']
+
+            gw_info = {'network_id': ext1['network']['id']}
+            self.l3_plugin.update_router(
+                self.context, router_id,
+                {'router': {l3_apidef.EXTERNAL_GW_INFO: gw_info}})
+            self.assertIsNotNone(self._get_gw_port(router_id),
+                                 "router logical port must exist after gw add")
+
+            # Add subnets to external network. This should percolate
+            # into l3_plugin.update_router()
+            kwargs = {'ip_version': n_consts.IP_VERSION_4,
+                      'gateway_ip': '10.0.0.1', 'cidr': '10.0.0.0/24'}
+            subnet4_res = self._create_subnet(
+                self.fmt, net_id, **kwargs)
+            subnet4 = self.deserialize(self.fmt, subnet4_res).get('subnet')
+            self.assertIsNotNone(self._get_gw_port(router_id),
+                                 "router logical port must exist after v4 add")
+
+            kwargs = {'ip_version': n_consts.IP_VERSION_6,
+                      'gateway_ip': 'fe81::1', 'cidr': 'fe81::/64',
+                      'ipv6_ra_mode': n_consts.IPV6_SLAAC,
+                      'ipv6_address_mode': n_consts.IPV6_SLAAC}
+            subnet6_res = self._create_subnet(
+                self.fmt, net_id, **kwargs)
+            subnet6 = self.deserialize(self.fmt, subnet6_res).get('subnet')
+            self.assertIsNotNone(self._get_gw_port(router_id),
+                                 "router logical port must exist after v6 add")
+
+            self.assertGreaterEqual(client_select.call_count, 3)
+
+            # Verify that ports have had the subnets created
+            kwargs = {'device_owner': n_consts.DEVICE_OWNER_ROUTER_GW}
+            ports_res = self._list_ports(self.fmt, net_id=net_id, **kwargs)
+            ports = self.deserialize(self.fmt, ports_res).get('ports')
+            subnet4_ip = None
+            subnet6_ip = None
+            for port in ports:
+                for fixed_ip in port.get('fixed_ips', []):
+                    if fixed_ip.get('subnet_id') == subnet4['id']:
+                        subnet4_ip = fixed_ip.get('ip_address')
+                    if fixed_ip.get('subnet_id') == subnet6['id']:
+                        subnet6_ip = fixed_ip.get('ip_address')
+            self.assertIsNotNone(subnet4_ip)
+            self.assertIsNotNone(subnet6_ip)
+
+            # Verify that logical router port is properly configured
+            gw_port = self._get_gw_port(router_id)
+            self.assertIsNotNone(gw_port)
+
+            expected_networks = ['%s/24' % subnet4_ip, '%s/64' % subnet6_ip]
+            self.assertItemsEqual(
+                expected_networks, gw_port.networks,
+                'networks in ovn port must match fixed_ips in neutron')
 
     def test_gateway_chassis_with_bridge_mappings(self):
         ovn_client = self.l3_plugin._ovn_client
