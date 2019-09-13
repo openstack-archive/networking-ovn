@@ -15,21 +15,16 @@
         - networking-ovn-rally-task:
             voting: false
         - networking-ovn-dsvm-functional-py27
-        - networking-ovn-dsvm-functional:
-            branches: ^(?!stable/newton).*$
+        - networking-ovn-dsvm-functional
         # TripleO jobs that deploy OVN.
         # Note we don't use a project-template here, so it's easier
         # to disable voting on one specific job if things go wrong.
-        # tripleo-ci-centos-7-scenario007-multinode-oooq-container will
-        # run until Rocky while in Stein and beyond, fs010 will run.
+        # In Stein and beyond, fs010 will run using
+        # networking-ovn-tripleo-ci-centos-7-containers-multinode.
         # If you need any support to debug these jobs in case of
         # failures, please reach us on #tripleo IRC channel.
-        - networking-ovn-tripleo-c7-s007-oooq-containers:
-            branches: ^(stable/(pike|queens|rocky)).*$
-        - networking-ovn-tripleo-ci-centos-7-containers-multinode:
-            branches: ^(?!stable/(pike|queens|rocky)).*$
+        - networking-ovn-tripleo-ci-centos-7-containers-multinode
         - networking-ovn-dsvm-grenade:
-            branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
         - openstack-tox-cover:
             required-projects:
@@ -45,12 +40,8 @@
        # Until https://review.opendev.org/#/c/680995/ merges, unblock the gate
        #- networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
-        - networking-ovn-dsvm-functional:
-            branches: ^(?!stable/newton).*$
-        - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
-            branches: ^(stable/(pike|queens|rocky)).*$
-        - networking-ovn-tripleo-ci-centos-7-containers-multinode:
-            branches: ^(?!stable/(pike|queens|rocky)).*$
+        - networking-ovn-dsvm-functional
+        - networking-ovn-tripleo-ci-centos-7-containers-multinode
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
@@ -58,7 +49,6 @@
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
-            branches: ^(?!stable/newton).*$
         - kuryr-kubernetes-tempest-ovn
     periodic:
       jobs:
