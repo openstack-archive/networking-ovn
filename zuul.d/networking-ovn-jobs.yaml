@@ -277,6 +277,10 @@
       devstack_plugins:
         rally-openstack: https://opendev.org/openstack/rally-openstack
         networking-ovn: https://opendev.org/openstack/networking-ovn
+      zuul_copy_output:
+        '{{ devstack_base_dir }}/data/ovs': 'logs'
+      extensions_to_txt:
+        db: true
       devstack_services:
         ovn-northd: true
         ovn-controller: true
