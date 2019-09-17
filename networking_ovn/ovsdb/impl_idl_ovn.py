@@ -651,6 +651,46 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def delete_lrouter_ext_gw(self, lrouter_name, if_exists=True):
         return cmd.DeleteLRouterExtGwCommand(self, lrouter_name, if_exists)
 
+    def is_port_groups_supported(self):
+        return self.is_table_present('Port_Group')
+
+    def get_port_group(self, pg_name):
+        if uuidutils.is_uuid_like(pg_name):
+            pg_name = utils.ovn_port_group_name(pg_name)
+
+        for pg in self._tables['Port_Group'].rows.values():
+            if pg.name == pg_name:
+                return pg
+
+    def pg_add(self, name=None, may_exist=False, **columns):
+        return cmd.PgAddCommand(self, name, may_exist=may_exist, **columns)
+
+    def pg_del(self, name, if_exists=False):
+        return cmd.PgDelCommand(self, name, if_exists=if_exists)
+
+    def pg_add_ports(self, pg_id, lsp):
+        return cmd.PgAddPortCommand(self, pg_id, lsp=lsp)
+
+    def pg_del_ports(self, pg_id, lsp, if_exists=False):
+        return cmd.PgDelPortCommand(self, pg_id, lsp=lsp, if_exists=if_exists)
+
+    def pg_acl_add(self, port_group, direction, priority, match, action,
+                   log=False, may_exist=False, **external_ids):
+        return cmd.PgAclAddCommand(self, port_group, direction, priority,
+                                   match, action, log, may_exist,
+                                   **external_ids)
+
+    def pg_acl_del(self, port_group, direction=None, priority=None,
+                   match=None):
+        return cmd.PgAclDelCommand(self, port_group, direction, priority,
+                                   match)
+
+    def pg_acl_list(self, port_group):
+        return cmd.PgAclListCommand(self, port_group)
+
+    def pg_get(self, pg):
+        return cmd.PgGetCommand(self, pg)
+
 
 class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     def __init__(self, connection):

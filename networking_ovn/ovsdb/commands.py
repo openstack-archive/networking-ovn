@@ -10,8 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import idlutils
+from ovsdbapp.backend.ovs_idl import rowview
+from ovsdbapp import constants as ovsdb_const
 
 from networking_ovn._i18n import _
 from networking_ovn.common import constants as ovn_const
@@ -1153,3 +1156,234 @@ class DeleteLRouterExtGwCommand(command.BaseCommand):
             return
 
         _delvalue_from_list(lrouter, 'ports', lrouter_port)
+
+
+class PgAddCommand(command.AddCommand):
+    table_name = 'Port_Group'
+
+    def __init__(self, api, name, may_exist=False, **columns):
+        super(PgAddCommand, self).__init__(api)
+        self.name = name
+        self.may_exist = may_exist
+        self.columns = columns
+
+    def run_idl(self, txn):
+        if self.may_exist:
+            try:
+                pg = self.api.lookup(self.table_name, self.name)
+                self.result = rowview.RowView(pg)
+                return
+            except idlutils.RowNotFound:
+                pass
+
+        pg = txn.insert(self.api._tables[self.table_name])
+        pg.name = self.name or ""
+        self.set_columns(pg, **self.columns)
+        self.result = pg.uuid
+
+
+class PgDelCommand(command.BaseCommand):
+    table_name = 'Port_Group'
+
+    def __init__(self, api, name, if_exists=False):
+        super(PgDelCommand, self).__init__(api)
+        self.name = name
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            pg = self.api.lookup(self.table_name, self.name)
+            pg.delete()
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = _('Port group %s does not exist') % self.name
+            raise RuntimeError(msg)
+
+
+class PgGetCommand(command.BaseGetRowCommand):
+    table = 'Port_Group'
+
+
+class _PgUpdatePortsHelper(command.BaseCommand):
+    method = None
+
+    def __init__(self, api, port_group, lsp=None, if_exists=False):
+        super(_PgUpdatePortsHelper, self).__init__(api)
+        self.port_group = port_group
+        self.lsp = [] if lsp is None else self._listify(lsp)
+        self.if_exists = if_exists
+
+    def _listify(self, res):
+        return res if isinstance(res, (list, tuple)) else [res]
+
+    def _run_method(self, pg, port):
+        if not port:
+            return
+
+        if isinstance(port, command.BaseCommand):
+            port = port.result
+        elif uuidutils.is_uuid_like(port):
+            try:
+                port = self.api.lookup('Logical_Switch_Port', port)
+            except idlutils.RowNotFound:
+                if self.if_exists:
+                    return
+                msg = _('Port %s does not exist') % port
+                raise RuntimeError(msg)
+
+        getattr(pg, self.method)('ports', port)
+
+    def run_idl(self, txn):
+        try:
+            pg = self.api.lookup('Port_Group', self.port_group)
+        except idlutils.RowNotFound:
+            msg = _('Port group %s does not exist') % self.port_group
+            raise RuntimeError(msg)
+
+        for lsp in self.lsp:
+            self._run_method(pg, lsp)
+
+
+class PgAddPortCommand(_PgUpdatePortsHelper):
+    method = 'addvalue'
+
+
+class PgDelPortCommand(_PgUpdatePortsHelper):
+    method = 'delvalue'
+
+
+class _AclAddHelper(command.AddCommand):
+    table_name = 'ACL'
+
+    def __init__(self, api, entity, direction, priority, match, action,
+                 log=False, may_exist=False, severity=None, name=None,
+                 **external_ids):
+        if direction not in ('from-lport', 'to-lport'):
+            msg = _("direction must be either from-lport or to-lport")
+            raise TypeError(msg)
+        if not 0 <= priority <= ovsdb_const.ACL_PRIORITY_MAX:
+            msg = (_("priority must be beween 0 and %s, inclusive") %
+                   ovsdb_const.ACL_PRIORITY_MAX)
+            raise ValueError(msg)
+        if action not in ('allow', 'allow-related', 'drop', 'reject'):
+            msg = _("action must be allow/allow-related/drop/reject")
+            raise TypeError(msg)
+        super(_AclAddHelper, self).__init__(api)
+        self.entity = entity
+        self.direction = direction
+        self.priority = priority
+        self.match = match
+        self.action = action
+        self.log = log
+        self.may_exist = may_exist
+        self.severity = severity
+        self.name = name
+        self.external_ids = external_ids
+
+    def acl_match(self, row):
+        return (self.direction == row.direction and
+                self.priority == row.priority and
+                self.match == row.match)
+
+    def run_idl(self, txn):
+        entity = self.api.lookup(self.lookup_table, self.entity)
+        acls = [acl for acl in entity.acls if self.acl_match(acl)]
+        if acls:
+            if self.may_exist:
+                self.result = rowview.RowView(acls[0])
+                return
+            msg = (_("ACL (%(dir)s, %(prio)s, %(match)s) already exists") % {
+                   'dir': self.direction,
+                   'prio': self.priority,
+                   'match': self.match})
+            raise RuntimeError(msg)
+        acl = txn.insert(self.api.tables[self.table_name])
+        acl.direction = self.direction
+        acl.priority = self.priority
+        acl.match = self.match
+        acl.action = self.action
+        acl.log = self.log
+        acl.severity = self.severity
+        acl.name = self.name
+        entity.addvalue('acls', acl)
+        for col, value in self.external_ids.items():
+            acl.setkey('external_ids', col, value)
+        self.result = acl.uuid
+
+
+class AclAddCommand(_AclAddHelper):
+    lookup_table = 'Logical_Switch'
+
+    def __init__(self, api, switch, direction, priority, match, action,
+                 log=False, may_exist=False, severity=None, name=None,
+                 **external_ids):
+        # NOTE: we're overriding the constructor here to not break any
+        # existing callers before we introduced Port Groups.
+        super(AclAddCommand, self).__init__(api, switch, direction, priority,
+                                            match, action, log, may_exist,
+                                            severity, name, **external_ids)
+
+
+class PgAclAddCommand(_AclAddHelper):
+    lookup_table = 'Port_Group'
+
+
+class _AclDelHelper(command.BaseCommand):
+    def __init__(self, api, entity, direction=None,
+                 priority=None, match=None):
+        if (priority is None) != (match is None):
+            msg = _("Must specify priority and match together")
+            raise TypeError(msg)
+        if priority is not None and not direction:
+            msg = _("Cannot specify priority/match without direction")
+            raise TypeError(msg)
+        super(_AclDelHelper, self).__init__(api)
+        self.entity = entity
+        self.conditions = []
+        if direction:
+            self.conditions.append(('direction', '=', direction))
+            # priority can be 0
+            if match:  # and therefore priority due to the above check
+                self.conditions += [('priority', '=', priority),
+                                    ('match', '=', match)]
+
+    def run_idl(self, txn):
+        entity = self.api.lookup(self.lookup_table, self.entity)
+        for acl in [a for a in entity.acls
+                    if idlutils.row_match(a, self.conditions)]:
+            entity.delvalue('acls', acl)
+            acl.delete()
+
+
+class AclDelCommand(_AclDelHelper):
+    lookup_table = 'Logical_Switch'
+
+    def __init__(self, api, switch, direction=None,
+                 priority=None, match=None):
+        # NOTE: we're overriding the constructor here to not break any
+        # existing callers before we introduced Port Groups.
+        super(AclDelCommand, self).__init__(api, switch, direction, priority,
+                                            match)
+
+
+class PgAclDelCommand(_AclDelHelper):
+    lookup_table = 'Port_Group'
+
+
+class _AclListHelper(command.BaseCommand):
+    def __init__(self, api, entity):
+        super(_AclListHelper, self).__init__(api)
+        self.entity = entity
+
+    def run_idl(self, txn):
+        entity = self.api.lookup(self.lookup_table, self.entity)
+        self.result = [rowview.RowView(acl) for acl in entity.acls]
+
+
+class AclListCommand(_AclListHelper):
+    lookup_table = 'Logical_Switch'
+
+
+class PgAclListCommand(_AclListHelper):
+    lookup_table = 'Port_Group'
