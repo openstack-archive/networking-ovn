@@ -20,6 +20,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^networking_ovn/locale/.*$
     vars:
       tox_envlist: all-plugin
       tempest_test_regex: "^(?!.*\
@@ -145,6 +146,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^networking_ovn/locale/.*$
     roles:
       - zuul: zuul/zuul-jobs
       - zuul: openstack/neutron-tempest-plugin
@@ -273,6 +275,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^networking_ovn/locale/.*$
     vars:
       devstack_plugins:
         rally-openstack: https://opendev.org/openstack/rally-openstack
@@ -318,6 +321,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^networking_ovn/locale/.*$
 
 - job:
     name: networking-ovn-tempest-slow
