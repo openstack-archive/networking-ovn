@@ -15,11 +15,11 @@
 import contextlib
 
 from networking_ovn.tests.functional import base
-from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk import plugin as trunk_plugin
 from neutron_lib import constants as n_consts
 from neutron_lib.objects import registry as obj_reg
 from neutron_lib.plugins import utils
+from neutron_lib.services.trunk import constants as trunk_consts
 from oslo_utils import uuidutils
 
 
@@ -28,8 +28,9 @@ class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
     def setUp(self):
         super(TestOVNTrunkDriver, self).setUp()
         self.trunk_plugin = trunk_plugin.TrunkPlugin()
-        self.trunk_plugin.add_segmentation_type(trunk_consts.VLAN,
-                                                utils.is_valid_vlan_tag)
+        self.trunk_plugin.add_segmentation_type(
+            trunk_consts.SEGMENTATION_TYPE_VLAN,
+            utils.is_valid_vlan_tag)
 
     @contextlib.contextmanager
     def trunk(self, sub_ports=None):
@@ -80,7 +81,7 @@ class TestOVNTrunkDriver(base.TestOVNFunctionalBase):
         self.assertEqual(has_items, len(neutron_subports_info) != 0)
 
         if trunk.get('status'):
-            self.assertEqual(trunk_consts.ACTIVE_STATUS, trunk['status'])
+            self.assertEqual(trunk_consts.TRUNK_ACTIVE_STATUS, trunk['status'])
 
     def test_trunk_create(self):
         with self.trunk() as trunk:

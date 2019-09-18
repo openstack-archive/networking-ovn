@@ -12,15 +12,16 @@
 
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import context as n_context
 from neutron_lib import exceptions as n_exc
+from neutron_lib.services.trunk import constants as trunk_consts
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 
-from neutron.services.trunk import constants as trunk_consts
 from neutron.services.trunk.drivers import base as trunk_base
 from neutron_lib.api.definitions import portbindings
 
@@ -31,7 +32,7 @@ SUPPORTED_INTERFACES = (
 )
 
 SUPPORTED_SEGMENTATION_TYPES = (
-    trunk_consts.VLAN,
+    trunk_consts.SEGMENTATION_TYPE_VLAN,
 )
 
 LOG = log.getLogger(__name__)
@@ -66,18 +67,18 @@ class OVNTrunkHandler(object):
 
     def trunk_created(self, trunk):
         self._set_sub_ports(trunk.port_id, trunk.sub_ports)
-        trunk.update(status=trunk_consts.ACTIVE_STATUS)
+        trunk.update(status=trunk_consts.TRUNK_ACTIVE_STATUS)
 
     def trunk_deleted(self, trunk):
         self._unset_sub_ports(trunk.sub_ports)
 
     def subports_added(self, trunk, subports):
         self._set_sub_ports(trunk.port_id, subports)
-        trunk.update(status=trunk_consts.ACTIVE_STATUS)
+        trunk.update(status=trunk_consts.TRUNK_ACTIVE_STATUS)
 
     def subports_deleted(self, trunk, subports):
         self._unset_sub_ports(subports)
-        trunk.update(status=trunk_consts.ACTIVE_STATUS)
+        trunk.update(status=trunk_consts.TRUNK_ACTIVE_STATUS)
 
     def trunk_event(self, resource, event, trunk_plugin, payload):
         if event == events.AFTER_CREATE:
@@ -102,17 +103,17 @@ class OVNTrunkDriver(trunk_base.DriverBase):
         except cfg.NoSuchOptError:
             return False
 
-    @registry.receives(trunk_consts.TRUNK_PLUGIN, [events.AFTER_INIT])
+    @registry.receives(resources.TRUNK_PLUGIN, [events.AFTER_INIT])
     def register(self, resource, event, trigger, payload=None):
         super(OVNTrunkDriver, self).register(
             resource, event, trigger, payload=payload)
         self._handler = OVNTrunkHandler(self.plugin_driver)
         for trunk_event in (events.AFTER_CREATE, events.AFTER_DELETE):
             registry.subscribe(self._handler.trunk_event,
-                               trunk_consts.TRUNK,
+                               resources.TRUNK,
                                trunk_event)
             registry.subscribe(self._handler.subport_event,
-                               trunk_consts.SUBPORTS,
+                               resources.SUBPORTS,
                                trunk_event)
 
     @classmethod

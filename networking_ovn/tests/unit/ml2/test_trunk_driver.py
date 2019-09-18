@@ -15,12 +15,12 @@
 import mock
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 
 from networking_ovn.common.constants import OVN_ML2_MECH_DRIVER_NAME
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn.tests.unit import fakes
 
-from neutron.services.trunk import constants as trunk_consts
 from neutron.tests import base
 
 from oslo_config import cfg
@@ -250,15 +250,15 @@ class TestTrunkDriver(base.BaseTestCase):
         with mock.patch.object(registry, 'subscribe') as mock_subscribe:
             driver.register(mock.ANY, mock.ANY, mock.Mock())
             calls = [mock.call.mock_subscribe(mock.ANY,
-                                              trunk_consts.TRUNK,
+                                              resources.TRUNK,
                                               events.AFTER_CREATE),
                      mock.call.mock_subscribe(mock.ANY,
-                                              trunk_consts.SUBPORTS,
+                                              resources.SUBPORTS,
                                               events.AFTER_CREATE),
                      mock.call.mock_subscribe(mock.ANY,
-                                              trunk_consts.TRUNK,
+                                              resources.TRUNK,
                                               events.AFTER_DELETE),
                      mock.call.mock_subscribe(mock.ANY,
-                                              trunk_consts.SUBPORTS,
+                                              resources.SUBPORTS,
                                               events.AFTER_DELETE)]
             mock_subscribe.assert_has_calls(calls, any_order=True)
