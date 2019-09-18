@@ -768,6 +768,15 @@ class OVNMechanismDriver(api.MechanismDriver):
             self._nb_ovn.db_clear(
                 'NAT', nat['_uuid'], 'external_mac').execute(check_error=True)
 
+    def _should_notify_nova(self, db_port):
+        # NOTE(twilson) It is possible for a test to override a config option
+        # after the plugin has been initialized so the nova_notifier attribute
+        # is not set on the plugin
+        return (cfg.CONF.notify_nova_on_port_status_changes and
+                hasattr(self._plugin, 'nova_notifier') and
+                db_port.device_owner.startswith(
+                    const.DEVICE_OWNER_COMPUTE_PREFIX))
+
     def set_port_status_up(self, port_id):
         # Port provisioning is complete now that OVN has reported that the
         # port is up. Any provisioning block (possibly added during port
@@ -805,8 +814,7 @@ class OVNMechanismDriver(api.MechanismDriver):
                                         const.DEVICE_OWNER_ROUTER_HA_INTF):
                 self._plugin.update_port_status(admin_context, port_id,
                                                 const.PORT_STATUS_ACTIVE)
-            elif db_port.device_owner.startswith(
-                    const.DEVICE_OWNER_COMPUTE_PREFIX):
+            elif self._should_notify_nova(db_port):
                 self._plugin.nova_notifier.notify_port_active_direct(db_port)
         except (os_db_exc.DBReferenceError, n_exc.PortNotFound):
             LOG.debug('Port not found during OVN status up report: %s',
@@ -830,8 +838,7 @@ class OVNMechanismDriver(api.MechanismDriver):
             self._plugin.update_port_status(admin_context, port_id,
                                             const.PORT_STATUS_DOWN)
 
-            if db_port.device_owner.startswith(
-                    const.DEVICE_OWNER_COMPUTE_PREFIX):
+            if self._should_notify_nova(db_port):
                 self._plugin.nova_notifier.record_port_status_changed(
                     db_port, const.PORT_STATUS_ACTIVE, const.PORT_STATUS_DOWN,
                     None)
