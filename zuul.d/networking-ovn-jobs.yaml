@@ -229,7 +229,7 @@
     parent: networking-ovn-base
     vars:
       devstack_localrc:
-        OVN_BRANCH: branch-2.12
+        OVN_BRANCH: master
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release
@@ -298,7 +298,7 @@
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
-        OVN_BRANCH: branch-2.12
+        OVN_BRANCH: master
       rally_task: rally-jobs/ovn.yaml
     timeout: 7800
 
@@ -375,8 +375,8 @@
           (^tempest.api.compute.admin.test_live_migration.LiveAutoBlockMigrationV225Test)|\
           (^tempest.api.compute.admin.test_live_migration.LiveMigrationTest)"
       devstack_localrc:
-        OVN_BRANCH: branch-2.12
+        OVN_BRANCH: master
     group-vars:
       subnode:
         devstack_localrc:
-          OVN_BRANCH: branch-2.12
+          OVN_BRANCH: master

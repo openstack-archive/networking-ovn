@@ -1,0 +1,176 @@
+#!/bin/bash
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+
+# Set variables for building OVN from source
+OVN_REPO=${OVN_REPO:-https://github.com/ovn-org/ovn.git}
+OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
+OVN_BRANCH=${OVN_BRANCH:-master}
+
+# Set variables for building OVS from source
+OVS_REPO=${OVS_REPO:-https://github.com/openvswitch/ovs.git}
+OVS_REPO_NAME=$(basename ${OVS_REPO} | cut -f1 -d'.')
+OVS_BRANCH=$OVN_BRANCH
+
+
+function use_new_ovn_repository {
+    # IF OVN_BRANCH is "master" or branch-2.12 (or higher), use the new
+    # OVN repository
+    if [ "$OVN_BRANCH" == "master" ] || \
+       [ $(echo $OVN_BRANCH | sed -e 's/^branch-\([0-9]*\)\.//') -ge 12 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+function clone_repository {
+    local repo=$1
+    local branch=$2
+    local repo_name=$(basename ${repo} | cut -f1 -d'.')
+
+    REPO_DIR=$DEST/$repo_name
+
+    if [ ! -d $REPO_DIR ] ; then
+        git_timed clone $repo $REPO_DIR
+        pushd $REPO_DIR
+        git checkout $branch
+        popd
+    else
+        # Even though the directory already exists, call git_clone to update it
+        # if needed based on the RECLONE option
+        git_clone $repo $REPO_DIR $branch
+    fi
+}
+
+# _prepare_for_ovs_compilation() - Fetch the ovs git repository
+# and install packages needed for the compilation.
+function _prepare_for_ovs_compilation {
+    local build_modules=$1
+    clone_repository $OVS_REPO $OVS_BRANCH
+
+    if [[ "$build_modules" == "False" ]]; then
+        return
+    fi
+
+    KERNEL_VERSION=`uname -r`
+    if is_fedora ; then
+        # is_fedora covers Fedora, RHEL, CentOS, etc...
+        if [[ "$os_VENDOR" == "Fedora" ]]; then
+            install_package elfutils-libelf-devel
+            KERNEL_VERSION=`echo $KERNEL_VERSION | cut --delimiter='-' --field 1`
+        elif [[ ${KERNEL_VERSION:0:2} != "3." ]]; then
+            # dash is illegal character in rpm version so replace
+            # them with underscore like it is done in the kernel
+            # https://github.com/torvalds/linux/blob/master/scripts/package/mkspec#L25
+            # but only for latest series of the kernel, not 3.x
+
+            KERNEL_VERSION=`echo $KERNEL_VERSION | tr - _`
+        fi
+
+        echo NOTE: if kernel-devel-$KERNEL_VERSION or kernel-headers-$KERNEL_VERSION installation
+        echo failed, please, provide a repository with the package, or yum update / reboot
+        echo your machine to get the latest kernel.
+
+        install_package kernel-devel-$KERNEL_VERSION
+        install_package kernel-headers-$KERNEL_VERSION
+
+    elif is_ubuntu ; then
+        install_package linux-headers-$KERNEL_VERSION
+    fi
+}
+
+# _reload_ovs_kernel_modules() - Reload the ovs kernel modules
+function _reload_ovs_kernel_modules {
+    local ovs_system=$(sudo ovs-dpctl dump-dps | grep ovs-system)
+    if [ -n "$ovs_system" ]; then
+        sudo ovs-dpctl del-dp ovs-system
+    fi
+    sudo modprobe -r vport_geneve
+    sudo modprobe -r openvswitch
+    sudo modprobe openvswitch || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")
+    sudo modprobe vport-geneve || (dmesg && echo "FAILED TO LOAD vport-geneve")
+}
+
+# _compile_ovs() - Compile openvswitch and its kernel module
+function _compile_ovs {
+    local build_modules=$1
+
+    _prepare_for_ovs_compilation $build_modules
+
+    pushd $DEST/$OVS_REPO_NAME
+    [ -f configure ] || ./boot.sh
+    if [ ! -f config.status ] || [ configure -nt config.status ] ; then
+        if [[ "$build_modules" == "True" ]]; then
+            ./configure --with-linux=/lib/modules/$(uname -r)/build
+        else
+            ./configure
+        fi
+    fi
+
+    make -j$[$(nproc) + 1]
+    sudo make install
+    if [[ "$build_modules" == "True" ]]; then
+        sudo make INSTALL_MOD_DIR=kernel/net/openvswitch modules_install
+        if [ $? -eq 0 ]; then
+            _reload_ovs_kernel_modules
+        else
+            echo "Compiling OVS kernel modules failed"
+        fi
+    fi
+    popd
+}
+
+# compile_ovn() - Compile OVN from source and load needed modules
+#                 Accepts three parameters:
+#                   - first optional is False by default and means that
+#                     modules are built and installed.
+#                   - second optional parameter defines prefix for
+#                     ovn compilation
+#                   - third optional parameter defines localstatedir for
+#                     ovn single machine runtime
+function compile_ovn {
+    local build_modules=${1:-False}
+    local prefix=$2
+    local localstatedir=$3
+
+    # Install the dependencies
+    install_package autoconf automake libtool gcc patch make
+
+    # First, compile OVS
+    _compile_ovs $build_modules
+
+    if [ -n "$prefix" ]; then
+        prefix="--prefix=$prefix"
+    fi
+
+    if [ -n "$localstatedir" ]; then
+        localstatedir="--localstatedir=$localstatedir"
+    fi
+
+    clone_repository $OVN_REPO $OVN_BRANCH
+    pushd $DEST/$OVN_REPO_NAME
+
+    if [ ! -f configure ] ; then
+        ./boot.sh
+    fi
+
+    if [ ! -f config.status ] || [ configure -nt config.status ] ; then
+        ./configure --with-ovs-source=$DEST/$OVS_REPO_NAME $prefix $localstatedir
+    fi
+    make -j$[$(nproc) + 1]
+    sudo make install
+    popd
+}
