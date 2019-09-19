@@ -1792,11 +1792,11 @@ class OVNClient(object):
         with self._nb_idl.transaction(check_error=True) as txn:
             if not self._nb_idl.get_port_group(pg_name):
                 # If drop Port Group doesn't exist yet, create it.
-                txn.add(self._nb_idl.pg_add(pg_name, acls=[]))
+                txn.add(self._nb_idl.pg_add(pg_name, acls=[], may_exist=True))
                 # Add ACLs to this Port Group so that all traffic is dropped.
                 acls = ovn_acl.add_acls_for_drop_port_group(pg_name)
                 for acl in acls:
-                    txn.add(self._nb_idl.pg_acl_add(**acl))
+                    txn.add(self._nb_idl.pg_acl_add(may_exist=True, **acl))
 
             if ports:
                 ports_ids = [port['id'] for port in ports]
