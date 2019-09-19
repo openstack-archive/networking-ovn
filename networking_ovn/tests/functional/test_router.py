@@ -291,7 +291,41 @@ class TestRouter(base.TestOVNFunctionalBase):
                 expected_networks, gw_port.networks,
                 'networks in ovn port must match fixed_ips in neutron')
 
+    def test_logical_router_port_creation(self):
+        """Launchpad bug #1844652: Verify creation and removal of lrp
+
+        This test verifies that logical router port is created and removed
+        based on attaching and detaching the external network to a router.
+        """
+        router = self._create_router('router1', gw_info=None)
+        router_id = router['id']
+        self.assertIsNone(self._get_gw_port(router_id),
+                          "router logical port unexpected before ext net")
+
+        # Create external network and assign it to router
+        ext1 = self._create_ext_network(
+            'ext1', 'flat', 'physnet3', None, gateway=None, cidr=None)
+        gw_info = {'network_id': ext1['network']['id']}
+        self.l3_plugin.update_router(
+            self.context, router_id,
+            {'router': {l3_apidef.EXTERNAL_GW_INFO: gw_info}})
+        self.assertIsNotNone(self._get_gw_port(router_id),
+                             "router logical port missing after ext net add")
+
+        # Un-assign external network from router
+        self.l3_plugin.update_router(
+            self.context, router_id,
+            {'router': {l3_apidef.EXTERNAL_GW_INFO: None}})
+        self.assertIsNone(self._get_gw_port(router_id),
+                          "router logical port exists after ext net removal")
+
     def test_gateway_chassis_with_bridge_mappings(self):
+        """Check selected ovn chassis based on external network
+
+        This test sets different gateway values to ensure that the proper
+        chassis are candidates, based on the physical network mappings.
+        """
+
         ovn_client = self.l3_plugin._ovn_client
         # Create external networks with vlan, flat and geneve network types
         ext1 = self._create_ext_network(
@@ -342,8 +376,13 @@ class TestRouter(base.TestOVNFunctionalBase):
             # We can't test call_count for these mocks, as we have enabled
             # ovn_worker which will trigger chassis events and eventually
             # calling schedule_unhosted_gateways
-            self.assertTrue(client_select.called)
-            self.assertTrue(plugin_select.called)
+            # However, we know for sure that these mocks must have been
+            # called at least 3 times because that is the number of times
+            # this test invokes them: 1x create_router + 2x update_router
+            # for client_select mock; and 3x schedule_unhosted_gateways for
+            # plugin_select mock.
+            self.assertGreaterEqual(client_select.call_count, 3)
+            self.assertGreaterEqual(plugin_select.call_count, 3)
 
     def test_router_gateway_port_binding_host_id(self):
         # Test setting chassis on chassisredirect port in Port_Binding table,
