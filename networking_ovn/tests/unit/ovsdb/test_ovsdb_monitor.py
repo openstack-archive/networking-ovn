@@ -506,3 +506,32 @@ class TestOvnIdlDistributedLock(base.TestCase):
         self.idl.notify('fake-event', self.fake_row)
         # Assert that notify() wasn't called for a different node uuid
         self.assertFalse(self.idl.notify_handler.notify.called)
+
+
+class TestPortBindingChassisUpdateEvent(base.TestCase):
+    def setUp(self):
+        super(TestPortBindingChassisUpdateEvent, self).setUp()
+        self.driver = mock.Mock()
+        self.event = ovsdb_monitor.PortBindingChassisUpdateEvent(self.driver)
+
+    def _test_event(self, event, row, old):
+        if self.event.matches(event, row, old):
+            self.event.run(event, row, old)
+            self.driver.set_port_status_up.assert_called()
+        else:
+            self.driver.set_port_status_up.assert_not_called()
+
+    def test_event_matches(self):
+        # NOTE(twilson) This primarily tests implementation details. If a
+        # scenario test is written that handles shutting down a compute
+        # node uncleanly and performing a 'host-evacuate', this can be removed
+        pbtable = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'name': 'Port_Binding'})
+        ovsdb_row = fakes.FakeOvsdbRow.create_one_ovsdb_row
+        self.driver._nb_ovn.lookup.return_value = ovsdb_row(attrs={'up': True})
+        self._test_event(
+            self.event.ROW_UPDATE,
+            ovsdb_row(attrs={'_table': pbtable, 'chassis': 'one',
+                             'type': '_fake_', 'logical_port': 'foo'}),
+            ovsdb_row(attrs={'_table': pbtable, 'chassis': 'two',
+                             'type': '_fake_'}))
