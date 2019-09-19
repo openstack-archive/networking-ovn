@@ -465,6 +465,14 @@ class OvnProviderHelper(object):
             if pool_key in lb.external_ids:
                 return lb
 
+    def _find_ovn_lb_by_id(self, pool_id):
+        pool_key = self._get_pool_key(pool_id)
+        ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+        if not ovn_lb:
+            pool_key = self._get_pool_key(pool_id, is_enabled=False)
+            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+        return pool_key, ovn_lb
+
     def _execute_commands(self, commands):
         with self.ovn_nbdb_api.transaction(check_error=True) as txn:
             for command in commands:
@@ -1311,12 +1319,8 @@ class OvnProviderHelper(object):
 
     def member_create(self, member):
         try:
-            pool_key = self._get_pool_key(member['pool_id'])
-            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
-            if not ovn_lb:
-                pool_key = self._get_pool_key(member['pool_id'],
-                                              is_enabled=False)
-                ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+            pool_key, ovn_lb = self._find_ovn_lb_by_id(
+                member['pool_id'])
             self._add_member(member, ovn_lb, pool_key)
             pool = {"id": member['pool_id'],
                     "provisioning_status": constants.ACTIVE,
@@ -1381,12 +1385,8 @@ class OvnProviderHelper(object):
 
     def member_delete(self, member):
         try:
-            pool_key = self._get_pool_key(member['pool_id'])
-            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
-            if not ovn_lb:
-                pool_key = self._get_pool_key(member['pool_id'],
-                                              is_enabled=False)
-                ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+            pool_key, ovn_lb = self._find_ovn_lb_by_id(
+                member['pool_id'])
             pool_status = self._remove_member(member, ovn_lb, pool_key)
             pool = {"id": member['pool_id'],
                     "provisioning_status": constants.ACTIVE,
@@ -1439,8 +1439,8 @@ class OvnProviderHelper(object):
 
     def member_update(self, member):
         try:
-            pool_key = self._get_pool_key(member['pool_id'])
-            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+            pool_key, ovn_lb = self._find_ovn_lb_by_id(
+                member['pool_id'])
             status = {
                 'pools': [{'id': member['pool_id'],
                            'provisioning_status': constants.ACTIVE}],
@@ -1448,11 +1448,6 @@ class OvnProviderHelper(object):
                              'provisioning_status': constants.ACTIVE}],
                 'loadbalancers': [{'id': ovn_lb.name,
                                    'provisioning_status': constants.ACTIVE}]}
-            if not ovn_lb:
-                pool_key = self._get_pool_key(member['pool_id'],
-                                              is_enabled=False)
-                ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
-
             self._update_member(member, ovn_lb, pool_key)
             if 'admin_state_up' in member:
                 if member['admin_state_up']:
@@ -1480,14 +1475,10 @@ class OvnProviderHelper(object):
         return status
 
     def _get_existing_pool_members(self, pool_id):
-        pool_key = self._get_pool_key(pool_id)
-        ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
+        pool_key, ovn_lb = self._find_ovn_lb_by_id(pool_id)
         if not ovn_lb:
-            pool_key = self._get_pool_key(pool_id, is_enabled=False)
-            ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
-            if not ovn_lb:
-                msg = _("Loadbalancer with pool %s does not exist") % pool_key
-                raise driver_exceptions.DriverError(msg)
+            msg = _("Loadbalancer with pool %s does not exist") % pool_key
+            raise driver_exceptions.DriverError(msg)
         external_ids = dict(ovn_lb.external_ids)
         return external_ids[pool_key]
 
@@ -1729,12 +1720,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                     member.monitor_port, o_datamodels.UnsetType))
 
     def _ip_version_differs(self, member):
-        pool_key = self._ovn_helper._get_pool_key(member.pool_id)
-        ovn_lb = self._ovn_helper._find_ovn_lb_with_pool_key(pool_key)
-        if not ovn_lb:
-            pool_key = self._ovn_helper._get_pool_key(member.pool_id,
-                                                      is_enabled=False)
-            ovn_lb = self._ovn_helper._find_ovn_lb_with_pool_key(pool_key)
+        _, ovn_lb = self._ovn_helper._find_ovn_lb_by_id(member.pool_id)
         lb_vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
         return netaddr.IPNetwork(lb_vip).version != (
             netaddr.IPNetwork(member.address).version)
