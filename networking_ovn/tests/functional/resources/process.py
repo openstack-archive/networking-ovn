@@ -41,13 +41,15 @@ class DaemonProcessFixture(fixtures.Fixture):
 
 class OvnNorthd(DaemonProcessFixture):
 
-    def __init__(self, temp_dir, ovn_nb_db, ovn_sb_db, protocol='unix'):
+    def __init__(self, temp_dir, ovn_nb_db, ovn_sb_db, protocol='unix',
+                 debug=True):
         super(OvnNorthd, self).__init__(temp_dir)
         self.ovn_nb_db = ovn_nb_db
         self.ovn_sb_db = ovn_sb_db
         self.protocol = protocol
         self.unixctl_path = self.temp_dir + '/ovn_northd.ctl'
         self.log_file_path = self.temp_dir + '/ovn_northd.log'
+        self.debug = debug
         if self.protocol == 'ssl':
             self.private_key = os.path.join(self.temp_dir, 'ovn-privkey.pem')
             self.certificate = os.path.join(self.temp_dir, 'ovn-cert.pem')
@@ -72,6 +74,8 @@ class OvnNorthd(DaemonProcessFixture):
             ovn_northd_cmd.append('--private-key=%s' % self.private_key)
             ovn_northd_cmd.append('--certificate=%s' % self.certificate)
             ovn_northd_cmd.append('--ca-cert=%s' % self.ca_cert)
+        if self.debug:
+            ovn_northd_cmd.append('--verbose')
         obj, _ = utils.create_process(ovn_northd_cmd)
         obj.communicate()
 
@@ -86,7 +90,7 @@ class OvnNorthd(DaemonProcessFixture):
 class OvsdbServer(DaemonProcessFixture):
 
     def __init__(self, temp_dir, ovs_dir, ovn_nb_db=True, ovn_sb_db=False,
-                 protocol='unix'):
+                 protocol='unix', debug=True):
         super(OvsdbServer, self).__init__(temp_dir)
         self.ovs_dir = ovs_dir
         self.ovn_nb_db = ovn_nb_db
@@ -98,6 +102,7 @@ class OvsdbServer(DaemonProcessFixture):
         self.certificate = os.path.join(self.temp_dir, 'ovn-cert.pem')
         self.ca_cert = os.path.join(self.temp_dir, 'controllerca',
                                     'cacert.pem')
+        self.debug = debug
 
     def _setUp(self):
         if self.ovn_nb_db:
@@ -143,6 +148,13 @@ class OvsdbServer(DaemonProcessFixture):
                         os.path.join(self.temp_dir, 'pki.log'), '--force']
         utils.execute(pki_req_sign)
 
+    def delete_dbs(self):
+        for ovsdb in self.ovsdb_server_processes:
+            try:
+                os.remove(ovsdb['db_path'])
+            except OSError:
+                pass
+
     def start(self):
         pki_done = False
         for ovsdb_process in self.ovsdb_server_processes:
@@ -161,7 +173,8 @@ class OvsdbServer(DaemonProcessFixture):
                 '--log-file=%s' % (ovsdb_process['log_file_path']),
                 '--remote=punix:%s' % (ovsdb_process['remote_path']),
                 '--remote=%s' % (ovsdb_process['connection']),
-                '--unixctl=%s' % (ovsdb_process['unixctl_path'])]
+                '--unixctl=%s' % (ovsdb_process['unixctl_path']),
+                '--detach']
             if ovsdb_process['protocol'] == 'ssl':
                 if not pki_done:
                     pki_done = True
@@ -170,6 +183,8 @@ class OvsdbServer(DaemonProcessFixture):
                 ovsdb_server_cmd.append('--certificate=%s' % self.certificate)
                 ovsdb_server_cmd.append('--ca-cert=%s' % self.ca_cert)
             ovsdb_server_cmd.append(ovsdb_process['db_path'])
+            if self.debug:
+                ovsdb_server_cmd.append('--verbose')
             obj, _ = utils.create_process(ovsdb_server_cmd)
             obj.communicate()
 
