@@ -182,7 +182,7 @@ executed and what changes in the Load_Balancer Northbound DB table.
 2.  Create a pool::
 
      $ openstack loadbalancer pool create --name p1 --loadbalancer lb1
-     --protocol TCP --lb-algorithm ROUND_ROBIN
+     --protocol TCP --lb-algorithm SOURCE_IP_PORT
 
      $ ovn-nbctl list load_balancer
      _uuid         : 9dd65bae-2501-43f2-b34e-38a9cb7e4251
@@ -282,7 +282,8 @@ Following actions are not supported by OVN Driver:
 
 - Creating HealthMonitors
 
-- Currently only one algorithm is supported for pool management (Round Robin)
+- Currently only one algorithm is supported for pool management
+  (Source IP Port)
 
 - Creating Listeners and Pools with different protocols. They should be of the
   same protocol type.

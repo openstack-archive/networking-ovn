@@ -110,10 +110,11 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         lb.admin_state_up = admin_state_up
         return lb
 
-    def _create_pool_model(self, loadbalancer_id, pool_name,
-                           protocol=o_constants.PROTOCOL_TCP,
-                           lb_algorithm=o_constants.LB_ALGORITHM_ROUND_ROBIN,
-                           admin_state_up=True, listener_id=None):
+    def _create_pool_model(
+            self, loadbalancer_id, pool_name,
+            protocol=o_constants.PROTOCOL_TCP,
+            lb_algorithm=o_constants.LB_ALGORITHM_SOURCE_IP_PORT,
+            admin_state_up=True, listener_id=None):
         m_pool = octavia_data_model.Pool()
         if protocol:
             m_pool.protocol = protocol

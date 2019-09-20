@@ -145,7 +145,7 @@ OVN updates the Listener information in the Load Balancer table::
 Next, a Pool is associated with the Listener::
 
     $ openstack loadbalancer pool create --protocol TCP --lb-algorithm /
-    ROUND_ROBIN --listener 21e77cde-854f-4c3e-bd8c-9536ae0443bc
+    SOURCE_IP_PORT --listener 21e77cde-854f-4c3e-bd8c-9536ae0443bc
     +---------------------+--------------------------------------+
     | Field               | Value                                |
     +---------------------+--------------------------------------+
@@ -154,7 +154,7 @@ Next, a Pool is associated with the Listener::
     | description         |                                      |
     | healthmonitor_id    |                                      |
     | id                  | 898be8a2-5185-4f3b-8658-a56457f595a9 |
-    | lb_algorithm        | ROUND_ROBIN                          |
+    | lb_algorithm        | SOURCE_IP_PORT                       |
     | listeners           | 21e77cde-854f-4c3e-bd8c-9536ae0443bc |
     | loadbalancers       | 94e7c431-912b-496c-a247-d52875d44ac7 |
     | members             |                                      |
