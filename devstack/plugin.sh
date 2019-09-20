@@ -43,7 +43,17 @@ if is_service_enabled q-svc || is_service_enabled ovn-northd || is_service_enabl
 
         # If not previously set by another process, set the OVN_*_DB
         # variables to enable OVN commands from any node.
-        grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_NB_REMOTE\nexport OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
+        if [[ -f "$HOME/.bash_profile" ]]; then
+            # Assume that there was a .bash_profile file and
+            # it sourced .bashrc, so append OVN_* lines
+            grep -lq 'OVN' ~/.bash_profile || echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_NB_REMOTE\nexport OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
+        else
+            # There was no .bash_profile file, so be sure that
+            # it will source .bashrc
+            echo -e "[ -f ~/.bashrc ] && source ~/.bashrc" >> ~/.bash_profile
+            echo -e "\n# Enable OVN commands from any node.\nexport OVN_NB_DB=$OVN_NB_REMOTE\nexport OVN_SB_DB=$OVN_SB_REMOTE" >> ~/.bash_profile
+        fi
+
 
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         if [[ "$OVN_L3_CREATE_PUBLIC_NETWORK" == "True" ]]; then
