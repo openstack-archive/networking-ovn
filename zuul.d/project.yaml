@@ -12,8 +12,7 @@
             voting: false
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
-        - networking-ovn-rally-task:
-            voting: false
+        - networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         # TripleO jobs that deploy OVN.
@@ -37,8 +36,7 @@
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
-       # Until https://review.opendev.org/#/c/680995/ merges, unblock the gate
-       #- networking-ovn-rally-task
+        - networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         - networking-ovn-tripleo-ci-centos-7-containers-multinode
