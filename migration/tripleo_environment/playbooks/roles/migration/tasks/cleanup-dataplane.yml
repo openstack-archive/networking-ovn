@@ -44,7 +44,7 @@
     if ip netns | egrep -e "{{ item.value.netns_regex }}"
     then
       echo "Cleaning up"
-      cmd="$(paunch debug --file {{ ovn_migration_backups }}/tripleo-config/hashed-docker-container-startup-config-step_4.json \
+      cmd="$(paunch debug --file {{ ovn_migration_backups }}/tripleo-config/hashed-container-startup-config-step_4.json \
                   --action print-cmd --container {{ item.key }} \
                   --interactive | \
                   sed 's/--interactive /--volume=\/tmp\/cleanup-{{ item.key }}.sh:\/cleanup.sh:ro /g ' )"
