@@ -53,9 +53,6 @@
         ((^neutron_tempest_plugin.api)|\
         (^neutron_tempest_plugin.scenario)|\
         (tempest.(api|scenario|thirdparty))).*$"
-      # TODO(mjozefcz): Remove this blacklist when OVS 2.12 will be released and
-      # https://patchwork.ozlabs.org/patch/1102717/ merged.
-      tempest_black_regex: "(^neutron_tempest_plugin.scenario.test_internal_dns.InternalDNSTest)"
       tempest_concurrency: 2
       devstack_localrc:
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
@@ -367,13 +364,9 @@
           ((^neutron_tempest_plugin.api)|\
           (^neutron_tempest_plugin.scenario)|\
           (tempest.(api|scenario|thirdparty))).*$"
-      # TODO(mjozefcz): Remove DNS related tessts when OVS 2.12 will be
-      # released and https://patchwork.ozlabs.org/patch/1102717/ merged.
       # TODO(slaweq): live_migration related test from the blacklist when bug
       # https://bugzilla.redhat.com/show_bug.cgi?id=1716335 will be fixed
       tempest_black_regex: "\
-          (^neutron_tempest_plugin.scenario.test_internal_dns.InternalDNSTest)|\
-          (^neutron_tempest_plugin.api.test_ports.PortsTestJSON.test_create_update_port_with_dns_name)|\
           (^tempest.api.compute.admin.test_live_migration.LiveAutoBlockMigrationV225Test)|\
           (^tempest.api.compute.admin.test_live_migration.LiveMigrationTest)"
       devstack_localrc:
