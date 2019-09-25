@@ -1,0 +1,448 @@
+# Andreas Jaeger <jaegerandi@gmail.com>, 2016. #zanata
+# Frank Wang <wangpeihui@inspur.com>, 2019. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: networking-ovn VERSION\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2019-09-24 16:24+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2019-08-19 06:21+0000\n"
+"Last-Translator: Frank Wang <wangpeihui@inspur.com>\n"
+"Language-Team: Chinese (China)\n"
+"Language: zh_CN\n"
+"X-Generator: Zanata 4.3.3\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+
+#, python-format
+msgid "%(match)s does not exist in %(column)s of %(table)s"
+msgstr "表%(table)s列%(column)s中不存在%(match)s"
+
+#, python-format
+msgid "Address set %s does not exist. Can't delete."
+msgstr "地址集合 %s 不存在。不能删除"
+
+#, python-format
+msgid "Address set %s does not exist. Can't update addresses"
+msgstr "地址集合 %s 不存在。不能更新地址集合"
+
+#, python-format
+msgid "Address set %s does not exist. Can't update external IDs"
+msgstr "地址集合 %s 不存在。不能更新external IDs"
+
+msgid "Allow to perform insecure SSL (https) requests to nova metadata"
+msgstr "允许对 nova 元数据执行非安全 SSL (HTTPS) 请求"
+
+msgid "An unknown error has occurred. Please try your request again."
+msgstr "发生了一个未知的错误. 请重试你的请求."
+
+msgid "Certificate Authority public key (CA cert) file for ssl"
+msgstr "用于 SSL 的认证中心公用密钥（CA 证书）文件"
+
+#, python-format
+msgid "Chassis %s does not exist. Can't update external IDs"
+msgstr "节点 %s 不存在。不能更新external IDs"
+
+#, python-format
+msgid "Chassis with hostname %s does not exist"
+msgstr "节点 %s 不存在"
+
+msgid "Client certificate for nova metadata api server."
+msgstr "nova 元数据 API 服务器的客户机证书。"
+
+msgid ""
+"Comma-separated list of the DNS servers which will be used as forwarders if "
+"a subnet's dns_nameservers field is empty. If both subnet's dns_nameservers "
+"and this option is empty, then the DNS resolvers on the host running the "
+"neutron server will be used."
+msgstr "将用作转发器的 DNS 服务器的逗号分隔列表。"
+
+msgid "Could not find LISTEN port."
+msgstr "找不到监听端口"
+
+msgid "Currently only supports delete by lport-name"
+msgstr "当前只支持通过lport-name删除"
+
+#, python-format
+msgid "DHCP Options row %s does not exist"
+msgstr "DHCP 选项列 %s 不存在"
+
+msgid "Default least time (in seconds) to use with OVN's native DHCP service."
+msgstr "DHCP 租赁持续时间（以秒计）。"
+
+msgid ""
+"Dictionary of global DHCPv4 options which will be automatically set on each "
+"subnet upon creation and on all existing subnets when Neutron starts.\n"
+"An empty value for a DHCP option will cause that option to be unset "
+"globally.\n"
+"EXAMPLES:\n"
+"- ntp_server:1.2.3.4,wpad:1.2.3.5 - Set ntp_server and wpad\n"
+"- ntp_server:,wpad:1.2.3.5 - Unset ntp_server and set wpad\n"
+"See the ovn-nb(5) man page for available options."
+msgstr ""
+"全局DHCPv4选项字典，创建时将自动在每个子网上设置，neutron启动时将在所有现有子"
+"网上设置。\n"
+"DHCP选项的空值将导致该选项全局取消设置。\n"
+"示例：\n"
+"-ntp_服务器：1.2.3.4，wpad:1.2.3.5-设置ntp_服务器和wpad\n"
+"-ntp_server:，wpad:1.2.3.5-取消设置ntp_server并设置wpad\n"
+"有关可用选项，请参阅ovn nb（5）手册。"
+
+msgid ""
+"Dictionary of global DHCPv6 options which will be automatically set on each "
+"subnet upon creation and on all existing subnets when Neutron starts.\n"
+"An empty value for a DHCP option will cause that option to be unset "
+"globally.\n"
+"EXAMPLES:\n"
+"- ntp_server:1.2.3.4,wpad:1.2.3.5 - Set ntp_server and wpad\n"
+"- ntp_server:,wpad:1.2.3.5 - Unset ntp_server and set wpad\n"
+"See the ovn-nb(5) man page for available options."
+msgstr ""
+"全局DHCPv6选项字典，创建时将自动在每个子网上设置，neutron启动时将在所有现有子"
+"网上设置。\n"
+"DHCP选项的空值将导致该选项全局取消设置。\n"
+"示例：\n"
+"-ntp_服务器：1.2.3.4，wpad:1.2.3.5-设置ntp_服务器和wpad\n"
+"-ntp_server:，wpad:1.2.3.5-取消设置ntp_server并设置wpad\n"
+"有关可用选项，请参阅ovn nb（5）手册。"
+
+msgid ""
+"Enable distributed floating IP support.\n"
+"If True, the NAT action for floating IPs will be done locally and not in the "
+"centralized gateway. This saves the path to the external network. This "
+"requires the user to configure the physical network map (i.e. ovn-bridge-"
+"mappings) on each compute node."
+msgstr ""
+"使能分布式浮动IP\n"
+"如果为True, 针对浮动IP的NAT地址转换将在本地完成"
+
+#, python-format
+msgid "Failed to check the revision number for %s: Resource does not exist"
+msgstr "不能校验 %s 的修订编号：资源不存在"
+
+msgid ""
+"Group (gid or name) running metadata proxy after its initialization (if "
+"empty: agent effective group)."
+msgstr ""
+"在元数据代理的初始化之后，运行该代理的组（gid 或名称），（如果此组为空，那么"
+"这是代理有效组）。"
+
+#, python-format
+msgid ""
+"Hash Ring returned empty when hashing \"%(key)s\". This should never happen "
+"in a normal situation, please check the status of your cluster"
+msgstr ""
+"哈希环返回空当对\"%(key)s\"进行哈希时。在正常情况下不应该发生这种情况，请检查"
+"集群的状态。"
+
+msgid "IP address or DNS name of Nova metadata server."
+msgstr "Nova 元数据服务器的 IP 地址 或DNS。"
+
+#, python-format
+msgid "Invalid binding:profile. %(key)s %(value)s value invalid type"
+msgstr "无效的binding:profile。%(key)s %(value)s 数值无效"
+
+#, python-format
+msgid "Invalid binding:profile. %s are all required."
+msgstr "无效的bind:profile。%s 是必须的"
+
+#, python-format
+msgid ""
+"Invalid binding:profile. tag \"%s\" must be an integer between 0 and 4095, "
+"inclusive"
+msgstr "无效的binding:profile. 标签 \"%s\" 必须是0-4095范围的整型, "
+
+msgid "Invalid binding:profile. too many parameters"
+msgstr "无效的binding:profile。太多的参数"
+
+#, python-format
+msgid "Invalid group/gid: '%s'"
+msgstr "无效的组: '%s'"
+
+#, python-format
+msgid "Invalid user/uid: '%s'"
+msgstr "用户 '%s' 无效"
+
+#, python-format
+msgid "Loadbalancer with pool %s does not exist"
+msgstr "负载均衡器资源池%s不存在"
+
+msgid "Location for Metadata Proxy UNIX domain socket."
+msgstr "元数据代理 UNIX 域套接字的位置。"
+
+#, python-format
+msgid "Logical Router %s does not exist"
+msgstr "逻辑路由器 %s 不存在"
+
+#, python-format
+msgid "Logical Router Port %s does not exist"
+msgstr "逻辑路由器端口 %s 不存在"
+
+#, python-format
+msgid "Logical Router Port with name \"%s\" already exists."
+msgstr "逻辑路由器端口 %s  已经存在"
+
+#, python-format
+msgid "Logical Switch %s does not exist"
+msgstr "逻辑交换机 %s 不存在"
+
+#, python-format
+msgid "Logical Switch Port %s does not exist"
+msgstr "逻辑交换机端口 %s 不存在"
+
+msgid "Member does not have proper pool information"
+msgstr "成员没有合适的资源池信息"
+
+msgid ""
+"Metadata Proxy UNIX domain socket mode, 4 values allowed: 'deduce': deduce "
+"mode from metadata_proxy_user/group values, 'user': set metadata proxy "
+"socket mode to 0o644, to use when metadata_proxy_user is agent effective "
+"user or root, 'group': set metadata proxy socket mode to 0o664, to use when "
+"metadata_proxy_group is agent effective group or root, 'all': set metadata "
+"proxy socket mode to 0o666, to use otherwise."
+msgstr ""
+"元数据代理 UNIX 域套接字方式，允许使用以下 4 个值：“deduce”：根据 "
+"metadata_proxy_user/group 值进行推论的推论方式；“user”：将元数据代理套接字方"
+"式设置为 0o644，以在 metadata_proxy_user 为代理有效用户或者 root 用户时使"
+"用；“group”：将元数据代理套接字方式设置为 0o664，以在 metadata_proxy_group 为"
+"代理有效组或者 root 用户时使用；“all”：将元数据代理套接字方式设置为 0o666，以"
+"在其他情况下使用。"
+
+#, python-format
+msgid "Network type %s is not supported"
+msgstr "网络类型值“%s”不受支持"
+
+msgid "No member information has been passed"
+msgstr "没有成员信息传递"
+
+msgid "Number of backlog requests to configure the metadata server socket with"
+msgstr "关于配置元数据服务器套接字的储备请求数"
+
+msgid ""
+"Number of separate worker processes for metadata server (defaults to half of "
+"the number of CPUs)"
+msgstr "元数据服务器的单独工作程序进程数（缺省设置为 CPU 数目的一半）"
+
+#, python-format
+msgid "OVN provider does not support %s algorithm"
+msgstr "OVN驱动不支持%s算法"
+
+#, python-format
+msgid "OVN provider does not support %s protocol"
+msgstr "OVN驱动不支持%s协议"
+
+msgid "OVN provider does not support monitor options"
+msgstr "OVN驱动不支持监控选项"
+
+#, python-format
+msgid ""
+"OVN provider does not support monitor options, so following members skipped: "
+"%s"
+msgstr "OVN驱动不支持监控选项，下列成员将被跳过:%s"
+
+#, python-format
+msgid ""
+"OVN revision number for %(resource_id)s (type: %(resource_type)s) is equal "
+"or higher than the given resource. Skipping update"
+msgstr ""
+"OVN %(resource_id)s (类型: %(resource_type)s) 修订版本号比给定资源的版本号相"
+"同或更高. 跳过更新"
+
+#, python-format
+msgid ""
+"OVS database connection to %(db_schema)s failed with error: '%(error)s'. "
+"Verify that the OVS and OVN services are available and that the "
+"'ovn_nb_connection' and 'ovn_sb_connection' configuration options are "
+"correct."
+msgstr "OVS数据库 %(db_schema)s 连接失败，失败原因:  '%(error)s'."
+
+#, python-format
+msgid "Port %s does not exist"
+msgstr "端口号 %s  不存在。"
+
+#, python-format
+msgid "Port %s does not exist. Can't update external IDs"
+msgstr "端口 %s 不存在。不能更新external IDs"
+
+msgid "Private key of client certificate."
+msgstr "客户机证书的专用密钥。"
+
+msgid "Protocol to access nova metadata, http or https"
+msgstr "用于访问 nova 元数据的协议（HTTP 或 HTTPS）"
+
+msgid "Remote metadata server experienced an internal server error."
+msgstr "远程元数据服务器遇到内部服务器错误。"
+
+#, python-format
+msgid "Standard attribute ID not found for %(resource_uuid)s"
+msgstr "标准属性ID没有找到 %(resource_uuid)s"
+
+msgid "Subnet is required for Member creation with OVN Provider Driver"
+msgstr "OVN驱动要求为负载均衡成员创建子网"
+
+msgid "TCP Port used by Nova metadata server."
+msgstr "Nova 元数据服务器使用的 TCP 端口。"
+
+msgid ""
+"The OVN L3 Scheduler type used to schedule router gateway ports on "
+"hypervisors/chassis. \n"
+"leastloaded - chassis with fewest gateway ports selected \n"
+"chance - chassis randomly selected"
+msgstr ""
+"OVN L3 调度网关接口的调度器类型\n"
+"leastloaded - 选择拥有最少网关接口的节点\n"
+"chance - 随机选择节点"
+
+msgid ""
+"The PEM file with CA certificate that OVN should use to verify certificates "
+"presented to it by SSL peers"
+msgstr "要用于验证连接客户机的 CA 证书文件。"
+
+msgid ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_nb_private_key"
+msgstr "将用于 SSL连接的证书文件路径。该文件之间可以选择性地加上私钥。"
+
+msgid ""
+"The PEM file with certificate that certifies the private key specified in "
+"ovn_sb_private_key"
+msgstr "将用于 SSL连接的证书文件路径。该文件之间可以选择性地加上私钥。"
+
+msgid "The PEM file with private key for SSL connection to OVN-NB-DB"
+msgstr "将用于 SSL连接的证书文件路径。该文件之间可以选择性地加上私钥。"
+
+msgid "The PEM file with private key for SSL connection to OVN-SB-DB"
+msgstr "用于OVN-SB-DB SSL连接的私钥加密文件"
+
+msgid ""
+"The connection string for the OVN_Northbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_nb_private_key, "
+"ovn_nb_certificate and ovn_nb_ca_cert are mandatory.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"OVN 北向数据库OVSDB连接配置方式，对于TCP连接 tcp:IP:PORT格式。对于SSL连接使用"
+"ssl:IP:PORT格式，其中私钥，证书，认证必须配置。对于unix域套接字使用unix:FILE"
+"格式"
+
+msgid ""
+"The connection string for the OVN_Southbound OVSDB.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use ssl:IP:PORT for SSL connection. The ovn_sb_private_key, "
+"ovn_sb_certificate and ovn_sb_ca_cert are mandatory.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"OVN 南向数据库OVSDB连接配置方式，对于TCP连接 tcp:IP:PORT格式。对于SSL连接使用"
+"ssl:IP:PORT格式，其中私钥，证书，认证必须配置。对于unix域套接字使用unix:FILE"
+"格式"
+
+msgid ""
+"The connection string for the native OVSDB backend.\n"
+"Use tcp:IP:PORT for TCP connection.\n"
+"Use unix:FILE for unix domain socket connection."
+msgstr ""
+"OVSDB数据库连接配置方式，对于TCP连接 tcp:IP:PORT格式。对于unix域套接字使用"
+"unix:FILE格式"
+
+msgid ""
+"The directory in which vhost virtio socket is created by all the vswitch "
+"daemons"
+msgstr "OVS vhost-user 套接字目录。"
+
+#, python-format
+msgid "The loadbalancer %(lb)s does not support %(proto)s protocol"
+msgstr "负载均衡器%(lb)s  不支持%(proto)s 协议"
+
+msgid "The log level used for OVSDB"
+msgstr "OVSDB日志级别"
+
+msgid ""
+"The probe interval in for the OVSDB session in milliseconds. If this is "
+"zero, it disables the connection keepalive feature. If non-zero the value "
+"will be forced to at least 1000 milliseconds. Defaults to 60 seconds."
+msgstr ""
+"OVSDB会话保活时间间隔(毫秒)。如果为0，表示关闭连接的保活功能。如果非0，它得值"
+"必须要大于1000毫秒。默认为60秒"
+
+#, python-format
+msgid ""
+"The protocol \"%(protocol)s\" is not supported. Valid protocols are: "
+"%(valid_protocols)s; or protocol numbers ranging from 0 to 255."
+msgstr ""
+"协议 \"%(protocol)s\" 不被支持。仅支持协议数值: %(valid_protocols)s的整数类型"
+"范围(0-255)。"
+
+#, python-format
+msgid "The stats for agent %(agent_id)s could not be found"
+msgstr "找不到代理 %(agent_id)s 的状态"
+
+msgid ""
+"The synchronization mode of OVN_Northbound OVSDB with Neutron DB.\n"
+"off - synchronization is off \n"
+"log - during neutron-server startup, check to see if OVN is in sync with the "
+"Neutron database.  Log warnings for any inconsistencies found so that an "
+"admin can investigate \n"
+"repair - during neutron-server startup, automatically create resources found "
+"in Neutron but not in OVN. Also remove resources from OVN that are no longer "
+"in Neutron."
+msgstr ""
+"OVN北向数据库OVSDB与Neutron DB的同步模式。\n"
+"off-同步模式关闭\n"
+"log-当neutron与ovn数据库不同步时，日志打印出告警信息\n"
+"repair-当neutron与ovn数据库不同步时，自动创建neutron有的资源，ovn没有的资源；"
+"自动移除neutron没有的资源，ovn存在的资源。"
+
+msgid "Timeout in seconds for the OVSDB connection transaction"
+msgstr "OVSDB连接执行事务的超时时间（秒）。"
+
+#, python-format
+msgid ""
+"Type of VIF to be used for ports valid values are (%(ovs)s, %(dpdk)s) "
+"default %(ovs)s"
+msgstr "虚拟接口的类型，有效接口类型有 (%(ovs)s, %(dpdk)s) ，默认是%(ovs)s"
+
+#, python-format
+msgid "Uknown resource type: %(resource_type)s"
+msgstr "无效资源类型 %(resource_type)s"
+
+#, python-format
+msgid "Unexpected response code: %s"
+msgstr "意外响应代码：%s"
+
+#, python-format
+msgid ""
+"Updating device_owner for port %(port_id)s owned by %(device_owner)s is not "
+"supported"
+msgstr "更新 %(device_owner)s的端口 %(port_id)s 的device_owner 操作不支持。"
+
+#, python-format
+msgid ""
+"Updating device_owner to %(device_owner)s for port %(port_id)s is not "
+"supported"
+msgstr "端口 %(port_id)s 上的device_owner 更新至 %(device_owner)s 操作不支持。"
+
+msgid ""
+"User (uid or name) running metadata proxy after its initialization (if "
+"empty: agent effective user)."
+msgstr ""
+"在元数据代理的初始化之后，运行该代理的用户（uid 或名称），（如果此用户为空，"
+"那么这是代理有效用户）。"
+
+msgid ""
+"When proxying metadata requests, Neutron signs the Instance-ID header with a "
+"shared secret to prevent spoofing. You may select any string for a secret, "
+"but it must match here and in the configuration used by the Nova Metadata "
+"Server. NOTE: Nova uses the same config key, but in [neutron] section."
+msgstr ""
+"代理元数据请求时，Neutron 会使用共享密钥签署 Instance-ID 头以避免电子诈骗。可"
+"选择任何字符串作为密钥，但此处的密钥必须与 Nova Metadata Server 使用的配置中"
+"的密钥相匹配。注意：Nova 使用同一配置密钥，但在 [neutron] 节中。"
+
+msgid ""
+"Whether to use OVN native L3 support. Do not change the value for existing "
+"deployments that contain routers."
+msgstr "是否使用OVN本地L3功能。当运行的系统中存在路由器时，不要更改此值"
+
+msgid "Whether to use metadata service."
+msgstr "是否使用metadata服务"

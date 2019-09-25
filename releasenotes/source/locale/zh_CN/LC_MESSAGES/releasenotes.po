@@ -1,0 +1,449 @@
+# Frank Wang <wangpeihui@inspur.com>, 2019. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: networking-ovn\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-09-24 16:24+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2019-08-20 03:49+0000\n"
+"Last-Translator: Frank Wang <wangpeihui@inspur.com>\n"
+"Language-Team: Chinese (China)\n"
+"Language: zh_CN\n"
+"X-Generator: Zanata 4.3.3\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+
+msgid ""
+"$ovs-vsctl set open . external-ids:ovn-cms-options=\"enable-chassis-as-gw\""
+msgstr ""
+"$ovs-vsctl set open . external-ids:ovn-cms-options=\"enable-chassis-as-gw\""
+
+msgid "(\\*) Only applicable if using the conventional layer-3 agent."
+msgstr "仅适用于使用常规l3代理的情况"
+
+msgid "(\\*\\*) Only applicable if using the conventional DHCP agent."
+msgstr "仅适用于使用常规DHCP代理的情况"
+
+msgid "1.0.0.0b2"
+msgstr "1.0.0.0b2"
+
+msgid "2.0.0"
+msgstr "2.0.0"
+
+msgid "3.0.0"
+msgstr "3.0.0"
+
+msgid "4.0.0"
+msgstr "4.0.0"
+
+msgid "4.0.3"
+msgstr "4.0.3"
+
+msgid "5.0.0"
+msgstr "5.0.0"
+
+msgid "6.0.0"
+msgstr "6.0.0"
+
+msgid ""
+"A migration tool is provided to carry out in-place migration of an existing "
+"ML2OVS tripleo deployment to ML2OVN. Please see the relevant documentation "
+"section for more information."
+msgstr ""
+"提供了一种迁移工具，用于将现有的ml2/ovs部署就地迁移到ml2/ovn。有关更多信息，"
+"请参阅相关文档部分。"
+
+msgid ""
+"Added VLAN tenant network support in networking-ovn when used with OVN "
+"version 2.11 or higher."
+msgstr "在与OVN版本2.11或更高版本，添加了VLAN租户网络支持。"
+
+msgid ""
+"Added a new mechanism that periodically detects and fix inconsistencies "
+"between resources in the Neutron and OVN database."
+msgstr ""
+"增加了一个新的机制，定期检测和修复Neutron和OVN数据库中资源之间的不一致。"
+
+msgid ""
+"Added config options ovn_dhcp4_global_option and ovn_dhcp6_global_options. "
+"These options allow configuring DHCP options that will be enforced on all "
+"subnets controlled by networking_ovn."
+msgstr ""
+"增加配置选项ovn_dhcp4_global_option和ovn_dhcp6_global_options. 这些选项允许配"
+"置OVN的所有子网上的DHCP选项。"
+
+msgid "Adds a new dependency on the Oslo Futurist library."
+msgstr "增加对oslo Futurist库依赖"
+
+msgid "Adds a new dependency on the tooz library."
+msgstr "增加对tooz库依赖"
+
+msgid "Bug Fixes"
+msgstr "程序错误修复"
+
+msgid "Current Series Release Notes"
+msgstr "当前版本信息"
+
+msgid ""
+"DHCP (native OVN implementation or conventional DHCP agent) The native "
+"implementation supports distributed DHCP. However, it currently lacks "
+"support for IPv6, internal DNS, and metadata proxy."
+msgstr ""
+"DHCP 本地实现支持分布式DHCP。但是，它目前缺少对IPv6、内部DNS和元数据代理的支"
+"持。"
+
+msgid ""
+"DPDK - Usable with OVS via either the Linux kernel datapath or the DPDK "
+"datapath."
+msgstr "DPDK-通过Linux内核数据路径或dpdk数据路径与ovs一起使用。"
+
+msgid "Deprecation Notes"
+msgstr "弃用说明"
+
+msgid ""
+"If ovn_dhcp4_global_option or ovn_dhcp6_global_options is set, all existing "
+"subnets will be checked and updated when Neutron is started."
+msgstr ""
+"如果设置了ovn_dhcp4_global_option 或者 ovn_dhcp6_global_options ,Neutron启动"
+"时会重新更新子网信息"
+
+msgid ""
+"In a HA environment, when OVSDB server fails over to a different controller, "
+"the connection change is not detected by neither neutron-server nor ovn-"
+"metadata-agent. In order to fix this issue, a 60 seconds interval probe (by "
+"default) is now sent by OVSDB server clients."
+msgstr ""
+"在HA环境中，当ovsdb服务器故障转移到另一个控制器时，Neutron server和ovn元数据"
+"代理都不会检测到连接更改。为了解决这个问题，OVSDB服务器客户端现在发送60秒间隔"
+"探测（默认情况下）。"
+
+msgid ""
+"Initial release of the OpenStack Networking service (neutron) integration "
+"with Open Virtual Network (OVN), a component of the the `Open vSwitch "
+"<http://openvswitch.org/>`_ project. OVN provides the following features "
+"either via native implementation or conventional agents:"
+msgstr ""
+"OpenStack Networking Service（Neutron）与开放虚拟网络（OVN）的初始发布，OVN"
+"是 `Open vSwitch <http://openvswitch.org/>`的一个子项目。OVN提供以下功能："
+
+msgid ""
+"Introduced a new mechanism to handle OVSDB events in a distributed way. "
+"Prior to this change, OVSDB events were handled by a single worker running "
+"in the cloud."
+msgstr ""
+"引入了一种新的分布式处理ovsdb事件的机制。在此之前，ovsdb事件由单个worker处"
+"理。"
+
+msgid "Layer-2 (native OVN implementation)"
+msgstr "2层网络"
+
+msgid ""
+"Layer-3 (native OVN implementation or conventional layer-3 agent) The native "
+"OVN implementation supports distributed routing. However, it currently lacks "
+"support for floating IP addresses, NAT, and the metadata proxy."
+msgstr "三层网络，支持分布式路由。当前缺乏对浮动IP，NAT以及元数据代理支持"
+
+msgid "Metadata (conventional metadata agent)"
+msgstr "元数据"
+
+msgid "Networking OVN Release Notes"
+msgstr "Networking OVN版本发布说明"
+
+msgid ""
+"Networking-ovn was not supporting the network's dns_domain option. This is "
+"now supported during network's creation. Updating 'dns_domain' during "
+"network update is not completely supported. All the existing ports are not "
+"updated with the new network's dns_domain in OVN Northbound db."
+msgstr "支持网络创建时dns_domain选项。网络更新不支持"
+
+msgid ""
+"Networking-ovn will now expose ovn-controller status via the Neutron Agent "
+"API."
+msgstr "可以通过neutron agent api查询ovn-controller状态"
+
+msgid ""
+"Networking-ovn will parse ovn-cms-options and select this chassis if it has "
+"proper bridge mappings. This helps admin to exclude compute nodes to host "
+"gateway routers as they are more likely to be restarted for maintenance "
+"operations. If no chassis with enable-chassis-as-gw and proper bridge "
+"mappings available, then chassis with only bridge mappings are selected for "
+"scheduling router gateway."
+msgstr ""
+"Networking-ovn will parse ovn-cms-options and select this chassis if it has "
+"proper bridge mappings. This helps admin to exclude compute nodes to host "
+"gateway routers as they are more likely to be restarted for maintenance "
+"operations. If no chassis with enable-chassis-as-gw and proper bridge "
+"mappings available, then chassis with only bridge mappings are selected for "
+"scheduling router gateway."
+
+msgid "New Features"
+msgstr "新功能"
+
+msgid ""
+"New option \"enable-chassis-as-gw\" to select gateway router. For external "
+"connectivity, gateway nodes have to set ovn-cms-options with enable-chassis-"
+"as-gw in Open_vSwitch table's external_ids column."
+msgstr ""
+"New option \"enable-chassis-as-gw\" to select gateway router. For external "
+"connectivity, gateway nodes have to set ovn-cms-options with enable-chassis-"
+"as-gw in Open_vSwitch table's external_ids column."
+
+msgid "Newton Series Release Notes"
+msgstr "Newton版本发布说明"
+
+msgid ""
+"Now distributed floating IP is supported and a new configuration option "
+"``enable_distributed_floating_ip`` is added to ovn group to control the "
+"feature."
+msgstr ""
+"Now distributed floating IP is supported and a new configuration option "
+"``enable_distributed_floating_ip`` is added to ovn group to control the "
+"feature."
+
+msgid ""
+"OVN native DHCPv6 implementation. The native implementation supports "
+"distributed DHCPv6. Support Neutron IPv6 subnet whose \"ipv6_address_mode\" "
+"attribute is None, \"dhcpv6_stateless\", or \"dhcpv6_stateful\"."
+msgstr ""
+"OVN native DHCPv6 implementation. The native implementation supports "
+"distributed DHCPv6. Support Neutron IPv6 subnet whose \"ipv6_address_mode\" "
+"attribute is None, \"dhcpv6_stateless\", or \"dhcpv6_stateful\"."
+
+msgid ""
+"OVN native L3 implementation. The native implementation supports distributed "
+"routing for east-west traffic and centralized routing for north-south "
+"(floatingip and snat) traffic. Also supported is the Neutron L3 Configurable "
+"external gateway mode."
+msgstr ""
+"OVN native L3 implementation. The native implementation supports distributed "
+"routing for east-west traffic and centralized routing for north-south "
+"(floatingip and snat) traffic. Also supported is the Neutron L3 Configurable "
+"external gateway mode."
+
+msgid "Ocata Series Release Notes"
+msgstr "Ocata版本发布声明"
+
+msgid "Pike Series Release Notes"
+msgstr "Pike版本发布声明"
+
+msgid "Prelude"
+msgstr "序言"
+
+msgid "Queens Series Release Notes"
+msgstr "Queens版本发布说明"
+
+msgid "Rocky Series Release Notes"
+msgstr "Rocky版本发布说明"
+
+msgid "Stein Series Release Notes"
+msgstr "Stein版本发布说明"
+
+msgid ""
+"Support OVN provider driver for octavia. The OVN provider driver is "
+"implemented as per the specification - https://docs.openstack.org/octavia/"
+"latest/contributor/guides/providers.html. OVN provider driver provides load "
+"balancer features using the L4 native load balancer of OVN. This driver "
+"doesn't support L7 load balancers."
+msgstr ""
+"Support OVN provider driver for octavia. The OVN provider driver is "
+"implemented as per the specification - https://docs.openstack.org/octavia/"
+"latest/contributor/guides/providers.html. OVN provider driver provides load "
+"balancer features using the L4 native load balancer of OVN. This driver "
+"doesn't support L7 load balancers."
+
+msgid "Support distributed floating IP."
+msgstr "支持分布式浮动IP"
+
+msgid ""
+"Support migration from an existing ML2OVS tripleo deployment to ML2OVN "
+"tripleo deployment."
+msgstr "支持从现有ML2/OVS部署迁移到ML2/OVN部署"
+
+msgid "Support the Neutron Agent API"
+msgstr "支持Neutron Agent API"
+
+msgid ""
+"The ``ovn`` group ``ovsdb_connection`` configuration option was deprecated "
+"in the ``Newton`` release and has now been removed."
+msgstr ""
+"``ovn`` group ``ovsdb_connection`` 配置选项被废弃在 ``Newton`` 版本中，现在将"
+"他们移除"
+
+msgid ""
+"The ``ovn`` group ``vif_type`` configuration option is deprecated and will "
+"be removed in the next release. The port VIF type is now determined based on "
+"the OVN chassis information when the port is bound to a host. [Bug `1606458 "
+"<https://bugs.launchpad.net/bugs/1606458>`_]"
+msgstr ""
+"The ``ovn`` group ``vif_type`` configuration option is deprecated and will "
+"be removed in the next release. The port VIF type is now determined based on "
+"the OVN chassis information when the port is bound to a host. [Bug `1606458 "
+"<https://bugs.launchpad.net/bugs/1606458>`_]"
+
+msgid ""
+"The configuration option ``ovs_integration_bridge`` used by networking-ovn "
+"metadata agent can only lead to problems as the bridge used by ``ovn-"
+"controller`` to install the flows is stored in OVSDB. The metadata agent "
+"will now use OVSDB instead of the configuration option to plug its ports, as "
+"a mismatch between both will break metadata. There is no real use case for "
+"this option to exist and systems currently using it will *not* be impacted "
+"by this change. For more information see bug `1799216 <https://bugs."
+"launchpad.net/networking-ovn/+bug/1799216>`_."
+msgstr ""
+"The configuration option ``ovs_integration_bridge`` used by networking-ovn "
+"metadata agent can only lead to problems as the bridge used by ``ovn-"
+"controller`` to install the flows is stored in OVSDB. The metadata agent "
+"will now use OVSDB instead of the configuration option to plug its ports, as "
+"a mismatch between both will break metadata. There is no real use case for "
+"this option to exist and systems currently using it will *not* be impacted "
+"by this change. For more information see bug `1799216 <https://bugs."
+"launchpad.net/networking-ovn/+bug/1799216>`_."
+
+msgid ""
+"The initial release also supports the following Networking service API "
+"extensions:"
+msgstr "初始版本还支持以下网络服务API扩展："
+
+msgid ""
+"The ovsdb_probe_interval configuration option was changed from 0 (disabled) "
+"to 60 seconds."
+msgstr "ovsdb_probe_interval配置选项可以配置从0(关闭)到60秒"
+
+msgid ""
+"This is not a config option enabled through conf files. Instead admin has to "
+"set it through openstack installer or manually in Open_vSwitch table."
+msgstr ""
+"这不是通过conf文件启用的配置选项。相反，管理员必须通过openstack安装程序或在"
+"Open_vSwitch表中手动设置它。"
+
+msgid "Trunk driver - Driver to back the neutron's 'trunk' service plugin"
+msgstr "Trunk driver - 支持neutron trunk 插件的驱动"
+
+msgid "Upgrade Notes"
+msgstr "升级注记"
+
+msgid ""
+"Use native OVN DNS support if \"dns\" extension is loaded and \"dns_domain\" "
+"is defined."
+msgstr "如果加载了“dns”扩展插件并定义了“dns_domain”，则使用本机OVN DNS支持。"
+
+msgid "``Address Scopes`` \\*"
+msgstr "地址范围"
+
+msgid "``Allowed Address Pairs``"
+msgstr "允许的地址对"
+
+msgid "``Auto Allocated Topology Services``"
+msgstr "自动分配的拓扑服务"
+
+msgid "``Availability Zone``"
+msgstr "可用域"
+
+msgid "``DHCP Agent Scheduler`` \\*\\*"
+msgstr "DHCP代理调度器"
+
+msgid "``DNS Integration`` \\*"
+msgstr "域名集成"
+
+msgid "``Default Subnetpools``"
+msgstr "默认子网池"
+
+msgid "``Distributed Virtual Router`` \\*"
+msgstr "分布式虚拟路由器"
+
+msgid "``HA Router extension`` \\*"
+msgstr "HA路由器扩展"
+
+msgid "``L3 Agent Scheduler`` \\*"
+msgstr "L3代理调度器"
+
+msgid "``Multi Provider Network``"
+msgstr "多提供商网络"
+
+msgid "``Network Availability Zone`` \\*\\*"
+msgstr "网络可用域"
+
+msgid "``Network IP Availability``"
+msgstr "网络IP可用性"
+
+msgid "``Network MTU``"
+msgstr "网络MTU"
+
+msgid "``Neutron Extra DHCP opts``"
+msgstr "Neutron扩展DHCP选项"
+
+msgid "``Neutron Extra Route``"
+msgstr "Neutron扩展路由"
+
+msgid "``Neutron L3 Configurable external gateway mode`` \\*"
+msgstr "Neutron L3可配置外部网关模式"
+
+msgid "``Neutron L3 Router``"
+msgstr "Neutron L3路由器"
+
+msgid "``Neutron external network``"
+msgstr "Neutron外部网络"
+
+msgid "``Port Binding``"
+msgstr "端口绑定"
+
+msgid "``Port Security``"
+msgstr "端口防护"
+
+msgid "``Provider Network``"
+msgstr "提供商网络"
+
+msgid "``Quality of Service``"
+msgstr "服务质量"
+
+msgid "``Quota management support``"
+msgstr "配额管理"
+
+msgid "``RBAC Policies``"
+msgstr "RBAC策略"
+
+msgid "``Resource revision numbers``"
+msgstr "资源修订版本号"
+
+msgid "``Router Availability Zone`` \\*"
+msgstr "路由器可用域"
+
+msgid "``Subnet Allocation``"
+msgstr "子网分配"
+
+msgid "``Tag support``"
+msgstr "标签支持"
+
+msgid "``Time Stamp Fields``"
+msgstr "时间戳"
+
+msgid "``agent``"
+msgstr "代理"
+
+msgid "``security-group``"
+msgstr "安全组"
+
+msgid "``standard-attr-description``"
+msgstr "标准属性描述"
+
+msgid ""
+"networking-ovn ML2 mechanism driver now supports binding of direct(SR-IOV) "
+"ports. Traffic Control(TC) hardware offload framework for SR-IOV VFs was "
+"introduced in Linux kernel 4.8. Open vSwitch(OVS) 2.8 supports offloading "
+"OVS datapath rules using the TC framework. By using OVS version 2.8 and "
+"Linux kernel >= 4.8, a SR-IOV VF can be controlled via Openflow control "
+"plane."
+msgstr ""
+"networking-ovn ML2机制驱动程序现在支持直接（SR-IOV）端口的绑定。Linux内核4.8"
+"中引入了SR-IOVfs的流量控制（TC）硬件卸载框架。open-vswitch（ovs）2.8支持使用"
+"tc框架卸载ovs数据路径规则。通过使用OVS版本2.8和Linux内核>=4.8，可以通过"
+"OpenFlow控制平面控制SR-IOV VF。"
+
+msgid ""
+"networking-ovn now supports the use of SSL for its OVSDB connections to the "
+"OVN databases."
+msgstr "networking-ovn连接OVN数据库支持SSL加密"
+
+msgid "support for binding a SR-IOV port in a networking-ovn deployment."
+msgstr "在OVN部署中支持绑定SR-IOV端口"
