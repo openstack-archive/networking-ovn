@@ -37,6 +37,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          False,
                                          group='ovn')
+        ovn_config.cfg.CONF.set_override('dns_domain', 'ovn.test')
 
     def tearDown(self):
         super(TestNBDbResources, self).tearDown()
@@ -144,6 +145,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 options = {'server_id': cidr.replace('0/24', '1'),
                            'server_mac': dhcp_mac[subnet['id']],
                            'lease_time': str(12 * 60 * 60),
+                           'domain_name': '"%s"' % cfg.CONF.dns_domain,
                            'dns_server': '{10.10.10.10}',
                            'mtu': str(n1['network']['mtu']),
                            'router': subnet['gateway_ip']}
@@ -201,6 +203,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n2['network']['mtu']),
                         'router': subnet['gateway_ip'],
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '{7.7.7.7, 8.8.8.8}',
                         'classless_static_route': static_routes}}
 
@@ -292,6 +295,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 'options': {'server_id': '10.0.0.1',
                             'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
+                            'domain_name': '"%s"' % cfg.CONF.dns_domain,
                             'dns_server': '{10.10.10.10}',
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
@@ -324,6 +328,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '{10.10.10.10}',
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
@@ -360,6 +365,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                         'router': subnet['gateway_ip'],
                         'ip_forward_enable': '1',
                         'tftp_server': '10.0.0.100',
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '20.20.20.20'}}
         expected_dhcp_v4_options_rows['v4-' + p2['port']['id']] = \
             expected_dhcp_options_rows['v4-' + p2['port']['id']]
@@ -418,6 +424,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '{10.10.10.10}',
                         'mtu': str(n1['network']['mtu']),
                         'router': subnet['gateway_ip'],
@@ -595,6 +602,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
                 'options': {'server_id': '10.0.0.1',
                             'server_mac': dhcp_mac[subnet['id']],
                             'lease_time': str(12 * 60 * 60),
+                            'domain_name': '"%s"' % cfg.CONF.dns_domain,
                             'dns_server': '{10.10.10.10}',
                             'mtu': str(n1['network']['mtu']),
                             'router': subnet['gateway_ip']}},
@@ -626,6 +634,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '{10.10.10.10}',
                         'mtu': '1100',
                         'router': subnet['gateway_ip'],
@@ -683,6 +692,7 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             'options': {'server_id': '10.0.0.1',
                         'server_mac': dhcp_mac[subnet['id']],
                         'lease_time': str(12 * 60 * 60),
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
                         'dns_server': '{10.10.10.10}',
                         'mtu': '1200',
                         'router': subnet['gateway_ip'],
@@ -748,11 +758,36 @@ class TestNBDbResources(base.TestOVNFunctionalBase):
             fixed_ips=[
                 {'subnet_id': subnet['id']}])
 
+        # Ensure that 'foo' taken from network
+        # is not configured as domain_name.
+        # Parameter taken from configuration
+        # should be set instead.
         expected_dhcp_options_rows = {
             'cidr': '10.0.0.0/24',
             'external_ids': {'subnet_id': subnet['id']},
             'options': {'dns_server': '{10.10.10.10}',
-                        'domain_name': '"foo.com"',
+                        'domain_name': '"%s"' % cfg.CONF.dns_domain,
+                        'lease_time': '43200',
+                        'mtu': '1450',
+                        'router': '10.0.0.1',
+                        'server_id': '10.0.0.1',
+                        'server_mac': dhcp_mac}}
+        self._verify_dhcp_option_row_for_port(
+            p['port']['id'], expected_dhcp_options_rows)
+
+    def test_dhcp_options_domain_name_not_set(self):
+        ovn_config.cfg.CONF.set_override('dns_domain', '')
+        n1 = self._make_network(self.fmt, 'n1', True)
+        res = self._create_subnet(self.fmt, n1['network']['id'], '10.0.0.0/24')
+        subnet = self.deserialize(self.fmt, res)['subnet']
+        p = self._make_port(self.fmt, n1['network']['id'],
+                            fixed_ips=[{'subnet_id': subnet['id']}])
+        dhcp_mac = self._get_subnet_dhcp_mac(subnet)
+        # Make sure that domain_name is not included.
+        expected_dhcp_options_rows = {
+            'cidr': '10.0.0.0/24',
+            'external_ids': {'subnet_id': subnet['id']},
+            'options': {'dns_server': '{10.10.10.10}',
                         'lease_time': '43200',
                         'mtu': '1450',
                         'router': '10.0.0.1',
