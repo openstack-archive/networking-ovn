@@ -147,7 +147,7 @@ function compile_ovn {
     local localstatedir=$3
 
     # Install the dependencies
-    install_package autoconf automake libtool gcc patch make
+    install_package autoconf automake libtool gcc patch make python3-six
 
     # First, compile OVS
     _compile_ovs $build_modules
