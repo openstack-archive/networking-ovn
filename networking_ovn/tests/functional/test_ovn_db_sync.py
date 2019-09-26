@@ -238,6 +238,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                 'mtu': str(n1['network']['mtu'] / 2),
                                 'router': '10.0.0.254',
                                 'tftp_server': '20.0.0.234',
+                                'domain_name': '"ovn.test"',
                                 'dns_server': '8.8.8.8'},
                     'external_ids': {'subnet_id': n1_s1['subnet']['id'],
                                      'port_id': port['port']['id']},
@@ -622,6 +623,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             'options': {'classless_static_route':
                         '{169.254.169.254/32,30.0.0.2, 0.0.0.0/0,30.0.0.1}',
                         'server_id': '30.0.0.1',
+                        'domain_name': '"ovn.test"',
                         'dns_server': '{10.10.10.10}',
                         'server_mac': dhcp_mac_v4,
                         'lease_time': str(12 * 60 * 60),
