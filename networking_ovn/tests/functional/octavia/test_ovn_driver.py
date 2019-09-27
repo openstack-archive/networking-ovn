@@ -40,6 +40,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         # use the old object.
         idl_ovn.OvnNbApiIdlImpl.ovsdb_connection = None
         ovn_driver.OvnProviderHelper.ovn_nbdb_api = None
+        ovn_driver.OvnProviderHelper.ovn_nbdb_api_for_events = None
         self.ovn_driver = ovn_driver.OvnProviderDriver()
         self.ovn_driver._ovn_helper._octavia_driver_lib = mock.MagicMock()
         self._o_driver_lib = self.ovn_driver._ovn_helper._octavia_driver_lib
