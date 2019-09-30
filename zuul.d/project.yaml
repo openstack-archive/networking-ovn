@@ -22,7 +22,10 @@
         # networking-ovn-tripleo-ci-centos-7-containers-multinode.
         # If you need any support to debug these jobs in case of
         # failures, please reach us on #tripleo IRC channel.
-        - networking-ovn-tripleo-ci-centos-7-containers-multinode
+        # TODO(bcafarel): make voting again and add back to gate jobs
+        # when https://review.opendev.org/#/c/684260/ is merged
+        - networking-ovn-tripleo-ci-centos-7-containers-multinode:
+            voting: false
         - networking-ovn-dsvm-grenade:
             voting: false
         - openstack-tox-cover:
@@ -39,7 +42,6 @@
         - networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
-        - networking-ovn-tripleo-ci-centos-7-containers-multinode
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
