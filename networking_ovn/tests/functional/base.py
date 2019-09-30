@@ -15,7 +15,6 @@
 from datetime import datetime
 import os
 import shutil
-import time
 
 import fixtures
 import mock
@@ -36,7 +35,6 @@ from ovsdbapp.backend.ovs_idl import connection
 # Load all the models to register them into SQLAlchemy metadata before using
 # the SqlFixture
 from networking_ovn.db import models  # noqa
-from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.ovsdb import worker
 from networking_ovn.tests import base
@@ -162,7 +160,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # Start 2 ovsdb-servers one each for OVN NB DB and OVN SB DB
         # ovsdb-server with OVN SB DB can be used to test the chassis up/down
         # events.
-        mgr = self.ovsdb_server_mgr = self.useFixture(
+        self.ovsdb_server_mgr = self.useFixture(
             process.OvsdbServer(self.temp_dir, self.OVS_INSTALL_SHARE_PATH,
                                 ovn_nb_db=True, ovn_sb_db=True,
                                 protocol=self._ovsdb_protocol))
@@ -179,49 +177,12 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         set_cfg('ovn_sb_certificate', self.ovsdb_server_mgr.certificate, 'ovn')
         set_cfg('ovn_sb_ca_cert', self.ovsdb_server_mgr.ca_cert, 'ovn')
 
-        num_attempts = 0
         # 5 seconds should be more than enough for the transaction to complete
         # for the test cases.
         # This also fixes the bug #1607639.
         cfg.CONF.set_override(
             'ovsdb_connection_timeout', 5,
             'ovn')
-
-        # Created monitor IDL connection to the OVN NB DB.
-        # This monitor IDL connection can be used to
-        #   - Verify that the ML2 OVN driver has written to the OVN NB DB
-        #     as expected.
-        #   - Create and delete resources in OVN NB DB outside of the
-        #     ML2 OVN driver scope to test scenarios like ovn_nb_sync.
-        while num_attempts < 3:
-            try:
-                con = self.useFixture(ConnectionFixture(
-                    constr=mgr.get_ovsdb_connection_path(),
-                    schema='OVN_Northbound')).connection
-                self.nb_api = impl_idl_ovn.OvsdbNbOvnIdl(con)
-                break
-            except Exception:
-                LOG.exception("Error connecting to the OVN_Northbound DB")
-                num_attempts += 1
-                time.sleep(1)
-
-        num_attempts = 0
-
-        # Create monitor IDL connection to the OVN SB DB.
-        # This monitor IDL connection can be used to
-        #  - Create chassis rows
-        #  - Update chassis columns etc.
-        while num_attempts < 3:
-            try:
-                con = self.useFixture(ConnectionFixture(
-                    constr=mgr.get_ovsdb_connection_path('sb'),
-                    schema='OVN_Southbound')).connection
-                self.sb_api = impl_idl_ovn.OvsdbSbOvnIdl(con)
-                break
-            except Exception:
-                LOG.exception("Error connecting to the OVN_Southbound DB")
-                num_attempts += 1
-                time.sleep(1)
 
         class TriggerCls(mock.MagicMock):
             def trigger(self):
@@ -238,6 +199,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # mech_driver.post_fork_initialize creates the IDL connections
         self.mech_driver.post_fork_initialize(
             mock.ANY, mock.ANY, trigger_cls.trigger)
+
+        self.nb_api = self.mech_driver._nb_ovn
+        self.sb_api = self.mech_driver._sb_ovn
 
     def _collect_processes_logs(self):
         for database in ("nb", "sb"):

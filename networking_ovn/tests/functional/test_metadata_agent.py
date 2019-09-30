@@ -19,7 +19,6 @@ from oslo_config import fixture as fixture_config
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event
 from ovsdbapp.backend.ovs_idl import idlutils
-from ovsdbapp import event as ovsdb_event
 
 from networking_ovn.agent.metadata import agent
 from networking_ovn.agent.metadata import ovsdb
@@ -65,8 +64,7 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
 
     def setUp(self):
         super(TestMetadataAgent, self).setUp()
-        self.handler = ovsdb_event.RowEventHandler()
-        self.sb_api.idl.notify = self.handler.notify
+        self.handler = self.sb_api.idl.notify_handler
         # We only have OVN NB and OVN SB running for functional tests
         mock.patch.object(ovsdb, 'MetadataAgentOvsIdl').start()
         self._mock_get_ovn_br = mock.patch.object(
