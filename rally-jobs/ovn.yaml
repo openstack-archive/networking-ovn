@@ -304,6 +304,10 @@
           neutron:
             network: -1
             port: 1000
+      sla:
+        # TODO(mjozefcz): Remove this when bug #1845479 will be fixed.
+        failure_rate:
+          max: 100
     -
       title: Floating IP related workloads
       workloads:
