@@ -312,6 +312,12 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.driver.member_update(self.ref_member, self.update_member)
         self.mock_add_request.assert_called_once_with(expected_dict)
 
+    @mock.patch.object(ovn_driver.OvnProviderDriver, '_ip_version_differs')
+    def test_member_update_no_ip_addr(self, mock_ip_differs):
+        self.update_member.address = None
+        self.driver.member_update(self.ref_member, self.update_member)
+        mock_ip_differs.assert_not_called()
+
     def test_member_update_batch(self):
         self.driver.member_batch_update([self.ref_member, self.update_member])
         self.assertEqual(self.mock_add_request.call_count, 3)

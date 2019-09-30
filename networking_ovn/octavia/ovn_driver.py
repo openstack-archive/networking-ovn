@@ -1770,7 +1770,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
-        if self._ip_version_differs(new_member):
+        if new_member.address and self._ip_version_differs(new_member):
             raise IPVersionsMixingNotSupportedError()
         request_info = {'id': new_member.member_id,
                         'address': old_member.address,
@@ -1804,7 +1804,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         # current_members gets a list of tuples (ID, IP:Port) for pool members
         for member in members:
             if (self._check_monitor_options(member) or
-                    self._ip_version_differs(member)):
+                    member.address and self._ip_version_differs(member)):
                 skipped_members.append(member.member_id)
                 continue
             admin_state_up = member.admin_state_up
