@@ -16,6 +16,7 @@ import collections
 import threading
 
 from ovsdbapp.backend.ovs_idl import event
+from ovsdbapp.tests.functional.schema.ovn_southbound import event as test_event
 
 
 class WaitForCrLrpPortBindingEvent(event.RowEvent):
@@ -40,3 +41,25 @@ class WaitForCrLrpPortBindingEvent(event.RowEvent):
             self.timeout)
         del self.logical_port_events[logical_port_name]
         return wait_val
+
+
+class WaitForCreatePortBindingEvent(test_event.WaitForPortBindingEvent):
+    event_name = 'WaitForCreatePortBindingEvent'
+
+    def run(self, event, row, old):
+        self.row = row
+        super(WaitForCreatePortBindingEvent, self).run(event, row, old)
+
+
+class WaitForUpdatePortBindingEvent(test_event.WaitForPortBindingEvent):
+    event_name = 'WaitForUpdatePortBindingEvent'
+
+    def __init__(self, port, mac, timeout=5):
+        # Call the super of the superclass to avoid passing CREATE event type
+        # to the superclass.
+        super(test_event.WaitForPortBindingEvent, self).__init__(
+            (self.ROW_UPDATE,),
+            'Port_Binding',
+            (('logical_port', '=', port),
+             ('mac', '=', mac)),
+            timeout=timeout)
