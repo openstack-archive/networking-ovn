@@ -1,0 +1,78 @@
+# Andreas Jaeger <jaegerandi@gmail.com>, 2019. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: networking-ovn\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-10-03 04:55+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2019-09-27 08:15+0000\n"
+"Last-Translator: Andreas Jaeger <jaegerandi@gmail.com>\n"
+"Language-Team: German\n"
+"Language: de\n"
+"X-Generator: Zanata 4.3.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgid "1.0.0.0b2"
+msgstr "1.0.0.0b2"
+
+msgid "2.0.0"
+msgstr "2.0.0"
+
+msgid "3.0.0"
+msgstr "3.0.0"
+
+msgid "4.0.0"
+msgstr "4.0.0"
+
+msgid "4.0.3"
+msgstr "4.0.3"
+
+msgid "5.0.0"
+msgstr "5.0.0"
+
+msgid "5.0.1-65"
+msgstr "5.0.1-65"
+
+msgid "6.0.0"
+msgstr "6.0.0"
+
+msgid "Bug Fixes"
+msgstr "Fehlerkorrekturen"
+
+msgid "Current Series Release Notes"
+msgstr "Aktuelle Serie Releasenotes"
+
+msgid "Deprecation Notes"
+msgstr "Ablaufwarnungen"
+
+msgid "Networking OVN Release Notes"
+msgstr "Networking OVN Releasenotes"
+
+msgid "New Features"
+msgstr "Neue Funktionen"
+
+msgid "Newton Series Release Notes"
+msgstr "Newton Serie Releasenotes"
+
+msgid "Ocata Series Release Notes"
+msgstr "Ocata Serie Releasenotes"
+
+msgid "Pike Series Release Notes"
+msgstr "Pike Serie Releasenotes"
+
+msgid "Prelude"
+msgstr "Einleitung"
+
+msgid "Queens Series Release Notes"
+msgstr "Queens Serie Releasenotes"
+
+msgid "Rocky Series Release Notes"
+msgstr "Rocky Serie Releasenotes"
+
+msgid "Stein Series Release Notes"
+msgstr "Stein Serie Releasenotes"
+
+msgid "Upgrade Notes"
+msgstr "Aktualisierungsnotizen"
