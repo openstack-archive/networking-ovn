@@ -19,6 +19,7 @@ from oslo_config import fixture as fixture_config
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event
 from ovsdbapp.backend.ovs_idl import idlutils
+from ovsdbapp.tests.functional.schema.ovn_southbound import event as test_event
 
 from networking_ovn.agent.metadata import agent
 from networking_ovn.agent.metadata import ovsdb
@@ -45,17 +46,6 @@ class MetadataAgentHealthEvent(event.WaitEvent):
             return False
         return int(row.external_ids.get(
             ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY, 0)) >= self.sb_cfg
-
-
-# TODO(jlibosva): Move this class to a common place in ovsdbapp. Once it's
-#                 released we can just import the class from ovsdbapp
-class WaitForPortBindingEvent(event.WaitEvent):
-    event_name = 'WaitForPortBindingEvent'
-
-    def __init__(self, port, timeout=5):
-        super(WaitForPortBindingEvent, self).__init__(
-            (self.ROW_CREATE,), 'Port_Binding', (('logical_port', '=', port),),
-            timeout=timeout)
 
 
 class TestMetadataAgent(base.TestOVNFunctionalBase):
@@ -178,7 +168,7 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         # the OVN SB DB. Wait for port binding event to happen before binding
         # the port to chassis.
 
-        pb_event = WaitForPortBindingEvent(lswitchport_name)
+        pb_event = test_event.WaitForPortBindingEvent(lswitchport_name)
         self.handler.watch_event(pb_event)
 
         with self.nb_api.transaction(check_error=True, log_errors=True) as txn:
