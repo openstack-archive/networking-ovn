@@ -27,6 +27,7 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import utils as ovn_utils
 from networking_ovn.l3 import l3_ovn_scheduler as l3_sched
 from networking_ovn.tests.functional import base
+from networking_ovn.tests.functional.resources.ovsdb import events
 
 
 class TestRouter(base.TestOVNFunctionalBase):
@@ -36,6 +37,8 @@ class TestRouter(base.TestOVNFunctionalBase):
             'ovs-host1', physical_nets=['physnet1', 'physnet3'])
         self.chassis2 = self.add_fake_chassis(
             'ovs-host2', physical_nets=['physnet2', 'physnet3'])
+        self.cr_lrp_pb_event = events.WaitForCrLrpPortBindingEvent()
+        self.sb_api.idl.notify_handler.watch_event(self.cr_lrp_pb_event)
 
     def _create_router(self, name, gw_info=None):
         router = {'router':
@@ -344,6 +347,7 @@ class TestRouter(base.TestOVNFunctionalBase):
 
         # Set chassis on chassisredirect port in Port_Binding table
         logical_port = 'cr-lrp-%s' % gw_port_id
+        self.assertTrue(self.cr_lrp_pb_event.wait(logical_port))
         self.sb_api.lsp_bind(logical_port, self.chassis1,
                              may_exist=True).execute(check_error=True)
 
@@ -434,6 +438,7 @@ class TestRouter(base.TestOVNFunctionalBase):
             router = self._create_router('router%d' % i, gw_info=gw_info)
             gw_port_id = router.get('gw_port_id')
             logical_port = 'cr-lrp-%s' % gw_port_id
+            self.assertTrue(self.cr_lrp_pb_event.wait(logical_port))
             self.sb_api.lsp_bind(logical_port, chassis4,
                                  may_exist=True).execute(check_error=True)
         self.l3_plugin.schedule_unhosted_gateways()
@@ -481,6 +486,7 @@ class TestRouter(base.TestOVNFunctionalBase):
         router = self._create_router('router', gw_info=gw_info)
         gw_port_id = router.get('gw_port_id')
         logical_port = 'cr-lrp-%s' % gw_port_id
+        self.assertTrue(self.cr_lrp_pb_event.wait(logical_port))
         self.sb_api.lsp_bind(logical_port, chassis_list[0],
                              may_exist=True).execute(check_error=True)
 
