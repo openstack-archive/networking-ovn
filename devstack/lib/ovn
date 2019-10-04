@@ -25,10 +25,10 @@ OVS_BRANCH=$OVN_BRANCH
 
 
 function use_new_ovn_repository {
-    # IF OVN_BRANCH is "master" or branch-2.12 (or higher), use the new
+    # IF OVN_BRANCH is "master" or branch-2.13 (or higher), use the new
     # OVN repository
     if [ "$OVN_BRANCH" == "master" ] || \
-       [ $(echo $OVN_BRANCH | sed -e 's/^branch-\([0-9]*\)\.//') -ge 12 ]; then
+       [ $(echo $OVN_BRANCH | sed -e 's/^branch-\([0-9]*\)\.//') -ge 13 ]; then
         return 0
     else
         return 1
