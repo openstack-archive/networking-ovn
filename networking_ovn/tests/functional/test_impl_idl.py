@@ -16,16 +16,10 @@ import uuid
 
 from ovsdbapp import event as ovsdb_event
 from ovsdbapp.tests.functional import base
-from ovsdbapp.tests.functional.schema.ovn_southbound import event
 from ovsdbapp.tests import utils
 
 from networking_ovn.ovsdb import impl_idl_ovn as impl
-
-
-class WaitForPortBindingEvent(event.WaitForPortBindingEvent):
-    def run(self, event, row, old):
-        self.row = row
-        super(WaitForPortBindingEvent, self).run(event, row, old)
+from networking_ovn.tests.functional.resources.ovsdb import events
 
 
 class TestSbApi(base.FunctionalTestCase):
@@ -92,7 +86,7 @@ class TestSbApi(base.FunctionalTestCase):
         sname, pname = (utils.get_rand_device_name(prefix=p)
                         for p in ('switch', 'port'))
         chassis = self.api.lookup('Chassis', chassis_name)
-        row_event = WaitForPortBindingEvent(pname)
+        row_event = events.WaitForCreatePortBindingEvent(pname)
         self.handler.watch_event(row_event)
         with self.nbapi.transaction(check_error=True) as txn:
             switch = txn.add(self.nbapi.ls_add(sname))
@@ -124,8 +118,13 @@ class TestSbApi(base.FunctionalTestCase):
             self.data['chassis'][0]['name'])
         mac = 'de:ad:be:ef:4d:ad'
         ipaddr = '192.0.2.1'
+        mac_ip = '%s %s' % (mac, ipaddr)
+        pb_update_event = events.WaitForUpdatePortBindingEvent(
+            port.name, mac=[mac_ip])
+        self.handler.watch_event(pb_update_event)
         self.nbapi.lsp_set_addresses(
-            port.name, ['%s %s' % (mac, ipaddr)]).execute(check_error=True)
+            port.name, [mac_ip]).execute(check_error=True)
+        self.assertTrue(pb_update_event.wait())
         self.api.lsp_bind(port.name, chassis.name).execute(check_error=True)
         result = self.api.get_network_port_bindings_by_ip(
             str(binding.datapath.uuid), ipaddr)
