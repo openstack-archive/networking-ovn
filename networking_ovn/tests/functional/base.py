@@ -90,6 +90,7 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
     # It installs openvswitch in the '/usr/local' path and the ovn-nb schema
     # file will be present in this path.
     OVS_INSTALL_SHARE_PATH = '/usr/local/share/openvswitch'
+    OVN_INSTALL_SHARE_PATH = '/usr/local/share/ovn'
     _mechanism_drivers = ['logger', 'ovn']
     _extension_drivers = ['port_security']
     _counter = 0
@@ -123,6 +124,11 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         self.temp_dir = self.useFixture(fixtures.TempDir()).path
         self._start_ovsdb_server_and_idls()
         self._start_ovn_northd()
+
+    def _get_install_share_path(self):
+        if os.path.isdir(self.OVN_INSTALL_SHARE_PATH):
+            return self.OVN_INSTALL_SHARE_PATH
+        return self.OVS_INSTALL_SHARE_PATH
 
     # FIXME(lucasagomes): Workaround for
     # https://bugs.launchpad.net/networking-ovn/+bug/1808146. We should
@@ -160,8 +166,9 @@ class TestOVNFunctionalBase(test_plugin.Ml2PluginV2TestCase):
         # Start 2 ovsdb-servers one each for OVN NB DB and OVN SB DB
         # ovsdb-server with OVN SB DB can be used to test the chassis up/down
         # events.
+        install_share_path = self._get_install_share_path()
         self.ovsdb_server_mgr = self.useFixture(
-            process.OvsdbServer(self.temp_dir, self.OVS_INSTALL_SHARE_PATH,
+            process.OvsdbServer(self.temp_dir, install_share_path,
                                 ovn_nb_db=True, ovn_sb_db=True,
                                 protocol=self._ovsdb_protocol))
         set_cfg = cfg.CONF.set_override
