@@ -159,6 +159,7 @@ class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
 
     def __init__(self, event_lock_name=None):
         self.conn_string = ovn_cfg.get_ovn_nb_connection()
+        ovsdb_monitor._check_and_set_ssl_files(self.SCHEMA)
         helper = self._get_ovsdb_helper(self.conn_string)
         for table in OvnNbIdlForLb.TABLES:
             helper.register_table(table)
