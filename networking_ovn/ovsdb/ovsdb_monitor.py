@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import abc
+
 from neutron.common import config
 from neutron_lib.plugins import constants
 from neutron_lib.plugins import directory
@@ -28,6 +30,28 @@ from networking_ovn.common import config as ovn_config
 from networking_ovn.common import utils
 
 LOG = log.getLogger(__name__)
+
+
+class BaseEvent(row_event.RowEvent):
+    table = None
+    events = tuple()
+
+    def __init__(self):
+        self.event_name = self.__class__.__name__
+        super(BaseEvent, self).__init__(self.events, self.table, None)
+
+    @abc.abstractmethod
+    def match_fn(self, event, row, old=None):
+        """Define match criteria other than table/event"""
+
+    def matches(self, event, row, old=None):
+        if row._table.name != self.table or event not in self.events:
+            return False
+        if not self.match_fn(event, row, old):
+            return False
+        LOG.debug("%s : Matched %s, %s, %s %s", self.event_name, self.table,
+                  event, self.conditions, self.old_conditions)
+        return True
 
 
 class ChassisEvent(row_event.RowEvent):
@@ -53,6 +77,46 @@ class ChassisEvent(row_event.RowEvent):
         self.driver.update_segment_host_mapping(host, phy_nets)
         if utils.is_ovn_l3(self.l3_plugin):
             self.l3_plugin.schedule_unhosted_gateways()
+
+
+class PortBindingChassisUpdateEvent(BaseEvent):
+    """Event for matching a port moving chassis
+
+    If the LSP is up and the Port_Binding chassis has just changed,
+    there is a good chance the host died without cleaning up the chassis
+    column on the Port_Binding. The port never goes down, so we won't
+    see update the driver with the LogicalSwitchPortUpdateUpEvent which
+    only monitors for transitions from DOWN to UP.
+    """
+
+    table = 'Port_Binding'
+    events = (BaseEvent.ROW_UPDATE,)
+
+    def __init__(self, driver):
+        self.driver = driver
+        super(PortBindingChassisUpdateEvent, self).__init__()
+
+    def match_fn(self, event, row, old=None):
+        # NOTE(twilson) ROW_UPDATE events always pass old, but chassis will
+        # only be set if chassis has changed
+        old_chassis = getattr(old, 'chassis', None)
+        if not (row.chassis and old_chassis) or row.chassis == old_chassis:
+            return False
+        if row.type == 'chassisredirect':
+            return False
+        try:
+            lsp = self.driver._nb_ovn.lookup('Logical_Switch_Port',
+                                             row.logical_port)
+        except idlutils.RowNotFound:
+            LOG.warning("Logical Switch Port %(port)s not found for "
+                        "Port_Binding %(binding)s",
+                        {'port': row.logical_port, 'binding': row.uuid})
+            return False
+
+        return bool(lsp.up)
+
+    def run(self, event, row, old=None):
+        self.driver.set_port_status_up(row.logical_port)
 
 
 class PortBindingChassisEvent(row_event.RowEvent):
@@ -297,8 +361,9 @@ class OvnSbIdl(OvnIdl):
         """
         self._chassis_event = ChassisEvent(self.driver)
         self._portbinding_event = PortBindingChassisEvent(self.driver)
-        self.notify_handler.watch_events([self._chassis_event,
-                                          self._portbinding_event])
+        self.notify_handler.watch_events(
+            [self._chassis_event, self._portbinding_event,
+             PortBindingChassisUpdateEvent(self.driver)])
 
 
 def _check_and_set_ssl_files(schema_name):
