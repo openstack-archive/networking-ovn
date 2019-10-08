@@ -256,3 +256,50 @@ class TestMetadataAgent(base.BaseTestCase):
             spawn_mdp.assert_called_once()
             # Check that the chassis has been updated with the datapath.
             update_chassis.assert_called_once_with('1')
+
+    def _test_update_chassis_metadata_networks_helper(
+        self, dp, remove, expected_dps, txn_called=True):
+        current_dps = ['0', '1', '2']
+        with mock.patch.object(self.agent.sb_idl,
+                               'get_chassis_metadata_networks',
+                               return_value=current_dps),\
+                mock.patch.object(self.agent.sb_idl,
+                                  'set_chassis_metadata_networks',
+                                  retrurn_value=True),\
+                mock.patch.object(self.agent.sb_idl,
+                                  'create_transaction') as create_txn_mock:
+
+            self.agent.update_chassis_metadata_networks(dp, remove=remove)
+            updated_dps = self.agent.sb_idl.get_chassis_metadata_networks(
+                self.agent.chassis)
+
+            self.assertEqual(updated_dps, expected_dps)
+            self.assertEqual(create_txn_mock.called, txn_called)
+
+    def test_update_chassis_metadata_networks_add(self):
+        dp = '4'
+        remove = False
+        expected_dps = ['0', '1', '2', '4']
+        self._test_update_chassis_metadata_networks_helper(
+            dp, remove, expected_dps)
+
+    def test_update_chassis_metadata_networks_remove(self):
+        dp = '2'
+        remove = True
+        expected_dps = ['0', '1']
+        self._test_update_chassis_metadata_networks_helper(
+            dp, remove, expected_dps)
+
+    def test_update_chassis_metadata_networks_add_dp_exists(self):
+        dp = '2'
+        remove = False
+        expected_dps = ['0', '1', '2']
+        self._test_update_chassis_metadata_networks_helper(
+            dp, remove, expected_dps, txn_called=False)
+
+    def test_update_chassis_metadata_networks_remove_no_dp(self):
+        dp = '3'
+        remove = True
+        expected_dps = ['0', '1', '2']
+        self._test_update_chassis_metadata_networks_helper(
+            dp, remove, expected_dps, txn_called=False)
