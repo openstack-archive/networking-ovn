@@ -412,7 +412,7 @@ To run only the unit tests::
 To run only the unit tests, but using the latest code from the upstream
 neutron repository instead of the pip installed version from requirements.txt::
 
-    tox -e py3-dev
+    tox -e dev
 
 Many changes span across both the OVN and neutron-lib repos, and tox
 will always build the test environment using the published module versions

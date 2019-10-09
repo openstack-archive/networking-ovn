@@ -11,9 +11,7 @@
         - networking-ovn-tempest-dsvm-ovs-master:
             voting: false
         - networking-ovn-tempest-dsvm-ovs-release
-        - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         # TripleO jobs that deploy OVN.
         # Note we don't use a project-template here, so it's easier
@@ -35,9 +33,7 @@
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
-        - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         - networking-ovn-tripleo-ci-centos-7-containers-multinode
         - openstack-tox-cover:
