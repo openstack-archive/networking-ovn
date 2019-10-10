@@ -50,6 +50,7 @@
                   sed 's/--interactive /--volume=\/tmp\/cleanup-{{ item.key }}.sh:\/cleanup.sh:ro /g ' )"
 
       f="/tmp/cleanup-{{ item.key }}.sh"
+      f_cmd="/tmp/container-cmd-{{ item.key }}.sh"
 
       echo "#!/bin/sh" > $f
       echo "set -x" >> $f
@@ -61,7 +62,12 @@
 
       echo $cmd /cleanup.sh
 
-      $cmd /cleanup.sh
+      echo "#!/bin/sh" > $f_cmd
+      echo "set -x" >> $f_cmd
+      echo "set -e" >> $f_cmd
+      echo $cmd /cleanup.sh >> $f_cmd
+      chmod a+x $f_cmd
+      $f_cmd
 
     fi
   with_dict: "{{ agent_cleanups }}"
