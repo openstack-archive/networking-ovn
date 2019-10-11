@@ -73,6 +73,10 @@ ovn_opts = [
                default=180,
                help=_('Timeout in seconds for the OVSDB '
                       'connection transaction')),
+    cfg.IntOpt('ovsdb_retry_max_interval',
+               default=180,
+               help=_('Max interval in seconds between '
+                      'each retry to get the OVN NB and SB IDLs')),
     cfg.IntOpt('ovsdb_probe_interval',
                min=0,
                default=60000,
@@ -234,6 +238,10 @@ def get_ovn_sb_ca_cert():
 
 def get_ovn_ovsdb_timeout():
     return cfg.CONF.ovn.ovsdb_connection_timeout
+
+
+def get_ovn_ovsdb_retry_max_interval():
+    return cfg.CONF.ovn.ovsdb_retry_max_interval
 
 
 def get_ovn_ovsdb_probe_interval():
