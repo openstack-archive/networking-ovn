@@ -25,7 +25,7 @@ LOGFILE=$DEST/logs/stack.sh.log
 #OVN_REPO=https://github.com/blp/ovs-reviews.git
 #OVN_BRANCH=ovn
 
-enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn
+enable_plugin networking-ovn https://opendev.org/openstack/networking-ovn stable/train
 enable_service ovn-northd
 enable_service ovn-controller
 enable_service networking-ovn-metadata-agent
@@ -41,7 +41,7 @@ disable_service q-dhcp
 disable_service q-meta
 
 # Enable services, these services depend on neutron plugin.
-enable_plugin neutron https://opendev.org/openstack/neutron
+enable_plugin neutron https://opendev.org/openstack/neutron stable/train
 enable_service q-trunk
 enable_service q-dns
 #enable_service q-qos
