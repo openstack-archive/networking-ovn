@@ -365,7 +365,7 @@ class API(api.API):
                          **columns):
         """Adds the DHCP options specified in the @columns in DHCP_Options
 
-        If the DHCP options already exist in the DHC_Options table for
+        If the DHCP options already exist in the DHCP_Options table for
         the @subnet_id (and @lsp_name), updates the row, else creates a new
         row.
 
