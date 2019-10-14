@@ -1525,6 +1525,10 @@ class OvnProviderHelper(object):
                          'fixed_ips': [{'subnet_id': vip_d['vip_subnet_id']}],
                          'admin_state_up': True,
                          'project_id': project_id}}
+        try:
+            port['port']['fixed_ips'][0]['ip_address'] = vip_d['vip_address']
+        except KeyError:
+            pass
         network_driver = get_network_driver()
         return network_driver.neutron_client.create_port(port)
 
