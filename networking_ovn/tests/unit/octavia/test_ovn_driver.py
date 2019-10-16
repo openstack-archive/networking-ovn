@@ -127,6 +127,8 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         add_req_thread = mock.patch.object(ovn_driver.OvnProviderHelper,
                                            'add_request')
         self.ovn_lb = mock.MagicMock()
+        self.ovn_lb.external_ids = {
+            ovn_driver.LB_EXT_IDS_VIP_KEY: '10.22.33.4'}
         self.mock_add_request = add_req_thread.start()
         self.project_id = uuidutils.generate_uuid()
 
@@ -260,9 +262,22 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             return_value=[
                 (self.ref_member.member_id, "198.52.100.4:99"),
                 (self.fail_member.member_id, "198.51.100.4:99")]).start()
-        mock.patch.object(ovn_driver.OvnProviderHelper,
-                          '_find_ovn_lb_with_pool_key',
-                          return_value=self.ovn_lb).start()
+        self.mock_find_lb_pool_key = mock.patch.object(
+            ovn_driver.OvnProviderHelper,
+            '_find_ovn_lb_with_pool_key',
+            return_value=self.ovn_lb).start()
+
+    def test__ip_version_differs(self):
+        self.assertFalse(self.driver._ip_version_differs(self.ref_member))
+        self.ref_member.address = 'fc00::1'
+        self.assertTrue(self.driver._ip_version_differs(self.ref_member))
+
+    def test__ip_version_differs_pool_disabled(self):
+        self.mock_find_lb_pool_key.side_effect = [None, self.ovn_lb]
+        self.driver._ip_version_differs(self.ref_member)
+        self.mock_find_lb_pool_key.assert_has_calls([
+            mock.call('pool_%s' % self.pool_id),
+            mock.call('pool_%s:D' % self.pool_id)])
 
     def test_member_create(self):
         info = {'id': self.ref_member.member_id,
@@ -279,6 +294,11 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
     def test_member_create_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_create, self.fail_member)
+
+    def test_member_create_different_ip_version(self):
+        self.ref_member.address = 'fc00::1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
 
     def test_member_update(self):
         info = {'id': self.update_member.member_id,
@@ -300,6 +320,12 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_update, self.ref_member,
                           self.fail_member)
+
+    def test_member_update_different_ip_version(self):
+        self.ref_member.address = 'fc00::1'
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_update, self.ref_member,
+                          self.ref_member)
 
     def test_member_delete(self):
         info = {'id': self.ref_member.member_id,
