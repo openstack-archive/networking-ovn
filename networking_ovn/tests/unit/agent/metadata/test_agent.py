@@ -108,7 +108,8 @@ class TestMetadataAgent(base.BaseTestCase):
             * datapath '0': 1 port
             * datapath '1': 2 ports
             * datapath '2': 1 port
-            * datapath '5': 1 port with type 'unk'
+            * datapath '3': 1 port with type 'external'
+            * datapath '5': 1 port with type 'unknown'
 
         It is expected that only datapaths '0', '1' and '2' are provisioned
         once.
@@ -118,6 +119,8 @@ class TestMetadataAgent(base.BaseTestCase):
         for i in range(0, 3):
             ports.append(makePort(datapath=DatapathInfo(uuid=str(i))))
         ports.append(makePort(datapath=DatapathInfo(uuid='1')))
+        ports.append(makePort(datapath=DatapathInfo(uuid='3'),
+                              type='external'))
         ports.append(makePort(datapath=DatapathInfo(uuid='5'), type='unknown'))
 
         with mock.patch.object(self.agent, 'provision_datapath',
@@ -126,7 +129,7 @@ class TestMetadataAgent(base.BaseTestCase):
                                   return_value=ports):
             self.agent.ensure_all_networks_provisioned()
 
-            expected_calls = [mock.call(str(i)) for i in range(0, 3)]
+            expected_calls = [mock.call(str(i)) for i in range(0, 4)]
             self.assertEqual(sorted(expected_calls),
                              sorted(pdp.call_args_list))
 
@@ -134,6 +137,8 @@ class TestMetadataAgent(base.BaseTestCase):
         ports = []
         for i in range(0, 3):
             ports.append(makePort(datapath=DatapathInfo(uuid=str(i))))
+        ports.append(makePort(datapath=DatapathInfo(uuid='3'),
+                              type='external'))
 
         with mock.patch.object(self.agent, 'provision_datapath',
                                return_value=None) as pdp,\
@@ -141,7 +146,9 @@ class TestMetadataAgent(base.BaseTestCase):
                 mock.patch.object(self.agent.sb_idl, 'get_ports_on_chassis',
                                   return_value=ports):
             self.agent.update_datapath('1')
-            pdp.assert_called_once_with('1')
+            self.agent.update_datapath('3')
+            expected_calls = [mock.call('1'), mock.call('3')]
+            pdp.assert_has_calls(expected_calls)
             tdp.assert_not_called()
 
     def test_update_datapath_teardown(self):
