@@ -230,7 +230,7 @@ class OVNClient(object):
             # Only adjust the OVN type if the port is not owned by Neutron
             # DHCP agents.
             if (port['device_owner'] == const.DEVICE_OWNER_DHCP and
-                    not port['device_id'].startswith('dhcp')):
+                    not utils.is_neutron_dhcp_agent_port(port)):
                 port_type = 'localport'
 
             # The "unknown" address should only be set for the normal LSP
@@ -1803,10 +1803,10 @@ class OVNClient(object):
         ports = self._plugin.get_ports(context, filters=dict(
             network_id=[network_id], device_owner=[const.DEVICE_OWNER_DHCP]))
 
-        # Metadata ports are DHCP ports without a device_id starting by 'dhcp'
-        # since those belong to Neutron DHCP agents.
+        # Metadata ports are DHCP ports not belonging to the Neutron
+        # DHCP agents
         for port in ports:
-            if not port['device_id'].startswith('dhcp'):
+            if not utils.is_neutron_dhcp_agent_port(port):
                 return port
 
     def _find_metadata_port_ip(self, context, subnet):

@@ -904,10 +904,8 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
                 device_owner=[constants.DEVICE_OWNER_DHCP]))
 
             for port in dhcp_ports:
-                # Ports with a device_id like 'dhcp<host_id>-<network_id>'
-                # belong to Neutron DHCP agent so we'll skip those for OVN
-                # metadata.
-                if port['device_id'].startswith('dhcp'):
+                # Do not touch the Neutron DHCP agents ports
+                if utils.is_neutron_dhcp_agent_port(port):
                     dhcp_ports.remove(port)
 
             if not dhcp_ports:
