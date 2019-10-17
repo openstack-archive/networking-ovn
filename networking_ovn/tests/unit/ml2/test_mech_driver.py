@@ -2690,12 +2690,30 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         self.mech_driver._sb_ovn = fakes.FakeOvsdbSbOvnIdl()
         self.nb_ovn = self.mech_driver._nb_ovn
         self.sb_ovn = self.mech_driver._sb_ovn
+        self.ctx = context.get_admin_context()
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled',
                                          True,
                                          group='ovn')
         p = mock.patch.object(ovn_utils, 'get_revision_number', return_value=1)
         p.start()
         self.addCleanup(p.stop)
+
+    def _create_fake_dhcp_port(self, device_id):
+        return {'network_id': 'fake', 'device_owner': const.DEVICE_OWNER_DHCP,
+                'device_id': device_id}
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    def test__find_metadata_port(self, mock_get_ports):
+        ports = [
+            self._create_fake_dhcp_port('dhcp-0'),
+            self._create_fake_dhcp_port('dhcp-1'),
+            self._create_fake_dhcp_port(const.DEVICE_ID_RESERVED_DHCP_PORT),
+            self._create_fake_dhcp_port('ovnmeta-0')]
+        mock_get_ports.return_value = ports
+
+        md_port = self.mech_driver._ovn_client._find_metadata_port(
+            self.ctx, 'fake-net-id')
+        self.assertEqual('ovnmeta-0', md_port['device_id'])
 
     def test_metadata_port_on_network_create(self):
         """Check metadata port create.

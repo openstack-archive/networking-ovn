@@ -433,3 +433,14 @@ def compute_address_pairs_diff(ovn_port, neutron_port):
     added = set(neutron_ap) - set(ovn_ap)
     removed = set(ovn_ap) - set(neutron_ap)
     return AddrPairsDiff(added, removed, changed=any(added or removed))
+
+
+def is_neutron_dhcp_agent_port(port):
+    """Check if the given DHCP port belongs to Neutron DHCP agents
+
+    The DHCP ports with the device_id equals to 'reserved_dhcp_port'
+    or starting with the word 'dhcp' belongs to the Neutron DHCP agents.
+    """
+    return (port['device_owner'] == const.DEVICE_OWNER_DHCP and
+            (port['device_id'] == const.DEVICE_ID_RESERVED_DHCP_PORT or
+             port['device_id'].startswith('dhcp')))
