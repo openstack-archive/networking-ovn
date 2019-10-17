@@ -45,6 +45,7 @@ METADATA_DEFAULT_CIDR = '%s/%d' % (METADATA_DEFAULT_IP,
                                    METADATA_DEFAULT_PREFIX)
 METADATA_PORT = 80
 MAC_PATTERN = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
+OVN_VIF_PORT_TYPES = ("", "external", )
 
 MetadataPortInfo = collections.namedtuple('MetadataPortInfo', ['mac',
                                                                'ip_addresses'])
@@ -79,9 +80,8 @@ class PortBindingChassisEvent(row_event.RowEvent):
     def run(self, event, row, old):
         # Check if the port has been bound/unbound to our chassis and update
         # the metadata namespace accordingly.
-        # Type must be empty to make sure it's a VIF.
         resync = False
-        if row.type != "":
+        if row.type not in OVN_VIF_PORT_TYPES:
             return
         new_chassis = getattr(row, 'chassis', [])
         old_chassis = getattr(old, 'chassis', [])
@@ -260,6 +260,9 @@ class MetadataAgent(object):
     def _get_namespace_name(datapath):
         return NS_PREFIX + datapath
 
+    def _vif_ports(self, ports):
+        return (p for p in ports if p.type in OVN_VIF_PORT_TYPES)
+
     def teardown_datapath(self, datapath):
         """Unprovision this datapath to stop serving metadata.
 
@@ -298,7 +301,7 @@ class MetadataAgent(object):
           for this datapath.
         """
         ports = self.sb_idl.get_ports_on_chassis(self.chassis)
-        datapath_ports = [p for p in ports if p.type == '' and
+        datapath_ports = [p for p in self._vif_ports(ports) if
                           str(p.datapath.uuid) == datapath]
         if datapath_ports:
             self.provision_datapath(datapath)
@@ -430,9 +433,9 @@ class MetadataAgent(object):
         :return: A list with the namespaces that are currently serving
         metadata
         """
-        # Retrieve all ports in our Chassis with type == ''
+        # Retrieve all VIF ports in our Chassis
         ports = self.sb_idl.get_ports_on_chassis(self.chassis)
-        datapaths = {str(p.datapath.uuid) for p in ports if p.type == ''}
+        datapaths = {str(p.datapath.uuid) for p in self._vif_ports(ports)}
         namespaces = []
         # Make sure that all those datapaths are serving metadata
         for datapath in datapaths:
