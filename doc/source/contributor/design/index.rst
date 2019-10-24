@@ -13,3 +13,4 @@ Design Notes
    acl_optimizations
    loadbalancer
    distributed_ovsdb_events
+   l3_ha_rescheduling
