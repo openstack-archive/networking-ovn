@@ -4,7 +4,7 @@
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
-      - openstack-python3-train-jobs-neutron
+      - openstack-python3-ussuri-jobs-neutron
       - openstack-lower-constraints-jobs-neutron
     check:
       jobs:
