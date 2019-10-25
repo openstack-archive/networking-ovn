@@ -17,6 +17,7 @@ case $VENV in
     source $DEVSTACK_PATH/stackrc
     source $DEVSTACK_PATH/functions
     source $NEUTRON_PATH/devstack/lib/ovs
+    source $NETWORKING_OVN_PATH/devstack/lib/ovn
 
     # NOTE(numans) Functional tests after upgrade to xenial in
     # the CI are breaking because of missing six package.
@@ -35,7 +36,7 @@ case $VENV in
     remove_ovs_packages
     # compile_ovs expects "DEST" to be defined
     DEST=$GATE_DEST
-    compile_ovs False /usr/local /var
+    compile_ovn False /usr/local /var
 
     # Make the workspace owned by GATE_STACK_USER
     sudo chown -R $GATE_STACK_USER:$GATE_STACK_USER $BASE
