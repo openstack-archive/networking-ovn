@@ -29,6 +29,7 @@ class MetadataAgentOvnSbIdl(ovsdb_monitor.OvnIdl):
 
     def __init__(self, events=None):
         connection_string = config.get_ovn_sb_connection()
+        ovsdb_monitor._check_and_set_ssl_files(self.SCHEMA)
         helper = self._get_ovsdb_helper(connection_string)
         tables = ('Chassis', 'Encap', 'Port_Binding', 'Datapath_Binding',
                   'SB_Global')
@@ -46,7 +47,6 @@ class MetadataAgentOvnSbIdl(ovsdb_monitor.OvnIdl):
         return idlutils.get_schema_helper(connection_string, self.SCHEMA)
 
     def start(self):
-        ovsdb_monitor._check_and_set_ssl_files(self.SCHEMA)
         conn = connection.Connection(
             self, timeout=config.get_ovn_ovsdb_timeout())
         return idl_ovn.OvsdbSbOvnIdl(conn)
