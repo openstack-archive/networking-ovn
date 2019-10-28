@@ -8,7 +8,7 @@ See http://infrared.readthedocs.io/en/stable/index.html for more information.
 Before using this plugin, first deploy an ML2OVS overcloud and then:
 
 1. On your undercloud, install python-networking-ovn-migration-tool package (https://trunk.rdoproject.org/centos7-master/current/)
-   You also need to install python-networking-ovn and python2-openvswitch packages.
+   You also need to install python-networking-ovn and python3-openvswitch packages.
 
 2. Run ::
    $infrared plugin add "https://github.com/openstack/networking-ovn.git"

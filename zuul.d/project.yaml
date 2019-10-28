@@ -1,6 +1,5 @@
 - project:
     templates:
-      - openstack-python-jobs-neutron
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
       - check-requirements
