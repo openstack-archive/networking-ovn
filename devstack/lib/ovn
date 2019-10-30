@@ -108,6 +108,13 @@ function _reload_ovs_kernel_modules {
 function _compile_ovs {
     local build_modules=$1
 
+    # Install the dependencies
+    install_package autoconf automake libtool gcc patch make
+    # TODO(flaviof): Would prefer to use pip_install wrapper, but that is not
+    # useable right now because REQUIREMENTS_DIR variable is hard coded in
+    # starckrc
+    sudo pip3 install six
+
     _prepare_for_ovs_compilation $build_modules
 
     pushd $DEST/$OVS_REPO_NAME
@@ -145,9 +152,6 @@ function compile_ovn {
     local build_modules=${1:-False}
     local prefix=$2
     local localstatedir=$3
-
-    # Install the dependencies
-    install_package autoconf automake libtool gcc patch make python3-six
 
     # First, compile OVS
     _compile_ovs $build_modules

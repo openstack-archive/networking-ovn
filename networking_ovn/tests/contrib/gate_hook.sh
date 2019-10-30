@@ -19,11 +19,6 @@ case $VENV in
     source $NEUTRON_PATH/devstack/lib/ovs
     source $NETWORKING_OVN_PATH/devstack/lib/ovn
 
-    # NOTE(numans) Functional tests after upgrade to xenial in
-    # the CI are breaking because of missing six package.
-    # Installing the package for now as a workaround
-    # https://bugs.launchpad.net/networking-ovn/+bug/1648670
-    sudo pip install six
     # Install SSL dependencies here for now as a workaround
     # https://bugs.launchpad.net/networking-ovn/+bug/1696713
     if is_fedora ; then
