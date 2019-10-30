@@ -1671,6 +1671,7 @@ class OVNMechanismDriverTestCase(test_plugin.Ml2PluginV2TestCase):
     _mechanism_drivers = ['logger', 'ovn']
 
     def setUp(self):
+        cfg.CONF.set_override('global_physnet_mtu', 1550)
         cfg.CONF.set_override('tenant_network_types',
                               ['geneve'],
                               group='ml2')
