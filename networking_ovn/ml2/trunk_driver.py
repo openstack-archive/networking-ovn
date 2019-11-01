@@ -44,20 +44,22 @@ class OVNTrunkHandler(object):
     def _set_sub_ports(self, parent_port, subports):
         txn = self.plugin_driver._nb_ovn.transaction
         context = n_context.get_admin_context()
-        with context.session.begin(subtransactions=True), (
-                txn(check_error=True)) as ovn_txn:
-            for port in subports:
+        for port in subports:
+            with context.session.begin(subtransactions=True), (
+                    txn(check_error=True)) as ovn_txn:
                 self._set_binding_profile(context, port, parent_port, ovn_txn)
 
     def _unset_sub_ports(self, subports):
         txn = self.plugin_driver._nb_ovn.transaction
         context = n_context.get_admin_context()
-        with context.session.begin(subtransactions=True), (
-                txn(check_error=True)) as ovn_txn:
-            for port in subports:
+        for port in subports:
+            with context.session.begin(subtransactions=True), (
+                    txn(check_error=True)) as ovn_txn:
                 self._unset_binding_profile(context, port, ovn_txn)
 
     def _set_binding_profile(self, context, subport, parent_port, ovn_txn):
+        LOG.debug("Setting parent %s for subport %s",
+                  parent_port, subport.port_id)
         db_port = port_obj.Port.get_object(context, id=subport.port_id)
         if not db_port:
             LOG.debug("Port not found while trying to set "
@@ -65,12 +67,18 @@ class OVNTrunkHandler(object):
                       subport.port_id)
             return
         try:
-            db_port.binding.profile.update({
-                'parent_name': parent_port,
-                'tag': subport.segmentation_id})
+            # NOTE(flaviof): We expect binding's host to be set. Otherwise,
+            # sub-port will not transition from DOWN to ACTIVE.
+            db_port.device_owner = trunk_consts.TRUNK_SUBPORT_OWNER
+            db_port.update()
+
+            db_port.binding.profile['parent_name'] = parent_port
+            db_port.binding.profile['tag'] = subport.segmentation_id
             # host + port_id is primary key
             port_obj.PortBinding.update_object(
-                context, {'profile': db_port.binding.profile},
+                context,
+                {'profile': db_port.binding.profile,
+                 'vif_type': portbindings.VIF_TYPE_OVS},
                 port_id=subport.port_id,
                 host=db_port.binding.host)
         except n_exc.ObjectNotFound:
@@ -81,8 +89,11 @@ class OVNTrunkHandler(object):
                     lport_name=subport.port_id,
                     parent_name=parent_port,
                     tag=subport.segmentation_id))
+        LOG.debug("Done setting parent %s for subport %s",
+                  parent_port, subport.port_id)
 
     def _unset_binding_profile(self, context, subport, ovn_txn):
+        LOG.debug("Unsetting parent for subport %s", subport.port_id)
         db_port = port_obj.Port.get_object(context, id=subport.port_id)
         if not db_port:
             LOG.debug("Port not found while trying to unset "
@@ -90,15 +101,16 @@ class OVNTrunkHandler(object):
                       subport.port_id)
             return
         try:
+            db_port.device_owner = ''
+            db_port.update()
+
             db_port.binding.profile.pop('tag', None)
             db_port.binding.profile.pop('parent_name', None)
             # host + port_id is primary key
             port_obj.PortBinding.update_object(
                 context,
                 {'profile': db_port.binding.profile,
-                 'vif_type': portbindings.VIF_TYPE_UNBOUND,
-                 'vif_details': '',
-                 'host': ''},
+                 'vif_type': portbindings.VIF_TYPE_UNBOUND},
                 port_id=subport.port_id,
                 host=db_port.binding.host)
             port_obj.PortBindingLevel.delete_objects(
@@ -113,6 +125,7 @@ class OVNTrunkHandler(object):
                     parent_name=[],
                     up=False,
                     tag=[]))
+        LOG.debug("Done unsetting parent for subport %s", subport.port_id)
 
     def trunk_created(self, trunk):
         if trunk.sub_ports:
