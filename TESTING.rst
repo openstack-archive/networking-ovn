@@ -134,7 +134,7 @@ __ file-based-sqlite_
 
 .. code-block:: shell
 
-    $ OS_TEST_DBAPI_ADMIN_CONNECTION=sqlite:///sqlite.db .tox/py27/bin/python -m \
+    $ OS_TEST_DBAPI_ADMIN_CONNECTION=sqlite:///sqlite.db .tox/py37/bin/python -m \
         testtools.run networking_ovn.tests.unit...
     ...
     (Pdb) self.engine.url
@@ -407,7 +407,7 @@ repository instead of the pip installed version from requirements.txt::
 
 To run only the unit tests::
 
-    tox -e py27
+    tox -e py37
 
 To run only the unit tests, but using the latest code from the upstream
 neutron repository instead of the pip installed version from requirements.txt::
@@ -425,7 +425,7 @@ For example, to run against the 'master' branch of neutron-lib::
     cd $SRC
     git clone https://git.openstack.org/openstack/neutron-lib
     cd $OVN_DIR
-    env TOX_ENV_SRC_MODULES=$SRC/neutron-lib tox -r -e pep8,py27
+    env TOX_ENV_SRC_MODULES=$SRC/neutron-lib tox -r -e pep8,py37
 
 To run against a change of your own, repeat the same steps, but use the
 directory with your changes, not a fresh clone.
@@ -438,7 +438,7 @@ desired gerrit refs for this example)::
     cd neutron-lib
     git fetch https://git.openstack.org/openstack/neutron-lib refs/changes/13/635313/6 && git checkout FETCH_HEAD
     cd $OVN_DIR
-    env TOX_ENV_SRC_MODULES=$SRC/neutron-lib tox -r -e pep8,py27
+    env TOX_ENV_SRC_MODULES=$SRC/neutron-lib tox -r -e pep8,py37
 
 Note that the '-r' is needed to re-create the tox virtual envs, and will also
 be needed to restore them to standard when not using this method.
@@ -448,7 +448,7 @@ not just neutron-lib. To specify multiple packages to override, specify them
 as a space separated list to TOX_ENV_SRC_MODULES. For example, to override
 both neutron and oslo.db::
 
-    env TOX_ENV_SRC_MODULES="$SRC/neutron-lib $SRC/neutron $SRC/oslo.db" tox -r -e pep8,py27
+    env TOX_ENV_SRC_MODULES="$SRC/neutron-lib $SRC/neutron $SRC/oslo.db" tox -r -e pep8,py37
 
 Functional Tests
 ~~~~~~~~~~~~~~~~
@@ -513,13 +513,13 @@ the dot-separated path you want as an argument to it.
 
 For example, the following would run only a single test or test case::
 
-      $ tox -e py27 networking_ovn.tests.unit.ovsdb.test_commands
-      $ tox -e py27 networking_ovn.tests.unit.ovsdb.test_commands.TestAddLRouterCommand
-      $ tox -e py27 networking_ovn.tests.unit.ovsdb.test_commands.TestAddLRouterCommand.test_lrouter_exists
+      $ tox -e py37 networking_ovn.tests.unit.ovsdb.test_commands
+      $ tox -e py37 networking_ovn.tests.unit.ovsdb.test_commands.TestAddLRouterCommand
+      $ tox -e py37 networking_ovn.tests.unit.ovsdb.test_commands.TestAddLRouterCommand.test_lrouter_exists
 
 If you want to pass other arguments to stestr, you can do the following::
 
-      $ tox -e py27 -- networking_ovn.tests.unit.ovsdb.test_commands --serial
+      $ tox -e py37 -- networking_ovn.tests.unit.ovsdb.test_commands --serial
 
 
 Coverage

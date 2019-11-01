@@ -565,10 +565,10 @@ Run the unit tests in the local environment with ``tox``.
 
 ::
 
-    $ tox -e py27
-    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync
-    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
-    $ tox -e py27 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
+    $ tox -e py37
+    $ tox -e py37 networking_ovn.tests.unit.test_ovn_db_sync
+    $ tox -e py37 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
+    $ tox -e py37 networking_ovn.tests.unit.test_ovn_db_sync.TestOvnSbSyncML2
       .test_ovn_sb_sync
 
 Run Functional Tests
