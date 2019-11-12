@@ -90,6 +90,10 @@ OVN_L3_SCHEDULER=${OVN_L3_SCHEDULER:-leastloaded}
 # The log level of the OVN databases (north and south)
 OVN_DBS_LOG_LEVEL=${OVN_DBS_LOG_LEVEL:-info}
 
+# Configured DNS servers to be used with internal_dns extension, only
+# if the subnet DNS is not configured.
+OVN_DNS_SERVERS=${OVN_DNS_SERVERS:-8.8.8.8}
+
 # Neutron directory
 NEUTRON_DIR=$DEST/neutron
 
@@ -265,7 +269,8 @@ function configure_ovn_plugin {
         fi
 
         if is_service_enabled q-dns neutron-dns ; then
-            iniset $NEUTRON_CONF DEFAULT dns_domain ovngate.local
+            iniset $NEUTRON_CONF DEFAULT dns_domain openstackgate.local
+            populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn dns_servers="$OVN_DNS_SERVERS"
         fi
     fi
 
