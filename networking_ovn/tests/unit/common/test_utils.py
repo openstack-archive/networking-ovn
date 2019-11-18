@@ -15,6 +15,7 @@
 
 import fixtures
 
+from networking_ovn.common import constants
 from networking_ovn.common import utils
 from networking_ovn.tests import base
 
@@ -41,3 +42,64 @@ class TestUtils(base.TestCase):
         observed_dns_resolvers = utils.get_system_dns_resolvers(
             resolver_file=resolver_file_name)
         self.assertEqual(expected_dns_resolvers, observed_dns_resolvers)
+
+
+class TestGateWayChassisValidity(base.TestCase):
+
+    def setUp(self):
+        super(TestGateWayChassisValidity, self).setUp()
+        self.gw_chassis = ['host1', 'host2']
+        self.chassis_name = self.gw_chassis[0]
+        self.physnet = 'physical-nw-1'
+        self.chassis_physnets = {self.chassis_name: [self.physnet]}
+
+    def test_gateway_chassis_valid(self):
+        # Return False, since everything is valid
+        self.assertFalse(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_due_to_invalid_chassis_name(self):
+        # Return True since chassis is invalid
+        self.chassis_name = constants.OVN_GATEWAY_INVALID_CHASSIS
+        self.assertTrue(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_for_chassis_not_in_chassis_physnets(self):
+        # Return True since chassis is not in chassis_physnets
+        self.chassis_name = 'host-2'
+        self.assertTrue(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_for_undefined_physnet(self):
+        # Return True since physnet is not defined
+        self.chassis_name = 'host-1'
+        self.physnet = None
+        self.assertTrue(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_for_physnet_not_in_chassis_physnets(self):
+        # Return True since physnet is not in chassis_physnets
+        self.physnet = 'physical-nw-2'
+        self.assertTrue(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_for_gw_chassis_empty(self):
+        # Return False if gw_chassis is []
+        # This condition states that the chassis is valid, has valid
+        # physnets and there are no gw_chassis present in the system.
+        self.gw_chassis = []
+        self.assertFalse(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))
+
+    def test_gateway_chassis_for_chassis_not_in_gw_chassis_list(self):
+        # Return True since chassis_name not in gw_chassis
+        self.gw_chassis = ['host-2']
+        self.assertTrue(utils.is_gateway_chassis_invalid(
+            self.chassis_name, self.gw_chassis, self.physnet,
+            self.chassis_physnets))

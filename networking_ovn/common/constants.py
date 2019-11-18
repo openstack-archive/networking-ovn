@@ -158,3 +158,6 @@ DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
 # Loadbalancer constants
 LRP_PREFIX = "lrp-"
 LB_VIP_PORT_PREFIX = "ovn-lb-vip-"
+
+# Maximum chassis count where a gateway port can be hosted
+MAX_GW_CHASSIS = 5
