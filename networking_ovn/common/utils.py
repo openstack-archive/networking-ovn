@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import inspect
 import os
 import re
@@ -36,6 +37,9 @@ from networking_ovn.common import constants
 from networking_ovn.common import exceptions as ovn_exc
 
 DNS_RESOLVER_FILE = "/etc/resolv.conf"
+
+AddrPairsDiff = collections.namedtuple(
+    'AddrPairsDiff', ['added', 'removed', 'changed'])
 
 
 def ovn_name(id):
@@ -430,3 +434,13 @@ def is_neutron_dhcp_agent_port(port):
     return (port['device_owner'] == const.DEVICE_OWNER_DHCP and
             (port['device_id'] == const.DEVICE_ID_RESERVED_DHCP_PORT or
              port['device_id'].startswith('dhcp')))
+
+
+def compute_address_pairs_diff(ovn_port, neutron_port):
+    """Compute the differences in the allowed_address_pairs field."""
+    ovn_ap = get_allowed_address_pairs_ip_addresses_from_ovn_port(
+        ovn_port)
+    neutron_ap = get_allowed_address_pairs_ip_addresses(neutron_port)
+    added = set(neutron_ap) - set(ovn_ap)
+    removed = set(ovn_ap) - set(neutron_ap)
+    return AddrPairsDiff(added, removed, changed=any(added or removed))
