@@ -66,13 +66,14 @@ class TestOVNQosDriver(base.BaseTestCase):
         self.policy = self._create_fake_policy()
         self.port = self._create_fake_port()
         self.rule = self._create_bw_limit_rule()
-        self.expected = {'qos_max_rate': '1000', 'qos_burst': '100000'}
+        self.expected = {'direction': 'egress', 'qos_max_rate': '1000',
+                         'qos_burst': '100000'}
 
     def _create_bw_limit_rule(self):
         rule_obj = qos_rule.QosBandwidthLimitRule()
         rule_obj.id = uuidutils.generate_uuid()
-        rule_obj.max_kbps = 1
-        rule_obj.max_burst_kbps = 100
+        rule_obj.max_kbps = 1000
+        rule_obj.max_burst_kbps = 100000
         rule_obj.obj_reset_changes()
         return rule_obj
 
