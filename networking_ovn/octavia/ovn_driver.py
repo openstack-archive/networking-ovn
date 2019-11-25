@@ -95,10 +95,16 @@ class IPVersionsMixingNotSupportedError(
 
 
 def get_network_driver():
-    CONF.import_group('controller_worker', 'octavia.common.config')
+    try:
+        CONF.import_group('controller_worker', 'octavia.common.config')
+        name = CONF.controller_worker.network_driver
+    except ImportError:
+        # TODO(mjozefcz): Remove this when the config option will
+        # land in octavia-lib.
+        name = 'network_noop_driver'
     return driver.DriverManager(
         namespace='octavia.network.drivers',
-        name=CONF.controller_worker.network_driver,
+        name=name,
         invoke_on_load=True
     ).driver
 
