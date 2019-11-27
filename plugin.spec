@@ -44,6 +44,7 @@ subparsers:
                         - "13"
                         - "14"
                         - "15"
+                        - "16"
                         - kilo
                         - liberty
                         - mitaka
@@ -53,6 +54,7 @@ subparsers:
                         - queens
                         - rocky
                         - stein
+                        - train
                   install_from_package:
                       type: Bool
                       help: Install python-networking-ovn-migration-tool rpm
