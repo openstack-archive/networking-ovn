@@ -45,7 +45,6 @@ from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from webob import exc
 
-from networking_ovn.agent import stats
 from networking_ovn.common import acl as ovn_acl
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
@@ -1552,13 +1551,14 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
         chassis = mock.Mock()
         chassis.nb_cfg = nb_cfg
         chassis.uuid = uuid.uuid4()
-        id_ = chassis.uuid
+        chassis.external_ids = {ovn_const.OVN_LIVENESS_CHECK_EXT_ID_KEY:
+                                timeutils.isotime(updated_at)}
         if agent_type == ovn_const.OVN_METADATA_AGENT:
-            chassis.external_ids = {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: nb_cfg}
-            id_ = ovn_utils.ovn_metadata_name(chassis.uuid)
+            chassis.external_ids.update({
+                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: nb_cfg,
+                ovn_const.METADATA_LIVENESS_CHECK_EXT_ID_KEY:
+                timeutils.isotime(updated_at)})
 
-        stats.AgentStats.add_stat(id_, nb_cfg, updated_at)
         return chassis
 
     def test_agent_alive_true(self):
@@ -1573,7 +1573,8 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                            ovn_const.OVN_METADATA_AGENT):
             self.mech_driver._nb_ovn.nb_global.nb_cfg = 5
             chassis = self._add_chassis_agent(4, agent_type)
-            self.assertTrue(self.mech_driver.agent_alive(chassis, agent_type))
+            self.assertTrue(self.mech_driver.agent_alive(chassis, agent_type),
+                            "Agent type %s is not alive" % agent_type)
 
     def test_agent_alive_timed_out(self):
         for agent_type in (ovn_const.OVN_CONTROLLER_AGENT,
@@ -1583,20 +1584,6 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
             updated_at = now - datetime.timedelta(cfg.CONF.agent_down_time + 1)
             chassis = self._add_chassis_agent(4, agent_type, updated_at)
             self.assertFalse(self.mech_driver.agent_alive(chassis, agent_type))
-
-    def test_agent_not_found(self):
-        agent_type = ovn_const.OVN_CONTROLLER_AGENT
-        chassis = self._add_chassis_agent(1, agent_type)
-        self.mech_driver._nb_ovn.nb_global.nb_cfg = 1
-
-        # Assert that the agent has been registered and is alive
-        self.assertTrue(self.mech_driver.agent_alive(chassis, agent_type))
-        self.mech_driver._nb_ovn.nb_global.nb_cfg = 2
-        # Delete the agent from the stats tracker
-        stats.AgentStats.del_agent(chassis.uuid)
-        # Assert that subsequently calls checking the status of the agent
-        # shows it as "dead" instead of blowing up with an exception
-        self.assertFalse(self.mech_driver.agent_alive(chassis, agent_type))
 
     def _test__update_dnat_entry_if_needed(self, up=True):
         ovn_config.cfg.CONF.set_override(
