@@ -1987,7 +1987,7 @@ class OVNClient(object):
             for old_hostname, old_ips in old_records.items():
                 if records_to_add.get(old_hostname) != old_ips:
                     txn.add(self._nb_idl.dns_remove_record(
-                        ls_dns_record.uuid, old_hostname))
+                        ls_dns_record.uuid, old_hostname, if_exists=True))
 
         for hostname, ips in records_to_add.items():
             if ls_dns_record.records.get(hostname) != ips:
@@ -2020,4 +2020,4 @@ class OVNClient(object):
         for hostname in hostnames:
             if ls_dns_record.records.get(hostname):
                 txn.add(self._nb_idl.dns_remove_record(
-                        ls_dns_record.uuid, hostname))
+                        ls_dns_record.uuid, hostname, if_exists=True))
