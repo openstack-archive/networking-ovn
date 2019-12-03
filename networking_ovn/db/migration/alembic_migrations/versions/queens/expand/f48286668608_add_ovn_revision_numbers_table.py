@@ -23,6 +23,7 @@ Create Date: 2017-08-18 09:59:20.021013
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine import reflection
 
 
 # revision identifiers, used by Alembic.
@@ -31,6 +32,11 @@ down_revision = 'bc9e24bb9da2'
 
 
 def upgrade():
+    inspector = reflection.Inspector.from_engine(op.get_bind())
+    table_names = inspector.get_table_names()
+    if 'ovn_revision_numbers' in table_names:
+        return
+
     op.create_table(
         'ovn_revision_numbers',
         sa.Column('standard_attr_id', sa.BigInteger, nullable=True),

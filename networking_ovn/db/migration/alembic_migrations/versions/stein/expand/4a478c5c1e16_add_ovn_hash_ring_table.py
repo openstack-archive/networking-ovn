@@ -15,6 +15,7 @@
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine import reflection
 
 """add ovn_hash_ring table
 
@@ -30,6 +31,11 @@ down_revision = '5c198d2723b6'
 
 
 def upgrade():
+    inspector = reflection.Inspector.from_engine(op.get_bind())
+    table_names = inspector.get_table_names()
+    if 'ovn_hash_ring' in table_names:
+        return
+
     op.create_table(
         'ovn_hash_ring',
         sa.Column('node_uuid', sa.String(36), nullable=False,

@@ -33,19 +33,22 @@ MYSQL_ENGINE = 'mysql'
 
 
 def upgrade():
+    bind = op.get_bind()
+    engine = bind.engine
+    inspector = insp.from_engine(bind)
+
+    for c in inspector.get_columns('ovn_hash_ring'):
+        if c['name'] == 'group_name':
+            return
+
     op.add_column(
         'ovn_hash_ring',
         sa.Column('group_name', sa.String(length=256), nullable=False))
-
-    # Make node_uuid and group_name a composite PK
-    bind = op.get_bind()
-    engine = bind.engine
 
     if (engine.name == MYSQL_ENGINE):
         op.execute("ALTER TABLE ovn_hash_ring DROP PRIMARY KEY,"
                    "ADD PRIMARY KEY (node_uuid, group_name);")
     else:
-        inspector = insp.from_engine(bind)
         pk_constraint = inspector.get_pk_constraint('ovn_hash_ring')
         op.drop_constraint(pk_constraint.get('name'), 'ovn_hash_ring',
                            type_='primary')
