@@ -27,7 +27,6 @@ from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import idlutils
 from ovsdbapp import event
 
-from networking_ovn.agent import stats
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import exceptions
@@ -59,57 +58,6 @@ class BaseEvent(row_event.RowEvent):
         LOG.debug("%s : Matched %s, %s, %s %s", self.event_name, self.table,
                   event, self.conditions, self.old_conditions)
         return True
-
-
-class ChassisAgentDeleteEvent(BaseEvent):
-    table = 'Chassis'
-    events = (BaseEvent.ROW_DELETE,)
-
-    def run(self, event, row, old):
-        stats.AgentStats.del_agent(row.uuid)
-        stats.AgentStats.del_agent(utils.ovn_metadata_name(row.uuid))
-
-    def match_fn(self, event, row, old=None):
-        return True
-
-
-class ChassisGatewayAgentEvent(BaseEvent):
-    table = 'Chassis'
-    events = (BaseEvent.ROW_CREATE, BaseEvent.ROW_UPDATE)
-
-    def match_fn(self, event, row, old=None):
-        return event == self.ROW_CREATE or getattr(old, 'nb_cfg', False)
-
-    def run(self, event, row, old):
-        stats.AgentStats.add_stat(row.uuid, row.nb_cfg)
-
-
-class ChassisMetadataAgentEvent(BaseEvent):
-    table = 'Chassis'
-    events = (BaseEvent.ROW_CREATE, BaseEvent.ROW_UPDATE)
-
-    @staticmethod
-    def _metadata_nb_cfg(row):
-        return int(row.external_ids[ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY])
-
-    def match_fn(self, event, row, old=None):
-        if event == self.ROW_CREATE:
-            return True
-        try:
-            return self._metadata_nb_cfg(row) != self._metadata_nb_cfg(old)
-        except (AttributeError, KeyError):
-            return False
-
-    def run(self, event, row, old):
-        try:
-            stats.AgentStats.add_stat(utils.ovn_metadata_name(row.uuid),
-                                      self._metadata_nb_cfg(row))
-        except (AttributeError, KeyError):
-            LOG.warning('No "%(key)s" key found for the metadata agent at '
-                        'Chassis %(chassis)s',
-                        {'key': ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY,
-                         'chassis': row.uuid})
-            return
 
 
 class ChassisEvent(row_event.RowEvent):
@@ -327,14 +275,6 @@ class BaseOvnIdl(connection.OvsdbIdl):
 
 
 class BaseOvnSbIdl(connection.OvsdbIdl):
-    def __init__(self, remote, schema):
-        super(BaseOvnSbIdl, self).__init__(remote, schema)
-        self.notify_handler = event.RowEventHandler()
-        events = [ChassisAgentDeleteEvent(), ChassisGatewayAgentEvent()]
-        if ovn_config.is_ovn_metadata_enabled():
-            events.append(ChassisMetadataAgentEvent())
-        self.notify_handler.watch_events(events)
-
     @classmethod
     def from_server(cls, connection_string, schema_name):
         _check_and_set_ssl_files(schema_name)
@@ -344,9 +284,6 @@ class BaseOvnSbIdl(connection.OvsdbIdl):
         helper.register_table('Port_Binding')
         helper.register_table('Datapath_Binding')
         return cls(connection_string, helper)
-
-    def notify(self, event, row, updates=None):
-        self.notify_handler.notify(event, row, updates)
 
 
 class OvnIdl(BaseOvnIdl):

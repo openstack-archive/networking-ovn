@@ -30,7 +30,6 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import hash_ring_manager
-from networking_ovn.common import utils
 from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
@@ -373,61 +372,6 @@ class TestOvnConnection(base.TestCase):
     def test_connection_sb_start(self):
         self._test_connection_start(idl_class=ovsdb_monitor.OvnSbIdl,
                                     schema='OVN_Southbound')
-
-
-class TestChassisMetadataAgentEvent(base.TestCase):
-
-    def setUp(self):
-        super(TestChassisMetadataAgentEvent, self).setUp()
-        self.event = ovsdb_monitor.ChassisMetadataAgentEvent()
-
-        patcher = mock.patch.object(ovsdb_monitor.stats, 'AgentStats')
-        self.agent_stats = patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def test_run(self):
-        row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
-
-        self.event.run(mock.ANY, row, mock.ANY)
-        self.agent_stats.add_stat.assert_called_once_with(
-            utils.ovn_metadata_name(row.uuid), 1)
-
-    def test_run_no_metadata_cfg(self):
-        row = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-        self.assertIsNone(self.event.run(mock.ANY, row, mock.ANY))
-
-    def test_match_fn_event_create(self):
-        self.assertTrue(self.event.match_fn(ROW_CREATE, mock.ANY))
-
-    def test_match_fn_missing_metadata_key(self):
-        row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
-        old = fakes.FakeOvsdbRow.create_one_ovsdb_row()
-
-        self.assertFalse(self.event.match_fn(ROW_UPDATE, row, old=old))
-
-    def test_match_fn_nb_cfg_match(self):
-        row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
-        old = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
-
-        self.assertFalse(self.event.match_fn(ROW_UPDATE, row, old=old))
-
-    def test_match_fn_nb_cfg_doesnt_match(self):
-        row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '2'}})
-        old = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'external_ids': {
-                ovn_const.OVN_AGENT_METADATA_SB_CFG_KEY: '1'}})
-
-        self.assertTrue(self.event.match_fn(ROW_UPDATE, row, old=old))
 
 
 class TestOvnIdlDistributedLock(base.TestCase):
