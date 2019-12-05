@@ -55,6 +55,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.fake_network = \
             fakes.FakeNetwork.create_one_network(attrs=network_attrs).info()
         self.fake_router_port = {'device_id': '',
+                                 'network_id': self.fake_network['id'],
                                  'device_owner': 'network:router_interface',
                                  'mac_address': 'aa:aa:aa:aa:aa:aa',
                                  'fixed_ips': [{'ip_address': '10.0.0.100',
@@ -68,7 +69,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'networks': ['10.0.0.100/24'],
             'external_ids': {
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'}}
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                utils.ovn_name(self.fake_network['id'])}}
         self.fake_router_ports = [self.fake_router_port]
         self.fake_subnet = {'id': 'subnet-id',
                             'ip_version': 4,
@@ -122,7 +125,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'may_exist': True,
             'external_ids': {
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'ext-subnet-id',
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'},
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                utils.ovn_name(self.fake_network['id'])},
             'gateway_chassis': ['hv1']}
         self.fake_floating_ip_attrs = {'floating_ip_address': '192.168.0.10',
                                        'fixed_ip_address': '10.0.0.10'}
@@ -245,7 +250,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'fixed_ips': [
                 {'ip_address': '2001:db8::1', 'subnet_id': 'subnet-id1'},
                 {'ip_address': '2001:dba::1', 'subnet_id': 'subnet-id2'}],
-            'mac_address': 'aa:aa:aa:aa:aa:aa'
+            'mac_address': 'aa:aa:aa:aa:aa:aa',
+            'network_id': 'network-id1'
             }
         fake_rtr_intf_networks = ['2001:db8::1/24', '2001:dba::1/24']
         self.l3_inst.add_router_interface(self.context, router_id,
@@ -287,7 +293,9 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             networks=['10.0.0.100/24'],
             external_ids={
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY: 'subnet-id',
-                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1'})
+                ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY:
+                utils.ovn_name(self.fake_network['id'])})
 
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
