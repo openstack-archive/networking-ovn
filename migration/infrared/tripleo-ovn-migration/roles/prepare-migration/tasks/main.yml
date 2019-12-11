@@ -139,8 +139,8 @@
            mv overcloud.tar.gz /tmp/oc_plan/
            cd /tmp/oc_plan
            tar xvf overcloud.tar.gz
-           reg=`cat /tmp/oc_plan/environments/containers-default-parameters.yaml  | grep DockerNeutronApiImage | awk '{ split($2, image , "/"); print image[1] }'`
-           namespace=`cat /tmp/oc_plan/environments/containers-default-parameters.yaml  | grep DockerNeutronApiImage | awk '{ split($2, image , "/"); print image[2] }'`
+           reg=`cat /tmp/oc_plan/environments/containers-default-parameters.yaml  | grep ContainerNeutronApiImage | awk '{ split($2, image , "/"); print image[1] }'`
+           namespace=`cat /tmp/oc_plan/environments/containers-default-parameters.yaml  | grep ContainerNeutronApiImage | awk '{ split($2, image , "/"); print image[2] }'`
            echo $reg/$namespace > /tmp/_reg_namespace
            rm -rf /tmp/oc_plan
 
@@ -165,13 +165,13 @@
       dest: ~/docker-images-ovn.yaml
       line: "  {{ item.name }}: {{ local_registry }}/{{ image_prefix }}-{{ item.image_name }}:{{ docker_image_tag }}"
   with_items:
-      - { name: DockerNeutronApiImage, image_name: neutron-server-ovn}
-      - { name: DockerNeutronConfigImage, image_name: neutron-server-ovn}
-      - { name: DockerOvnMetadataImage, image_name: neutron-metadata-agent-ovn}
-      - { name: DockerOvnControllerImage, image_name: ovn-controller}
-      - { name: DockerOvnControllerConfigImage, image_name: ovn-controller}
-      - { name: DockerOvnDbsImage, image_name: ovn-northd}
-      - { name: DockerOvnDbsConfigImage, image_name: ovn-northd}
+      - { name: ContainerNeutronApiImage, image_name: neutron-server-ovn}
+      - { name: ContainerNeutronConfigImage, image_name: neutron-server-ovn}
+      - { name: ContainerOvnMetadataImage, image_name: neutron-metadata-agent-ovn}
+      - { name: ContainerOvnControllerImage, image_name: ovn-controller}
+      - { name: ContainerOvnControllerConfigImage, image_name: ovn-controller}
+      - { name: ContainerOvnDbsImage, image_name: ovn-northd}
+      - { name: ContainerOvnDbsConfigImage, image_name: ovn-northd}
 
 - name: Upload the ovn docker images to the local registry
   shell: |
