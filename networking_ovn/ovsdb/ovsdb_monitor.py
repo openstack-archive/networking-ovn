@@ -356,7 +356,7 @@ class OvnIdlDistributedLock(BaseOvnIdl):
             try:
                 db_hash_ring.touch_node(self._node_uuid)
                 self._last_touch = time_now
-            except Exception as e:
+            except Exception:
                 LOG.exception('Hash Ring node %s failed to heartbeat',
                               self._node_uuid)
 
