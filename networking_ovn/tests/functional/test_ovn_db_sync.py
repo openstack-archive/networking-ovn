@@ -257,7 +257,6 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                         '{169.254.169.254/32,10.0.0.2, 0.0.0.0/0,10.0.0.1}',
                         'server_id': '10.0.0.1',
                         'server_mac': '01:02:03:04:05:06',
-                        'dns_server': '{10.10.10.10}',
                         'lease_time': str(12 * 60 * 60),
                         'mtu': str(n1['network']['mtu']),
                         'router': n1_s1['subnet']['gateway_ip'],
