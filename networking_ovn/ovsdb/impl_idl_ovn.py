@@ -394,7 +394,7 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
 
         @param   lrp: logical router port
         @type    lrp: Logical_Router_Port row
-        @return: List of tuples (chassis_name, priority)
+        @return: List of tuples (chassis_name, priority) sorted by priority
         """
         # Try retrieving gateway_chassis with new schema. If new schema is not
         # supported or user is using old schema, then use old schema for
@@ -407,7 +407,8 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
             rc = lrp.options.get(ovn_const.OVN_GATEWAY_CHASSIS_KEY)
             if rc:
                 chassis.append((rc, 0))
-        return chassis
+        # make sure that chassis are sorted by priority
+        return sorted(chassis, reverse=True, key=lambda x: x[1])
 
     def get_all_chassis_gateway_bindings(self,
                                          chassis_candidate_list=None):
@@ -438,21 +439,18 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     def get_unhosted_gateways(self, port_physnet_dict, chassis_physnets,
                               gw_chassis):
         unhosted_gateways = []
-        valid_chassis_list = list(chassis_physnets)
         for lrp in self._tables['Logical_Router_Port'].rows.values():
             if not lrp.name.startswith('lrp-'):
                 continue
             physnet = port_physnet_dict.get(lrp.name[len('lrp-'):])
             chassis_list = self._get_logical_router_port_gateway_chassis(lrp)
+            is_max_gw_reached = len(chassis_list) < ovn_const.MAX_GW_CHASSIS
             for chassis_name, prio in chassis_list:
                 # TODO(azbiswas): Handle the case when a chassis is no
                 # longer valid. This may involve moving conntrack states,
                 # so it needs to discussed in the OVN community first.
-                if (chassis_name == ovn_const.OVN_GATEWAY_INVALID_CHASSIS or
-                        chassis_name not in valid_chassis_list or
-                        (physnet and
-                         physnet not in chassis_physnets.get(chassis_name)) or
-                        (gw_chassis and chassis_name not in gw_chassis)):
+                if is_max_gw_reached or utils.is_gateway_chassis_invalid(
+                        chassis_name, gw_chassis, physnet, chassis_physnets):
                     unhosted_gateways.append(lrp.name)
         return unhosted_gateways
 

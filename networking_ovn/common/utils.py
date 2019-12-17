@@ -377,3 +377,29 @@ def get_method_class(method):
     if not inspect.ismethod(method):
         return
     return method.__self__.__class__
+
+
+def is_gateway_chassis_invalid(chassis_name, gw_chassis,
+                               physnet, chassis_physnets):
+    """Check if gateway chassis is invalid
+
+    @param    chassis_name: gateway chassis name
+    @type     chassis_name: string
+    @param    gw_chassis: List of gateway chassis in the system
+    @type     gw_chassis: []
+    @param    physnet: physical network associated to chassis_name
+    @type     physnet: string
+    @param    chassis_physnets: Dictionary linking chassis with their physnets
+    @type     chassis_physnets: {}
+    @return   Boolean
+    """
+
+    if chassis_name == constants.OVN_GATEWAY_INVALID_CHASSIS:
+        return True
+    elif chassis_name not in chassis_physnets:
+        return True
+    elif physnet and physnet not in chassis_physnets.get(chassis_name):
+        return True
+    elif gw_chassis and chassis_name not in gw_chassis:
+        return True
+    return False
