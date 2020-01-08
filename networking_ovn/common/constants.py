@@ -147,3 +147,8 @@ DEFAULT_ADDR_FOR_LSP_WITH_PEER = 'router'
 
 # Maximum chassis count where a gateway port can be hosted
 MAX_GW_CHASSIS = 5
+
+UNKNOWN_ADDR = 'unknown'
+
+# TODO(lucasagomes): Create constants for other LSP types
+LSP_TYPE_LOCALNET = 'localnet'

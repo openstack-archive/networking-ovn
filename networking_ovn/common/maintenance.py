@@ -342,9 +342,6 @@ class DBInconsistenciesPeriodics(object):
         self._ovn_client._l3_plugin.add_router_interface(
             admin_context, router_id, {'port_id': port['id']}, may_exist=True)
 
-    # TODO(lucasagomes): Remove this in the T cycle
-    # A static spacing value is used here, but this method will only run
-    # once per lock due to the use of periodics.NeverAgain().
     @periodics.periodic(spacing=600, run_immediately=True)
     def check_for_port_security_unknown_address(self):
 
@@ -352,13 +349,22 @@ class DBInconsistenciesPeriodics(object):
             return
 
         for port in self._nb_idl.lsp_list().execute(check_error=True):
-            addresses = port.addresses
-            if not port.port_security and 'unknown' not in addresses:
-                addresses.append('unknown')
-            elif port.port_security and 'unknown' in addresses:
-                addresses.remove('unknown')
-            else:
+
+            if port.type == ovn_const.LSP_TYPE_LOCALNET:
                 continue
+
+            addresses = port.addresses
+            type_ = port.type.strip()
+            if not port.port_security:
+                if not type_ and ovn_const.UNKNOWN_ADDR not in addresses:
+                    addresses.append(ovn_const.UNKNOWN_ADDR)
+                elif type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
+            else:
+                if type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
+                elif not type_ and ovn_const.UNKNOWN_ADDR in addresses:
+                    addresses.remove(ovn_const.UNKNOWN_ADDR)
 
             self._nb_idl.lsp_set_addresses(
                 port.name, addresses=addresses).execute(check_error=True)
