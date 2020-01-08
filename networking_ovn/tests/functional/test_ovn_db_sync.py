@@ -20,6 +20,7 @@ from neutron.tests.unit.extensions import test_extraroute
 from neutron.tests.unit.extensions import test_securitygroup
 from neutron_lib.api.definitions import dns as dns_apidef
 from neutron_lib.api.definitions import l3
+from neutron_lib.api.definitions import port_security as ps
 from neutron_lib import constants
 from neutron_lib import context
 from neutron_lib.plugins import directory
@@ -78,6 +79,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.lport_dhcp_ignored = []
         self.match_old_mac_dhcp_subnets = []
         self.expected_dns_records = []
+        self.expected_ports_with_unknown_addr = []
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
                                          group='ovn')
 
@@ -139,9 +141,11 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         n1_port_dict = {}
         for p in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']:
             if p in ['p1', 'p5']:
-                port_kwargs = {'arg_list': (dns_apidef.DNSNAME,),
-                               dns_apidef.DNSNAME: 'n1-' + p,
-                               'device_id': 'n1-' + p}
+                port_kwargs = {
+                    'arg_list': (dns_apidef.DNSNAME, ps.PORTSECURITY),
+                    dns_apidef.DNSNAME: 'n1-' + p,
+                    ps.PORTSECURITY: 'False',
+                    'device_id': 'n1-' + p}
             else:
                 port_kwargs = {}
 
@@ -152,6 +156,7 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
             port = self.deserialize(self.fmt, res)
             n1_port_dict[p] = port['port']['id']
             lport_name = port['port']['id']
+
             lswitch_name = 'neutron-' + n1['network']['id']
             if p in ['p1', 'p5']:
                 port_ips = " ".join([f['ip_address']
@@ -160,6 +165,8 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                 self.expected_dns_records[0]['records'][hname] = port_ips
                 hname = 'n1-' + p + '.ovn.test'
                 self.expected_dns_records[0]['records'][hname] = port_ips
+                self.expected_ports_with_unknown_addr.append(lport_name)
+
             if p == 'p1':
                 fake_subnet = {'cidr': '11.11.11.11/24'}
                 dhcp_acls = acl_utils.add_acl_dhcp(port['port'], fake_subnet)
@@ -974,6 +981,14 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
                                   plugin_lport_ids_dhcpv6_enabled)
             self.assertItemsEqual(expected_dhcpv6_options_ports_ids,
                                   monitor_lport_ids_dhcpv6_enabled)
+
+            # Check if unknow address is set for the expected lports.
+            for row in (
+                self.nb_api.tables['Logical_Switch_Port'].
+                rows.values()):
+                if row.name in self.expected_ports_with_unknown_addr:
+                    self.assertIn('unknown', row.addresses)
+
         else:
             self.assertRaises(
                 AssertionError, self.assertItemsEqual, db_port_ids,
