@@ -25,6 +25,7 @@
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
+            voting: false
         - networking-ovn-tempest-slow:
             voting: false
         - networking-ovn-tempest-full-multinode-ovs-master:
@@ -38,6 +39,7 @@
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
+            voting: false
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
