@@ -62,22 +62,16 @@ REQ_TYPE_MEMBER_UPDATE = 'member_update'
 REQ_TYPE_LB_CREATE_LRP_ASSOC = 'lb_create_lrp_assoc'
 REQ_TYPE_LB_DELETE_LRP_ASSOC = 'lb_delete_lrp_assoc'
 REQ_TYPE_HANDLE_VIP_FIP = 'handle_vip_fip'
+REQ_TYPE_HANDLE_MEMBER_DVR = 'handle_member_dvr'
 
 REQ_TYPE_EXIT = 'exit'
 
 REQ_INFO_ACTION_ASSOCIATE = 'associate'
 REQ_INFO_ACTION_DISASSOCIATE = 'disassociate'
+REQ_INFO_MEMBER_ADDED = 'member_added'
+REQ_INFO_MEMBER_DELETED = 'member_deleted'
 
 DISABLED_RESOURCE_SUFFIX = 'D'
-
-LB_EXT_IDS_LS_REFS_KEY = 'ls_refs'
-LB_EXT_IDS_LR_REF_KEY = 'lr_ref'
-LB_EXT_IDS_POOL_PREFIX = 'pool_'
-LB_EXT_IDS_LISTENER_PREFIX = 'listener_'
-LB_EXT_IDS_MEMBER_PREFIX = 'member_'
-LB_EXT_IDS_VIP_KEY = 'neutron:vip'
-LB_EXT_IDS_VIP_FIP_KEY = 'neutron:vip_fip'
-LB_EXT_IDS_VIP_PORT_ID_KEY = 'neutron:vip_port_id'
 
 OVN_NATIVE_LB_PROTOCOLS = [constants.PROTOCOL_TCP,
                            constants.PROTOCOL_UDP, ]
@@ -160,7 +154,7 @@ class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
     SCHEMA = "OVN_Northbound"
     TABLES = ('Logical_Switch', 'Load_Balancer', 'Logical_Router',
               'Logical_Switch_Port', 'Logical_Router_Port',
-              'Gateway_Chassis')
+              'Gateway_Chassis', 'NAT')
 
     def __init__(self, event_lock_name=None):
         self.conn_string = ovn_cfg.get_ovn_nb_connection()
@@ -234,6 +228,7 @@ class OvnProviderHelper(object):
             REQ_TYPE_LB_CREATE_LRP_ASSOC: self.lb_create_lrp_assoc,
             REQ_TYPE_LB_DELETE_LRP_ASSOC: self.lb_delete_lrp_assoc,
             REQ_TYPE_HANDLE_VIP_FIP: self.handle_vip_fip,
+            REQ_TYPE_HANDLE_MEMBER_DVR: self.handle_member_dvr,
         }
 
     @staticmethod
@@ -423,7 +418,7 @@ class OvnProviderHelper(object):
         # than there is more than one (for more than 1 L4 protocol).
         for lb in ovn_lbs:
             fip = vip_lp.external_ids.get(ovn_const.OVN_PORT_FIP_EXT_ID_KEY)
-            lb_vip_fip = lb.external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
+            lb_vip_fip = lb.external_ids.get(ovn_const.LB_EXT_IDS_VIP_FIP_KEY)
             request_info = {'ovn_lb': lb,
                             'vip_fip': fip}
             if fip and fip != lb_vip_fip:
@@ -449,8 +444,9 @@ class OvnProviderHelper(object):
         Output: set of rows of type Load_Balancer or empty set
         """
         return {lb for lb in network.load_balancer
-                if network.name in lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY,
-                                                       [])}
+                if network.name in lb.external_ids.get(
+                    ovn_const.LB_EXT_IDS_LS_REFS_KEY,
+                    [])}
 
     def _find_lb_in_table(self, lb, table):
         return [item for item in self.ovn_nbdb_api.tables[table].rows.values()
@@ -556,21 +552,22 @@ class OvnProviderHelper(object):
                 'id': lb_id,
                 'protocol': protocol,
                 'vip_address': ovn_lbs[0].external_ids.get(
-                    LB_EXT_IDS_VIP_KEY),
+                    ovn_const.LB_EXT_IDS_VIP_KEY),
                 'vip_port_id':
                     ovn_lbs[0].external_ids.get(
-                        LB_EXT_IDS_VIP_PORT_ID_KEY),
-                LB_EXT_IDS_LR_REF_KEY:
+                        ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY),
+                ovn_const.LB_EXT_IDS_LR_REF_KEY:
                     ovn_lbs[0].external_ids.get(
-                        LB_EXT_IDS_LR_REF_KEY),
-                LB_EXT_IDS_LS_REFS_KEY:
+                        ovn_const.LB_EXT_IDS_LR_REF_KEY),
+                ovn_const.LB_EXT_IDS_LS_REFS_KEY:
                     ovn_lbs[0].external_ids.get(
-                        LB_EXT_IDS_LS_REFS_KEY),
+                        ovn_const.LB_EXT_IDS_LS_REFS_KEY),
                 'admin_state_up': admin_state_up}
             # NOTE(mjozefcz): Handle vip_fip info if exists.
-            vip_fip = ovn_lbs[0].external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
+            vip_fip = ovn_lbs[0].external_ids.get(
+                ovn_const.LB_EXT_IDS_VIP_FIP_KEY)
             if vip_fip:
-                lb_info.update({LB_EXT_IDS_VIP_FIP_KEY: vip_fip})
+                lb_info.update({ovn_const.LB_EXT_IDS_VIP_FIP_KEY: vip_fip})
             self.lb_create(lb_info, protocol=protocol)
         # Looks like we've just added new LB
         # or updated exising, empty one.
@@ -637,7 +634,7 @@ class OvnProviderHelper(object):
                     return commands
                 ovn_ls = None
 
-        ls_refs = ovn_lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY)
+        ls_refs = ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_LS_REFS_KEY)
         if ls_refs:
             try:
                 ls_refs = jsonutils.loads(ls_refs)
@@ -669,7 +666,7 @@ class OvnProviderHelper(object):
             else:
                 ls_refs[ls_name] = ref_ct - 1
 
-        ls_refs = {LB_EXT_IDS_LS_REFS_KEY: jsonutils.dumps(ls_refs)}
+        ls_refs = {ovn_const.LB_EXT_IDS_LS_REFS_KEY: jsonutils.dumps(ls_refs)}
         commands.append(self.ovn_nbdb_api.db_set(
             'Load_Balancer', ovn_lb.uuid,
             ('external_ids', ls_refs)))
@@ -694,12 +691,12 @@ class OvnProviderHelper(object):
                     self.ovn_nbdb_api.db_set(
                         'Load_Balancer', ovn_lb.uuid,
                         ('external_ids',
-                         {LB_EXT_IDS_LR_REF_KEY: ','.join(lr_ref)})))
+                         {ovn_const.LB_EXT_IDS_LR_REF_KEY: ','.join(lr_ref)})))
             else:
                 commands.append(
                     self.ovn_nbdb_api.db_remove(
                         'Load_Balancer', ovn_lb.uuid, 'external_ids',
-                        (LB_EXT_IDS_LR_REF_KEY))
+                        (ovn_const.LB_EXT_IDS_LR_REF_KEY))
                 )
             commands.append(
                 self.ovn_nbdb_api.lr_lb_del(ovn_lr.uuid, ovn_lb.uuid,
@@ -722,15 +719,18 @@ class OvnProviderHelper(object):
 
         if ovn_lr.name not in str(lr_rf):
             # Multiple routers in lr_rf are separated with ','
-            lr_rf = {LB_EXT_IDS_LR_REF_KEY: ovn_lr.name} if not lr_rf else {
-                LB_EXT_IDS_LR_REF_KEY: "%s,%s" % (lr_rf, ovn_lr.name)}
+            if lr_rf:
+                lr_rf = {ovn_const.LB_EXT_IDS_LR_REF_KEY:
+                         "%s,%s" % (lr_rf, ovn_lr.name)}
+            else:
+                lr_rf = {ovn_const.LB_EXT_IDS_LR_REF_KEY: ovn_lr.name}
             commands.append(
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
                                          ('external_ids', lr_rf)))
         return commands
 
     def _update_lb_to_lr_association(self, ovn_lb, ovn_lr, delete=False):
-        lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY)
+        lr_ref = ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_LR_REF_KEY)
         if delete:
             return self._del_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
         else:
@@ -776,13 +776,13 @@ class OvnProviderHelper(object):
                 return lr
 
     def _get_listener_key(self, listener_id, is_enabled=True):
-        listener_key = LB_EXT_IDS_LISTENER_PREFIX + str(listener_id)
+        listener_key = ovn_const.LB_EXT_IDS_LISTENER_PREFIX + str(listener_id)
         if not is_enabled:
             listener_key += ':' + DISABLED_RESOURCE_SUFFIX
         return listener_key
 
     def _get_pool_key(self, pool_id, is_enabled=True):
-        pool_key = LB_EXT_IDS_POOL_PREFIX + str(pool_id)
+        pool_key = ovn_const.LB_EXT_IDS_POOL_PREFIX + str(pool_id)
         if not is_enabled:
             pool_key += ':' + DISABLED_RESOURCE_SUFFIX
         return pool_key
@@ -794,9 +794,24 @@ class OvnProviderHelper(object):
                 mem_info += str(mem.split('_')[2]) + ','
         return mem_info[:-1]  # Remove the last ','
 
-    def _get_member_key(self, member):
-        member_info = LB_EXT_IDS_MEMBER_PREFIX + member['id'] + "_"
-        member_info += member['address'] + ":" + str(member['protocol_port'])
+    def _get_member_key(self, member, old_convention=False):
+        member_info = ''
+        if isinstance(member, dict):
+            member_info = '%s%s_%s:%s' % (
+                ovn_const.LB_EXT_IDS_MEMBER_PREFIX,
+                member['id'],
+                member['address'],
+                member['protocol_port'])
+            if not old_convention and member.get('subnet_id'):
+                member_info += "_" + member['subnet_id']
+        elif isinstance(member, o_datamodels.Member):
+            member_info = '%s%s_%s:%s' % (
+                ovn_const.LB_EXT_IDS_MEMBER_PREFIX,
+                member.member_id,
+                member.address,
+                member.protocol_port)
+            if not old_convention and member.subnet_id:
+                member_info += "_" + member.subnet_id
         return member_info
 
     def _make_listener_key_value(self, listener_port, pool_id):
@@ -819,12 +834,12 @@ class OvnProviderHelper(object):
     def _get_pool_listeners(self, ovn_lb, pool_key):
         pool_listeners = []
         for k, v in ovn_lb.external_ids.items():
-            if LB_EXT_IDS_LISTENER_PREFIX not in k:
+            if ovn_const.LB_EXT_IDS_LISTENER_PREFIX not in k:
                 continue
             vip_port, p_key = self._extract_listener_key_value(v)
             if pool_key == p_key:
-                pool_listeners.append(k[len(LB_EXT_IDS_LISTENER_PREFIX):])
-
+                pool_listeners.append(
+                    k[len(ovn_const.LB_EXT_IDS_LISTENER_PREFIX):])
         return pool_listeners
 
     def _frame_vip_ips(self, lb_external_ids):
@@ -833,11 +848,11 @@ class OvnProviderHelper(object):
         if lb_external_ids.get('enabled') == 'False':
             return vip_ips
 
-        lb_vip = lb_external_ids[LB_EXT_IDS_VIP_KEY]
-        vip_fip = lb_external_ids.get(LB_EXT_IDS_VIP_FIP_KEY)
+        lb_vip = lb_external_ids[ovn_const.LB_EXT_IDS_VIP_KEY]
+        vip_fip = lb_external_ids.get(ovn_const.LB_EXT_IDS_VIP_FIP_KEY)
 
         for k, v in lb_external_ids.items():
-            if (LB_EXT_IDS_LISTENER_PREFIX not in k or
+            if (ovn_const.LB_EXT_IDS_LISTENER_PREFIX not in k or
                     self._is_listener_disabled(k)):
                 continue
 
@@ -865,7 +880,7 @@ class OvnProviderHelper(object):
 
     def _is_listener_in_lb(self, lb):
         for key in list(lb.external_ids):
-            if key.startswith(LB_EXT_IDS_LISTENER_PREFIX):
+            if key.startswith(ovn_const.LB_EXT_IDS_LISTENER_PREFIX):
                 return True
         return False
 
@@ -900,18 +915,18 @@ class OvnProviderHelper(object):
         # In case port is not found for the vip_address we will see an
         # exception when port['id'] is accessed.
         external_ids = {
-            LB_EXT_IDS_VIP_KEY: loadbalancer['vip_address'],
-            LB_EXT_IDS_VIP_PORT_ID_KEY:
+            ovn_const.LB_EXT_IDS_VIP_KEY: loadbalancer['vip_address'],
+            ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY:
                 loadbalancer.get('vip_port_id') or port['id'],
             'enabled': str(loadbalancer['admin_state_up'])}
         # In case vip_fip was passed - use it.
-        vip_fip = loadbalancer.get(LB_EXT_IDS_VIP_FIP_KEY)
+        vip_fip = loadbalancer.get(ovn_const.LB_EXT_IDS_VIP_FIP_KEY)
         if vip_fip:
-            external_ids[LB_EXT_IDS_VIP_FIP_KEY] = vip_fip
+            external_ids[ovn_const.LB_EXT_IDS_VIP_FIP_KEY] = vip_fip
         # In case of lr_ref passed - use it.
-        lr_ref = loadbalancer.get(LB_EXT_IDS_LR_REF_KEY)
+        lr_ref = loadbalancer.get(ovn_const.LB_EXT_IDS_LR_REF_KEY)
         if lr_ref:
-            external_ids[LB_EXT_IDS_LR_REF_KEY] = lr_ref
+            external_ids[ovn_const.LB_EXT_IDS_LR_REF_KEY] = lr_ref
 
         try:
             self.ovn_nbdb_api.db_create(
@@ -937,7 +952,7 @@ class OvnProviderHelper(object):
             # NOTE(mjozefcz): In case of LS references where passed -
             # apply LS to the new LB. That could happend in case we
             # need another loadbalancer for other L4 protocol.
-            ls_refs = loadbalancer.get(LB_EXT_IDS_LS_REFS_KEY)
+            ls_refs = loadbalancer.get(ovn_const.LB_EXT_IDS_LS_REFS_KEY)
             if ls_refs:
                 try:
                     ls_refs = jsonutils.loads(ls_refs)
@@ -1000,7 +1015,8 @@ class OvnProviderHelper(object):
             return status
 
         try:
-            port_id = ovn_lbs[0].external_ids[LB_EXT_IDS_VIP_PORT_ID_KEY]
+            port_id = ovn_lbs[0].external_ids[
+                ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY]
             for ovn_lb in ovn_lbs:
                 status = self._lb_delete(loadbalancer, ovn_lb, status)
             # Clear the status dict of any key having [] value
@@ -1023,7 +1039,7 @@ class OvnProviderHelper(object):
         if loadbalancer['cascade']:
             # Delete all pools
             for key, value in ovn_lb.external_ids.items():
-                if key.startswith(LB_EXT_IDS_POOL_PREFIX):
+                if key.startswith(ovn_const.LB_EXT_IDS_POOL_PREFIX):
                     pool_id = key.split('_')[1]
                     # Delete all members in the pool
                     if value and len(value.split(',')) > 0:
@@ -1035,12 +1051,12 @@ class OvnProviderHelper(object):
                         {"id": pool_id,
                          "provisioning_status": constants.DELETED})
 
-                if key.startswith(LB_EXT_IDS_LISTENER_PREFIX):
+                if key.startswith(ovn_const.LB_EXT_IDS_LISTENER_PREFIX):
                     status['listeners'].append({
                         'id': key.split('_')[1],
                         'provisioning_status': constants.DELETED,
                         'operating_status': constants.OFFLINE})
-        ls_refs = ovn_lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY, {})
+        ls_refs = ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_LS_REFS_KEY, {})
         if ls_refs:
             try:
                 ls_refs = jsonutils.loads(ls_refs)
@@ -1061,7 +1077,7 @@ class OvnProviderHelper(object):
             commands.append(
                 self.ovn_nbdb_api.ls_lb_del(ls.uuid, ovn_lb.uuid,
                                             if_exists=True))
-        lr_ref = ovn_lb.external_ids.get(LB_EXT_IDS_LR_REF_KEY, {})
+        lr_ref = ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_LR_REF_KEY, {})
         if lr_ref:
             for lr in self.ovn_nbdb_api.tables[
                     'Logical_Router'].rows.values():
@@ -1395,7 +1411,7 @@ class OvnProviderHelper(object):
             # Remove Pool from Listener if it is associated
             listener_id = None
             for key, value in ovn_lb.external_ids.items():
-                if (key.startswith(LB_EXT_IDS_LISTENER_PREFIX) and
+                if (key.startswith(ovn_const.LB_EXT_IDS_LISTENER_PREFIX) and
                         pool_key in value):
                     external_ids[key] = value.split(':')[0] + ':'
                     commands.append(
@@ -1516,12 +1532,19 @@ class OvnProviderHelper(object):
     def _add_member(self, member, ovn_lb, pool_key):
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key]
+        if existing_members:
+            existing_members = existing_members.split(",")
         member_info = self._get_member_key(member)
-        if member_info in existing_members:
+        # TODO(mjozefcz): Remove this workaround in W release.
+        member_info_old = self._get_member_key(member, old_convention=True)
+        member_found = [x for x in existing_members
+                        if re.match(member_info_old, x)]
+        if member_found:
             # Member already present
             return
         if existing_members:
-            pool_data = {pool_key: existing_members + "," + member_info}
+            existing_members.append(member_info)
+            pool_data = {pool_key: ",".join(existing_members)}
         else:
             pool_data = {pool_key: member_info}
 
@@ -1577,10 +1600,18 @@ class OvnProviderHelper(object):
     def _remove_member(self, member, ovn_lb, pool_key):
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key].split(",")
-        member_info = self._get_member_key(member)
-        if member_info in existing_members:
+        # TODO(mjozefcz): Delete this workaround in W release.
+        # To support backward compatibility member
+        # could be defined as `member`_`id`_`ip`:`port`_`subnet_id`
+        # or defined as `member`_`id`_`ip`:`port
+        member_info_old = self._get_member_key(member, old_convention=True)
+
+        member_found = [x for x in existing_members
+                        if re.match(member_info_old, x)]
+        if member_found:
             commands = []
-            existing_members.remove(member_info)
+            existing_members.remove(member_found[0])
+
             if not existing_members:
                 pool_status = constants.OFFLINE
             else:
@@ -1588,17 +1619,14 @@ class OvnProviderHelper(object):
             pool_data = {pool_key: ",".join(existing_members)}
             commands.append(
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
-                                         ('external_ids', pool_data))
-            )
+                                         ('external_ids', pool_data)))
             external_ids[pool_key] = ",".join(existing_members)
             commands.extend(
-                self._refresh_lb_vips(ovn_lb.uuid, external_ids)
-            )
-
+                self._refresh_lb_vips(ovn_lb.uuid, external_ids))
             commands.extend(
                 self._update_lb_to_ls_association(
-                    ovn_lb, subnet_id=member['subnet_id'], associate=False)
-            )
+                    ovn_lb, subnet_id=member.get('subnet_id'),
+                    associate=False))
             self._execute_commands(commands)
             return pool_status
         else:
@@ -1724,22 +1752,6 @@ class OvnProviderHelper(object):
             if mem_addr_port == meminf.split('_')[2]:
                 return meminf.split('_')[1]
 
-    def get_member_info(self, pool_id):
-        '''Gets Member information
-
-        :param pool_id: ID of the Pool whose member information is reqd.
-        :param mem_addr_port: Combination of Member Address+Port. Default=None
-        :returns: List -- List of Member Address+Pool of all members in pool.
-        :returns:[None] -- if no member exists in the pool.
-        :raises: Exception if Loadbalancer is not found for a Pool ID
-        '''
-        existing_members = self._get_existing_pool_members(pool_id)
-        # Members are saved in OVN in the form of
-        # member1_UUID_IP:Port, member2_UUID_IP:Port
-        # Return the list of (UUID,IP:Port) for all members.
-        return [(meminf.split('_')[1], meminf.split(
-            '_')[2]) for meminf in existing_members.split(',')]
-
     def create_vip_port(self, project_id, lb_id, vip_d):
         port = {'port': {'name': ovn_const.LB_VIP_PORT_PREFIX + str(lb_id),
                          'network_id': vip_d['vip_network_id'],
@@ -1788,24 +1800,109 @@ class OvnProviderHelper(object):
         commands = []
 
         if fip_info['action'] == REQ_INFO_ACTION_ASSOCIATE:
-            external_ids[LB_EXT_IDS_VIP_FIP_KEY] = fip_info['vip_fip']
-            vip_fip_info = {LB_EXT_IDS_VIP_FIP_KEY: fip_info['vip_fip']}
+            external_ids[ovn_const.LB_EXT_IDS_VIP_FIP_KEY] = (
+                fip_info['vip_fip'])
+            vip_fip_info = {
+                ovn_const.LB_EXT_IDS_VIP_FIP_KEY: fip_info['vip_fip']}
             commands.append(
                 self.ovn_nbdb_api.db_set('Load_Balancer', ovn_lb.uuid,
                                          ('external_ids', vip_fip_info))
             )
         else:
-            external_ids.pop(LB_EXT_IDS_VIP_FIP_KEY)
+            external_ids.pop(ovn_const.LB_EXT_IDS_VIP_FIP_KEY)
             commands.append(
                 self.ovn_nbdb_api.db_remove(
                     'Load_Balancer', ovn_lb.uuid, 'external_ids',
-                    (LB_EXT_IDS_VIP_FIP_KEY))
+                    (ovn_const.LB_EXT_IDS_VIP_FIP_KEY))
             )
 
         commands.extend(
             self._refresh_lb_vips(ovn_lb.uuid, external_ids)
         )
         self._execute_commands(commands)
+
+    def handle_member_dvr(self, info):
+        pool_key, ovn_lb = self._find_ovn_lb_by_pool_id(info['pool_id'])
+        if not ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_VIP_FIP_KEY):
+            LOG.debug("LB %(lb)s has no FIP on VIP configured. "
+                      "There is no need to centralize member %(member)s "
+                      "traffic.",
+                      {'lb': ovn_lb.uuid, 'member': info['id']})
+            return
+
+        # Find out if member has FIP assigned.
+        network_driver = get_network_driver()
+        try:
+            subnet = network_driver.get_subnet(info['subnet_id'])
+            ls_name = ovn_utils.ovn_name(subnet.network_id)
+        except n_exc.NotFound:
+            LOG.exception('Subnet %s not found while trying to '
+                          'fetch its data.', info['subnet_id'])
+            return
+
+        try:
+            ls = self.ovn_nbdb_api.lookup('Logical_Switch', ls_name)
+        except idlutils.RowNotFound:
+            LOG.warning("Logical Switch %s not found."
+                        "Can't verify member FIP configuration.",
+                        ls_name)
+            return
+
+        fip = None
+        f = ovn_utils.remove_macs_from_lsp_addresses
+        for port in ls.ports:
+            if info['address'] in f(port.addresses):
+                # We found particular port
+                fip = self.ovn_nbdb_api.db_find_rows(
+                    'NAT', ('external_ids', '=', {
+                        ovn_const.OVN_FIP_PORT_EXT_ID_KEY: port.name})
+                ).execute(check_error=True)
+                fip = fip[0] if fip else fip
+                break
+
+        if not fip:
+            LOG.debug('Member %s has no FIP assigned.'
+                      'There is no need to modify its NAT.',
+                      info['id'])
+            return
+
+        if info['action'] == REQ_INFO_MEMBER_ADDED:
+            LOG.info('Member %(member)s is added to Load Balancer %(lb)s '
+                     'and both have FIP assigned. Member FIP %(fip)s '
+                     'needs to be centralized in those conditions. '
+                     'Deleting external_mac/logical_port from it.',
+                     {'member': info['id'],
+                      'lb': ovn_lb.uuid,
+                      'fip': fip.external_ip})
+            self.ovn_nbdb_api.db_clear(
+                'NAT', fip.uuid, 'external_mac').execute(check_error=True)
+            self.ovn_nbdb_api.db_clear(
+                'NAT', fip.uuid, 'logical_port').execute(check_error=True)
+        else:
+            LOG.info('Member %(member)s is deleted from Load Balancer '
+                     '%(lb)s. and both have FIP assigned. Member FIP %(fip)s '
+                     'can be decentralized now if environment has DVR enabled.'
+                     'Updating FIP object for recomputation.',
+                     {'member': info['id'],
+                      'lb': ovn_lb.uuid,
+                      'fip': fip.external_ip})
+            # NOTE(mjozefcz): We don't know if this env is DVR or not.
+            # We should call neutron API to do 'empty' update of the FIP.
+            # It will bump revision number and do recomputation of the FIP.
+            try:
+                fip_info = network_driver.neutron_client.show_floatingip(
+                    fip.external_ids[ovn_const.OVN_FIP_EXT_ID_KEY])
+                empty_update = {
+                    "floatingip": {
+                        'description': fip_info['floatingip']['description']}}
+                network_driver.neutron_client.update_floatingip(
+                    fip.external_ids[ovn_const.OVN_FIP_EXT_ID_KEY],
+                    empty_update)
+            except n_exc.NotFound:
+                LOG.warning('Members %(member)s FIP %(fip)s not found in '
+                            'Neutron. Can not update it.',
+                            {'member': info['id'],
+                             'fip': fip.external_ip})
 
 
 class OvnProviderDriver(driver_base.ProviderDriver):
@@ -1959,7 +2056,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
 
     def _ip_version_differs(self, member):
         _, ovn_lb = self._ovn_helper._find_ovn_lb_by_pool_id(member.pool_id)
-        lb_vip = ovn_lb.external_ids[LB_EXT_IDS_VIP_KEY]
+        lb_vip = ovn_lb.external_ids[ovn_const.LB_EXT_IDS_VIP_KEY]
         return netaddr.IPNetwork(lb_vip).version != (
             netaddr.IPNetwork(member.address).version)
 
@@ -1972,7 +2069,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         if self._ip_version_differs(member):
             raise IPVersionsMixingNotSupportedError()
         admin_state_up = member.admin_state_up
-        if isinstance(member.subnet_id, o_datamodels.UnsetType):
+        if (isinstance(member.subnet_id, o_datamodels.UnsetType) or
+                not member.subnet_id):
             msg = _('Subnet is required for Member creation'
                     ' with OVN Provider Driver')
             raise driver_exceptions.UnsupportedOptionError(
@@ -1991,6 +2089,18 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                    'info': request_info}
         self._ovn_helper.add_request(request)
 
+        # NOTE(mjozefcz): If LB has FIP on VIP
+        # and member has FIP we need to centralize
+        # traffic for member.
+        request_info = {'id': member.member_id,
+                        'address': member.address,
+                        'pool_id': member.pool_id,
+                        'subnet_id': member.subnet_id,
+                        'action': REQ_INFO_MEMBER_ADDED}
+        request = {'type': REQ_TYPE_HANDLE_MEMBER_DVR,
+                   'info': request_info}
+        self._ovn_helper.add_request(request)
+
     def member_delete(self, member):
         request_info = {'id': member.member_id,
                         'address': member.address,
@@ -1998,6 +2108,17 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                         'pool_id': member.pool_id,
                         'subnet_id': member.subnet_id}
         request = {'type': REQ_TYPE_MEMBER_DELETE,
+                   'info': request_info}
+        self._ovn_helper.add_request(request)
+        # NOTE(mjozefcz): If LB has FIP on VIP
+        # and member had FIP we can decentralize
+        # the traffic now.
+        request_info = {'id': member.member_id,
+                        'address': member.address,
+                        'pool_id': member.pool_id,
+                        'subnet_id': member.subnet_id,
+                        'action': REQ_INFO_MEMBER_DELETED}
+        request = {'type': REQ_TYPE_HANDLE_MEMBER_DVR,
                    'info': request_info}
         self._ovn_helper.add_request(request)
 
@@ -2037,25 +2158,45 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
-        current_members = self._ovn_helper.get_member_info(pool_id)
-        # current_members gets a list of tuples (ID, IP:Port) for pool members
+        pool_key, ovn_lb = self._ovn_helper._find_ovn_lb_by_pool_id(pool_id)
+        external_ids = copy.deepcopy(ovn_lb.external_ids)
+        existing_members = external_ids[pool_key].split(',')
+        members_to_delete = copy.copy(existing_members)
         for member in members:
             if (self._check_monitor_options(member) or
                     member.address and self._ip_version_differs(member)):
                 skipped_members.append(member.member_id)
                 continue
+            # NOTE(mjozefcz): We need to have subnet_id information.
+            if (isinstance(member.subnet_id, o_datamodels.UnsetType) or
+                    not member.subnet_id):
+                msg = _('Subnet is required for Member creation'
+                        ' with OVN Provider Driver')
+                raise driver_exceptions.UnsupportedOptionError(
+                    user_fault_string=msg,
+                    operator_fault_string=msg)
             admin_state_up = member.admin_state_up
             if isinstance(admin_state_up, o_datamodels.UnsetType):
                 admin_state_up = True
-            mem_addr_port = str(member.address) + ':' + str(
-                member.protocol_port)
-            if (member.member_id, mem_addr_port) not in current_members:
+
+            member_info = self._ovn_helper._get_member_key(member)
+            # TODO(mjozefcz): Remove this workaround in W release.
+            member_info_old = self._ovn_helper._get_member_key(
+                member, old_convention=True)
+            member_found = [x for x in existing_members
+                            if re.match(member_info_old, x)]
+            if not member_found:
                 req_type = REQ_TYPE_MEMBER_CREATE
             else:
                 # If member exists in pool, then Update
                 req_type = REQ_TYPE_MEMBER_UPDATE
-                current_members.remove((member.member_id, mem_addr_port))
                 # Remove all updating members so only deleted ones are left
+                # TODO(mjozefcz): Remove this workaround in W release.
+                try:
+                    members_to_delete.remove(member_info_old)
+                except ValueError:
+                    members_to_delete.remove(member_info)
+
             request_info = {'id': member.member_id,
                             'address': member.address,
                             'protocol_port': member.protocol_port,
@@ -2065,14 +2206,19 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             request = {'type': req_type,
                        'info': request_info}
             request_list.append(request)
-        for cmember in current_members:
-            request_info = {'id': cmember[0],
-                            'address': cmember[1].split(':')[0],
-                            'protocol_port': cmember[1].split(':')[1],
+
+        for member in members_to_delete:
+            member_info = member.split('_')
+            request_info = {'id': member_info[1],
+                            'address': member_info[2].split(':')[0],
+                            'protocol_port': member_info[2].split(':')[1],
                             'pool_id': pool_id}
+            if len(member_info) == 4:
+                request_info['subnet_id'] = member_info[3]
             request = {'type': REQ_TYPE_MEMBER_DELETE,
                        'info': request_info}
             request_list.append(request)
+
         for request in request_list:
             self._ovn_helper.add_request(request)
         if skipped_members:
