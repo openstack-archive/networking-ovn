@@ -1594,11 +1594,10 @@ class OVNClient(object):
             'mtu': str(mtu),
         }
 
-        net_dns_domain = network.get('dns_domain', '').rstrip('.')
-        if net_dns_domain:
+        if cfg.CONF.dns_domain and cfg.CONF.dns_domain != 'openstacklocal':
             # NOTE(mjozefcz): String field should be with quotes,
             # otherwise ovn will try to resolve it as variable.
-            options['domain_name'] = '"%s"' % net_dns_domain
+            options['domain_name'] = '"%s"' % cfg.CONF.dns_domain
 
         if subnet['gateway_ip']:
             options['router'] = subnet['gateway_ip']
