@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Upon adding an IP address to the allowed_address_pairs field of a
+    Neutron's port, networking-ovn will look if that IP address matches
+    with the IP of an existing port in the same network and set its
+    type to "virtual" (if it does match). By doing that, networking-ovn
+    tells OVN that this virtual port is not bound to any VIF (required
+    for VRRP configuration).

@@ -141,6 +141,9 @@ class FakeOvsdbNbOvnIdl(object):
         self.db_set = mock.Mock()
         self.db_clear = mock.Mock()
         self.db_remove = mock.Mock()
+        self.set_lswitch_port_to_virtual_type = mock.Mock()
+        self.unset_lswitch_port_to_virtual_type = mock.Mock()
+        self.ls_get = mock.Mock()
 
 
 class FakeOvsdbSbOvnIdl(object):
@@ -160,6 +163,8 @@ class FakeOvsdbSbOvnIdl(object):
         self.get_chassis_and_physnets = mock.Mock()
         self.get_gateway_chassis_from_cms_options = mock.Mock()
         self.db_set = mock.Mock()
+        self.is_col_present = mock.Mock()
+        self.is_col_present.return_value = False
 
 
 class FakeOvsdbTransaction(object):
