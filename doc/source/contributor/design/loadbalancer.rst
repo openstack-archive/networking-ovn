@@ -285,9 +285,6 @@ Following actions are not supported by OVN Driver:
 - Currently only one algorithm is supported for pool management
   (Source IP Port)
 
-- Creating Listeners and Pools with different protocols. They should be of the
-  same protocol type.
-
 Following issue exists with OVN's integration with Octavia:
 
 - If creation/deletion of a LoadBalancer, Listener, Pool or Member fails, then

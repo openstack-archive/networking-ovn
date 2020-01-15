@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    OVN Octavia provider driver now supports both TCP and UDP
+    pool/listener protocols configured in the same Octavia Load Balancer.
