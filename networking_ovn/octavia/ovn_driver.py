@@ -602,13 +602,29 @@ class OvnProviderHelper(object):
             ls_name = ovn_utils.ovn_name(network_id)
         else:
             network_driver = get_network_driver()
-            subnet = network_driver.get_subnet(subnet_id)
-            ls_name = ovn_utils.ovn_name(subnet.network_id)
+            try:
+                subnet = network_driver.get_subnet(subnet_id)
+                ls_name = ovn_utils.ovn_name(subnet.network_id)
+            except n_exc.NotFound:
+                LOG.warning('Subnet %s not found while trying to '
+                            'fetch its data.', subnet_id)
+                ls_name = None
+                ovn_ls = None
 
-        ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
-            check_error=True)
-        if not ovn_ls:
-            return commands
+        if ls_name:
+            try:
+                ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
+                    check_error=True)
+            except idlutils.RowNotFound:
+                LOG.warning("LogicalSwitch %s could not be found.",
+                            ls_name)
+                if associate:
+                    LOG.warning('Cannot associate LB %(lb)s to '
+                                'LS %(ls)s because LS row '
+                                'not found in OVN NBDB. Exiting.',
+                                {'ls': ls_name, 'lb': ovn_lb.name})
+                    return commands
+                ovn_ls = None
 
         ls_refs = ovn_lb.external_ids.get(LB_EXT_IDS_LS_REFS_KEY)
         if ls_refs:
@@ -619,14 +635,15 @@ class OvnProviderHelper(object):
         else:
             ls_refs = {}
 
-        if associate:
+        if associate and ls_name:
             if ls_name in ls_refs:
                 ref_ct = ls_refs[ls_name]
                 ls_refs[ls_name] = ref_ct + 1
             else:
                 ls_refs[ls_name] = 1
-                commands.append(self.ovn_nbdb_api.ls_lb_add(
-                    ovn_ls.uuid, ovn_lb.uuid, may_exist=True))
+                if ovn_ls:
+                    commands.append(self.ovn_nbdb_api.ls_lb_add(
+                        ovn_ls.uuid, ovn_lb.uuid, may_exist=True))
         else:
             if ls_name not in ls_refs:
                 # Nothing to be done.
@@ -635,8 +652,9 @@ class OvnProviderHelper(object):
             ref_ct = ls_refs[ls_name]
             if ref_ct == 1:
                 del ls_refs[ls_name]
-                commands.append(self.ovn_nbdb_api.ls_lb_del(
-                    ovn_ls.uuid, ovn_lb.uuid, if_exists=True))
+                if ovn_ls:
+                    commands.append(self.ovn_nbdb_api.ls_lb_del(
+                        ovn_ls.uuid, ovn_lb.uuid, if_exists=True))
             else:
                 ls_refs[ls_name] = ref_ct - 1
 
@@ -708,18 +726,21 @@ class OvnProviderHelper(object):
             return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
 
     def _find_ls_for_lr(self, router):
-        # NOTE(mjozefcz): We skip here ports connected to
-        # provider networks (with gateway_chassis set).
         netdriver = get_network_driver()
-        try:
-            return [ovn_utils.ovn_name(netdriver.get_subnet(sid).network_id)
-                    for port in router.ports
-                    for sid in port.external_ids.get(
-                        ovn_const.OVN_SUBNET_EXT_IDS_KEY, '').split(' ')
-                    if not port.gateway_chassis]
-        except Exception:
-            LOG.exception('Unknown exception occurred')
-            return []
+        ls = []
+        for port in router.ports:
+            if port.gateway_chassis:
+                continue
+            sids = port.external_ids.get(
+                ovn_const.OVN_SUBNET_EXT_IDS_KEY, '').split(' ')
+            for sid in sids:
+                try:
+                    ls.append(ovn_utils.ovn_name(
+                        netdriver.get_subnet(sid).network_id))
+                except n_exc.NotFound:
+                    LOG.exception('Subnet %s not found while trying to '
+                                  'fetch its data.', sid)
+        return ls
 
     def _find_lr_of_ls(self, ovn_ls):
         lsp_router_port = None
@@ -1027,7 +1048,7 @@ class OvnProviderHelper(object):
                 )
             except idlutils.RowNotFound:
                 LOG.warning("LogicalSwitch %s could not be found. Cannot "
-                            "delete LB from it", ovn_ls.uuid)
+                            "delete Load Balancer from it", ls_name)
         # Delete LB from all Networks the LB is indirectly associated
         for ls in self._find_lb_in_table(ovn_lb, 'Logical_Switch'):
             commands.append(

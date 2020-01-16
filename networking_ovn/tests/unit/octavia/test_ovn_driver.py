@@ -2017,6 +2017,24 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                              res)
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test__find_ls_for_lr_subnet_not_found(self, net_dr):
+        fake_subnet1 = fakes.FakeSubnet.create_one_subnet()
+        fake_subnet1.network_id = 'foo1'
+        fake_subnet2 = fakes.FakeSubnet.create_one_subnet()
+        fake_subnet2.network_id = 'foo2'
+        net_dr.return_value.get_subnet.side_effect = [
+            fake_subnet1, n_exc.NotFound]
+        p1 = fakes.FakeOVNPort.create_one_port(attrs={
+            'gateway_chassis': [],
+            'external_ids': {
+                ovn_const.OVN_SUBNET_EXT_IDS_KEY:
+                '%s %s' % (fake_subnet1.id,
+                           fake_subnet2.id)}})
+        self.router.ports.append(p1)
+        res = self.helper._find_ls_for_lr(self.router)
+        self.assertListEqual(['neutron-foo1'], res)
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     def test__find_ls_for_lr_gw_port(self, net_dr):
         p1 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': ['foo-gw-chassis'],
@@ -2201,7 +2219,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
     def test__update_lb_to_ls_association_no_ls(self, net_dr):
         self._update_lb_to_ls_association.stop()
         (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
-            return_value) = None
+            side_effect) = [idlutils.RowNotFound]
 
         returned_commands = self.helper._update_lb_to_ls_association(
             self.ref_lb1, network_id=self.network.uuid)
@@ -2225,6 +2243,33 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             ('external_ids', {'ls_refs': '{}'}))
         self.helper.ovn_nbdb_api.ls_lb_del.assert_called_once_with(
             self.network.uuid, self.ref_lb1.uuid, if_exists=True)
+
+    def test__update_lb_to_ls_association_network_dis_ls_not_found(self):
+        self._update_lb_to_ls_association.stop()
+        (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
+            side_effect) = [idlutils.RowNotFound]
+
+        self.helper._update_lb_to_ls_association(
+            self.ref_lb1, network_id=self.network.uuid, associate=False)
+
+        self.helper.ovn_nbdb_api.ls_get.assert_called_once_with(
+            self.network.name)
+        self.helper.ovn_nbdb_api.db_set.assert_called_once_with(
+            'Load_Balancer', self.ref_lb1.uuid,
+            ('external_ids', {'ls_refs': '{}'}))
+        self.helper.ovn_nbdb_api.ls_lb_del.assert_not_called()
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test__update_lb_to_ls_association_network_dis_net_not_found(self, gn):
+        gn.return_value.get_subnet.side_effect = n_exc.NotFound
+        self._update_lb_to_ls_association.stop()
+        (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
+            return_value) = self.network
+        self.helper._update_lb_to_ls_association(
+            self.ref_lb1, subnet_id='foo', associate=False)
+        self.helper.ovn_nbdb_api.ls_get.assert_not_called()
+        self.helper.ovn_nbdb_api.db_set.assert_not_called()
+        self.helper.ovn_nbdb_api.ls_lb_del.assert_not_called()
 
     def test__update_lb_to_ls_association_disassoc_ls_not_in_ls_refs(self):
         self._update_lb_to_ls_association.stop()
