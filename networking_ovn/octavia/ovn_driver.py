@@ -1777,9 +1777,12 @@ class OvnProviderHelper(object):
 
 
 class OvnProviderDriver(driver_base.ProviderDriver):
+    _ovn_helper = None
+
     def __init__(self):
         super(OvnProviderDriver, self).__init__()
-        self._ovn_helper = OvnProviderHelper()
+        if not OvnProviderDriver._ovn_helper:
+            OvnProviderDriver._ovn_helper = OvnProviderHelper()
 
     def _check_for_supported_protocols(self, protocol):
         if protocol not in OVN_NATIVE_LB_PROTOCOLS:
