@@ -106,23 +106,6 @@
   when:
       - not infrared_deployment|bool
 
-
-- name: Generate ovn container images
-  shell: |
-      echo "container_images:" > ~/ovn_container_images.yaml
-  args:
-      creates: ~/ovn_container_images.yaml
-
-- name: Add ovn container images to ovn_container_images.yaml
-  lineinfile:
-      dest: ~/ovn_container_images.yaml
-      line: "- imagename: {{ reg_namespace }}/{{ image_prefix }}-{{ item }}:{{ docker_image_tag }}"
-  with_items:
-      - "ovn-northd"
-      - "ovn-controller"
-      - "neutron-server-ovn"
-      - "neutron-metadata-agent-ovn"
-
 - name: Generate docker images environment file
   shell: |
       echo "parameter_defaults:" > ~/docker-images-ovn.yaml
@@ -175,6 +158,7 @@
 
 - name: Upload the ovn docker images to the local registry
   shell: |
-      source ~/stackrc
-      openstack overcloud container image upload --verbose --config-file ~/ovn_container_images.yaml
+      source /home/stack/stackrc
+      openstack tripleo container image prepare --environment-file /home/stack/containers-prepare-parameter.yaml
+  become: yes
   changed_when: False
