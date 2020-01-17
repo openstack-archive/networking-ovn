@@ -14,6 +14,7 @@
 
 import atexit
 import copy
+import re
 import threading
 
 import netaddr
@@ -240,6 +241,14 @@ class OvnProviderHelper(object):
         """Check if there is no pool or listener defined."""
         return not any([k.startswith('listener') or k.startswith('pool')
                         for k in external_ids])
+
+    @staticmethod
+    def _delete_disabled_from_status(status):
+        d_regex = ':%s$' % DISABLED_RESOURCE_SUFFIX
+        return {
+            k: [{c: re.sub(d_regex, '', d) for c, d in i.items()}
+                for i in v]
+            for k, v in status.items()}
 
     def _check_and_set_ssl_files(self):
         # TODO(reedip): Make ovsdb_monitor's _check_and_set_ssl_files() public
@@ -471,6 +480,8 @@ class OvnProviderHelper(object):
 
     def _update_status_to_octavia(self, status):
         try:
+            status = OvnProviderHelper._delete_disabled_from_status(status)
+            LOG.debug('Updating status to octavia: %s', status)
             self._octavia_driver_lib.update_loadbalancer_status(status)
         except driver_exceptions.UpdateStatusError as e:
             msg = ("Error while updating the load balancer "

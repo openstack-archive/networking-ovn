@@ -764,6 +764,27 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.ovn_lb.external_ids.pop('pool_%s' % self.pool_id)
         self.assertTrue(f(self.ovn_lb.external_ids))
 
+    def test__delete_disabled_from_status(self):
+        f = self.helper._delete_disabled_from_status
+        status = {
+            'pools': [
+                {'id': 'f:D', 'provisioning_status': 'ACTIVE',
+                 'operating_status': 'ONLINE'}],
+            'members': [
+                {'id': 'foo:D',
+                 'provisioning_status': 'ACTIVE'}]}
+        expected = {
+            'pools': [
+                {'id': 'f', 'provisioning_status': 'ACTIVE',
+                 'operating_status': 'ONLINE'}],
+            'members': [
+                {'id': 'foo',
+                 'provisioning_status': 'ACTIVE'}]}
+        self.assertEqual(f(status), expected)
+        self.assertEqual(f(expected), expected)
+        status = {}
+        self.assertEqual(f(status), {})
+
     def test__find_ovn_lbs(self):
         self.mock_find_ovn_lbs.stop()
         f = self.helper._find_ovn_lbs
