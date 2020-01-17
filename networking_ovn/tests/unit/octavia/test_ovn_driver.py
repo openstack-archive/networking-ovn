@@ -1005,8 +1005,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
     def test_lb_delete_port_not_found(self, del_port, net_dr):
-        net_dr.return_value.neutron_client.delete_port.return_value = None
-        del_port.side_effect = [n_exc.PortNotFoundClient]
+        net_dr.return_value.neutron_client.delete_port.side_effect = (
+            [n_exc.PortNotFoundClient])
         status = self.helper.lb_delete(self.ovn_lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.DELETED)
@@ -2519,6 +2519,56 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             expected_call = [
                 mock.call().neutron_client.create_port(expected_dict)]
             gn.assert_has_calls(expected_call)
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_create_vip_port_vip_selected_already_exist(self, net_dr):
+        net_dr.return_value.neutron_client.create_port.side_effect = [
+            n_exc.IpAddressAlreadyAllocatedClient]
+        net_dr.return_value.neutron_client.list_ports.return_value = {
+            'ports': [
+                {'name': 'ovn-lb-vip-' + self.loadbalancer_id,
+                 'id': self.loadbalancer_id}]}
+        self.vip_dict['vip_address'] = '10.1.10.1'
+        ret = self.helper.create_vip_port(
+            self.project_id,
+            self.loadbalancer_id,
+            self.vip_dict)
+        expected = {
+            'port': {
+                'name': '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                                  self.loadbalancer_id),
+                'id': self.loadbalancer_id}}
+        self.assertDictEqual(expected, ret)
+        expected_call = [
+            mock.call().neutron_client.list_ports(
+                network_id='%s' % self.vip_dict['vip_network_id'],
+                name='%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                               self.loadbalancer_id))]
+        net_dr.assert_has_calls(expected_call)
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_create_vip_port_vip_selected_other_allocation_exist(self, net_dr):
+        net_dr.return_value.neutron_client.create_port.side_effect = [
+            n_exc.IpAddressAlreadyAllocatedClient]
+        net_dr.return_value.neutron_client.list_ports.return_value = {
+            'ports': []}
+        self.vip_dict['vip_address'] = '10.1.10.1'
+        ret = self.helper.create_vip_port(
+            self.project_id,
+            self.loadbalancer_id,
+            self.vip_dict)
+        self.assertIsNone(ret)
+        expected_call = [
+            mock.call().neutron_client.list_ports(
+                network_id='%s' % self.vip_dict['vip_network_id'],
+                name='%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                               self.loadbalancer_id))]
+        net_dr.assert_has_calls(expected_call)
+        self.helper._update_status_to_octavia.assert_called_once_with(
+            {'loadbalancers':
+                [{'id': self.loadbalancer_id,
+                  'provisioning_status': 'ERROR',
+                  'operating_status': 'ERROR'}]})
 
     def test_get_member_info(self):
         ret = self.helper.get_member_info(self.pool_id)

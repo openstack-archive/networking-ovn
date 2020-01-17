@@ -1014,12 +1014,8 @@ class OvnProviderHelper(object):
                 'loadbalancers': [{"id": loadbalancer['id'],
                                    "provisioning_status": constants.ERROR,
                                    "operating_status": constants.ERROR}]}
-        try:
-            # Delete VIP port from neutron.
-            self.delete_vip_port(port_id)
-        except n_exc.PortNotFoundClient:
-            LOG.warning("Port %s could not be found. Please "
-                        "check Neutron logs", port_id)
+        # Delete VIP port from neutron.
+        self.delete_vip_port(port_id)
         return status
 
     def _lb_delete(self, loadbalancer, ovn_lb, status):
@@ -1755,11 +1751,36 @@ class OvnProviderHelper(object):
         except KeyError:
             pass
         network_driver = get_network_driver()
-        return network_driver.neutron_client.create_port(port)
+        try:
+            return network_driver.neutron_client.create_port(port)
+        except n_exc.IpAddressAlreadyAllocatedClient:
+            # Sometimes the VIP is already created (race-conditions)
+            # Lets get the it from Neutron API.
+            ports = network_driver.neutron_client.list_ports(
+                network_id=vip_d['vip_network_id'],
+                name='%s%s' % (ovn_const.LB_VIP_PORT_PREFIX, lb_id))
+            if not ports['ports']:
+                LOG.error('Cannot create/get LoadBalancer VIP port with '
+                          'fixed IP: %s', vip_d['vip_address'])
+                status = {'loadbalancers': [{
+                    "id": lb_id,
+                    "provisioning_status": constants.ERROR,
+                    "operating_status": constants.ERROR}]}
+                self._update_status_to_octavia(status)
+                return
+            # there should only be one port returned
+            port = ports['ports'][0]
+            LOG.debug('VIP Port already exists, uuid: %s', port['id'])
+            return {'port': port}
 
     def delete_vip_port(self, port_id):
         network_driver = get_network_driver()
-        network_driver.neutron_client.delete_port(port_id)
+        try:
+            network_driver.neutron_client.delete_port(port_id)
+        except n_exc.PortNotFoundClient:
+            LOG.warning("Port %s could not be found. Please "
+                        "check Neutron logs. Perhaps port "
+                        "was already deleted.", port_id)
 
     def handle_vip_fip(self, fip_info):
         ovn_lb = fip_info['ovn_lb']
