@@ -507,7 +507,8 @@ class OVNMechanismDriver(api.MechanismDriver):
             if not utils.is_lsp_router_port(original_port):
                 db_rev.create_initial_revision(port['id'],
                                                ovn_const.TYPE_ROUTER_PORTS,
-                                               context._plugin_context.session)
+                                               context._plugin_context.session,
+                                               may_exist=True)
 
     def update_port_postcommit(self, context):
         """Update a port.
