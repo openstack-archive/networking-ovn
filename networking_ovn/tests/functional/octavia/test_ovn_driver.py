@@ -292,7 +292,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             for expected_status in expected_statuses:
                 for updated_status in updated_statuses:
                     # Find status update having equal keys
-                    if updated_status.keys() == expected_status.keys():
+                    if (sorted(updated_status.keys()) ==
+                            sorted(expected_status.keys())):
                         val_check = []
                         # Withing this status update check if all values of
                         # expected keys match.
