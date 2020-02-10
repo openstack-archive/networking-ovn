@@ -13,6 +13,7 @@
 #
 import collections
 import copy
+import uuid
 
 import mock
 
@@ -706,6 +707,20 @@ class TestNBImplIdlOvn(TestDBImplIdlOvn):
         self._load_nb_db()
         address_sets = self.nb_ovn_idl.get_address_sets()
         self.assertEqual(len(address_sets), 4)
+
+    def test_get_port_group_not_supported(self):
+        self._load_nb_db()
+        # Make sure that PG tables doesn't exist in fake db.
+        self._tables.pop('Port_Group', None)
+        port_group = self.nb_ovn_idl.get_port_group(str(uuid.uuid4()))
+        self.assertIsNone(port_group)
+
+    def test_get_port_groups_not_supported(self):
+        self._load_nb_db()
+        # Make sure that PG tables doesn't exist in fake db.
+        self._tables.pop('Port_Group', None)
+        port_groups = self.nb_ovn_idl.get_port_groups()
+        self.assertEqual({}, port_groups)
 
 
 class TestSBImplIdlOvn(TestDBImplIdlOvn):
