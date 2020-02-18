@@ -339,14 +339,10 @@ class OVNClient(object):
                 'dhcpv6_options': dhcpv6_options
             }
 
-            # TODO(lucasgomes): Remove this workaround in the future,
-            # the core OVN version >= 2.12 supports the "virtual" port
-            # type which deals with these situations.
             # NOTE(mjozefcz): Do not set addresses if the port is not
-            # bound and has no device_owner - possibly it is a VirtualIP
-            # port used for Octavia (VRRP).
+            # bound, has no device_owner and it is OVN LB VIP port.
             # For more details check related bug #1789686.
-            if (not self._is_virtual_port_supported() and
+            if (port.get('name').startswith(ovn_const.LB_VIP_PORT_PREFIX) and
                 not port.get('device_owner') and
                 port.get(portbindings.VIF_TYPE) ==
                     portbindings.VIF_TYPE_UNBOUND):
@@ -501,14 +497,10 @@ class OVNClient(object):
             else:
                 dhcpv6_options = [port_info.dhcpv6_options['uuid']]
 
-            # TODO(lucasgomes): Remove this workaround in the future,
-            # the core OVN version >= 2.12 supports the "virtual" port
-            # type which deals with these situations.
             # NOTE(mjozefcz): Do not set addresses if the port is not
-            # bound and has no device_owner - possibly it is a VirtualIP
-            # port used for Octavia (VRRP).
+            # bound, has no device_owner and it is OVN LB VIP port.
             # For more details check related bug #1789686.
-            if (not self._is_virtual_port_supported() and
+            if (port.get('name').startswith(ovn_const.LB_VIP_PORT_PREFIX) and
                 not port.get('device_owner') and
                 port.get(portbindings.VIF_TYPE) ==
                     portbindings.VIF_TYPE_UNBOUND):
