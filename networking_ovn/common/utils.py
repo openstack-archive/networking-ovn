@@ -20,6 +20,7 @@ from neutron_lib.api.definitions import external_net
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import port_security as psec
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.api import validators
 from neutron_lib import constants as const
 from neutron_lib import context as n_context
@@ -444,3 +445,15 @@ def is_neutron_dhcp_agent_port(port):
     return (port['device_owner'] == const.DEVICE_OWNER_DHCP and
             (port['device_id'] == const.DEVICE_ID_RESERVED_DHCP_PORT or
              port['device_id'].startswith('dhcp')))
+
+
+def is_gateway_chassis(chassis):
+    """Check if the given chassis is a gateway chassis"""
+    external_ids = getattr(chassis, 'external_ids', {})
+    return ('enable-chassis-as-gw' in external_ids.get(
+        'ovn-cms-options', '').split(','))
+
+
+def get_port_capabilities(port):
+    """Return a list of port's capabilities"""
+    return port.get(portbindings.PROFILE, {}).get('capabilities', [])

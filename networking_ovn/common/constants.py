@@ -184,12 +184,18 @@ MAX_GW_CHASSIS = 5
 
 UNKNOWN_ADDR = 'unknown'
 
+PORT_CAP_SWITCHDEV = 'switchdev'
+
 # TODO(lucasagomes): Create constants for other LSP types
 LSP_TYPE_LOCALNET = 'localnet'
 LSP_TYPE_VIRTUAL = 'virtual'
+LSP_TYPE_EXTERNAL = 'external'
 LSP_OPTIONS_VIRTUAL_PARENTS_KEY = 'virtual-parents'
 LSP_OPTIONS_VIRTUAL_IP_KEY = 'virtual-ip'
 
 # OVN igmp options
 MCAST_SNOOP = 'mcast_snoop'
 MCAST_FLOOD_UNREGISTERED = 'mcast_flood_unregistered'
+
+HA_CHASSIS_GROUP_DEFAULT_NAME = 'default_ha_chassis_group'
+HA_CHASSIS_GROUP_HIGHEST_PRIORITY = 32767

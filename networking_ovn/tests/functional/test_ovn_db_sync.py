@@ -903,15 +903,15 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         port and that every metadata port in Neutron also exists in OVN.
         """
         db_ports = self._list('ports')
-        db_metadata_ports_ids = []
-        db_metadata_ports_nets = []
+        db_metadata_ports_ids = set()
+        db_metadata_ports_nets = set()
         for port in db_ports['ports']:
             if (port['device_owner'] == constants.DEVICE_OWNER_DHCP and
                     port['device_id'].startswith('ovnmeta')):
-                db_metadata_ports_ids.append(port['id'])
-                db_metadata_ports_nets.append(port['network_id'])
+                db_metadata_ports_ids.add(port['id'])
+                db_metadata_ports_nets.add(port['network_id'])
         db_networks = self._list('networks')
-        db_net_ids = [net['id'] for net in db_networks['networks']]
+        db_net_ids = {net['id'] for net in db_networks['networks']}
 
         # Retrieve all localports in OVN
         _plugin_nb_ovn = self.mech_driver._nb_ovn

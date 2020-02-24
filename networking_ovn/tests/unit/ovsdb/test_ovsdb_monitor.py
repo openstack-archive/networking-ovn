@@ -30,6 +30,7 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import hash_ring_manager
+from networking_ovn.common import utils as ovn_utils
 from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.tests import base
@@ -479,3 +480,89 @@ class TestPortBindingChassisUpdateEvent(base.TestCase):
                              'type': '_fake_', 'logical_port': 'foo'}),
             ovsdb_row(attrs={'_table': pbtable, 'chassis': 'two',
                              'type': '_fake_'}))
+
+
+class TestChassisEvent(base.TestCase):
+
+    def setUp(self):
+        super(TestChassisEvent, self).setUp()
+        self.driver = mock.Mock()
+        self.nb_ovn = self.driver._nb_ovn
+        self.driver._ovn_client.is_external_ports_supported.return_value = True
+        self.event = ovsdb_monitor.ChassisEvent(self.driver)
+        self.is_gw_ch_mock = mock.patch.object(
+            ovn_utils, 'is_gateway_chassis').start()
+        self.is_gw_ch_mock.return_value = True
+
+    def test_handle_ha_chassis_group_changes_create_not_gw(self):
+        self.is_gw_ch_mock.return_value = False
+        # Assert chassis is ignored because it's not a gateway chassis
+        self.assertIsNone(self.event.handle_ha_chassis_group_changes(
+            self.event.ROW_CREATE, mock.Mock(), mock.Mock()))
+        self.assertFalse(self.nb_ovn.ha_chassis_group_add_chassis.called)
+        self.assertFalse(self.nb_ovn.ha_chassis_group_del_chassis.called)
+
+    def _test_handle_ha_chassis_group_changes_create(self, event):
+        row = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'name': 'SpongeBob'})
+        ch0 = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'priority': 10})
+        ch1 = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'priority': 9})
+        default_grp = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'ha_chassis': [ch0, ch1]})
+        self.nb_ovn.ha_chassis_group_get.return_value.execute.return_value = (
+            default_grp)
+        self.event.handle_ha_chassis_group_changes(event, row, mock.Mock())
+        # Assert the new chassis has been added to the default
+        # group with the lowest priority
+        self.nb_ovn.ha_chassis_group_add_chassis.assert_called_once_with(
+            ovn_const.HA_CHASSIS_GROUP_DEFAULT_NAME, 'SpongeBob', priority=8)
+
+    def test_handle_ha_chassis_group_changes_create(self):
+        self._test_handle_ha_chassis_group_changes_create(
+            self.event.ROW_CREATE)
+
+    def _test_handle_ha_chassis_group_changes_delete(self, event):
+        row = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'name': 'SpongeBob'})
+        self.event.handle_ha_chassis_group_changes(event, row, mock.Mock())
+        # Assert chassis was removed from the default group
+        self.nb_ovn.ha_chassis_group_del_chassis.assert_called_once_with(
+            ovn_const.HA_CHASSIS_GROUP_DEFAULT_NAME, 'SpongeBob',
+            if_exists=True)
+
+    def test_handle_ha_chassis_group_changes_delete(self):
+        self._test_handle_ha_chassis_group_changes_delete(
+            self.event.ROW_DELETE)
+
+    def test_handle_ha_chassis_group_changes_update_still_gw(self):
+        # Assert nothing was done because the update didn't
+        # change the gateway chassis status
+        self.assertIsNone(self.event.handle_ha_chassis_group_changes(
+            self.event.ROW_UPDATE, mock.Mock(), mock.Mock()))
+        self.assertFalse(self.nb_ovn.ha_chassis_group_add_chassis.called)
+        self.assertFalse(self.nb_ovn.ha_chassis_group_del_chassis.called)
+
+    def test_handle_ha_chassis_group_changes_update_no_longer_gw(self):
+        self.is_gw_ch_mock.side_effect = (False, True)
+        # Assert that the chassis was removed from the default group
+        # after it's no longer being a Gateway chassis
+        self._test_handle_ha_chassis_group_changes_delete(
+            self.event.ROW_UPDATE)
+
+    def test_handle_ha_chassis_group_changes_update_new_gw(self):
+        self.is_gw_ch_mock.side_effect = (True, False)
+        # Assert that the chassis was added to the default group
+        # after it became a Gateway chassis
+        self._test_handle_ha_chassis_group_changes_create(
+            self.event.ROW_UPDATE)
+
+    def test_handle_ha_chassis_group_changes_update_ext_id_not_found(self):
+        self.is_gw_ch_mock.side_effect = (True, False)
+        old = fakes.FakeOvsdbTable.create_one_ovsdb_table(
+            attrs={'name': 'SpongeBob'})
+        self.assertIsNone(self.event.handle_ha_chassis_group_changes(
+            self.event.ROW_UPDATE, mock.Mock(), old))
+        self.assertFalse(self.nb_ovn.ha_chassis_group_add_chassis.called)
+        self.assertFalse(self.nb_ovn.ha_chassis_group_del_chassis.called)

@@ -18,6 +18,7 @@ import fixtures
 from networking_ovn.common import constants
 from networking_ovn.common import utils
 from networking_ovn.tests import base
+from networking_ovn.tests.unit import fakes
 
 RESOLV_CONF_TEMPLATE = """# TEST TEST TEST
 # Geneated by OVN test
@@ -42,6 +43,20 @@ class TestUtils(base.TestCase):
         observed_dns_resolvers = utils.get_system_dns_resolvers(
             resolver_file=resolver_file_name)
         self.assertEqual(expected_dns_resolvers, observed_dns_resolvers)
+
+    def test_is_gateway_chassis(self):
+        chassis = fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={
+            'external_ids': {'ovn-cms-options': 'enable-chassis-as-gw'}})
+        non_gw_chassis_0 = fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={
+            'external_ids': {'ovn-cms-options': ''}})
+        non_gw_chassis_1 = fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={})
+        non_gw_chassis_2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={
+            'external_ids': {}})
+
+        self.assertTrue(utils.is_gateway_chassis(chassis))
+        self.assertFalse(utils.is_gateway_chassis(non_gw_chassis_0))
+        self.assertFalse(utils.is_gateway_chassis(non_gw_chassis_1))
+        self.assertFalse(utils.is_gateway_chassis(non_gw_chassis_2))
 
 
 class TestGateWayChassisValidity(base.TestCase):
