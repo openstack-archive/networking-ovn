@@ -10,6 +10,15 @@ source {{ overcloudrc }}
 
 server_ip=`cat {{ ovn_migration_temp_dir }}/server_public_ip`
 
+# WORKAROUND: There is a problem in core OVN where in DVR case of missing MAC_Bindings
+#             packets are sent from controller to compute via tunnel. Let the
+#             MAC_Bindings be created first before testing accessibility of a FIP.
+#             https://bugzilla.redhat.com/show_bug.cgi?id=1788193
+
+set +e
+ping -c 30 $server_ip
+set -e
+
 echo "Running ping test with -c 3 to the server ip - $server_ip"
 ping -c 3 $server_ip
 
