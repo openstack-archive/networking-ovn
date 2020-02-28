@@ -209,10 +209,10 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                     self.assertEqual(expected_lb, observed_lb)
                     found = True
             if not found:
-                raise Exception("Expected LB %(name)s for protocol %(proto)s "
-                                "not found in observed_lbs", {
-                                    'name': expected_lb.get('name'),
-                                    'proto': expected_lb.get('proto')})
+                raise Exception("Expected LB %s for protocol %s "
+                                "not found in observed_lbs" % (
+                                    expected_lb.get('name'),
+                                    expected_lb.get('proto')))
 
     def _is_lb_associated_to_ls(self, lb_name, ls_name):
         return self._is_lb_associated_to_tab(
