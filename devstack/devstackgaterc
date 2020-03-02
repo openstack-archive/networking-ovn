@@ -88,9 +88,8 @@ r="$r|(?:tempest\.api\.compute\.admin\.test_volume*)"
 r="$r|(?:tempest\.api\.compute\.admin\.test_hypervisor*)"
 r="$r|(?:tempest\.api\.compute\.admin\.test_aggregate*)"
 r="$r|(?:tempest\.api\.compute\.admin\.test_quota*)"
-
 r="$r|(?:tempest\.scenario\.test_volume*)"
-
+r="$r|(?:neutron_tempest_plugin\.scenario\.test_security_groups\.NetworkSecGroupTest\.test_multiple_ports_portrange_remote)"
 # End list of exclusions.
 r="$r)"
 
