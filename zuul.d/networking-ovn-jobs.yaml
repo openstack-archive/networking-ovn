@@ -236,8 +236,8 @@
     parent: networking-ovn-base
     vars:
       devstack_localrc:
-        OVN_BRANCH: branch-2.12
-        OVS_BRANCH: branch-2.12
+        OVN_BRANCH: v20.03.0
+        OVS_BRANCH: v2.13.0
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release-python2
@@ -245,8 +245,8 @@
     parent: networking-ovn-base
     vars:
       devstack_localrc:
-        OVN_BRANCH: branch-2.12
-        OVS_BRANCH: branch-2.12
+        OVN_BRANCH: v20.03.0
+        OVS_BRANCH: v2.13.0
         USE_PYTHON3: False
 
 - job:
