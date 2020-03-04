@@ -314,6 +314,7 @@ class OvnProviderHelper(object):
 
     def _clean_lb_if_empty(self, ovn_lb, lb_id, external_ids):
         commands = []
+        lb_to_delete = False
         if OvnProviderHelper._is_lb_empty(external_ids):
             # Verify if its only OVN LB defined. If so - leave with
             # undefined protocol. If there is different for other protocol
@@ -326,10 +327,11 @@ class OvnProviderHelper(object):
                 commands.append(
                     self.ovn_nbdb_api.db_set(
                         'Load_Balancer', ovn_lb.uuid, ('protocol', [])))
-            else:
+            elif len(defined_ovn_lbs) > 1:
                 # Delete the lb.
                 commands.append(self.ovn_nbdb_api.lb_del(ovn_lb.uuid))
-        return commands
+                lb_to_delete = True
+        return (commands, lb_to_delete)
 
     def lb_delete_lrp_assoc_handler(self, row):
         try:
@@ -1220,11 +1222,14 @@ class OvnProviderHelper(object):
 
                 # Set LB protocol to undefined only if there are no more
                 # listeners and pools defined in the LB.
-                commands.extend(
-                    self._clean_lb_if_empty(
-                        ovn_lb, listener['loadbalancer_id'], external_ids))
-                commands.extend(
-                    self._refresh_lb_vips(ovn_lb.uuid, external_ids))
+                cmds, lb_to_delete = self._clean_lb_if_empty(
+                    ovn_lb, listener['loadbalancer_id'], external_ids)
+                commands.extend(cmds)
+                # Do not refresh vips if OVN LB for given protocol
+                # has pending delete operation.
+                if not lb_to_delete:
+                    commands.extend(
+                        self._refresh_lb_vips(ovn_lb.uuid, external_ids))
                 self._execute_commands(commands)
             except Exception:
                 LOG.exception(EXCEPTION_MSG, "deletion of listener")
@@ -1431,7 +1436,7 @@ class OvnProviderHelper(object):
 
             commands.extend(
                 self._clean_lb_if_empty(
-                    ovn_lb, pool['loadbalancer_id'], external_ids))
+                    ovn_lb, pool['loadbalancer_id'], external_ids)[0])
             self._execute_commands(commands)
 
             if listener_id:

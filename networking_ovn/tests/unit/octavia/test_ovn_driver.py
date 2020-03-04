@@ -1398,7 +1398,12 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.helper.ovn_nbdb_api.lb_del.assert_not_called()
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_is_lb_empty')
-    def test_listener_delete_ovn_lb_empty_lb_empty(self, lb_empty):
+    def test_listener_delete_ovn_lb_empty_octavia_lb_empty(self, lb_empty):
+        """That test situation when the OVN and Octavia LBs are empty.
+
+           That test situation when both OVN and Octavia LBs are empty,
+           but we cannot remove OVN LB row.
+        """
         lb_empty.return_value = True
         self.helper.listener_delete(self.listener)
         self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
@@ -1411,10 +1416,13 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                       ('protocol', []))])
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_is_lb_empty')
-    def test_listener_delete_ovn_lb_empty_lb_not_empty(self, lb_empty):
+    def test_listener_delete_ovn_lb_empty_octavia_lb_not_empty(self, lb_empty):
+        """We test if we can remove one LB with not used protocol"""
+        ovn_lb_udp = copy.copy(self.ovn_lb)
+        ovn_lb_udp.protocol = ['udp']
         self.mock_find_ovn_lbs.stop()
         self.helper.ovn_nbdb_api.db_find_rows.return_value.\
-            execute.side_effect = [[self.ovn_lb], []]
+            execute.side_effect = [[self.ovn_lb], [self.ovn_lb, ovn_lb_udp]]
         lb_empty.return_value = True
         self.helper.listener_delete(self.listener)
         self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
@@ -1422,6 +1430,10 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             'external_ids', 'listener_%s' % self.listener_id)
         self.helper.ovn_nbdb_api.lb_del.assert_called_once_with(
             self.ovn_lb.uuid)
+        # Validate that the vips column hasn't been touched, because
+        # in previous command we remove the LB, so there is no need
+        # to update it.
+        self.helper.ovn_nbdb_api.db_set.assert_not_called()
 
     def test_pool_create(self):
         status = self.helper.pool_create(self.pool)
@@ -1628,9 +1640,10 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_is_lb_empty')
     def test_pool_delete_ovn_lb_empty_lb_not_empty(self, lb_empty):
+        ovn_lb_udp = copy.copy(self.ovn_lb)
         self.mock_find_ovn_lbs.stop()
         self.helper.ovn_nbdb_api.db_find_rows.return_value.\
-            execute.side_effect = [[self.ovn_lb], []]
+            execute.side_effect = [[self.ovn_lb], [self.ovn_lb, ovn_lb_udp]]
         lb_empty.return_value = True
         self.helper.pool_delete(self.pool)
         self.helper.ovn_nbdb_api.db_remove.assert_called_once_with(
