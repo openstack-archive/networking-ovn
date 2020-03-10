@@ -32,7 +32,8 @@
             voting: false
         - networking-ovn-tempest-full-multinode-ovs-master:
             voting: false
-        - networking-ovn-octavia-v2-dsvm-scenario
+        - networking-ovn-octavia-v2-dsvm-scenario:
+            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -44,7 +45,6 @@
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
-        - networking-ovn-octavia-v2-dsvm-scenario
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
