@@ -119,10 +119,12 @@ class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
 
 
 # Retry forever to get the OVN NB and SB IDLs. Wait 2^x * 1 seconds between
-# each retry, up to 180 seconds, then 180 seconds afterwards.
+# each retry, up to 'max_interval' seconds, then interval will be fixed
+# to 'max_interval' seconds afterwards. The default 'max_interval' is 180.
 def get_ovn_idls(driver, trigger, binding_events=False):
     @tenacity.retry(
-        wait=tenacity.wait_exponential(max=180),
+        wait=tenacity.wait_exponential(
+            max=cfg.get_ovn_ovsdb_retry_max_interval()),
         reraise=True)
     def get_ovn_idl_retry(cls):
         trigger_class = utils.get_method_class(trigger)
