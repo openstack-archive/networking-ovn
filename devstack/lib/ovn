@@ -21,7 +21,7 @@ OVN_BRANCH=${OVN_BRANCH:-master}
 # Set variables for building OVS from source
 OVS_REPO=${OVS_REPO:-https://github.com/openvswitch/ovs.git}
 OVS_REPO_NAME=$(basename ${OVS_REPO} | cut -f1 -d'.')
-OVS_BRANCH=$OVN_BRANCH
+OVS_BRANCH=${OVS_BRANCH:-master}
 
 
 function use_new_ovn_repository {

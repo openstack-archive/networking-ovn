@@ -237,6 +237,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: branch-2.12
+        OVS_BRANCH: branch-2.12
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release-python2
@@ -245,6 +246,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: branch-2.12
+        OVS_BRANCH: branch-2.12
         USE_PYTHON3: False
 
 - job:
