@@ -29,6 +29,51 @@ from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.db import base as db_base
 
 
+class TestSchemaAwarePeriodicsBase(db_base.DBTestCase):
+
+    def test__set_schema_aware_periodics(self):
+
+        class TestClass(maintenance.SchemaAwarePeriodicsBase):
+            @periodics.periodic(spacing=1)
+            @maintenance.rerun_on_schema_updates
+            def test_method_0(self):
+                pass
+
+            @periodics.periodic(spacing=1)
+            def test_method_1(self):
+                pass
+
+            @periodics.periodic(spacing=1)
+            @maintenance.rerun_on_schema_updates
+            def test_method_2(self):
+                pass
+
+        obj = TestClass(mock.Mock())
+        # Assert that test_method_0 and test_method_2 are schema
+        # aware periodics
+        self.assertEqual([obj.test_method_0, obj.test_method_2],
+                         obj._schema_aware_periodics)
+
+    @mock.patch.object(maintenance.SchemaAwarePeriodicsBase,
+                       'get_ovn_nbdb_version')
+    def test_nbdb_schema_updated_hook(self, mock_get_ver):
+        initial_ver = '1.0.0'
+        obj = mock.Mock()
+        obj.get_ovn_nbdb_version.side_effect = (initial_ver, '1.1.0')
+        obj_evt = maintenance.OVNNBDBReconnectionEvent(obj, initial_ver)
+
+        # First run() will be called with the initial version (see
+        # side_effect), so the hook should not be invoked since the
+        # versions didn't change
+        obj_evt.run('update', mock.Mock(), mock.Mock())
+        self.assertFalse(obj.nbdb_schema_updated_hook.called)
+
+        # Second run() will be called with a different version, the
+        # hook should now be invoked
+        obj_evt.run('update', mock.Mock(), mock.Mock())
+        self.assertTrue(obj.nbdb_schema_updated_hook.called)
+
+
 @mock.patch.object(maintenance.DBInconsistenciesPeriodics,
                    'has_lock', mock.PropertyMock(return_value=True))
 class TestDBInconsistenciesPeriodics(db_base.DBTestCase,
