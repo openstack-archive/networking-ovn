@@ -426,3 +426,24 @@ def is_neutron_dhcp_agent_port(port):
     return (port['device_owner'] == const.DEVICE_OWNER_DHCP and
             (port['device_id'] == const.DEVICE_ID_RESERVED_DHCP_PORT or
              port['device_id'].startswith('dhcp')))
+
+
+def is_gateway_chassis(chassis):
+    """Check if the given chassis is a gateway chassis"""
+    external_ids = getattr(chassis, 'external_ids', {})
+    return ('enable-chassis-as-gw' in external_ids.get(
+        'ovn-cms-options', '').split(','))
+
+
+def get_port_id_from_gwc_row(row):
+    """Return a port_id from gwc row
+
+    The Gateway_Chassis row stores router port_id in
+    the row name attribute:
+
+    <prefix>-<port_id>_<chassis_id>
+
+    :param row: A Gateway_Chassis table row.
+    :returns: String containing router port_id.
+    """
+    return constants.RE_PORT_FROM_GWC.search(row.name).group(2)
