@@ -1338,8 +1338,12 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.schedule_unhosted_gateways()
         self.nb_idl().update_lrouter_port.assert_not_called()
 
-    def test_schedule_unhosted_gateways(self):
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
+                '_get_gateway_port_physnet_mapping')
+    def test_schedule_unhosted_gateways(self, get_gppm):
         unhosted_gws = ['lrp-foo-1', 'lrp-foo-2', 'lrp-foo-3']
+        get_gppm.return_value = {k[len(ovn_const.LRP_PREFIX):]: 'physnet1'
+                                 for k in unhosted_gws}
         chassis_mappings = {
             'chassis1': ['physnet1'],
             'chassis2': ['physnet1'],
@@ -1388,6 +1392,34 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
                       gateway_chassis=['chassis2', 'chassis1', 'chassis3']),
             mock.call('lrp-foo-3',
                       gateway_chassis=['chassis3', 'chassis2', 'chassis1'])])
+
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
+                '_get_gateway_port_physnet_mapping')
+    def test_schedule_unhosted_gateways_on_event_no_gw_chassis(self, get_gppm):
+        unhosted_gws = ['lrp-foo-1', 'lrp-foo-2', 'lrp-foo-3']
+        get_gppm.return_value = {k[len(ovn_const.LRP_PREFIX):]: 'physnet1'
+                                 for k in unhosted_gws}
+        self.nb_idl().get_chassis_gateways.return_value = []
+        self.l3_inst.schedule_unhosted_gateways(event_from_chassis='chassis4')
+        self.nb_idl().get_unhosted_gateways.assert_not_called()
+
+    @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
+                '_get_gateway_port_physnet_mapping')
+    def test_schedule_unhosted_gateways_on_event(self, get_gppm):
+        unhosted_gws = ['lrp-foo-1', 'lrp-foo-2', 'lrp-foo-3']
+        get_gppm.return_value = {k[len(ovn_const.LRP_PREFIX):]: 'physnet1'
+                                 for k in unhosted_gws}
+        foo_gw = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': 'lrp-foo-1_chassis1',
+                   'chassis_name': 'chassis1'})
+        self.nb_idl().get_chassis_gateways.return_value = [
+            foo_gw]
+        self.nb_idl().get_unhosted_gateways.return_value = []
+        # Fake that rescheduling is executed on chassis event
+        self.l3_inst.schedule_unhosted_gateways(event_from_chassis='chassis1')
+        # Validate that only foo-1 port is beign rescheduled.
+        self.nb_idl().get_unhosted_gateways.assert_called_once_with(
+            {'foo-1': 'physnet1'}, mock.ANY, mock.ANY)
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,
