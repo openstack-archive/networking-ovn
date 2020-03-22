@@ -27,12 +27,8 @@ OVS_BRANCH=${OVS_BRANCH:-master}
 function use_new_ovn_repository {
     # IF OVN_BRANCH is "master" or branch-2.13 (or higher), use the new
     # OVN repository
-    if [ "$OVN_BRANCH" == "master" ] || \
-       [ $(echo $OVN_BRANCH | sed -e 's/^branch-\([0-9]*\)\.//') -ge 13 ]; then
-        return 0
-    else
-        return 1
-    fi
+    [ "$OVN_BRANCH" == "master" ] && return 0
+    return $(! printf "%s\n%s" ${OVN_BRANCH//[!0-9.]/} 2.12 | sort -C -V)
 }
 
 
