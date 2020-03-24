@@ -110,6 +110,7 @@
       - name: openstack/devstack-gate
       - name: openstack/rally
       - name: openstack/rally-openstack
+        override-checkout: 1.7.0
       - name: openstack/networking-ovn
     irrelevant-files:
       - ^(test-|)requirements.txt$
