@@ -463,6 +463,30 @@ class DBInconsistenciesPeriodics(object):
 
         raise periodics.NeverAgain()
 
+    # A static spacing value is used here, but this method will only run
+    # once per lock due to the use of periodics.NeverAgain().
+    @periodics.periodic(spacing=600, run_immediately=True)
+    def check_for_igmp_snoop_support(self):
+        if not self.has_lock:
+            return
+
+        with self._nb_idl.transaction(check_error=True) as txn:
+            value = ('true' if ovn_conf.is_igmp_snooping_enabled()
+                     else 'false')
+            # TODO(lucasagomes): Replace this _tables usage with ls_list()
+            # if ovsdbapp >= 1.0.0 ever becomes a lower-version dependecy
+            # for stable/train
+            for ls in self._nb_idl._tables['Logical_Switch'].rows.values():
+                if ls.other_config.get(ovn_const.MCAST_SNOOP, None) == value:
+                    continue
+                txn.add(self._nb_idl.db_set(
+                    'Logical_Switch', ls.name,
+                    ('other_config', {
+                        ovn_const.MCAST_SNOOP: value,
+                        ovn_const.MCAST_FLOOD_UNREGISTERED: value})))
+
+        raise periodics.NeverAgain()
+
 
 class HashRingHealthCheckPeriodics(object):
 
