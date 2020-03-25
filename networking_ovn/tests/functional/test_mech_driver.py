@@ -223,9 +223,10 @@ class TestVirtualPorts(base.TestOVNFunctionalBase):
         return self._update_allowed_address_pair(port_id, [])
 
     def _find_port_row(self, port_id):
-        for row in self.nb_api._tables['Logical_Switch_Port'].rows.values():
-            if row.name == port_id:
-                return row
+        cmd = self.nb_api.db_find_rows(
+            'Logical_Switch_Port', ('name', '=', port_id))
+        rows = cmd.execute(check_error=True)
+        return rows[0] if rows else None
 
     def test_virtual_port_created_before(self):
         virt_port = self._create_port()
