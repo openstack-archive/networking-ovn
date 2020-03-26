@@ -1,8 +1,0 @@
----
-features:
-  - |
-    OVN native L3 implementation.
-    The native implementation supports distributed routing for east-west
-    traffic and centralized routing for north-south (floatingip and snat)
-    traffic. Also supported is the Neutron L3 Configurable external gateway
-    mode.

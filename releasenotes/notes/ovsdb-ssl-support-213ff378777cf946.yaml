@@ -1,7 +1,0 @@
----
-prelude: >
-    networking-ovn now supports the use of SSL for its
-    OVSDB connections to the OVN databases.
-features:
-    - networking-ovn now supports the use of SSL for its
-      OVSDB connections to the OVN databases.

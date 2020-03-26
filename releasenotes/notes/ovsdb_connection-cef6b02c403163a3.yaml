@@ -1,4 +1,0 @@
----
-deprecations:
-  - The ``ovn`` group ``ovsdb_connection`` configuration option was
-    deprecated in the ``Newton`` release and has now been removed.

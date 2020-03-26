@@ -1,6 +1,0 @@
----
-deprecations:
-  - The ``ovn`` group ``vif_type`` configuration option is deprecated and
-    will be removed in the next release. The port VIF type is now determined
-    based on the OVN chassis information when the port is bound to a host.
-    [Bug `1606458 <https://bugs.launchpad.net/bugs/1606458>`_]

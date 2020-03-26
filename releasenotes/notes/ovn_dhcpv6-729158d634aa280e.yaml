@@ -1,7 +1,0 @@
----
-features:
-  - |
-    OVN native DHCPv6 implementation.
-    The native implementation supports distributed DHCPv6. Support
-    Neutron IPv6 subnet whose "ipv6_address_mode" attribute is None,
-    "dhcpv6_stateless", or "dhcpv6_stateful".
