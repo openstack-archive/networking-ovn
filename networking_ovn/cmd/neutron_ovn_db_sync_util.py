@@ -72,14 +72,14 @@ class OVNMechanismDriver(mech_driver.OVNMechanismDriver):
     def update_port_postcommit(self, context):
         port = context.current
         original_port = context.original
-        self.ovn_client.update_port(port, original_port)
+        self.ovn_client.update_port(port, port_object=original_port)
 
     def delete_port_precommit(self, context):
         pass
 
     def delete_port_postcommit(self, context):
         port = context.current
-        self.ovn_client.delete_port(port)
+        self.ovn_client.delete_port(port['id'], port_object=port)
 
 
 class AgentNotifierApi(object):
