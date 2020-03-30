@@ -788,11 +788,12 @@ class OvnProviderHelper(object):
         return pool_key
 
     def _extract_member_info(self, member):
-        mem_info = ''
+        mem_info = []
         if member:
             for mem in member.split(','):
-                mem_info += str(mem.split('_')[2]) + ','
-        return mem_info[:-1]  # Remove the last ','
+                mem_ip_port = mem.split('_')[2]
+                mem_info.append(tuple(mem_ip_port.rsplit(':', 1)))
+        return mem_info
 
     def _get_member_key(self, member, old_convention=False):
         member_info = ''
@@ -863,11 +864,22 @@ class OvnProviderHelper(object):
             if pool_id not in lb_external_ids or not lb_external_ids[pool_id]:
                 continue
 
-            ips = self._extract_member_info(lb_external_ids[pool_id])
-            vip_ips[lb_vip + ':' + vip_port] = ips
+            ips = []
+            for member_ip, member_port in self._extract_member_info(
+                    lb_external_ids[pool_id]):
+                if netaddr.IPNetwork(member_ip).version == 6:
+                    ips.append('[%s]:%s' % (member_ip, member_port))
+                else:
+                    ips.append('%s:%s' % (member_ip, member_port))
+
+            if netaddr.IPNetwork(lb_vip).version == 6:
+                lb_vip = '[%s]' % lb_vip
+            vip_ips[lb_vip + ':' + vip_port] = ','.join(ips)
 
             if vip_fip:
-                vip_ips[vip_fip + ':' + vip_port] = ips
+                if netaddr.IPNetwork(vip_fip).version == 6:
+                    vip_fip = '[%s]' % vip_fip
+                vip_ips[vip_fip + ':' + vip_port] = ','.join(ips)
 
         return vip_ips
 

@@ -2773,3 +2773,25 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
     def test__get_existing_pool_members(self):
         ret = self.helper._get_existing_pool_members(self.pool_id)
         self.assertEqual(ret, self.member_line)
+
+    def test__frame_lb_vips(self):
+        ret = self.helper._frame_vip_ips(self.ovn_lb.external_ids)
+        expected = {'10.22.33.4:80': '192.168.2.149:1010',
+                    '123.123.123.123:80': '192.168.2.149:1010'}
+        self.assertEqual(expected, ret)
+
+    def test__frame_lb_vips_ipv6(self):
+        self.member_address = '2001:db8::1'
+        self.member_line = (
+            'member_%s_%s:%s_%s' %
+            (self.member_id, self.member_address,
+             self.member_port, self.member_subnet_id))
+        self.ovn_lb.external_ids = {
+            ovn_const.LB_EXT_IDS_VIP_KEY: 'fc00::',
+            ovn_const.LB_EXT_IDS_VIP_FIP_KEY: '2002::',
+            'pool_%s' % self.pool_id: self.member_line,
+            'listener_%s' % self.listener_id: '80:pool_%s' % self.pool_id}
+        ret = self.helper._frame_vip_ips(self.ovn_lb.external_ids)
+        expected = {'[2002::]:80': '[2001:db8::1]:1010',
+                    '[fc00::]:80': '[2001:db8::1]:1010'}
+        self.assertEqual(expected, ret)
