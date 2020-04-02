@@ -243,11 +243,20 @@
     name: networking-ovn-tempest-dsvm-ovs-release-python2
     description: Job testing for devstack/tempest testing networking-ovn with the latest released OVN branch
     parent: networking-ovn-base
+    required-projects:
+      - name: openstack/devstack-gate
+      - name: openstack/networking-ovn
+      - name: openstack/neutron
+      - name: openstack/neutron-tempest-plugin
+        override-checkout: 0.9.0
+      - name: openstack/octavia
+      - name: openstack/tempest
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
         OVS_BRANCH: v2.13.0
         USE_PYTHON3: False
+        TEMPEST_BRANCH: 23.0.0
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-master-fedora
