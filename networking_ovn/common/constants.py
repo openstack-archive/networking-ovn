@@ -189,3 +189,7 @@ LSP_TYPE_LOCALNET = 'localnet'
 LSP_TYPE_VIRTUAL = 'virtual'
 LSP_OPTIONS_VIRTUAL_PARENTS_KEY = 'virtual-parents'
 LSP_OPTIONS_VIRTUAL_IP_KEY = 'virtual-ip'
+
+# OVN igmp options
+MCAST_SNOOP = 'mcast_snoop'
+MCAST_FLOOD_UNREGISTERED = 'mcast_flood_unregistered'

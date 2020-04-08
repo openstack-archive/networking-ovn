@@ -195,12 +195,28 @@ ovn_opts = [
                        'br-int | grep "Check pkt length action".')),
 ]
 
+ovs_opts = [
+    cfg.BoolOpt('igmp_snooping_enable', default=False,
+                help=_('Enable IGMP snooping for integration bridge. If this '
+                       'option is set to True, support for Internet Group '
+                       'Management Protocol (IGMP) is enabled in integration '
+                       'bridge. '
+                       'Setting this option to True will also enable Open '
+                       'vSwitch mcast-snooping-disable-flood-unregistered '
+                       'flag. This option will disable flooding of '
+                       'unregistered multicast packets to all ports. '
+                       'The switch will send unregistered multicast packets '
+                       'only to ports connected to multicast routers.')),
+]
+
 cfg.CONF.register_opts(ovn_opts, group='ovn')
+cfg.CONF.register_opts(ovs_opts, group='OVS')
 
 
 def list_opts():
     return [
         ('ovn', ovn_opts),
+        ('OVS', ovs_opts)
     ]
 
 
@@ -309,3 +325,7 @@ def setup_logging():
 
 def is_ovn_emit_need_to_frag_enabled():
     return cfg.CONF.ovn.ovn_emit_need_to_frag
+
+
+def is_igmp_snooping_enabled():
+    return cfg.CONF.OVS.igmp_snooping_enable
