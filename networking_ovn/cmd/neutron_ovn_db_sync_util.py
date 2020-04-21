@@ -23,7 +23,6 @@ from oslo_db import options as db_options
 from oslo_log import log as logging
 
 from networking_ovn.common import config as ovn_config
-from networking_ovn.common import ovn_client
 from networking_ovn.ml2 import mech_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
@@ -52,8 +51,6 @@ class OVNMechanismDriver(mech_driver.OVNMechanismDriver):
 
     @property
     def ovn_client(self):
-        if not self._ovn_client:
-            self._ovn_client = ovn_client.OVNClient(self._nb_ovn, self._sb_ovn)
         return self._ovn_client
 
     # Since we are not using the networking_ovn mechanism driver while syncing,
