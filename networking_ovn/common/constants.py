@@ -202,3 +202,7 @@ MCAST_FLOOD_UNREGISTERED = 'mcast_flood_unregistered'
 
 HA_CHASSIS_GROUP_DEFAULT_NAME = 'default_ha_chassis_group'
 HA_CHASSIS_GROUP_HIGHEST_PRIORITY = 32767
+
+EXTERNAL_PORT_TYPES = (portbindings.VNIC_DIRECT,
+                       portbindings.VNIC_DIRECT_PHYSICAL,
+                       portbindings.VNIC_MACVTAP)
