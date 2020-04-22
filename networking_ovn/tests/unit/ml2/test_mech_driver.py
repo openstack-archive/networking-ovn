@@ -2598,7 +2598,7 @@ class TestOVNMechanismDriverSecurityGroup(
 
     @mock.patch('networking_ovn.common.ovn_client.'
                 'OVNClient.is_external_ports_supported', lambda *_: True)
-    def test_create_port_with_vnic_direct(self):
+    def _test_create_port_with_vnic_type(self, vnic_type):
         fake_grp = 'fake-default-ha-group-uuid'
         row = fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={'uuid': fake_grp})
         self.mech_driver._nb_ovn.ha_chassis_group_get.return_value.\
@@ -2608,7 +2608,7 @@ class TestOVNMechanismDriverSecurityGroup(
             self._create_port(
                 self.fmt, n['network']['id'],
                 arg_list=(portbindings.VNIC_TYPE,),
-                **{portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT})
+                **{portbindings.VNIC_TYPE: vnic_type})
 
             # Assert create_lswitch_port was called with the relevant
             # parameters
@@ -2617,6 +2617,17 @@ class TestOVNMechanismDriverSecurityGroup(
                 1, self.mech_driver._nb_ovn.create_lswitch_port.call_count)
             self.assertEqual(ovn_const.LSP_TYPE_EXTERNAL, kwargs['type'])
             self.assertEqual(fake_grp, kwargs['ha_chassis_group'])
+
+    def test_create_port_with_vnic_direct(self):
+        self._test_create_port_with_vnic_type(portbindings.VNIC_DIRECT)
+
+    def test_create_port_with_vnic_direct_physical(self):
+        self._test_create_port_with_vnic_type(
+            portbindings.VNIC_DIRECT_PHYSICAL)
+
+    def test_create_port_with_vnic_macvtap(self):
+        self._test_create_port_with_vnic_type(
+            portbindings.VNIC_MACVTAP)
 
     def test_update_port_with_sgs(self):
         with self.network() as n, self.subnet(n):
