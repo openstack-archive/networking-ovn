@@ -92,6 +92,11 @@ class OVNClient(object):
             for cmd in commands:
                 txn.add(cmd)
 
+    def _is_virtual_port_supported(self):
+        # TODO(lucasagomes): Remove this method in the future. The
+        # "virtual" port type was added in the version 2.12 of OVN
+        return self._sb_idl.is_col_present('Port_Binding', 'virtual_parent')
+
     def _get_allowed_addresses_from_port(self, port):
         if not port.get(psec.PORTSECURITY):
             return [], []
@@ -191,7 +196,14 @@ class OVNClient(object):
             external_ids=subnet_dhcp_options['external_ids'])
         return {'cmd': add_dhcp_opts_cmd}
 
+    def get_virtual_port_parents(self, virtual_ip, port):
+        ls = self._nb_idl.ls_get(utils.ovn_name(port['network_id'])).execute(
+            check_error=True)
+        return [lsp.name for lsp in ls.ports for ps in lsp.port_security
+                if lsp.name != port['id'] and virtual_ip in ps]
+
     def _get_port_options(self, port, qos_options=None):
+        context = n_context.get_admin_context()
         binding_prof = utils.validate_and_get_data_from_binding_profile(port)
         if qos_options is None:
             qos_options = self._qos_driver.get_qos_options(port)
@@ -215,13 +227,24 @@ class OVNClient(object):
             address = port['mac_address']
             for ip in port.get('fixed_ips', []):
                 try:
-                    subnet = self._plugin.get_subnet(
-                        n_context.get_admin_context(), ip['subnet_id'])
+                    subnet = self._plugin.get_subnet(context, ip['subnet_id'])
                 except n_exc.SubnetNotFound:
                     continue
-                address += ' ' + ip['ip_address']
+                ip_addr = ip['ip_address']
+                address += ' ' + ip_addr
                 cidrs += ' {}/{}'.format(ip['ip_address'],
                                          subnet['cidr'].split('/')[1])
+
+                # Check if the port being created is a virtual port
+                if (self._is_virtual_port_supported() and
+                        not port['device_owner']):
+                    parents = self.get_virtual_port_parents(ip_addr, port)
+                    if parents:
+                        port_type = ovn_const.LSP_TYPE_VIRTUAL
+                        options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY] = ip_addr
+                        options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY] = (
+                            ','.join(parents))
+
             port_security, new_macs = \
                 self._get_allowed_addresses_from_port(port)
             addresses = [address]
@@ -318,14 +341,28 @@ class OVNClient(object):
                 'dhcpv6_options': dhcpv6_options
             }
 
+            # TODO(lucasgomes): Remove this workaround in the future,
+            # the core OVN version >= 2.12 supports the "virtual" port
+            # type which deals with these situations.
             # NOTE(mjozefcz): Do not set addresses if the port is not
             # bound and has no device_owner - possibly it is a VirtualIP
             # port used for Octavia (VRRP).
             # For more details check related bug #1789686.
-            if (not port.get('device_owner') and
+            if (not self._is_virtual_port_supported() and
+                not port.get('device_owner') and
                 port.get(portbindings.VIF_TYPE) ==
                     portbindings.VIF_TYPE_UNBOUND):
                 kwargs['addresses'] = []
+
+            # Check if the parent port was created with the
+            # allowed_address_pairs already set
+            allowed_address_pairs = port.get('allowed_address_pairs', [])
+            if (self._is_virtual_port_supported() and
+                    allowed_address_pairs and
+                    port_info.type != ovn_const.LSP_TYPE_VIRTUAL):
+                addrs = [addr['ip_address'] for addr in allowed_address_pairs]
+                self._set_unset_virtual_port_type(
+                    admin_context, txn, port, addrs)
 
             port_cmd = txn.add(self._nb_idl.create_lswitch_port(
                 **kwargs))
@@ -386,6 +423,29 @@ class OVNClient(object):
                 port_object, skip_trusted_port=skip_trusted_port)
         return []
 
+    def _set_unset_virtual_port_type(self, context, txn, parent_port,
+                                     addresses, unset=False):
+        cmd = self._nb_idl.set_lswitch_port_to_virtual_type
+        if unset:
+            cmd = self._nb_idl.unset_lswitch_port_to_virtual_type
+
+        for addr in addresses:
+            virt_port = self._plugin.get_ports(context, filters={
+                portbindings.VIF_TYPE: portbindings.VIF_TYPE_UNBOUND,
+                'network_id': [parent_port['network_id']],
+                'fixed_ips': {'ip_address': [addr]}})
+            if not virt_port:
+                continue
+            virt_port = virt_port[0]
+            args = {'lport_name': virt_port['id'],
+                    'virtual_parent': parent_port['id'],
+                    'if_exists': True}
+            LOG.debug("Parent port %(virtual_parent)s found for "
+                      "virtual port %(lport_name)s", args)
+            if not unset:
+                args['vip'] = addr
+            txn.add(cmd(**args))
+
     # TODO(lucasagomes): The ``port_object`` parameter was added to
     # keep things backward compatible. Remove it in the Rocky release.
     def update_port(self, port, qos_options=None, port_object=None):
@@ -434,14 +494,29 @@ class OVNClient(object):
             else:
                 dhcpv6_options = [port_info.dhcpv6_options['uuid']]
 
+            # TODO(lucasgomes): Remove this workaround in the future,
+            # the core OVN version >= 2.12 supports the "virtual" port
+            # type which deals with these situations.
             # NOTE(mjozefcz): Do not set addresses if the port is not
             # bound and has no device_owner - possibly it is a VirtualIP
             # port used for Octavia (VRRP).
             # For more details check related bug #1789686.
-            if (not port.get('device_owner') and
+            if (not self._is_virtual_port_supported() and
+                not port.get('device_owner') and
                 port.get(portbindings.VIF_TYPE) ==
                     portbindings.VIF_TYPE_UNBOUND):
                 columns_dict['addresses'] = []
+
+            ovn_port = self._nb_idl.lookup('Logical_Switch_Port', port['id'])
+            addr_pairs_diff = utils.compute_address_pairs_diff(ovn_port, port)
+
+            if (self._is_virtual_port_supported() and
+                    port_info.type != ovn_const.LSP_TYPE_VIRTUAL):
+                self._set_unset_virtual_port_type(
+                    admin_context, txn, port, addr_pairs_diff.added)
+                self._set_unset_virtual_port_type(
+                    admin_context, txn, port, addr_pairs_diff.removed,
+                    unset=True)
 
             # NOTE(lizk): Fail port updating if port doesn't exist. This
             # prevents any new inserted resources to be orphan, such as port
@@ -461,29 +536,12 @@ class OVNClient(object):
                     if_exists=False,
                     **columns_dict))
 
-            ovn_port = self._nb_idl.lookup('Logical_Switch_Port', port['id'])
             # Determine if security groups or fixed IPs are updated.
             old_sg_ids = set(self._get_lsp_backward_compat_sgs(
                 ovn_port, port_object=port_object))
             new_sg_ids = set(utils.get_lsp_security_groups(port))
             detached_sg_ids = old_sg_ids - new_sg_ids
             attached_sg_ids = new_sg_ids - old_sg_ids
-            old_fixed_ips = utils.remove_macs_from_lsp_addresses(
-                ovn_port.addresses)
-            new_fixed_ips = [x['ip_address'] for x in
-                             port.get('fixed_ips', [])]
-            old_allowed_address_pairs = (
-                utils.get_allowed_address_pairs_ip_addresses_from_ovn_port(
-                    ovn_port))
-            new_allowed_address_pairs = (
-                utils.get_allowed_address_pairs_ip_addresses(port))
-            is_fixed_ips_updated = (
-                sorted(old_fixed_ips) != sorted(new_fixed_ips))
-            is_allowed_ips_updated = (sorted(old_allowed_address_pairs) !=
-                                      sorted(new_allowed_address_pairs))
-
-            port_security_changed = utils.is_port_security_enabled(port) != (
-                bool(ovn_port.port_security))
 
             if self._nb_idl.is_port_groups_supported():
                 for sg in detached_sg_ids:
@@ -503,6 +561,16 @@ class OVNClient(object):
                       utils.is_lsp_trusted(port)):
                     self._del_port_from_drop_port_group(port['id'], txn)
             else:
+
+                old_fixed_ips = utils.remove_macs_from_lsp_addresses(
+                    ovn_port.addresses)
+                new_fixed_ips = [x['ip_address'] for x in
+                                 port.get('fixed_ips', [])]
+                is_fixed_ips_updated = (
+                    sorted(old_fixed_ips) != sorted(new_fixed_ips))
+                port_security_changed = (
+                    utils.is_port_security_enabled(port) !=
+                    bool(ovn_port.port_security))
                 # Refresh ACLs for changed security groups or fixed IPs.
                 if (detached_sg_ids or attached_sg_ids or
                         is_fixed_ips_updated or port_security_changed):
@@ -545,7 +613,7 @@ class OVNClient(object):
                                     addrs_add=None,
                                     addrs_remove=addresses_old[ip_version]))
 
-                    if is_fixed_ips_updated or is_allowed_ips_updated:
+                    if is_fixed_ips_updated or addr_pairs_diff.changed:
                         # We have refreshed address sets for attached and
                         # detached security groups, so now we only need to take
                         # care of unchanged security groups.
@@ -608,6 +676,19 @@ class OVNClient(object):
 
             if port_object and self.is_dns_required_for_port(port_object):
                 self.add_txns_to_remove_port_dns_records(txn, port_object)
+
+            # Check if the port being deleted is a virtual parent
+            if (ovn_port.type != ovn_const.LSP_TYPE_VIRTUAL and
+                    self._is_virtual_port_supported()):
+                ls = self._nb_idl.ls_get(network_id).execute(
+                    check_error=True)
+                cmd = self._nb_idl.unset_lswitch_port_to_virtual_type
+                for lsp in ls.ports:
+                    if lsp.type != ovn_const.LSP_TYPE_VIRTUAL:
+                        continue
+                    if port_id in lsp.options.get(
+                            ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY, ''):
+                        txn.add(cmd(lsp.name, port_id, if_exists=True))
 
     # TODO(lucasagomes): The ``port_object`` parameter was added to
     # keep things backward compatible. Remove it in the Rocky release.

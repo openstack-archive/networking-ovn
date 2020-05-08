@@ -2700,3 +2700,91 @@ class TestOVNMechanismDriverMetadataPort(test_plugin.Ml2PluginV2TestCase):
         self.assertEqual(exc.HTTPNoContent.code,
                          res.status_int)
         self.assertEqual(1, self.nb_ovn.delete_lswitch_port.call_count)
+
+
+@mock.patch('networking_ovn.common.ovn_client.OVNClient'
+            '._is_virtual_port_supported', lambda *args: True)
+class TestOVNVVirtualPort(OVNMechanismDriverTestCase):
+
+    def setUp(self):
+        super(TestOVNVVirtualPort, self).setUp()
+        self.context = context.get_admin_context()
+        self.nb_idl = self.mech_driver._ovn_client._nb_idl
+        self.net = self._make_network(
+            self.fmt, name='net1', admin_state_up=True)['network']
+        self.subnet = self._make_subnet(
+            self.fmt, {'network': self.net},
+            '10.0.0.1', '10.0.0.0/24')['subnet']
+
+    @mock.patch('networking_ovn.common.ovn_client.OVNClient.'
+                'get_virtual_port_parents')
+    def test_create_port_with_virtual_type_and_options(self, mock_get_parents):
+        fake_parents = ['parent-0', 'parent-1']
+        mock_get_parents.return_value = fake_parents
+        port = {'id': 'virt-port',
+                'mac_address': '00:00:00:00:00:00',
+                'device_owner': '',
+                'network_id': self.net['id'],
+                'fixed_ips': [{'subnet_id': self.subnet['id'],
+                               'ip_address': '10.0.0.55'}]}
+        port_info = self.mech_driver._ovn_client._get_port_options(
+            port)
+        self.assertEqual(ovn_const.LSP_TYPE_VIRTUAL, port_info.type)
+        self.assertEqual(
+            '10.0.0.55',
+            port_info.options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY])
+        self.assertIn(
+            'parent-0',
+            port_info.options[
+                ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+        self.assertIn(
+            'parent-1',
+            port_info.options[
+                ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY])
+
+    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_ports')
+    def _test_set_unset_virtual_port_type(self, mock_get_ports, unset=False):
+        cmd = self.nb_idl.set_lswitch_port_to_virtual_type
+        if unset:
+            cmd = self.nb_idl.unset_lswitch_port_to_virtual_type
+
+        fake_txn = mock.Mock()
+        parent_port = {'id': 'parent-port', 'network_id': 'fake-network'}
+        port = {'id': 'virt-port'}
+        mock_get_ports.return_value = [port]
+        self.mech_driver._ovn_client._set_unset_virtual_port_type(
+            self.context, fake_txn, parent_port, ['10.0.0.55'], unset=unset)
+
+        args = {'lport_name': 'virt-port',
+                'virtual_parent': 'parent-port',
+                'if_exists': True}
+        if not unset:
+            args['vip'] = '10.0.0.55'
+
+        cmd.assert_called_once_with(**args)
+
+    def test__set_unset_virtual_port_type_set(self):
+        self._test_set_unset_virtual_port_type(unset=False)
+
+    def test__set_unset_virtual_port_type_unset(self):
+        self._test_set_unset_virtual_port_type(unset=True)
+
+    def test_delete_virtual_port_parent(self):
+        self.nb_idl.ls_get.return_value.execute.return_value = (
+            fakes.FakeOvsdbRow.create_one_ovsdb_row(attrs={'ports': []}))
+        virt_port = self._make_port(self.fmt, self.net['id'])['port']
+        virt_ip = virt_port['fixed_ips'][0]['ip_address']
+        parent = self._make_port(
+            self.fmt, self.net['id'],
+            allowed_address_pairs=[{'ip_address': virt_ip}])['port']
+        fake_row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'name': virt_port['id'],
+                   'type': ovn_const.LSP_TYPE_VIRTUAL,
+                   'options': {ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY:
+                               parent['id']}})
+        self.nb_idl.ls_get.return_value.execute.return_value = (
+            mock.Mock(ports=[fake_row]))
+
+        self.mech_driver._ovn_client.delete_port(parent['id'])
+        self.nb_idl.unset_lswitch_port_to_virtual_type.assert_called_once_with(
+            virt_port['id'], parent['id'], if_exists=True)

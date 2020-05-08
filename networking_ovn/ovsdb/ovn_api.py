@@ -601,6 +601,42 @@ class API(api.API):
         :returns: The Address Set row or None
         """
 
+    @abc.abstractmethod
+    def set_lswitch_port_to_virtual_type(self, lport_name, vip,
+                                         virtual_parent, if_exists=True):
+        """Set the type of a given port to "virtual".
+
+        Set the type of a given port to "virtual" and all its related
+        options.
+
+        :param lport_name:      The name of the lport
+        :type lport_name:       string
+        :param vip:             The virtual ip
+        :type vip:              string
+        :param virtual_parent:  The name of the parent lport
+        :type virtual_parent:   string
+        :param if_exists:       Do not fail if lport does not exist
+        :type if_exists:        bool
+        :returns:               :class:`Command` with no result
+        """
+
+    @abc.abstractmethod
+    def unset_lswitch_port_to_virtual_type(self, lport_name,
+                                           virtual_parent, if_exists=True):
+        """Unset the type of a given port from "virtual".
+
+        Unset the type of a given port from "virtual" and all its related
+        options.
+
+        :param lport_name:      The name of the lport
+        :type lport_name:       string
+        :param virtual_parent:  The name of the parent lport
+        :type virtual_parent:   string
+        :param if_exists:       Do not fail if lport does not exist
+        :type if_exists:        bool
+        :returns:               :class:`Command` with no result
+        """
+
 
 @six.add_metaclass(abc.ABCMeta)
 class SbAPI(api.API):
