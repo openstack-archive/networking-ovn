@@ -1392,3 +1392,76 @@ class AclListCommand(_AclListHelper):
 
 class PgAclListCommand(_AclListHelper):
     lookup_table = 'Port_Group'
+
+
+class SetLSwitchPortToVirtualTypeCommand(command.BaseCommand):
+    def __init__(self, api, lport, vip, parent, if_exists):
+        super(SetLSwitchPortToVirtualTypeCommand, self).__init__(api)
+        self.lport = lport
+        self.vip = vip
+        self.parent = parent
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lsp = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
+                                        'name', self.lport)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = "Logical Switch Port %s does not exist" % self.lport
+            raise RuntimeError(msg)
+
+        options = lsp.options
+        options[ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY] = self.vip
+        virtual_parents = options.get(
+            ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY, set())
+        if virtual_parents:
+            virtual_parents = set(virtual_parents.split(','))
+
+        virtual_parents.add(self.parent)
+        options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY] = ','.join(
+            virtual_parents)
+        setattr(lsp, 'options', options)
+        setattr(lsp, 'type', ovn_const.LSP_TYPE_VIRTUAL)
+
+
+class UnsetLSwitchPortToVirtualTypeCommand(command.BaseCommand):
+    def __init__(self, api, lport, parent, if_exists):
+        super(UnsetLSwitchPortToVirtualTypeCommand, self).__init__(api)
+        self.lport = lport
+        self.parent = parent
+        self.if_exists = if_exists
+
+    def run_idl(self, txn):
+        try:
+            lsp = idlutils.row_by_value(self.api.idl, 'Logical_Switch_Port',
+                                        'name', self.lport)
+        except idlutils.RowNotFound:
+            if self.if_exists:
+                return
+            msg = "Logical Switch Port %s does not exist" % self.lport
+            raise RuntimeError(msg)
+
+        options = lsp.options
+        virtual_parents = options.get(
+            ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY, set())
+        if virtual_parents:
+            virtual_parents = set(virtual_parents.split(','))
+
+        try:
+            virtual_parents.remove(self.parent)
+        except KeyError:
+            pass
+
+        # If virtual-parents is now empty, change the type and remove the
+        # virtual-parents and virtual-ip options
+        if not virtual_parents:
+            options.pop(ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY, None)
+            options.pop(ovn_const.LSP_OPTIONS_VIRTUAL_IP_KEY, None)
+            setattr(lsp, 'type', '')
+        else:
+            options[ovn_const.LSP_OPTIONS_VIRTUAL_PARENTS_KEY] = ','.join(
+                virtual_parents)
+
+        setattr(lsp, 'options', options)

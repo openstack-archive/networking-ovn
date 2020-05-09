@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import os
 import re
 
@@ -33,6 +34,9 @@ from networking_ovn.common import constants
 from networking_ovn.common import exceptions as ovn_exc
 
 DNS_RESOLVER_FILE = "/etc/resolv.conf"
+
+AddrPairsDiff = collections.namedtuple(
+    'AddrPairsDiff', ['added', 'removed', 'changed'])
 
 
 def ovn_name(id):
@@ -423,3 +427,13 @@ def get_port_id_from_gwc_row(row):
     :returns: String containing router port_id.
     """
     return constants.RE_PORT_FROM_GWC.search(row.name).group(2)
+
+
+def compute_address_pairs_diff(ovn_port, neutron_port):
+    """Compute the differences in the allowed_address_pairs field."""
+    ovn_ap = get_allowed_address_pairs_ip_addresses_from_ovn_port(
+        ovn_port)
+    neutron_ap = get_allowed_address_pairs_ip_addresses(neutron_port)
+    added = set(neutron_ap) - set(ovn_ap)
+    removed = set(ovn_ap) - set(neutron_ap)
+    return AddrPairsDiff(added, removed, changed=any(added or removed))
