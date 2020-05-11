@@ -14,6 +14,7 @@ import re
 
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
+from octavia_lib.common import constants
 import six
 
 # TODO(lucasagomes): Remove OVN_SG_NAME_EXT_ID_KEY in the Rocky release
@@ -206,3 +207,11 @@ HA_CHASSIS_GROUP_HIGHEST_PRIORITY = 32767
 EXTERNAL_PORT_TYPES = (portbindings.VNIC_DIRECT,
                        portbindings.VNIC_DIRECT_PHYSICAL,
                        portbindings.VNIC_MACVTAP)
+
+# LB selection fields to represent LB algorithm
+LB_SELECTION_FIELDS_MAP = {
+    constants.LB_ALGORITHM_SOURCE_IP_PORT: ["ip_dst", "ip_src",
+                                            "tp_dst", "tp_src"],
+    constants.LB_ALGORITHM_SOURCE_IP: ["ip_src", "ip_dst"],
+    None: ["ip_src", "ip_dst", "tp_src", "tp_dst"],
+}

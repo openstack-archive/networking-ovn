@@ -521,12 +521,17 @@ class OvnProviderHelper(object):
         raise idlutils.RowNotFound(table='Load_Balancer',
                                    col='name', match=lb_id)
 
-    def _get_or_create_ovn_lb(self, lb_id, protocol, admin_state_up):
+    def _get_or_create_ovn_lb(
+            self, lb_id, protocol, admin_state_up,
+            lb_algorithm=constants.LB_ALGORITHM_SOURCE_IP_PORT):
         """Find or create ovn lb with given protocol
 
            Find the loadbalancer configured with given protocol or
            create required if not found
         """
+        # TODO(mjozefcz): For now we support only one LB algorithm.
+        # As we may extend that in the future we would need to
+        # look here also for lb_algorithm, along with protocol.
         # Make sure that its lowercase - OVN NBDB stores lowercases
         # for this field.
         protocol = protocol.lower()
@@ -553,6 +558,7 @@ class OvnProviderHelper(object):
             lb_info = {
                 'id': lb_id,
                 'protocol': protocol,
+                constants.LB_ALGORITHM: lb_algorithm,
                 'vip_address': ovn_lbs[0].external_ids.get(
                     ovn_const.LB_EXT_IDS_VIP_KEY),
                 'vip_port_id':
@@ -898,6 +904,14 @@ class OvnProviderHelper(object):
                 return True
         return False
 
+    def _are_selection_fields_supported(self):
+        return self.ovn_nbdb_api.is_col_present(
+            'Load_Balancer', 'selection_fields')
+
+    @staticmethod
+    def _get_selection_keys(lb_algorithm):
+        return ovn_const.LB_SELECTION_FIELDS_MAP[lb_algorithm]
+
     def check_lb_protocol(self, lb_id, listener_protocol):
         ovn_lb = self._find_ovn_lbs(lb_id, protocol=listener_protocol)
         if not ovn_lb:
@@ -941,12 +955,18 @@ class OvnProviderHelper(object):
         lr_ref = loadbalancer.get(ovn_const.LB_EXT_IDS_LR_REF_KEY)
         if lr_ref:
             external_ids[ovn_const.LB_EXT_IDS_LR_REF_KEY] = lr_ref
-
+        # In case we have LB algoritm set
+        lb_algorithm = loadbalancer.get(constants.LB_ALGORITHM)
+        kwargs = {
+            'name': loadbalancer[constants.ID],
+            'protocol': protocol,
+            'external_ids': external_ids}
+        if self._are_selection_fields_supported():
+            kwargs['selection_fields'] = self._get_selection_keys(lb_algorithm)
         try:
             self.ovn_nbdb_api.db_create(
-                'Load_Balancer', name=loadbalancer['id'],
-                protocol=protocol,
-                external_ids=external_ids
+                'Load_Balancer',
+                **kwargs
                 ).execute(check_error=True)
             ovn_lb = self._find_ovn_lbs(
                 loadbalancer['id'],
@@ -1358,7 +1378,8 @@ class OvnProviderHelper(object):
         ovn_lb = self._get_or_create_ovn_lb(
             pool['loadbalancer_id'],
             pool['protocol'],
-            pool['admin_state_up'])
+            pool['admin_state_up'],
+            lb_algorithm=pool[constants.LB_ALGORITHM])
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         pool_key = self._get_pool_key(pool['id'],
                                       is_enabled=pool['admin_state_up'])
@@ -1989,6 +2010,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         request_info = {'id': pool.pool_id,
                         'loadbalancer_id': pool.loadbalancer_id,
                         'protocol': pool.protocol,
+                        'lb_algorithm': pool.lb_algorithm,
                         'listener_id': pool.listener_id,
                         'admin_state_up': admin_state_up}
         request = {'type': REQ_TYPE_POOL_CREATE,
