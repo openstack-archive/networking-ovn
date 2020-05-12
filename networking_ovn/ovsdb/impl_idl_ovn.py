@@ -43,6 +43,7 @@ LOG = log.getLogger(__name__)
 # and therefor allows networking-ovn to manage connection scope on its own
 class Backend(ovs_idl.Backend):
     lookup_table = {}
+    ovsdb_connection = None
 
     def __init__(self, connection):
         self.ovsdb_connection = connection
