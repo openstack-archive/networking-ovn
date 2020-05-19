@@ -645,7 +645,11 @@ class OVNClient(object):
             db_rev.bump_revision(port, ovn_const.TYPE_PORTS)
 
     def _delete_port(self, port_id, port_object=None):
-        ovn_port = self._nb_idl.lookup('Logical_Switch_Port', port_id)
+        ovn_port = self._nb_idl.lookup(
+            'Logical_Switch_Port', port_id, default=None)
+        if ovn_port is None:
+            return
+
         network_id = ovn_port.external_ids.get(
             ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY)
 
@@ -659,7 +663,8 @@ class OVNClient(object):
                 port_id, network_id))
 
             if not self._nb_idl.is_port_groups_supported():
-                txn.add(self._nb_idl.delete_acl(network_id, port_id))
+                txn.add(self._nb_idl.delete_acl(
+                    network_id, port_id, if_exists=True))
 
                 addresses = utils.sort_ips_by_version(
                     utils.get_ovn_port_addresses(ovn_port))
@@ -672,7 +677,8 @@ class OVNClient(object):
                         txn.add(self._nb_idl.update_address_set(
                             name=utils.ovn_addrset_name(sg_id, ip_version),
                             addrs_add=None,
-                            addrs_remove=addr_list))
+                            addrs_remove=addr_list,
+                            if_exists=True))
 
             if port_object and self.is_dns_required_for_port(port_object):
                 self.add_txns_to_remove_port_dns_records(txn, port_object)
