@@ -62,6 +62,10 @@
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
         OVN_DBS_LOG_LEVEL: dbg
+        # TODO(mjozefcz): Stop compiling OVS modules when meter action in kernel
+        # will be released in Ubuntu Bionic.
+        # More info: https://mail.openvswitch.org/pipermail/ovs-discuss/2018-December/048009.html
+        OVN_BUILD_MODULES: True
         USE_PYTHON3: True
         DOWNLOAD_DEFAULT_IMAGES: false
         IMAGE_URLS: "http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img,https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.img"
@@ -121,6 +125,7 @@
         s-container: false
         s-object: false
         s-proxy: false
+        q-qos: true
 
 - job:
     name: networking-ovn-multinode-base
@@ -156,6 +161,10 @@
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
         OVN_DBS_LOG_LEVEL: dbg
+        # TODO(mjozefcz): Stop compiling OVS modules when meter action in kernel
+        # will be released in Ubuntu Bionic.
+        # More info: https://mail.openvswitch.org/pipermail/ovs-discuss/2018-December/048009.html
+        OVN_BUILD_MODULES: True
         DOWNLOAD_DEFAULT_IMAGES: false
         IMAGE_URLS: "http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img,https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.img"
         DEFAULT_IMAGE_NAME: cirros-0.4.0-x86_64-disk
@@ -196,6 +205,7 @@
         s-container: false
         s-object: false
         s-proxy: false
+        q-qos: true
     group-vars:
       subnode:
         devstack_services:
@@ -214,6 +224,10 @@
           q-metering: false
           networking-ovn-metadata-agent: true
         devstack_localrc:
+          # TODO(mjozefcz): Stop compiling OVS modules when meter action in kernel
+          # will be released in Ubuntu Bionic.
+          # More info: https://mail.openvswitch.org/pipermail/ovs-discuss/2018-December/048009.html
+          OVN_BUILD_MODULES: True
           Q_USE_PROVIDERNET_FOR_PUBLIC: true
           PHYSICAL_NETWORK: public
           ENABLE_CHASSIS_AS_GW: false
@@ -227,6 +241,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: master
+        OVS_BRANCH: master
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release
@@ -235,7 +250,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
-        OVS_BRANCH: v2.13.0
+        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release-python2
@@ -244,7 +259,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
-        OVS_BRANCH: v2.13.0
+        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
         USE_PYTHON3: False
 
 - job:
@@ -252,6 +267,10 @@
     description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
     parent: networking-ovn-tempest-dsvm-ovs-master
     nodeset: devstack-single-node-fedora-latest
+    vars:
+      devstack_localrc:
+        OVN_BRANCH: v20.03.0
+        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
 
 - job:
     name: networking-ovn-rally-task
@@ -302,6 +321,7 @@
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
         OVN_BRANCH: master
+        OVS_BRANCH: master
       devstack_local_conf:
         post-config:
           "${RALLY_CONF_DIR}/${RALLY_CONF_FILE}":
@@ -381,10 +401,12 @@
           (^tempest.api.compute.admin.test_live_migration.LiveMigrationTest)"
       devstack_localrc:
         OVN_BRANCH: master
+        OVS_BRANCH: master
     group-vars:
       subnode:
         devstack_localrc:
           OVN_BRANCH: master
+          OVS_BRANCH: master
 
 - job:
     name: networking-ovn-octavia-dsvm-base
