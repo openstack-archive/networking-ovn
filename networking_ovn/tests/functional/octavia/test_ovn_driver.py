@@ -181,9 +181,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                 external_ids[
                     ovn_const.LB_EXT_IDS_LS_REFS_KEY] = jsonutils.loads(
                         ls_refs)
-            lbs.append({'name': lb.name, 'protocol': lb.protocol,
-                        'vips': lb.vips, 'external_ids': external_ids})
-
+            lb_dict = {'name': lb.name, 'protocol': lb.protocol,
+                       'vips': lb.vips, 'external_ids': external_ids}
+            try:
+                lb_dict['selection_fields'] = lb.selection_fields
+            except AttributeError:
+                pass
+            lbs.append(lb_dict)
         return lbs
 
     def _get_loadbalancer_id(self, lb_name):
@@ -439,6 +443,12 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                          LR_REF_KEY_HEADER + vip_net_id))
 
     def _make_expected_lbs(self, lb_data):
+        def _get_lb_field_by_protocol(protocol, field='external_ids'):
+            "Get needed external_ids and pass by reference"
+            lb = [lb for lb in expected_lbs
+                  if lb.get('protocol') == [protocol]]
+            return lb[0].get(field)
+
         if not lb_data or not lb_data.get('model'):
             return []
 
@@ -461,17 +471,16 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         if len(expected_protocols) == 0:
             expected_protocols.append(None)
 
-        expected_lbs = [{'name': lb_data['model'].loadbalancer_id,
-                         'protocol': [protocol] if protocol else [],
-                         'vips': {},
-                         'external_ids': copy.deepcopy(external_ids)}
-                        for protocol in expected_protocols]
-
-        def _get_lb_field_by_protocol(protocol, field='external_ids'):
-            "Get needed external_ids and pass by reference"
-            lb = [lb for lb in expected_lbs
-                  if lb.get('protocol') == [protocol]]
-            return lb[0].get(field)
+        expected_lbs = []
+        for protocol in expected_protocols:
+            lb = {'name': lb_data['model'].loadbalancer_id,
+                  'protocol': [protocol] if protocol else [],
+                  'vips': {},
+                  'external_ids': copy.deepcopy(external_ids)}
+            if self.ovn_driver._ovn_helper._are_selection_fields_supported():
+                lb['selection_fields'] = ovn_const.LB_SELECTION_FIELDS_MAP[
+                    o_constants.LB_ALGORITHM_SOURCE_IP_PORT]
+            expected_lbs.append(lb)
 
         # For every connected subnet to the LB set the ref
         # counter.

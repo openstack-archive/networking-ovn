@@ -585,6 +585,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
                 'loadbalancer_id': self.ref_pool.loadbalancer_id,
                 'listener_id': self.ref_pool.listener_id,
                 'protocol': self.ref_pool.protocol,
+                'lb_algorithm': constants.LB_ALGORITHM_SOURCE_IP_PORT,
                 'admin_state_up': self.ref_pool.admin_state_up}
         expected_dict = {'type': ovn_driver.REQ_TYPE_POOL_CREATE,
                          'info': info}
@@ -596,6 +597,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         info = {'id': self.ref_pool.pool_id,
                 'loadbalancer_id': self.ref_pool.loadbalancer_id,
                 'protocol': self.ref_pool.protocol,
+                'lb_algorithm': constants.LB_ALGORITHM_SOURCE_IP_PORT,
                 'listener_id': self.ref_pool.listener_id,
                 'admin_state_up': True}
         expected_dict = {'type': ovn_driver.REQ_TYPE_POOL_CREATE,
@@ -698,6 +700,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                      'loadbalancer_id': self.loadbalancer_id,
                      'listener_id': self.listener_id,
                      'protocol': "TCP",
+                     'lb_algorithm': constants.LB_ALGORITHM_SOURCE_IP_PORT,
                      'admin_state_up': False}
         self.member = {'id': self.member_id,
                        'address': self.member_address,
@@ -889,6 +892,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         expected_lb_info = {
             'id': self.ovn_lb.name,
             'protocol': 'tcp',
+            'lb_algorithm': constants.LB_ALGORITHM_SOURCE_IP_PORT,
             'vip_address': udp_lb.external_ids.get(
                 ovn_const.LB_EXT_IDS_VIP_KEY),
             'vip_port_id':
@@ -945,7 +949,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                 ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
                 'enabled': 'False'},
             name=mock.ANY,
-            protocol=None)
+            protocol=None,
+            selection_fields=['ip_src', 'ip_dst', 'tp_src', 'tp_dst'])
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     def test_lb_create_enabled(self, net_dr):
@@ -963,7 +968,50 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                 ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
                 'enabled': 'True'},
             name=mock.ANY,
+            protocol=None,
+            selection_fields=['ip_src', 'ip_dst', 'tp_src', 'tp_dst'])
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_create_selection_fields_not_supported(self, net_dr):
+        self.lb['admin_state_up'] = True
+        net_dr.return_value.neutron_client.list_ports.return_value = (
+            self.ports)
+        self.helper._are_selection_fields_supported = (
+            mock.Mock(return_value=False))
+        status = self.helper.lb_create(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ONLINE)
+        self.helper.ovn_nbdb_api.db_create.assert_called_once_with(
+            'Load_Balancer', external_ids={
+                ovn_const.LB_EXT_IDS_VIP_KEY: mock.ANY,
+                ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
+                'enabled': 'True'},
+            name=mock.ANY,
             protocol=None)
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_create_selection_fields_not_supported_algo(self, net_dr):
+        self.lb['admin_state_up'] = True
+        net_dr.return_value.neutron_client.list_ports.return_value = (
+            self.ports)
+        self.pool['lb_algoritm'] = 'foo'
+        status = self.helper.lb_create(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ONLINE)
+        # NOTE(mjozefcz): Make sure that we use the same selection
+        # fields as for default algorithm - source_ip_port.
+        self.helper.ovn_nbdb_api.db_create.assert_called_once_with(
+            'Load_Balancer', external_ids={
+                ovn_const.LB_EXT_IDS_VIP_KEY: mock.ANY,
+                ovn_const.LB_EXT_IDS_VIP_PORT_ID_KEY: mock.ANY,
+                'enabled': 'True'},
+            name=mock.ANY,
+            protocol=None,
+            selection_fields=['ip_src', 'ip_dst', 'tp_src', 'tp_dst'])
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     def test_lb_create_on_multi_protocol(self, net_dr):
@@ -990,7 +1038,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                 ovn_const.LB_EXT_IDS_LR_REF_KEY: 'foo',
                 'enabled': 'True'},
             name=mock.ANY,
-            protocol='udp')
+            protocol='udp',
+            selection_fields=['ip_src', 'ip_dst', 'tp_src', 'tp_dst'])
         self.helper._update_lb_to_ls_association.assert_has_calls([
             mock.call(self.ovn_lb, associate=True,
                       network_id=self.lb['vip_network_id']),
