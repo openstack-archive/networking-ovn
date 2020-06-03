@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from ovsdbapp.backend.ovs_idl import idlutils
+
 from neutron.db import models_v2
 from neutron.db.qos import models as qos_db_model
 from neutron.objects.qos import policy as qos_policy
@@ -167,7 +169,10 @@ class OVNClientQosExtension(object):
         for ovn_rule in [self._ovn_qos_rule(direction, {}, port_id,
                                             network_id, delete=True)
                          for direction in constants.VALID_DIRECTIONS]:
-            txn.add(self._driver._nb_idl.qos_del(**ovn_rule))
+            try:
+                txn.add(self._driver._nb_idl.qos_del(**ovn_rule))
+            except idlutils.RowNotFound:
+                continue
 
         if not qos_policy_id:
             return  # If no QoS policy is defined, there are no QoS rules.
