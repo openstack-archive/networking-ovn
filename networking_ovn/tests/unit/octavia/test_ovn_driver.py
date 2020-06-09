@@ -2810,22 +2810,19 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         net_dr.return_value.neutron_client.list_ports.return_value = {
             'ports': []}
         self.vip_dict['vip_address'] = '10.1.10.1'
-        ret = self.helper.create_vip_port(
+        self.assertRaises(
+            n_exc.IpAddressAlreadyAllocatedClient,
+            self.helper.create_vip_port,
             self.project_id,
             self.loadbalancer_id,
             self.vip_dict)
-        self.assertIsNone(ret)
         expected_call = [
             mock.call().neutron_client.list_ports(
                 network_id='%s' % self.vip_dict['vip_network_id'],
                 name='%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
                                self.loadbalancer_id))]
         net_dr.assert_has_calls(expected_call)
-        self.helper._update_status_to_octavia.assert_called_once_with(
-            {'loadbalancers':
-                [{'id': self.loadbalancer_id,
-                  'provisioning_status': 'ERROR',
-                  'operating_status': 'ERROR'}]})
+        self.helper._update_status_to_octavia.assert_not_called()
 
     def test_get_pool_member_id(self):
         ret = self.helper.get_pool_member_id(
