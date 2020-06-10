@@ -34,7 +34,6 @@
   register: out
   changed_when: "'Security groups cleaned' in out.stdout"
 
-
 - name: Cleanup neutron datapath resources
   become: yes
   shell: |
