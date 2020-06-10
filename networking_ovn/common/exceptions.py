@@ -33,6 +33,6 @@ class StandardAttributeIDNotFound(n_exc.NeutronException):
 
 
 class HashRingIsEmpty(n_exc.NeutronException):
-    _message = _('Hash Ring returned empty when hashing "%(key)s". '
-                 'This should never happen in a normal situation, please '
-                 'check the status of your cluster')
+    message = _('Hash Ring returned empty when hashing "%(key)s". '
+                'This should never happen in a normal situation, please '
+                'check the status of your cluster')
