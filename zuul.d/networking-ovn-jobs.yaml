@@ -141,6 +141,7 @@
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
         OVN_BRANCH: branch-2.11
+        USE_PYTHON3: true
       rally_task: rally-jobs/ovn.yaml
     timeout: 7800
 
