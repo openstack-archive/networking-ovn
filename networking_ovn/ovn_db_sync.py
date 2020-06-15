@@ -15,6 +15,7 @@ from datetime import datetime
 import itertools
 
 from eventlet import greenthread
+from neutron import manager
 from neutron.services.segments import db as segments_db
 from neutron_lib.api.definitions import l3
 from neutron_lib.api.definitions import segment as segment_def
@@ -73,6 +74,10 @@ class OvnNbSynchronizer(OvnDbSynchronizer):
         self.l3_plugin = directory.get_plugin(plugin_constants.L3)
         self._ovn_client = ovn_client.OVNClient(ovn_api, sb_ovn)
         self.segments_plugin = directory.get_plugin('segments')
+        if not self.segments_plugin:
+            self.segments_plugin = (
+                manager.NeutronManager.load_class_for_provider(
+                    'neutron.service_plugins', 'segments')())
 
     def stop(self):
         if utils.is_ovn_l3(self.l3_plugin):
