@@ -19,6 +19,7 @@ import uuid
 import mock
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
+from neutron.db import securitygroups_db
 from neutron.db import segments_db
 from neutron.plugins.ml2.drivers import type_geneve  # noqa
 from neutron.services.revisions import revision_plugin
@@ -136,13 +137,38 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
 
     @mock.patch.object(db_rev, 'bump_revision')
     def test__process_sg_rule_notifications_sgr_create(self, mock_bump):
-        with mock.patch(
-            'networking_ovn.common.acl.update_acls_for_security_group'
-        ) as ovn_acl_up:
+        with mock.patch.object(
+                self.mech_driver,
+                '_sg_has_rules_with_same_normalized_cidr') as has_same_rules, \
+                mock.patch(
+                    'networking_ovn.common.acl.update_acls_for_security_group'
+                ) as ovn_acl_up:
             rule = {'security_group_id': 'sg_id'}
             self.mech_driver._process_sg_rule_notification(
                 resources.SECURITY_GROUP_RULE, events.AFTER_CREATE, {},
                 security_group_rule=rule)
+            has_same_rules.assert_not_called()
+            ovn_acl_up.assert_called_once_with(
+                mock.ANY, mock.ANY, mock.ANY,
+                'sg_id', rule, is_add_acl=True)
+            mock_bump.assert_called_once_with(
+                rule, ovn_const.TYPE_SECURITY_GROUP_RULES)
+
+    @mock.patch.object(db_rev, 'bump_revision')
+    def test__process_sg_rule_notifications_sgr_create_with_remote_ip_prefix(
+            self, mock_bump):
+        with mock.patch.object(
+                self.mech_driver,
+                '_sg_has_rules_with_same_normalized_cidr') as has_same_rules, \
+                mock.patch(
+                    'networking_ovn.common.acl.update_acls_for_security_group'
+                ) as ovn_acl_up:
+            rule = {'security_group_id': 'sg_id',
+                    'remote_ip_prefix': '1.0.0.0/24'}
+            self.mech_driver._process_sg_rule_notification(
+                resources.SECURITY_GROUP_RULE, events.AFTER_CREATE, {},
+                security_group_rule=rule, context=self.context)
+            has_same_rules.assert_not_called()
             ovn_acl_up.assert_called_once_with(
                 mock.ANY, mock.ANY, mock.ANY,
                 'sg_id', rule, is_add_acl=True)
@@ -168,6 +194,59 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     'sg_id', rule, is_add_acl=False)
                 mock_delrev.assert_called_once_with(
                     rule['id'], ovn_const.TYPE_SECURITY_GROUP_RULES)
+
+    def test__sg_has_rules_with_same_normalized_cidr(self):
+        scenarios = [
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'tcp'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'udp'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'tcp'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'tcp',
+              'port_range_min': '2000', 'port_range_max': '2100'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '192.168.0.0/24',
+              'protocol': 'tcp',
+              'port_range_min': '2000', 'port_range_max': '3000',
+              'direction': 'ingress'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'tcp',
+              'port_range_min': '2000', 'port_range_max': '3000',
+              'direction': 'egress'}, False),
+            ({'id': 'rule-id', 'security_group_id': 'sec-group-uuid',
+              'remote_ip_prefix': '10.10.10.175/26',
+              'protocol': 'tcp',
+              'port_range_min': '2000', 'port_range_max': '3000',
+              'direction': 'ingress'}, True)]
+
+        rules = [
+            {
+                'id': 'rule-1-id',
+                'protocol': 'udp',
+            }, {
+                'id': 'rule-2-id',
+                'remote_ip_prefix': '10.10.10.128/26',
+                'protocol': 'tcp',
+                'port_range_min': '2000',
+                'port_range_max': '3000',
+                'direction': 'ingress'
+            }]
+
+        with mock.patch.object(securitygroups_db.SecurityGroupDbMixin,
+                               'get_security_group_rules',
+                               return_value=rules):
+            for rule, expected_result in scenarios:
+                self.assertEqual(
+                    expected_result,
+                    self.mech_driver._sg_has_rules_with_same_normalized_cidr(
+                        rule))
 
     def test_port_invalid_binding_profile(self):
         invalid_binding_profiles = [
