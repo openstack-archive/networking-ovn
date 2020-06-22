@@ -20,7 +20,7 @@ ADMIN_PASSWORD=password
 # repo.  You can optionally use a different one.  For example, you may want to
 # use the latest patches in blp's ovn branch:
 #OVN_REPO=https://github.com/blp/ovs-reviews.git
-OVN_BRANCH=branch-2.11
+OVN_BRANCH=branch-2.12
 
 enable_plugin networking-ovn https://git.openstack.org/openstack/networking-ovn stable/queens
 enable_service ovn-northd

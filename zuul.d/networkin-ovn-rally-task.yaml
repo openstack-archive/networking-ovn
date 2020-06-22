@@ -25,6 +25,6 @@
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
-        OVN_BRANCH: branch-2.11
+        OVN_BRANCH: branch-2.12
       rally_task: rally-jobs/ovn.yaml
     timeout: 7800
