@@ -22,7 +22,11 @@ case $VENV in
     # the CI are breaking because of missing six package.
     # Installing the package for now as a workaround
     # https://bugs.launchpad.net/networking-ovn/+bug/1648670
-    sudo pip install six
+    if python3_enabled; then
+        install_package python3-six python3-tox
+    else
+        install_package python-six python-tox
+    fi
     # Install SSL dependencies here for now as a workaround
     # https://bugs.launchpad.net/networking-ovn/+bug/1696713
     if is_fedora ; then
