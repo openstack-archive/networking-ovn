@@ -27,6 +27,7 @@ from neutron_lib.callbacks import events
 from neutron_lib.callbacks import resources
 from neutron_lib import constants
 from neutron_lib import exceptions as n_exc
+from neutron_lib.exceptions import availability_zone as az_exc
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from oslo_config import cfg
@@ -41,6 +42,7 @@ from networking_ovn.tests.unit.ml2 import test_mech_driver
 
 class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
+    _mechanism_drivers = ['ovn']
     l3_plugin = 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin'
 
     def _start_mock(self, path, return_value, new_callable=None):
@@ -372,7 +374,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', enabled=True, external_ids={
                 ovn_const.OVN_GW_PORT_EXT_ID_KEY: '',
                 ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
-                ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router'})
+                ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router',
+                ovn_const.OVN_ROUTER_AZ_HINTS_EXT_ID_KEY: ''})
 
     @mock.patch('neutron.db.extraroute_db.ExtraRoute_dbonly_mixin.'
                 'update_router')
@@ -392,7 +395,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
             'neutron-router-id', enabled=False,
             external_ids={ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'test',
                           ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
-                          ovn_const.OVN_GW_PORT_EXT_ID_KEY: ''})
+                          ovn_const.OVN_GW_PORT_EXT_ID_KEY: '',
+                          ovn_const.OVN_ROUTER_AZ_HINTS_EXT_ID_KEY: ''})
 
     @mock.patch.object(utils, 'get_lrouter_non_gw_routes')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.update_router')
@@ -462,7 +466,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         external_ids = {ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router',
                         ovn_const.OVN_REV_NUM_EXT_ID_KEY: '1',
-                        ovn_const.OVN_GW_PORT_EXT_ID_KEY: 'gw-port-id'}
+                        ovn_const.OVN_GW_PORT_EXT_ID_KEY: 'gw-port-id',
+                        ovn_const.OVN_ROUTER_AZ_HINTS_EXT_ID_KEY: ''}
         self.l3_inst._ovn.create_lrouter.assert_called_once_with(
             'neutron-router-id', external_ids=external_ids,
             enabled=True, options={})
@@ -1371,6 +1376,8 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.l3_inst.schedule_unhosted_gateways()
         self.nb_idl().update_lrouter_port.assert_not_called()
 
+    @mock.patch('networking_ovn.ml2.mech_driver.'
+                'OVNMechanismDriver.list_availability_zones', lambda *_: [])
     @mock.patch('networking_ovn.l3.l3_ovn.OVNL3RouterPlugin.'
                 '_get_gateway_port_physnet_mapping')
     def test_schedule_unhosted_gateways(self, get_gppm):
@@ -1409,7 +1416,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.mock_candidates.assert_has_calls([
             mock.call(mock.ANY,
                       chassis_physnets=chassis_mappings,
-                      cms=chassis)] * 3)
+                      cms=chassis, availability_zone_hints=[])] * 3)
         self.mock_schedule.assert_has_calls([
             mock.call(self.nb_idl(), self.sb_idl(),
                       'lrp-foo-1', [], ['chassis1', 'chassis2']),
@@ -1497,6 +1504,55 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
 
         self.bump_rev_p.assert_called_with(self.fake_router_port,
                                            ovn_const.TYPE_ROUTER_PORTS)
+
+    def _test_get_router_availability_zones(self, azs, expected):
+        lr = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'id': 'fake-router', 'external_ids': {
+                ovn_const.OVN_ROUTER_AZ_HINTS_EXT_ID_KEY: azs}})
+        self.l3_inst._ovn.get_lrouter.return_value = lr
+        azs_list = self.l3_inst.get_router_availability_zones(lr)
+        self.assertEqual(sorted(expected), sorted(azs_list))
+
+    def test_get_router_availability_zones_one(self):
+        self._test_get_router_availability_zones('az0', ['az0'])
+
+    def test_get_router_availability_zones_multiple(self):
+        self._test_get_router_availability_zones(
+            'az0,az1,az2', ['az0', 'az1', 'az2'])
+
+    def test_get_router_availability_zones_none(self):
+        self._test_get_router_availability_zones('', [])
+
+    @mock.patch('networking_ovn.ml2.mech_driver.'
+                'OVNMechanismDriver.list_availability_zones')
+    def test_validate_availability_zones(self, mock_list_azs):
+        mock_list_azs.return_value = {'az0': {'name': 'az0'},
+                                      'az1': {'name': 'az1'},
+                                      'az2': {'name': 'az2'}}
+        self.assertIsNone(
+            self.l3_inst.validate_availability_zones(
+                self.context, 'router', ['az0', 'az2']))
+
+    @mock.patch('networking_ovn.ml2.mech_driver.'
+                'OVNMechanismDriver.list_availability_zones')
+    def test_validate_availability_zones_fail_non_exist(self, mock_list_azs):
+        mock_list_azs.return_value = {'az0': {'name': 'az0'},
+                                      'az1': {'name': 'az1'},
+                                      'az2': {'name': 'az2'}}
+        # Fails validation if the az does not exist
+        self.assertRaises(
+            az_exc.AvailabilityZoneNotFound,
+            self.l3_inst.validate_availability_zones, self.context, 'router',
+            ['az0', 'non-existent'])
+
+    @mock.patch('networking_ovn.ml2.mech_driver.'
+                'OVNMechanismDriver.list_availability_zones')
+    def test_validate_availability_zones_no_azs(self, mock_list_azs):
+        # When no AZs are requested validation should just succeed
+        self.assertIsNone(
+            self.l3_inst.validate_availability_zones(
+                self.context, 'router', []))
+        mock_list_azs.assert_not_called()
 
 
 class OVNL3ExtrarouteTests(test_l3_gw.ExtGwModeIntTestCase,

@@ -15,6 +15,10 @@
 # to be able to easily import it and export the info without any dependencies
 # on external imports.
 
+from neutron_lib.api.definitions import agent as agent_def
+from neutron_lib.api.definitions import availability_zone as az_def
+from neutron_lib.api.definitions import router_availability_zone as raz_def
+
 # NOTE(russellb) If you update these lists, please also update
 # doc/source/features.rst and the current release note.
 ML2_SUPPORTED_API_EXTENSIONS_NEUTRON_L3 = [
@@ -35,13 +39,15 @@ ML2_SUPPORTED_API_EXTENSIONS_OVN_L3 = [
     'sorting',
     'project-id',
     'dns-integration',
+    agent_def.ALIAS,
+    az_def.ALIAS,
+    raz_def.ALIAS,
 ]
 ML2_SUPPORTED_API_EXTENSIONS = [
     'address-scope',
     'agent',
     'allowed-address-pairs',
     'auto-allocated-topology',
-    'availability_zone',
     'binding',
     'default-subnetpools',
     'external-net',
