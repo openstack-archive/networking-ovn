@@ -13,3 +13,4 @@ Design Notes
    acl_optimizations
    loadbalancer
    distributed_ovsdb_events
+   dhcp_opts
