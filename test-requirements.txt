@@ -19,3 +19,4 @@ testresources>=2.0.0 # Apache-2.0/BSD
 testscenarios>=0.4 # Apache-2.0/BSD
 WebTest>=2.0.27 # MIT
 testtools>=2.2.0 # MIT
+isort==4.3.21 # MIT
