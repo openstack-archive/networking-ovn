@@ -10,7 +10,6 @@ Design Notes
    ovn_worker
    metadata_api
    database_consistency
-   acl_optimizations
    loadbalancer
    distributed_ovsdb_events
    dhcp_opts
