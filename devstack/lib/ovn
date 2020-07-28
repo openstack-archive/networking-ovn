@@ -90,10 +90,12 @@ function _prepare_for_ovs_compilation {
 
 # _reload_ovs_kernel_modules() - Reload the ovs kernel modules
 function _reload_ovs_kernel_modules {
+    set +e
     local ovs_system=$(sudo ovs-dpctl dump-dps | grep ovs-system)
     if [ -n "$ovs_system" ]; then
         sudo ovs-dpctl del-dp ovs-system
     fi
+    set -e
     sudo modprobe -r vport_geneve
     sudo modprobe -r openvswitch
     sudo modprobe openvswitch || (dmesg && die $LINENO "FAILED TO LOAD openvswitch")

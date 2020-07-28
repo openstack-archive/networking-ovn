@@ -254,6 +254,11 @@ function configure_ovn_plugin {
         export NETWORK_API_EXTENSIONS=$NETWORK_API_EXTENSIONS,$($PYTHON -c \
             'from networking_ovn.common import extensions ;\
              print(",".join(extensions.ML2_SUPPORTED_API_EXTENSIONS_OVN_L3))')
+        if is_service_enabled q-qos neutron-qos ; then
+            export NETWORK_API_EXTENSIONS="$NETWORK_API_EXTENSIONS,qos"
+            source $NEUTRON_DIR/devstack/lib/qos
+            configure_qos_service_plugin
+        fi
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ml2_type_geneve max_header_size=$OVN_GENEVE_OVERHEAD
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_nb_connection="$OVN_NB_REMOTE"
         populate_ml2_config /$Q_PLUGIN_CONF_FILE ovn ovn_sb_connection="$OVN_SB_REMOTE"
