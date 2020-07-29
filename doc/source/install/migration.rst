@@ -111,6 +111,11 @@ values matching the defaults.
       1..
       Default: ~/overcloud-deploy-ovn.sh
 
+   * STACK_NAME - Name or ID of the heat stack
+     Default: 'overcloud'
+     If the stack that is migrated differs from the default, please set this
+     environment variable to the stack name or ID.
+
     * PUBLIC_NETWORK_NAME - Name of your public network.
       Default: 'public'.
       To support migration validation, this network must have available
