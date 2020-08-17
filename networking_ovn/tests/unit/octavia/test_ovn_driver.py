@@ -388,39 +388,34 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         mock_ip_differs.assert_not_called()
 
     def test_member_batch_update(self):
-        self.driver.member_batch_update([self.ref_member, self.update_member])
+        self.driver.member_batch_update(self.pool_id,
+                                        [self.ref_member, self.update_member])
         self.assertEqual(self.mock_add_request.call_count, 3)
-
-    def test_member_batch_update_no_members(self):
-        self.assertRaises(exceptions.UnsupportedOptionError,
-                          self.driver.member_batch_update, [])
-
-    def test_member_batch_update_missing_pool(self):
-        delattr(self.ref_member, 'pool_id')
-        self.assertRaises(exceptions.UnsupportedOptionError,
-                          self.driver.member_batch_update, [self.ref_member])
 
     def test_member_batch_update_skipped_monitor(self):
         self.ref_member.monitor_address = '10.11.1.1'
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_batch_update,
+                          self.pool_id,
                           [self.ref_member])
 
     def test_member_batch_update_skipped_mixed_ip(self):
         self.ref_member.address = 'fc00::1'
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_batch_update,
+                          self.pool_id,
                           [self.ref_member])
 
     def test_member_batch_update_unset_admin_state_up(self):
         self.ref_member.admin_state_up = data_models.UnsetType()
-        self.driver.member_batch_update([self.ref_member])
+        self.driver.member_batch_update(self.pool_id, [self.ref_member])
         self.assertEqual(self.mock_add_request.call_count, 2)
 
     def test_member_batch_update_missing_subnet_id(self):
         self.ref_member.subnet_id = None
         self.assertRaises(exceptions.UnsupportedOptionError,
-                          self.driver.member_batch_update, [self.ref_member])
+                          self.driver.member_batch_update,
+                          self.pool_id, [self.ref_member])
 
     def test_member_update_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,

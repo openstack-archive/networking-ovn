@@ -2175,23 +2175,9 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                    'info': request_info}
         self._ovn_helper.add_request(request)
 
-    def member_batch_update(self, members):
-        # Note(rbanerje): all members belong to the same pool.
+    def member_batch_update(self, pool_id, members):
         request_list = []
         skipped_members = []
-        pool_id = None
-        try:
-            pool_id = members[0].pool_id
-        except IndexError:
-            msg = (_('No member information has been passed'))
-            raise driver_exceptions.UnsupportedOptionError(
-                user_fault_string=msg,
-                operator_fault_string=msg)
-        except AttributeError:
-            msg = (_('Member does not have proper pool information'))
-            raise driver_exceptions.UnsupportedOptionError(
-                user_fault_string=msg,
-                operator_fault_string=msg)
         pool_key, ovn_lb = self._ovn_helper._find_ovn_lb_by_pool_id(pool_id)
         external_ids = copy.deepcopy(ovn_lb.external_ids)
         existing_members = external_ids[pool_key].split(',')
