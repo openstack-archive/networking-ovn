@@ -76,6 +76,9 @@ class TestOvnNbSync(base.TestOVNFunctionalBase):
         self.expected_ports_with_unknown_addr = []
         ovn_config.cfg.CONF.set_override('ovn_metadata_enabled', True,
                                          group='ovn')
+        ovn_config.cfg.CONF.set_override(
+            'enable_distributed_floating_ip', True, group='ovn')
+
 
     def _api_for_resource(self, resource):
         if resource in ['security-groups']:
