@@ -391,8 +391,9 @@ class DBInconsistenciesPeriodics(SchemaAwarePeriodicsBase):
     def _create_lrouter_port(self, port):
         admin_context = n_context.get_admin_context()
         router_id = port['device_id']
-        self._ovn_client._l3_plugin.add_router_interface(
+        iface_info = self._ovn_client._l3_plugin._add_neutron_router_interface(
             admin_context, router_id, {'port_id': port['id']}, may_exist=True)
+        self._ovn_client.create_router_port(router_id, iface_info)
 
     def _check_subnet_global_dhcp_opts(self):
         inconsistent_subnets = []

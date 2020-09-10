@@ -180,10 +180,9 @@ class OVNL3RouterPlugin(service_base.ServicePluginBase,
 
         return router_interface_info
 
-    def add_router_interface(self, context, router_id, interface_info,
-                             may_exist=False):
+    def add_router_interface(self, context, router_id, interface_info=None):
         router_interface_info = self._add_neutron_router_interface(
-            context, router_id, interface_info, may_exist=may_exist)
+            context, router_id, interface_info)
         try:
             self._ovn_client.create_router_port(router_id,
                                                 router_interface_info)
