@@ -14,6 +14,7 @@
 #    under the License.
 
 import datetime
+import time
 
 import mock
 from neutron_lib.db import api as db_api
@@ -33,8 +34,12 @@ class TestHashRing(db_base.DBTestCase):
         try:
             session = db_api.get_reader_session()
             with session.begin():
-                return session.query(models.OVNHashRing).filter_by(
+                node = session.query(models.OVNHashRing).filter_by(
                     node_uuid=node_uuid).one()
+                # Ignore miliseconds
+            node.created_at = node.created_at.replace(microsecond=0)
+            node.updated_at = node.updated_at.replace(microsecond=0)
+            return node
         except exc.NoResultFound:
             pass
 
@@ -84,6 +89,7 @@ class TestHashRing(db_base.DBTestCase):
         self.assertEqual(node_db.created_at, node_db.updated_at)
 
         # Touch the nodes from our host
+        time.sleep(1)
         db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Assert that updated_at is now updated
@@ -110,6 +116,7 @@ class TestHashRing(db_base.DBTestCase):
 
         # Substract 60 seconds from utcnow() and touch the nodes from
         # our host
+        time.sleep(1)
         fake_utcnow = timeutils.utcnow() - datetime.timedelta(seconds=60)
         with mock.patch.object(timeutils, 'utcnow') as mock_utcnow:
             mock_utcnow.return_value = fake_utcnow
@@ -146,6 +153,7 @@ class TestHashRing(db_base.DBTestCase):
             self.assertEqual(node_db.created_at, node_db.updated_at)
 
         # Touch one of the nodes
+        time.sleep(1)
         db_hash_ring.touch_node(nodes[0])
 
         # Assert it has been updated
@@ -201,6 +209,7 @@ class TestHashRing(db_base.DBTestCase):
             self.assertEqual(node_db.created_at, node_db.updated_at)
 
         # Touch the nodes from group1
+        time.sleep(1)
         db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Assert that updated_at was updated for group1

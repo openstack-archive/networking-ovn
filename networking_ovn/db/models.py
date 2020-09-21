@@ -14,6 +14,7 @@
 #    under the License.
 
 from neutron_lib.db import model_base
+from oslo_utils import timeutils
 import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
@@ -45,7 +46,7 @@ class OVNHashRing(model_base.BASEV2):
     node_uuid = sa.Column(sa.String(36), nullable=False, primary_key=True)
     group_name = sa.Column(sa.String(256), nullable=False, primary_key=True)
     hostname = sa.Column(sa.String(256), nullable=False)
-    created_at = sa.Column(sa.DateTime(), default=sa.func.now(),
+    created_at = sa.Column(sa.DateTime(), default=timeutils.utcnow,
                            nullable=False)
-    updated_at = sa.Column(sa.DateTime(), default=sa.func.now(),
+    updated_at = sa.Column(sa.DateTime(), default=timeutils.utcnow,
                            nullable=False)
