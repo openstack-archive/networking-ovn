@@ -250,7 +250,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
-        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
+        OVS_BRANCH: 0047ca3a0290f1ef954f2c76b31477cf4b9755f5
 
 - job:
     name: networking-ovn-tempest-dsvm-ovs-release-python2
@@ -259,7 +259,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
-        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
+        OVS_BRANCH: 0047ca3a0290f1ef954f2c76b31477cf4b9755f5
         USE_PYTHON3: False
 
 - job:
@@ -270,7 +270,7 @@
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
-        OVS_BRANCH: 51e9479da62edb04a5be47a7655de75c299b9fa1
+        OVS_BRANCH: 0047ca3a0290f1ef954f2c76b31477cf4b9755f5
 
 - job:
     name: networking-ovn-rally-task
