@@ -75,6 +75,12 @@
         ADVANCED_INSTANCE_TYPE: ds512M
         ADVANCED_INSTANCE_USER: ubuntu
         BUILD_TIMEOUT: 784
+      devstack_local_conf:
+        test-config:
+          $TEMPEST_CONFIG:
+            neutron_plugin_options:
+              ipv6_metadata: False
+
       devstack_plugins:
         networking-ovn: https://opendev.org/openstack/networking-ovn
         neutron-tempest-plugin: https://opendev.org/openstack/neutron-tempest-plugin
@@ -173,6 +179,11 @@
         ADVANCED_INSTANCE_TYPE: ds512M
         ADVANCED_INSTANCE_USER: ubuntu
         BUILD_TIMEOUT: 784
+      devstack_local_conf:
+        test-config:
+          $TEMPEST_CONFIG:
+            neutron_plugin_options:
+              ipv6_metadata: False
       devstack_plugins:
         networking-ovn: https://opendev.org/openstack/networking-ovn
         neutron-tempest-plugin: https://opendev.org/openstack/neutron-tempest-plugin
