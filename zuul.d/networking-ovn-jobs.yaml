@@ -465,6 +465,7 @@
               l7_protocol_enabled: False
               l4_protocol: "TCP"
               session_persistence_enabled: False
+              not_implemented_is_error: False
       devstack_services:
         c-bak: false
         ceilometer-acentral: false

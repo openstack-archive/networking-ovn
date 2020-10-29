@@ -1960,6 +1960,16 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                 user_fault_string=msg,
                 operator_fault_string=msg)
 
+    def _check_for_allowed_cidrs(self, allowed_cidrs):
+        # TODO(haleyb): add support for this
+        if isinstance(allowed_cidrs, o_datamodels.UnsetType):
+            allowed_cidrs = []
+        if allowed_cidrs:
+            msg = _('OVN provider does not support allowed_cidrs option')
+            raise driver_exceptions.UnsupportedOptionError(
+                user_fault_string=msg,
+                operator_fault_string=msg)
+
     def loadbalancer_create(self, loadbalancer):
         admin_state_up = loadbalancer.admin_state_up
         if isinstance(admin_state_up, o_datamodels.UnsetType):
@@ -2040,6 +2050,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
 
     def listener_create(self, listener):
         self._check_for_supported_protocols(listener.protocol)
+        self._check_for_allowed_cidrs(listener.allowed_cidrs)
+
         admin_state_up = listener.admin_state_up
         if isinstance(admin_state_up, o_datamodels.UnsetType):
             admin_state_up = True
@@ -2063,6 +2075,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def listener_update(self, old_listener, new_listener):
+        self._check_for_allowed_cidrs(new_listener.allowed_cidrs)
+
         request_info = {'id': new_listener.listener_id,
                         'loadbalancer_id': old_listener.loadbalancer_id,
                         'protocol': old_listener.protocol,
