@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Currently, QoS is implemented by TC command of HV OS.
+    This solution has many drawbacks, such as not supported
+    VLAN network or VMs from same HV.
+    Meter is a comfortable solution, which is implement
+    in OpenFlow as an action, so it is flexible and exact.
+    By meter action, we can implemented QoS from both directions,
+    also, we can support DSCP. If we want to add other matches,
+    it is also feasible.
