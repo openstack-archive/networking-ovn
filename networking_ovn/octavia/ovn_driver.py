@@ -186,6 +186,11 @@ class OvnNbIdlForLb(ovsdb_monitor.OvnIdl):
              self.conn.stop(timeout=ovn_cfg.get_ovn_ovsdb_timeout()))):
             LOG.debug("Connection terminated to OvnNb "
                       "but a thread is still alive")
+        if hasattr(self, 'conn'):
+            if not self.conn.stop(timeout=ovn_cfg.get_ovn_ovsdb_timeout()):
+                LOG.debug("Connection terminated to OvnNb "
+                          "but a thread is still alive")
+            del self.conn
         # complete the shutdown for the event handler
         self.notify_handler.shutdown()
         # Close the idl session
@@ -281,6 +286,10 @@ class OvnProviderHelper(object):
         self.requests.put({'type': REQ_TYPE_EXIT})
         self.helper_thread.join()
         self.ovn_nb_idl_for_events.notify_handler.unwatch_events(self.events)
+        ovn_nbdb_api = OvnProviderHelper.ovn_nbdb_api
+        if ovn_nbdb_api:
+            OvnProviderHelper.ovn_nbdb_api = None
+            del ovn_nbdb_api
 
     @staticmethod
     def _map_val(row, col, key):
