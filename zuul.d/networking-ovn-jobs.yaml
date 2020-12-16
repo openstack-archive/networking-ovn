@@ -78,8 +78,8 @@
       devstack_local_conf:
         test-config:
           $TEMPEST_CONFIG:
-            neutron_plugin_options:
-              ipv6_metadata: False
+            network-feature-enabled:
+              available_features: ""
 
       devstack_plugins:
         networking-ovn: https://opendev.org/openstack/networking-ovn
