@@ -414,11 +414,11 @@ neutron repository instead of the pip installed version from requirements.txt::
 
     tox -e py3-dev
 
-Many changes span across both the OVN and neutron-lib repos, and tox
-will always build the test environment using the published module versions
-specified in requirements.txt and lower-constraints.txt. To run tox tests
-against a different version of neutron-lib, use the TOX_ENV_SRC_MODULES
-environment variable to point at a local package repo.
+Many changes span across both the OVN and neutron-lib repos, and tox will
+always build the test environment using the published module versions specified
+in requirements.txt. To run tox tests against a different version of
+neutron-lib, use the TOX_ENV_SRC_MODULES environment variable to point at a
+local package repo.
 
 For example, to run against the 'master' branch of neutron-lib::
 
