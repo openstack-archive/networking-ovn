@@ -8,7 +8,6 @@
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python3
-        - networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional:
             branches: ^(?!stable/newton).*$
@@ -21,7 +20,6 @@
         # failures, please reach us on #tripleo IRC channel.
         - tripleo-ci-centos-7-scenario007-multinode-oooq-container:
             voting: false
-        - openstack-tox-lower-constraints
         - networking-ovn-dsvm-grenade:
             branches: ^(?!stable/(ocata|pike|queens)).*$
             voting: false
@@ -33,12 +31,10 @@
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python3
-        - networking-ovn-rally-task
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional:
             branches: ^(?!stable/newton).*$
         - tripleo-ci-centos-7-scenario007-multinode-oooq
-        - openstack-tox-lower-constraints
     experimental:
       jobs:
         - networking-ovn-tempest-dsvm-multinode:
