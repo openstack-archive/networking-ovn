@@ -815,4 +815,4 @@ class TestMaintenance(_TestMaintenanceHelper):
 
         self.assertEqual('true', ls['other_config'][ovn_const.MCAST_SNOOP])
         self.assertEqual(
-            'true', ls['other_config'][ovn_const.MCAST_FLOOD_UNREGISTERED])
+            'false', ls['other_config'][ovn_const.MCAST_FLOOD_UNREGISTERED])

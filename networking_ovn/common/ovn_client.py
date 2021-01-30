@@ -1604,7 +1604,7 @@ class OVNClient(object):
         # Enable IGMP snooping if igmp_snooping_enable is enabled in Neutron
         value = 'true' if config.is_igmp_snooping_enabled() else 'false'
         params['other_config'] = {ovn_const.MCAST_SNOOP: value,
-                                  ovn_const.MCAST_FLOOD_UNREGISTERED: value}
+                                  ovn_const.MCAST_FLOOD_UNREGISTERED: 'false'}
         return params
 
     def create_network(self, network):
