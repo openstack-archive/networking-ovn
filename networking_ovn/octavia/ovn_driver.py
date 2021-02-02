@@ -465,18 +465,24 @@ class OvnProviderHelper(object):
 
     def request_handler(self):
         while True:
-            try:
-                request = self.requests.get()
-                request_type = request['type']
-                if request_type == REQ_TYPE_EXIT:
-                    break
+            request = self.requests.get()
+            request_type = request['type']
+            if request_type == REQ_TYPE_EXIT:
+                break
 
-                request_handler = self._lb_request_func_maps.get(request_type)
+            request_handler = self._lb_request_func_maps.get(request_type)
+            try:
                 if request_handler:
                     status = request_handler(request['info'])
                     if status:
                         self._update_status_to_octavia(status)
                 self.requests.task_done()
+            except driver_exceptions.UpdateStatusError as e:
+                msg = ("Error while updating the load balancer "
+                       "status: %s") % e.fault_string
+                LOG.error(msg)
+                # TODO(haleyb): The resource(s) we were updating status for
+                # should be cleaned-up
             except Exception:
                 # If any unexpected exception happens we don't want the
                 # notify_loop to exit.
@@ -485,16 +491,16 @@ class OvnProviderHelper(object):
     def add_request(self, req):
         self.requests.put(req)
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(
+            driver_exceptions.UpdateStatusError),
+        wait=tenacity.wait_exponential(),
+        stop=tenacity.stop_after_delay(10),
+        reraise=True)
     def _update_status_to_octavia(self, status):
-        try:
-            status = OvnProviderHelper._delete_disabled_from_status(status)
-            LOG.debug('Updating status to octavia: %s', status)
-            self._octavia_driver_lib.update_loadbalancer_status(status)
-        except driver_exceptions.UpdateStatusError as e:
-            msg = ("Error while updating the load balancer "
-                   "status: %s") % e.fault_string
-            LOG.error(msg)
-            raise driver_exceptions.UpdateStatusError(msg)
+        status = OvnProviderHelper._delete_disabled_from_status(status)
+        LOG.debug('Updating status to octavia: %s', status)
+        self._octavia_driver_lib.update_loadbalancer_status(status)
 
     def _find_ovn_lbs(self, lb_id, protocol=None):
         """Find the Loadbalancers in OVN with the given lb_id as its name
