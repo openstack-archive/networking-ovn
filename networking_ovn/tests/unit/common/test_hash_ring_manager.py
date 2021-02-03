@@ -14,6 +14,7 @@
 #    under the License.
 
 import datetime
+import time
 
 import mock
 from oslo_utils import timeutils
@@ -110,6 +111,7 @@ class TestHashRingManager(db_base.DBTestCase):
         self.assertTrue(self.hash_ring_manager._cache_startup_timeout)
 
         # Touch the nodes (== update the updated_at column)
+        time.sleep(1)
         db_hash_ring.touch_nodes_from_host(HASH_RING_TEST_GROUP)
 
         # Assert it's now False. Waiting is not needed anymore
