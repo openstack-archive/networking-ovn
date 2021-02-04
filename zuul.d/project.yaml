@@ -6,8 +6,6 @@
       - openstack-python3-train-jobs-neutron
     check:
       jobs:
-        - networking-ovn-tempest-dsvm-ovs-master:
-            voting: false
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
@@ -28,8 +26,6 @@
               - openstack/neutron
         - networking-ovn-tempest-slow:
             voting: false
-        - networking-ovn-tempest-full-multinode-ovs-master:
-            voting: false
         - networking-ovn-octavia-v2-dsvm-scenario:
             voting: false
     gate:
@@ -48,7 +44,4 @@
         - networking-ovn-tempest-dsvm-multinode:
             voting: false
         - kuryr-kubernetes-tempest-ovn
-    periodic:
-      jobs:
-        - networking-ovn-tempest-dsvm-ovs-master-fedora
 

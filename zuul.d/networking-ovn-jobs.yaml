@@ -246,15 +246,6 @@
           USE_PYTHON3: True
 
 - job:
-    name: networking-ovn-tempest-dsvm-ovs-master
-    description: Job testing for devstack/tempest testing networking-ovn with OVN master branch
-    parent: networking-ovn-base
-    vars:
-      devstack_localrc:
-        OVN_BRANCH: master
-        OVS_BRANCH: master
-
-- job:
     name: networking-ovn-tempest-dsvm-ovs-release
     description: Job testing for devstack/tempest testing networking-ovn with the latest released OVN branch
     parent: networking-ovn-base
@@ -272,16 +263,6 @@
         OVN_BRANCH: v20.03.0
         OVS_BRANCH: 0047ca3a0290f1ef954f2c76b31477cf4b9755f5
         USE_PYTHON3: False
-
-- job:
-    name: networking-ovn-tempest-dsvm-ovs-master-fedora
-    description: Job testing for devstack/tempest testing networking-ovn with OVN master branch and Fedora
-    parent: networking-ovn-tempest-dsvm-ovs-master
-    nodeset: devstack-single-node-fedora-latest
-    vars:
-      devstack_localrc:
-        OVN_BRANCH: v20.03.0
-        OVS_BRANCH: 0047ca3a0290f1ef954f2c76b31477cf4b9755f5
 
 - job:
     name: networking-ovn-rally-task
@@ -369,55 +350,6 @@
       # blacklist when bug https://bugs.launchpad.net/tempest/+bug/1728886
       # will be fixed
       tempest_black_regex: "(?:tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_port_security_macspoofing_port)"
-
-- job:
-    name: networking-ovn-tempest-full-multinode-ovs-master
-    parent: networking-ovn-multinode-base
-    vars:
-      tox_envlist: all
-      tempest_test_regex: "^(?!.*\
-          (?:.*\\[.*slow.*\\])|\
-          (?:tempest.api.network.admin.test_quotas.QuotasTest.test_lbaas_quotas.*)|\
-          (?:tempest.api.network.test_load_balancer.*)|\
-          (?:tempest.scenario.test_load_balancer.*)|\
-          (?:tempest.api.network.admin.test_load_balancer.*)|\
-          (?:tempest.api.network.admin.test_lbaas.*)|\
-          (?:tempest.api.network.test_fwaas_extensions.*)|\
-          (?:tempest.api.network.test_metering_extensions.*)|\
-          (?:tempest.thirdparty.boto.test_s3.*)|\
-          (?:tempest.scenario.test_network_basic_ops.TestNetworkBasicOps.test_port_security_macspoofing_port)|\
-          (?:tempest.api.identity*)|\
-          (?:tempest.api.image*)|\
-          (?:tempest.api.volume*)|\
-          (?:tempest.api.compute.images*)|\
-          (?:tempest.api.compute.keypairs*)|\
-          (?:tempest.api.compute.certificates*)|\
-          (?:tempest.api.compute.flavors*)|\
-          (?:tempest.api.compute.test_quotas*)|\
-          (?:tempest.api.compute.test_versions*)|\
-          (?:tempest.api.compute.volumes*)|\
-          (?:tempest.api.compute.admin.test_flavor*)|\
-          (?:tempest.api.compute.admin.test_volume*)|\
-          (?:tempest.api.compute.admin.test_hypervisor*)|\
-          (?:tempest.api.compute.admin.test_aggregate*)|\
-          (?:tempest.api.compute.admin.test_quota*)|\
-          (?:tempest.scenario.test_volume*))\
-          ((^neutron_tempest_plugin.api)|\
-          (^neutron_tempest_plugin.scenario)|\
-          (tempest.(api|scenario|thirdparty))).*$"
-      # TODO(slaweq): live_migration related test from the blacklist when bug
-      # https://bugzilla.redhat.com/show_bug.cgi?id=1716335 will be fixed
-      tempest_black_regex: "\
-          (^tempest.api.compute.admin.test_live_migration.LiveAutoBlockMigrationV225Test)|\
-          (^tempest.api.compute.admin.test_live_migration.LiveMigrationTest)"
-      devstack_localrc:
-        OVN_BRANCH: master
-        OVS_BRANCH: master
-    group-vars:
-      subnode:
-        devstack_localrc:
-          OVN_BRANCH: master
-          OVS_BRANCH: master
 
 - job:
     name: networking-ovn-octavia-dsvm-base
