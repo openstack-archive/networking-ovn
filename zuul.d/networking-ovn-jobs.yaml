@@ -146,20 +146,6 @@
     timeout: 7800
 
 - job:
-    name: networking-ovn-tripleo-c7-s007-oooq-containers
-    parent: tripleo-ci-centos-7-scenario007-multinode-oooq-container
-    irrelevant-files:
-      - ^(test-|)requirements.txt$
-      - ^.*\.rst$
-      - ^doc/.*$
-      - ^releasenotes/.*$
-      - ^setup.cfg$
-      - ^tools/.*$
-      - ^tox.ini$
-      - ^vagrant/.*$
-      - ^migration/.*$
-
-- job:
     name: networking-ovn-tripleo-ci-centos-7-containers-multinode
     parent: tripleo-ci-base-multinode
     vars:
