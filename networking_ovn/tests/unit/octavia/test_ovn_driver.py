@@ -2191,8 +2191,9 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         fake_subnet1.network_id = 'foo1'
         fake_subnet2 = fakes.FakeSubnet.create_one_subnet()
         fake_subnet2.network_id = 'foo2'
+        ns_exc = n_exc.NeutronException('subnet not found (subnet id: foo2)')
         net_dr.return_value.get_subnet.side_effect = [
-            fake_subnet1, n_exc.NotFound]
+            fake_subnet1, n_exc.NotFound, ns_exc]
         p1 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': [],
             'external_ids': {
