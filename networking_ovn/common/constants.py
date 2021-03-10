@@ -271,6 +271,8 @@ LSP_TYPE_VIRTUAL = 'virtual'
 LSP_TYPE_EXTERNAL = 'external'
 LSP_OPTIONS_VIRTUAL_PARENTS_KEY = 'virtual-parents'
 LSP_OPTIONS_VIRTUAL_IP_KEY = 'virtual-ip'
+LSP_OPTIONS_MCAST_FLOOD_REPORTS = 'mcast_flood_reports'
+LSP_OPTIONS_MCAST_FLOOD = 'mcast_flood'
 
 # OVN igmp options
 MCAST_SNOOP = 'mcast_snoop'
