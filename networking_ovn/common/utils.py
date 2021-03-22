@@ -468,7 +468,7 @@ def is_gateway_chassis_invalid(chassis_name, gw_chassis,
 
 
 def is_provider_network(network):
-    return external_net.EXTERNAL in network
+    return network.get(external_net.EXTERNAL, False)
 
 
 def compute_address_pairs_diff(ovn_port, neutron_port):
