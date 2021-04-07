@@ -559,3 +559,7 @@ def connection_config_to_target_string(connection_config):
                     _dict['ip'])
         elif _dict['file']:
             return 'p' + _dict['proto'] + ':' + _dict['file']
+
+
+def get_network_name_from_datapath(datapath):
+    return datapath.external_ids['name'].replace('neutron-', '')

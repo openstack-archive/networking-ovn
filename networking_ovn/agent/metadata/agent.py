@@ -34,6 +34,7 @@ from networking_ovn.agent.metadata import ovsdb
 from networking_ovn.agent.metadata import server as metadata_server
 from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import utils as ovn_utils
 
 
 LOG = log.getLogger(__name__)
@@ -87,9 +88,10 @@ class PortBindingChassisEvent(row_event.RowEvent):
             return
         with _SYNC_STATE_LOCK.read_lock():
             try:
-                LOG.info(self.LOG_MSG, row.logical_port,
-                         str(row.datapath.uuid))
-                self.agent.update_datapath(str(row.datapath.uuid))
+                net_name = ovn_utils.get_network_name_from_datapath(
+                        row.datapath)
+                LOG.info(self.LOG_MSG, row.logical_port, net_name)
+                self.agent.update_datapath(str(row.datapath.uuid), net_name)
             except ConfigException:
                 # We're now in the reader lock mode, we need to exit the
                 # context and then use writer lock
@@ -348,14 +350,20 @@ class MetadataAgent(object):
     def _vif_ports(self, ports):
         return (p for p in ports if p.type in OVN_VIF_PORT_TYPES)
 
-    def teardown_datapath(self, datapath):
+    def teardown_datapath(self, datapath, net_name=None):
         """Unprovision this datapath to stop serving metadata.
 
         This function will shutdown metadata proxy if it's running and delete
         the VETH pair, the OVS port and the namespace.
         """
         self.update_chassis_metadata_networks(datapath, remove=True)
-        namespace = self._get_namespace_name(datapath)
+
+        # TODO(dalvarez): Remove this in Y cycle when we are sure that all
+        # namespaces will be created with the Neutron network UUID and not
+        # anymore with the OVN datapath UUID.
+        dp = net_name or datapath
+
+        namespace = self._get_namespace_name(dp)
         ip = ip_lib.IPWrapper(namespace)
         # If the namespace doesn't exist, return
         if not ip.netns.exists(namespace):
@@ -365,7 +373,8 @@ class MetadataAgent(object):
                  namespace)
 
         metadata_driver.MetadataDriver.destroy_monitored_metadata_proxy(
-            self._process_monitor, datapath, self.conf, namespace)
+            self._process_monitor, dp, self.conf, namespace)
+        veth_name = self._get_veth_name(dp)
 
         veth_name = self._get_veth_name(datapath)
         self.ovs_idl.del_port(veth_name[0]).execute()
@@ -374,7 +383,7 @@ class MetadataAgent(object):
 
         ip.garbage_collect_namespace()
 
-    def update_datapath(self, datapath):
+    def update_datapath(self, datapath, net_name):
         """Update the metadata service for this datapath.
 
         This function will:
@@ -389,9 +398,9 @@ class MetadataAgent(object):
         datapath_ports = [p for p in self._vif_ports(ports) if
                           str(p.datapath.uuid) == datapath]
         if datapath_ports:
-            self.provision_datapath(datapath)
+            self.provision_datapath(datapath, net_name)
         else:
-            self.teardown_datapath(datapath)
+            self.teardown_datapath(datapath, net_name)
 
     def _ensure_datapath_checksum(self, namespace):
         """Ensure the correct checksum in the metadata packets in DPDK bridges
@@ -411,7 +420,7 @@ class MetadataAgent(object):
         iptables_mgr.ipv4['mangle'].add_rule('POSTROUTING', rule, wrap=False)
         iptables_mgr.apply()
 
-    def provision_datapath(self, datapath):
+    def provision_datapath(self, datapath, net_name):
         """Provision the datapath so that it can serve metadata.
 
         This function will create the namespace and VETH pair if needed
@@ -421,7 +430,7 @@ class MetadataAgent(object):
 
         :return: The metadata namespace name of this datapath
         """
-        LOG.debug("Provisioning datapath %s", datapath)
+        LOG.debug("Provisioning metadata for network %s", net_name)
         port = self.sb_idl.get_metadata_port_network(datapath)
         # If there's no metadata port or it doesn't have a MAC or IP
         # addresses, then tear the namespace down if needed. This might happen
@@ -429,10 +438,10 @@ class MetadataAgent(object):
         # an IP address.
         if not (port and port.mac and
                 port.external_ids.get(ovn_const.OVN_CIDRS_EXT_ID_KEY, None)):
-            LOG.debug("There is no metadata port for datapath %s or it has no "
+            LOG.debug("There is no metadata port for network %s or it has no "
                       "MAC or IP addresses configured, tearing the namespace "
-                      "down if needed", datapath)
-            self.teardown_datapath(datapath)
+                      "down if needed", net_name)
+            self.teardown_datapath(datapath, net_name)
             return
 
         # First entry of the mac field must be the MAC address.
@@ -440,9 +449,9 @@ class MetadataAgent(object):
         # If it is not, we can't provision the namespace. Tear it down if
         # needed and log the error.
         if not match:
-            LOG.error("Metadata port for datapath %s doesn't have a MAC "
+            LOG.error("Metadata port for network %s doesn't have a MAC "
                       "address, tearing the namespace down if needed",
-                      datapath)
+                      net_name)
             self.teardown_datapath(datapath)
             return
 
@@ -454,8 +463,8 @@ class MetadataAgent(object):
 
         # Create the VETH pair if it's not created. Also the add_veth function
         # will create the namespace for us.
-        namespace = self._get_namespace_name(datapath)
-        veth_name = self._get_veth_name(datapath)
+        namespace = self._get_namespace_name(net_name)
+        veth_name = self._get_veth_name(net_name)
 
         ip1 = ip_lib.IPDevice(veth_name[0])
         if ip_lib.device_exists(veth_name[1], namespace):
@@ -524,9 +533,9 @@ class MetadataAgent(object):
         # Spawn metadata proxy if it's not already running.
         metadata_driver.MetadataDriver.spawn_monitored_metadata_proxy(
             self._process_monitor, namespace, METADATA_PORT,
-            self.conf, bind_address=METADATA_DEFAULT_IP, network_id=datapath)
-
-        self.update_chassis_metadata_networks(datapath)
+            self.conf, bind_address=METADATA_DEFAULT_IP,
+            network_id=net_name)
+        self.update_chassis_metadata_networks(net_name)
         return namespace
 
     def ensure_all_networks_provisioned(self):
@@ -541,11 +550,13 @@ class MetadataAgent(object):
         """
         # Retrieve all VIF ports in our Chassis
         ports = self.sb_idl.get_ports_on_chassis(self.chassis)
-        datapaths = {str(p.datapath.uuid) for p in self._vif_ports(ports)}
+        nets = {(str(p.datapath.uuid),
+            ovn_utils.get_network_name_from_datapath(p.datapath))
+            for p in self._vif_ports(ports)}
         namespaces = []
         # Make sure that all those datapaths are serving metadata
-        for datapath in datapaths:
-            netns = self.provision_datapath(datapath)
+        for datapath, net_name in nets:
+            netns = self.provision_datapath(datapath, net_name)
             if netns:
                 namespaces.append(netns)
 
