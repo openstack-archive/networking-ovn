@@ -2209,7 +2209,8 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         skipped_members = []
         pool_key, ovn_lb = self._ovn_helper._find_ovn_lb_by_pool_id(pool_id)
         external_ids = copy.deepcopy(ovn_lb.external_ids)
-        existing_members = external_ids[pool_key].split(',')
+        pool = external_ids[pool_key]
+        existing_members = pool.split(',') if pool else []
         members_to_delete = copy.copy(existing_members)
         for member in members:
             if (self._check_monitor_options(member) or

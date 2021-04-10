@@ -392,6 +392,15 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
                                         [self.ref_member, self.update_member])
         self.assertEqual(self.mock_add_request.call_count, 3)
 
+    def test_member_batch_update_no_members(self):
+        pool_key = 'pool_%s' % self.pool_id
+        ovn_lb = copy.copy(self.ovn_lb)
+        ovn_lb.external_ids[pool_key] = []
+        self.mock_find_lb_pool_key.return_value = ovn_lb
+        self.driver.member_batch_update(self.pool_id,
+                                        [self.ref_member, self.update_member])
+        self.assertEqual(self.mock_add_request.call_count, 2)
+
     def test_member_batch_update_skipped_monitor(self):
         self.ref_member.monitor_address = '10.11.1.1'
         self.assertRaises(exceptions.UnsupportedOptionError,
