@@ -618,6 +618,19 @@ class OvnProviderHelper(object):
             for command in commands:
                 txn.add(command)
 
+    def _get_subnet(self, subnet_id):
+        network_driver = get_network_driver()
+        try:
+            return network_driver.get_subnet(subnet_id)
+        except n_exc.NotFound:
+            pass
+        except Exception as e:
+            if 'subnet not found' not in e.message:
+                raise e
+        LOG.warning('Subnet %s not found while trying to '
+                    'fetch its data.', subnet_id)
+        return None
+
     def _update_lb_to_ls_association(self, ovn_lb, network_id=None,
                                      subnet_id=None, associate=True):
         """Update LB association with Logical Switch
@@ -632,13 +645,10 @@ class OvnProviderHelper(object):
         if network_id:
             ls_name = ovn_utils.ovn_name(network_id)
         else:
-            network_driver = get_network_driver()
-            try:
-                subnet = network_driver.get_subnet(subnet_id)
+            subnet = self._get_subnet(subnet_id)
+            if subnet:
                 ls_name = ovn_utils.ovn_name(subnet.network_id)
-            except n_exc.NotFound:
-                LOG.warning('Subnet %s not found while trying to '
-                            'fetch its data.', subnet_id)
+            else:
                 ls_name = None
                 ovn_ls = None
 
@@ -760,7 +770,6 @@ class OvnProviderHelper(object):
             return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
 
     def _find_ls_for_lr(self, router):
-        netdriver = get_network_driver()
         ls = []
         for port in router.ports:
             if port.gateway_chassis:
@@ -768,12 +777,9 @@ class OvnProviderHelper(object):
             sids = port.external_ids.get(
                 ovn_const.OVN_SUBNET_EXT_IDS_KEY, '').split(' ')
             for sid in sids:
-                try:
-                    ls.append(ovn_utils.ovn_name(
-                        netdriver.get_subnet(sid).network_id))
-                except n_exc.NotFound:
-                    LOG.exception('Subnet %s not found while trying to '
-                                  'fetch its data.', sid)
+                subnet = self._get_subnet(sid)
+                if subnet:
+                    ls.append(ovn_utils.ovn_name(subnet.network_id))
         return ls
 
     def _find_lr_of_ls(self, ovn_ls):
@@ -1879,13 +1885,10 @@ class OvnProviderHelper(object):
             return
 
         # Find out if member has FIP assigned.
-        network_driver = get_network_driver()
-        try:
-            subnet = network_driver.get_subnet(info['subnet_id'])
+        subnet = self._get_subnet(info['subnet_id'])
+        if subnet:
             ls_name = ovn_utils.ovn_name(subnet.network_id)
-        except n_exc.NotFound:
-            LOG.exception('Subnet %s not found while trying to '
-                          'fetch its data.', info['subnet_id'])
+        else:
             return
 
         try:
@@ -1938,6 +1941,7 @@ class OvnProviderHelper(object):
             # We should call neutron API to do 'empty' update of the FIP.
             # It will bump revision number and do recomputation of the FIP.
             try:
+                network_driver = get_network_driver()
                 fip_info = network_driver.neutron_client.show_floatingip(
                     fip.external_ids[ovn_const.OVN_FIP_EXT_ID_KEY])
                 empty_update = {
