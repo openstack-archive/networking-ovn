@@ -13,8 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import re
+
 import mock
+from neutron.agent.linux import iptables_manager
 from neutron.common import utils as n_utils
+from neutron.tests.common import net_helpers
 from oslo_config import fixture as fixture_config
 from oslo_utils import uuidutils
 from ovsdbapp.backend.ovs_idl import event
@@ -66,7 +70,12 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
         self.handler = ovsdb_event.RowEventHandler()
         self.sb_api.idl.notify = self.handler.notify
         # We only have OVN NB and OVN SB running for functional tests
-        mock.patch.object(ovsdb, 'MetadataAgentOvsIdl').start()
+        self.mock_ovsdb_idl = mock.Mock()
+        mock_metadata_instance = mock.Mock()
+        mock_metadata_instance.start.return_value = self.mock_ovsdb_idl
+        mock_metadata = mock.patch.object(
+            ovsdb, 'MetadataAgentOvsIdl').start()
+        mock_metadata.return_value = mock_metadata_instance
         self._mock_get_ovn_br = mock.patch.object(
             agent.MetadataAgent,
             '_get_ovn_bridge',
@@ -311,3 +320,19 @@ class TestMetadataAgent(base.TestOVNFunctionalBase):
             ('external_ids', {'test': 'value'})).execute(check_error=True)
         self.assertTrue(event2.wait())
         self.assertFalse(event.wait())
+
+    def test__ensure_datapath_checksum_if_dpdk(self):
+        self.mock_ovsdb_idl.db_get.return_value.execute.return_value = (
+            ovn_const.CHASSIS_DATAPATH_NETDEV)
+        regex = re.compile(r'-A POSTROUTING -p tcp -m tcp '
+                           r'-j CHECKSUM --checksum-fill')
+        namespace = self.useFixture(net_helpers.NamespaceFixture()).name
+        self.agent._ensure_datapath_checksum(namespace)
+        iptables_mgr = iptables_manager.IptablesManager(
+            use_ipv6=True, nat=False, namespace=namespace)
+        for rule in iptables_mgr.get_rules_for_table('mangle'):
+            if regex.match(rule):
+                return
+        else:
+            self.fail('Rule not found in "mangle" table, in namespace %s' %
+                      namespace)
