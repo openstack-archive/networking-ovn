@@ -803,9 +803,16 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
         rows = self.db_list_rows('Port_Binding').execute(check_error=True)
         # TODO(twilson) It would be useful to have a db_find that takes a
         # comparison function
-        return [r for r in rows
-                if (r.mac and str(r.datapath.uuid) == network) and
-                ip_address in r.mac[0].split(' ')]
+
+        def check_net_and_ip(port):
+            # If the port is not bound to any chassis it is not relevant
+            if not port.chassis:
+                return False
+
+            return port.mac and str(port.datapath.uuid) == network and (
+                    ip_address in port.mac[0].split(' '))
+
+        return [r for r in rows if check_net_and_ip(r)]
 
     def set_port_cidrs(self, name, cidrs):
         # TODO(twilson) add if_exists to db commands

@@ -26,7 +26,8 @@ import webob
 from networking_ovn.agent.metadata import server as agent
 from networking_ovn.conf.agent.metadata import config as meta_conf
 
-OvnPortInfo = collections.namedtuple('OvnPortInfo', 'external_ids')
+OvnPortInfo = collections.namedtuple(
+        'OvnPortInfo', ['external_ids', 'chassis'])
 
 
 class ConfFixture(config_fixture.Config):
@@ -53,7 +54,7 @@ class TestMetadataProxyHandler(base.BaseTestCase):
         self.useFixture(self.fake_conf_fixture)
         self.log_p = mock.patch.object(agent, 'LOG')
         self.log = self.log_p.start()
-        self.handler = agent.MetadataProxyHandler(self.fake_conf)
+        self.handler = agent.MetadataProxyHandler(self.fake_conf, 'chassis1')
         self.handler.sb_idl = mock.Mock()
 
     def test_call(self):
@@ -112,7 +113,8 @@ class TestMetadataProxyHandler(base.BaseTestCase):
 
         ovn_port = OvnPortInfo(
             external_ids={'neutron:device_id': 'device_id',
-                          'neutron:project_id': 'project_id'})
+                          'neutron:project_id': 'project_id'},
+            chassis=['chassis1'])
         ports = [[ovn_port]]
 
         self.assertEqual(
@@ -219,14 +221,14 @@ class TestUnixDomainMetadataProxy(base.BaseTestCase):
 
     @mock.patch.object(fileutils, 'ensure_tree')
     def test_init_doesnot_exists(self, ensure_dir):
-        agent.UnixDomainMetadataProxy(mock.Mock())
+        agent.UnixDomainMetadataProxy(mock.Mock(), 'chassis1')
         ensure_dir.assert_called_once_with('/the', mode=0o755)
 
     def test_init_exists(self):
         with mock.patch('os.path.isdir') as isdir:
             with mock.patch('os.unlink') as unlink:
                 isdir.return_value = True
-                agent.UnixDomainMetadataProxy(mock.Mock())
+                agent.UnixDomainMetadataProxy(mock.Mock(), 'chassis1')
                 unlink.assert_called_once_with('/the/path')
 
     def test_init_exists_unlink_no_file(self):
@@ -237,7 +239,7 @@ class TestUnixDomainMetadataProxy(base.BaseTestCase):
                     exists.return_value = False
                     unlink.side_effect = OSError
 
-                    agent.UnixDomainMetadataProxy(mock.Mock())
+                    agent.UnixDomainMetadataProxy(mock.Mock(), 'chassis1')
                     unlink.assert_called_once_with('/the/path')
 
     def test_init_exists_unlink_fails_file_still_exists(self):
@@ -249,14 +251,14 @@ class TestUnixDomainMetadataProxy(base.BaseTestCase):
                     unlink.side_effect = OSError
 
                     with testtools.ExpectedException(OSError):
-                        agent.UnixDomainMetadataProxy(mock.Mock())
+                        agent.UnixDomainMetadataProxy(mock.Mock(), 'chassis1')
                     unlink.assert_called_once_with('/the/path')
 
     @mock.patch.object(agent, 'MetadataProxyHandler')
     @mock.patch.object(agent_utils, 'UnixDomainWSGIServer')
     @mock.patch.object(fileutils, 'ensure_tree')
     def test_run(self, ensure_dir, server, handler):
-        p = agent.UnixDomainMetadataProxy(self.cfg.CONF)
+        p = agent.UnixDomainMetadataProxy(self.cfg.CONF, 'chassis1')
         p.run()
 
         ensure_dir.assert_called_once_with('/the', mode=0o755)
