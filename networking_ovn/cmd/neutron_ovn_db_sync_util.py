@@ -26,6 +26,7 @@ from networking_ovn.common import config as ovn_config
 from networking_ovn.ml2 import mech_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
+from networking_ovn.ovsdb import worker
 
 LOG = logging.getLogger(__name__)
 
@@ -184,16 +185,15 @@ def main():
         LOG.error('Invalid core plugin : ["%s"].', cfg.CONF.core_plugin)
         return
 
+    mech_worker = worker.MaintenanceWorker
     try:
-        conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbNbOvnIdl)
-        ovn_api = impl_idl_ovn.OvsdbNbOvnIdl(conn)
+        ovn_api = impl_idl_ovn.OvsdbNbOvnIdl.from_worker(mech_worker)
     except RuntimeError:
         LOG.error('Invalid --ovn-ovn_nb_connection parameter provided.')
         return
 
     try:
-        sb_conn = impl_idl_ovn.get_connection(impl_idl_ovn.OvsdbSbOvnIdl)
-        ovn_sb_api = impl_idl_ovn.OvsdbSbOvnIdl(sb_conn)
+        ovn_sb_api = impl_idl_ovn.OvsdbSbOvnIdl.from_worker(mech_worker)
     except RuntimeError:
         LOG.error('Invalid --ovn-ovn_sb_connection parameter provided.')
         return
