@@ -57,6 +57,7 @@ from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
 from networking_ovn.ovsdb import worker
+import neutron.wsgi
 
 
 LOG = log.getLogger(__name__)
@@ -219,15 +220,21 @@ class OVNMechanismDriver(api.MechanismDriver):
         atexit.register(self._clean_hash_ring)
         signal.signal(signal.SIGTERM, self._clean_hash_ring)
 
+    @staticmethod
+    def should_post_fork_initialize(worker_class):
+        return worker_class in (neutron.wsgi.WorkerService,
+                                worker.MaintenanceWorker)
+
     def post_fork_initialize(self, resource, event, trigger, payload=None):
-        # NOTE(rtheis): This will initialize all workers (API, RPC,
-        # plugin service and OVN) with OVN IDL connections.
+        # Initialize API/Maintenance workers with OVN IDL connections
+        worker_class = utils.get_method_class(trigger)
+        if not self.should_post_fork_initialize(worker_class):
+            return
+
         self._post_fork_event.clear()
         self._ovn_client_inst = None
 
-        is_maintenance = (utils.get_method_class(trigger) ==
-                          worker.MaintenanceWorker)
-        if not is_maintenance:
+        if worker_class == neutron.wsgi.WorkerService:
             self.node_uuid = db_hash_ring.add_node(self.hash_ring_group)
 
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self, trigger)
@@ -252,7 +259,7 @@ class OVNMechanismDriver(api.MechanismDriver):
         # Now IDL connections can be safely used.
         self._post_fork_event.set()
 
-        if is_maintenance:
+        if worker_class == worker.MaintenanceWorker:
             # Call the synchronization task if its maintenance worker
             # This sync neutron DB to OVN-NB DB only in inconsistent states
             self.nb_synchronizer = ovn_db_sync.OvnNbSynchronizer(
