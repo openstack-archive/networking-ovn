@@ -14,6 +14,7 @@
 
 import mock
 import fixtures
+from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from networking_ovn.common import config as ovn_conf
@@ -183,12 +184,14 @@ class TestNBDbMonitor(base.TestOVNFunctionalBase):
         self._test_port_binding_and_status(port['id'], 'unbind', 'DOWN')
 
     def test_distributed_lock(self):
+        api_workers = 11
+        cfg.CONF.set_override('api_workers', api_workers)
         row_event = DistributedLockTestEvent()
         self.mech_driver._nb_ovn.idl.notify_handler.watch_event(row_event)
         worker_list = [self.mech_driver._nb_ovn, ]
 
         # Create 10 fake workers
-        for _ in range(10):
+        for _ in range(api_workers - len(worker_list)):
             node_uuid = uuidutils.generate_uuid()
             db_hash_ring.add_node(ovn_const.HASH_RING_ML2_GROUP, node_uuid)
             fake_driver = mock.MagicMock(
@@ -232,7 +235,7 @@ class TestNBDbMonitorOverSsl(TestNBDbMonitor):
         return 'ssl'
 
 
-class OvnIdlProbeInterval(base.TestOVNFunctionalBase):
+class TestOvnIdlProbeInterval(base.TestOVNFunctionalBase):
     def setUp(self):
         # skip parent setUp, we don't need it, but we do need grandparent
         # pylint: disable=bad-super-call
