@@ -16,7 +16,7 @@ import mock
 
 from networking_ovn.cmd import neutron_ovn_db_sync_util as cmd
 from networking_ovn.tests import base
-
+from networking_ovn.ovsdb import impl_idl_ovn
 
 class TestNeutronOVNDBSyncUtil(base.TestCase):
 
@@ -48,11 +48,11 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
 
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
-    def test_main_invalid_nb_idl(self, mock_con, mock_conf, mock_log_setup):
+    def test_main_invalid_nb_idl(self, mock_conf, mock_log_setup):
         with mock.patch('oslo_config.cfg.CONF') as mock_cfg, \
-            mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl',
-                       side_effect=RuntimeError):
+                mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl.'
+                           'from_worker',
+                    side_effect=RuntimeError):
             self._setup_default_mock_cfg(mock_cfg)
             cmd.main()
         self.cmd_log.error.assert_called_once_with(
@@ -60,11 +60,12 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
 
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
-    def test_main_invalid_sb_idl(self, mock_con, mock_conf, mock_log_setup):
+    def test_main_invalid_sb_idl(self, mock_conf, mock_log_setup):
         with mock.patch('oslo_config.cfg.CONF') as mock_cfg, \
-                mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbSbOvnIdl',
-                           side_effect=RuntimeError):
+                mock.patch.object(impl_idl_ovn.OvsdbNbOvnIdl,'from_worker',
+                        return_value=mock.Mock()), \
+                mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbSbOvnIdl.'
+                           'from_worker', side_effect=RuntimeError):
             self._setup_default_mock_cfg(mock_cfg)
             cmd.main()
         self.cmd_log.error.assert_called_once_with(
@@ -75,8 +76,8 @@ class TestNeutronOVNDBSyncUtil(base.TestCase):
     @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.OvsdbNbOvnIdl')
     @mock.patch('oslo_log.log.setup')
     @mock.patch('networking_ovn.cmd.neutron_ovn_db_sync_util.setup_conf')
-    @mock.patch('networking_ovn.ovsdb.impl_idl_ovn.get_connection')
-    def _test_main(self, mock_con, mock_conf, mock_log_setup, mock_nb_idl,
+    @mock.patch.object(impl_idl_ovn.OvsdbSbOvnIdl, 'from_worker', mock.Mock())
+    def _test_main(self, mock_conf, mock_log_setup, mock_nb_idl,
                    mock_plugin, mock_manager_init):
         cmd.main()
 

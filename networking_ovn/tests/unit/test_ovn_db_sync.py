@@ -21,6 +21,7 @@ from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import ovn_client
 from networking_ovn import ovn_db_sync
 from networking_ovn.tests.unit.ml2 import test_mech_driver
+from networking_ovn.ovsdb import impl_idl_ovn
 
 
 OvnPortInfo = collections.namedtuple('OvnPortInfo', ['name'])
@@ -547,7 +548,7 @@ class TestOvnNbSyncML2(test_mech_driver.OVNMechanismDriverTestCase):
         self._test_mocks_helper(ovn_nb_synchronizer)
 
         ovn_api = ovn_nb_synchronizer.ovn_api
-        mock.patch("networking_ovn.ovsdb.impl_idl_ovn.get_connection").start()
+        mock.patch.object(impl_idl_ovn.OvsdbNbOvnIdl, 'from_worker').start()
 
         ovn_nb_synchronizer.do_sync()
 
