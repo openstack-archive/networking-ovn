@@ -473,6 +473,8 @@ class OvnProviderHelper(object):
             request_handler = self._lb_request_func_maps.get(request_type)
             try:
                 if request_handler:
+                    LOG.debug("Handling request %(req)s with info %(info)s",
+                              {'req': request_type, 'info': request['info']})
                     status = request_handler(request['info'])
                     if status:
                         self._update_status_to_octavia(status)
