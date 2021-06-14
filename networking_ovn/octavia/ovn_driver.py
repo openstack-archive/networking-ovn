@@ -1619,10 +1619,30 @@ class OvnProviderHelper(object):
         commands.extend(
             self._refresh_lb_vips(ovn_lb.uuid, external_ids)
         )
+        subnet_id = member['subnet_id']
         commands.extend(
             self._update_lb_to_ls_association(
-                ovn_lb, subnet_id=member['subnet_id'], associate=True)
+                ovn_lb, subnet_id=subnet_id, associate=True)
         )
+
+        # Make sure that all logical switches related to logical router
+        # are associated with the load balancer. This is needed to handle
+        # potential race that happens when lrp and lb are created at the
+        # same time.
+        subnet = self._get_subnet(subnet_id)
+        if subnet:
+            ls_name = ovn_utils.ovn_name(subnet.network_id)
+            try:
+                ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
+                    check_error=True)
+                ovn_lr = self._find_lr_of_ls(ovn_ls)
+                if ovn_lr:
+                    for net in self._find_ls_for_lr(ovn_lr):
+                        commands.append(self.ovn_nbdb_api.ls_lb_add(
+                            net, ovn_lb.uuid, may_exist=True))
+            except idlutils.RowNotFound:
+                pass
+
         self._execute_commands(commands)
 
     def member_create(self, member):
