@@ -14,13 +14,6 @@
         - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional:
             branches: ^(?!stable/newton).*$
-        - networking-ovn-dsvm-grenade:
-            branches: ^(?!stable/(ocata|pike|queens)).*$
-            voting: false
-        - openstack-tox-cover:
-            required-projects:
-              - openstack/neutron
-            voting: false
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
@@ -35,4 +28,10 @@
             voting: false
             branches: ^(?!stable/newton).*$
         - kuryr-kubernetes-tempest-ovn
-
+        - networking-ovn-dsvm-grenade:
+            branches: ^(?!stable/(ocata|pike|queens)).*$
+            voting: false
+        - openstack-tox-cover:
+            required-projects:
+              - openstack/neutron
+            voting: false
