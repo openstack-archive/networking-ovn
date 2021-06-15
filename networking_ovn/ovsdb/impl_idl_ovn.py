@@ -33,7 +33,6 @@ from networking_ovn.common import exceptions as ovn_exc
 from networking_ovn.common import utils
 from networking_ovn.ovsdb import commands as cmd
 from networking_ovn.ovsdb import ovsdb_monitor
-from networking_ovn.ovsdb import worker
 
 
 LOG = log.getLogger(__name__)
@@ -158,7 +157,7 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
     @classmethod
     def from_worker(cls, worker_class, driver=None):
         args = (cfg.get_ovn_nb_connection(), 'OVN_Northbound')
-        if worker_class == worker.MaintenanceWorker:
+        if hasattr(worker_class, 'need_import_workaround'):
             idl_ = ovsdb_monitor.BaseOvnIdl.from_server(*args)
         else:
             idl_ = ovsdb_monitor.OvnNbIdl.from_server(*args, driver=driver)
@@ -728,7 +727,7 @@ class OvsdbSbOvnIdl(sb_impl_idl.OvnSbApiIdlImpl, Backend):
     @classmethod
     def from_worker(cls, worker_class, driver=None):
         args = (cfg.get_ovn_sb_connection(), 'OVN_Southbound')
-        if worker_class == worker.MaintenanceWorker:
+        if hasattr(worker_class, 'need_import_workaround'):
             idl_ = ovsdb_monitor.BaseOvnSbIdl.from_server(*args)
         else:
             idl_ = ovsdb_monitor.OvnSbIdl.from_server(*args, driver=driver)

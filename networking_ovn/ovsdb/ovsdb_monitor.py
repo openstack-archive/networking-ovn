@@ -29,7 +29,6 @@ from ovsdbapp.backend.ovs_idl import idlutils
 from networking_ovn.common import config as ovn_config
 from networking_ovn.common import constants as ovn_const
 from networking_ovn.common import exceptions
-from networking_ovn.common import hash_ring_manager
 from networking_ovn.common import utils
 from networking_ovn.db import hash_ring as db_hash_ring
 from networking_ovn.ovsdb import backports
@@ -434,6 +433,8 @@ class OvnIdl(BaseOvnIdl):
 class OvnIdlDistributedLock(BaseOvnIdl):
 
     def __init__(self, driver, remote, schema):
+        # pylint: disable=import-outside-toplevel
+        from networking_ovn.common import hash_ring_manager
         super(OvnIdlDistributedLock, self).__init__(remote, schema)
         self.driver = driver
         self.notify_handler = OvnDbNotifyHandler(driver)

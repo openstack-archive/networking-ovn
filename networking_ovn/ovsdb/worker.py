@@ -17,6 +17,7 @@ from neutron_lib import worker
 
 
 class MaintenanceWorker(worker.BaseWorker):
+    need_import_workaround = True
 
     def start(self):
         super(MaintenanceWorker, self).start()
