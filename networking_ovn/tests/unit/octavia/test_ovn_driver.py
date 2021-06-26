@@ -1705,7 +1705,9 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.helper.ovn_nbdb_api.lb_del.assert_called_once_with(
             self.ovn_lb.uuid)
 
-    def test_member_create(self):
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_member_create(self, net_dr):
+        net_dr.return_value.get_subnet.return_value = None
         self.ovn_lb.external_ids = mock.MagicMock()
         status = self.helper.member_create(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
@@ -1723,6 +1725,38 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['members'][0]['provisioning_status'],
                          constants.ACTIVE)
 
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ls_for_lr')
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_lr_of_ls')
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_member_create_lb_add_from_lr(self, net_dr, f_lr, f_ls):
+        fake_subnet = fakes.FakeSubnet.create_one_subnet()
+        net_dr.return_value.get_subnet.return_value = fake_subnet
+        f_lr.return_value = self.router
+        f_ls.return_value = [self.network]
+        self.ovn_lb.external_ids = mock.MagicMock()
+        status = self.helper.member_create(self.member)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        f_lr.assert_called_once_with(self.network)
+        f_ls.assert_called_once_with(self.router)
+
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ls_for_lr')
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_lr_of_ls')
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_member_create_lb_add_from_lr_no_ls(self, net_dr, f_lr, f_ls):
+        fake_subnet = fakes.FakeSubnet.create_one_subnet()
+        net_dr.return_value.get_subnet.return_value = fake_subnet
+        self.ovn_lb.external_ids = mock.MagicMock()
+        (self.helper.ovn_nbdb_api.ls_get.return_value.
+            execute.side_effect) = [idlutils.RowNotFound]
+        status = self.helper.member_create(self.member)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ACTIVE)
+        (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
+            assert_called_once_with(check_error=True))
+        f_lr.assert_not_called()
+        f_ls.assert_not_called()
+
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_add_member')
     def test_member_create_exception(self, mock_add_member):
         mock_add_member.side_effect = [RuntimeError]
@@ -1738,7 +1772,9 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             [mock.call('pool_%s' % self.pool_id),
              mock.call('pool_%s%s' % (self.pool_id, ':D'))])
 
-    def test_member_create_listener(self):
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_member_create_listener(self, net_dr):
+        net_dr.return_value.get_subnet.return_value = None
         self.ovn_lb.external_ids = mock.MagicMock()
         self.helper._get_pool_listeners.return_value = ['listener1']
         status = self.helper.member_create(self.member)
