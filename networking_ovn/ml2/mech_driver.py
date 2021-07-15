@@ -25,6 +25,7 @@ import netaddr
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
 from neutron.plugins.ml2 import db as ml2_db
+from neutron import service
 from neutron.services.segments import db as segment_service_db
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import segment as segment_def
@@ -223,7 +224,8 @@ class OVNMechanismDriver(api.MechanismDriver):
     @staticmethod
     def should_post_fork_initialize(worker_class):
         return worker_class in (neutron.wsgi.WorkerService,
-                                worker.MaintenanceWorker)
+                                worker.MaintenanceWorker,
+                                service.RpcWorker)
 
     def post_fork_initialize(self, resource, event, trigger, payload=None):
         # Initialize API/Maintenance workers with OVN IDL connections
