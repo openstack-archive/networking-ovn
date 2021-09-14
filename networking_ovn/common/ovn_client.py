@@ -2051,7 +2051,18 @@ class OVNClient(object):
                 txn.add(self._nb_idl.pg_add_ports(pg_name, ports_ids))
 
     def _add_port_to_drop_port_group(self, port, txn):
-        self.create_default_drop_port_group()
+        try:
+            self.create_default_drop_port_group()
+        except KeyError:
+            # Due to a bug in python-ovs, we can send transactions before
+            # the initial OVSDB is populated in memory. This can break
+            # the AddCommand post_commit method which tries to return a
+            # row looked up by the newly commited row's uuid. Since we
+            # don't care about the return value from the PgAddCommand, we
+            # can just catch the KeyError and continue. This can be
+            # removed when the python-ovs bug is resolved.
+            pass
+
         txn.add(self._nb_idl.pg_add_ports(ovn_const.OVN_DROP_PORT_GROUP_NAME,
                 port))
 
