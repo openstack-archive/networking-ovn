@@ -58,6 +58,7 @@ from networking_ovn.ml2 import qos_driver
 from networking_ovn.ml2 import trunk_driver
 from networking_ovn import ovn_db_sync
 from networking_ovn.ovsdb import impl_idl_ovn
+from networking_ovn.ovsdb import ovsdb_monitor
 from networking_ovn.ovsdb import worker
 import neutron.wsgi
 
@@ -221,6 +222,28 @@ class OVNMechanismDriver(api.MechanismDriver):
         """Pre-initialize the ML2/OVN driver."""
         atexit.register(self._clean_hash_ring)
         signal.signal(signal.SIGTERM, self._clean_hash_ring)
+        self._set_inactivity_probe()
+
+    def _set_inactivity_probe(self):
+        """Set 'connection.inactivity_probe' in NB and SB databases"""
+        inactivity_probe = config.get_ovn_ovsdb_probe_interval()
+        dbs = [(config.get_ovn_nb_connection(), 'OVN_Northbound',
+                impl_idl_ovn.OvsdbNbOvnIdl),
+               (config.get_ovn_sb_connection(), 'OVN_Southbound',
+                impl_idl_ovn.OvsdbSbOvnIdl)]
+        for connection, schema, klass in dbs:
+            target = utils.connection_config_to_target_string(connection)
+            if not target:
+                continue
+            idl = ovsdb_monitor.BaseOvnIdl.from_server(connection, schema)
+            with ovsdb_monitor.short_living_ovsdb_api(klass, idl) as idl_api:
+                conn = idlutils.row_by_value(idl_api, 'Connection', 'target',
+                                             target, None)
+                if conn:
+                    idl_api.db_set(
+                        'Connection', target,
+                        ('inactivity_probe', int(inactivity_probe))).execute(
+                        check_error=True)
 
     @staticmethod
     def should_post_fork_initialize(worker_class):
