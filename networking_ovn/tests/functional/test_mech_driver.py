@@ -13,14 +13,18 @@
 #    under the License.
 
 import mock
+import re
 
+import netaddr
 from neutron.tests import base as tests_base
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
+from networking_ovn.common import config
 from networking_ovn.common import constants as ovn_const
+from networking_ovn.common import ovn_client
 from networking_ovn.common import utils
 from networking_ovn.db import revision as db_rev
 from networking_ovn.tests.functional import base
@@ -689,3 +693,86 @@ class TestAgentApi(base.TestOVNFunctionalBase):
         for agent_type in ('test', ovn_const.OVN_CONTROLLER_AGENT):
             agent = self.get_agent(agent_type)
             self.assertTrue(self.plugin.get_agent(self.context, agent['id']))
+
+
+class TestMetadataPorts(base.TestOVNFunctionalBase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestMetadataPorts, self).setUp(*args, **kwargs)
+        self._ovn_client = self.mech_driver._ovn_client
+        self.meta_regex = re.compile(
+            r'169.254.169.254/32,(\d+\.\d+\.\d+\.\d+)')
+
+    def _create_network_ovn(self, metadata_enabled=True):
+        self.mock_is_ovn_metadata_enabled = mock.patch.object(
+            config, 'is_ovn_metadata_enabled').start()
+        self.mock_is_ovn_metadata_enabled.return_value = metadata_enabled
+        self.n1 = self._make_network(self.fmt, 'n1', True)
+        self.n1_id = self.n1['network']['id']
+
+    def _create_subnet_ovn(self, cidr, enable_dhcp=True):
+        _cidr = netaddr.IPNetwork(cidr)
+        res = self._create_subnet(self.fmt, self.n1_id, cidr,
+                                  enable_dhcp=enable_dhcp,
+                                  ip_version=_cidr.version)
+        return self.deserialize(self.fmt, res)['subnet']
+
+    def _list_ports_ovn(self, net_id=None):
+        res = self._list_ports(self.fmt, net_id=net_id)
+        return self.deserialize(self.fmt, res)['ports']
+
+    def _check_metadata_port(self, net_id, fixed_ip):
+        for port in self._list_ports_ovn(net_id=net_id):
+            if ovn_client.OVNClient.is_metadata_port(port):
+                self.assertEqual(net_id, port['network_id'])
+                if fixed_ip:
+                    self.assertIn(fixed_ip, port['fixed_ips'])
+                else:
+                    self.assertEqual([], port['fixed_ips'])
+                return port['id']
+        self.fail('Metadata port is not present in network %s or data is not '
+                  'correct' % self.n1_id)
+
+    def _check_subnet_dhcp_options(self, subnet_id, cidr):
+        # This method checks the DHCP options CIDR and returns, if exits, the
+        # metadata port IP address, included in the classless static routes.
+        dhcp_opts = self._ovn_client._nb_idl.get_subnet_dhcp_options(subnet_id)
+        self.assertEqual(cidr, dhcp_opts['subnet']['cidr'])
+        routes = dhcp_opts['subnet']['options'].get('classless_static_route')
+        if not routes:
+            return
+        match = self.meta_regex.search(routes)
+        if match:
+            return match.group(1)
+
+    def test_subnet_ipv4(self):
+        self._create_network_ovn(metadata_enabled=True)
+        subnet = self._create_subnet_ovn('10.0.0.0/24')
+        metatada_ip = self._check_subnet_dhcp_options(subnet['id'],
+                                                      '10.0.0.0/24')
+        fixed_ip = {'subnet_id': subnet['id'], 'ip_address': metatada_ip}
+        port_id = self._check_metadata_port(self.n1_id, fixed_ip)
+        # Update metatada port IP address to 10.0.0.5
+        data = {'port': {'fixed_ips': [{'subnet_id': subnet['id'],
+                                        'ip_address': '10.0.0.5'}]}}
+        req = self.new_update_request('ports', data, port_id)
+        req.get_response(self.api)
+        metatada_ip = self._check_subnet_dhcp_options(subnet['id'],
+                                                      '10.0.0.0/24')
+        self.assertEqual('10.0.0.5', metatada_ip)
+        fixed_ip = {'subnet_id': subnet['id'], 'ip_address': metatada_ip}
+        self._check_metadata_port(self.n1_id, fixed_ip)
+
+    def test_subnet_ipv4_no_metadata(self):
+        self._create_network_ovn(metadata_enabled=False)
+        subnet = self._create_subnet_ovn('10.0.0.0/24')
+        self.assertIsNone(self._check_subnet_dhcp_options(subnet['id'],
+                                                          '10.0.0.0/24'))
+        self.assertEqual([], self._list_ports_ovn(self.n1_id))
+
+    def test_subnet_ipv6(self):
+        self._create_network_ovn(metadata_enabled=True)
+        subnet = self._create_subnet_ovn('2001:db8::/64')
+        self.assertIsNone(self._check_subnet_dhcp_options(subnet['id'],
+                                                          '2001:db8::/64'))
+        self._check_metadata_port(self.n1_id, [])

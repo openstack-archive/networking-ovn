@@ -140,6 +140,7 @@ class FakeOvsdbNbOvnIdl(object):
         self.ls_get = mock.Mock()
         self.check_liveness = mock.Mock()
         self.ha_chassis_group_get = mock.Mock()
+        self.ha_chassis_group_del = mock.Mock()
         self.qos_add = mock.Mock()
         self.qos_del = mock.Mock()
 
