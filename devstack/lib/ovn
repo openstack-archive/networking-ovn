@@ -16,7 +16,7 @@
 # Set variables for building OVN from source
 OVN_REPO=${OVN_REPO:-https://github.com/ovn-org/ovn.git}
 OVN_REPO_NAME=$(basename ${OVN_REPO} | cut -f1 -d'.')
-OVN_BRANCH=${OVN_BRANCH:-master}
+OVN_BRANCH=${OVN_BRANCH:-main}
 
 # Set variables for building OVS from source
 OVS_REPO=${OVS_REPO:-https://github.com/openvswitch/ovs.git}
@@ -25,9 +25,9 @@ OVS_BRANCH=${OVS_BRANCH:-master}
 
 
 function use_new_ovn_repository {
-    # IF OVN_BRANCH is "master" or branch-2.13 (or higher), use the new
+    # IF OVN_BRANCH is "main" or branch-2.13 (or higher), use the new
     # OVN repository
-    [ "$OVN_BRANCH" == "master" ] && return 0
+    [ "$OVN_BRANCH" == "main" ] && return 0
     return $(! printf "%s\n%s" ${OVN_BRANCH//[!0-9.]/} 2.12 | sort -C -V)
 }
 

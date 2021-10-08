@@ -33,8 +33,8 @@ export DEVSTACK_LOCAL_CONFIG+=$'\n'"PHYSICAL_NETWORK=public"
 if [[ "${OVN_OPTS}" == *"latest-release"* ]] ; then
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=v20.03.0"
     export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVS_BRANCH=v2.13.0"
-elif [[ "${OVN_OPTS}" == *"master"* ]] ; then
-    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=master"
+elif [[ "${OVN_OPTS}" == *"main"* ]] ; then
+    export DEVSTACK_LOCAL_CONFIG+=$'\n'"OVN_BRANCH=main"
 else
     echo "No ovs branch specified, using the default from the devstack plugin"
 fi

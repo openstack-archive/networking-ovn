@@ -319,7 +319,7 @@
         Q_USE_PROVIDERNET_FOR_PUBLIC: true
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
-        OVN_BRANCH: master
+        OVN_BRANCH: main
         OVS_BRANCH: master
       devstack_local_conf:
         post-config:
