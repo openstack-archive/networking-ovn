@@ -959,7 +959,8 @@ class OVNMechanismDriver(api.MechanismDriver):
 
     def delete_mac_binding_entries(self, external_ip):
         """Delete all MAC_Binding entries associated to this IP address"""
-        cmd = ['ovsdb-client', 'transact', config.get_ovn_sb_connection()]
+        cmd = ['ovsdb-client', 'transact', config.get_ovn_sb_connection(),
+               '--timeout', str(config.get_ovn_ovsdb_timeout())]
 
         if config.get_ovn_sb_private_key():
             cmd += ['-p', config.get_ovn_sb_private_key(), '-c',
