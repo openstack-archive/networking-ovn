@@ -1140,6 +1140,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         net_dr.return_value.neutron_client.delete_port.return_value = None
         (self.helper.ovn_nbdb_api.ls_get.return_value.execute.
             return_value) = self.network
+        self.helper.ovn_nbdb_api.lookup.return_value = self.router
         (self.helper.ovn_nbdb_api.tables['Logical_Router'].rows.
             values.return_value) = [self.router]
         self.helper.lb_delete(self.ovn_lb)
@@ -2369,8 +2370,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         ls = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'ports': [lsp]})
 
-        (self.helper.ovn_nbdb_api.tables['Logical_Router'].rows.
-            values.return_value) = [lr]
+        (self.helper.ovn_nbdb_api.get_lrs.return_value.
+            execute.return_value) = [lr]
         returned_lr = self.helper._find_lr_of_ls(ls)
         self.assertEqual(lr, returned_lr)
 
@@ -2379,7 +2380,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             attrs={'ports': []})
         returned_lr = self.helper._find_lr_of_ls(ls)
         (self.helper.ovn_nbdb_api.tables['Logical_Router'].rows.
-            values.assert_not_called())
+         values.assert_not_called())
         self.assertIsNone(returned_lr)
 
     def test__update_lb_to_ls_association_empty_network_and_subnet(self):

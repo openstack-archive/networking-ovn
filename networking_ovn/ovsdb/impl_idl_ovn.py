@@ -22,8 +22,10 @@ from oslo_utils import uuidutils
 from ovs import socket_util
 from ovs import stream
 from ovsdbapp.backend import ovs_idl
+from ovsdbapp.backend.ovs_idl import command
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
+from ovsdbapp.backend.ovs_idl import rowview
 from ovsdbapp.backend.ovs_idl import transaction as idl_trans
 from ovsdbapp.backend.ovs_idl import vlog
 from ovsdbapp.schema.ovn_northbound import impl_idl as nb_impl_idl
@@ -175,6 +177,26 @@ class OvsdbConnectionUnavailable(n_exc.ServiceUnavailable):
                 "'ovn_sb_connection' configuration options are correct.")
 
 
+class FindLbInTableCommand(command.ReadOnlyCommand):
+    def __init__(self, api, lb, table):
+        super(FindLbInTableCommand, self).__init__(api)
+        self.lb = lb
+        self.table = table
+
+    def run_idl(self, txn):
+        self.result = [
+            rowview.RowView(item) for item in
+            self.api.tables[self.table].rows.values()
+            if self.lb in item.load_balancer]
+
+
+class GetLrsCommand(command.ReadOnlyCommand):
+    def run_idl(self, txn):
+        self.result = [
+            rowview.RowView(item) for item in
+            self.api.tables['Logical_Router'].rows.values()]
+
+
 # Retry forever to get the OVN NB and SB IDLs. Wait 2^x * 1 seconds between
 # each retry, up to 'max_interval' seconds, then interval will be fixed
 # to 'max_interval' seconds afterwards. The default 'max_interval' is 180.
@@ -229,6 +251,12 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
                 yield t
         except ovn_exc.RevisionConflict as e:
             LOG.info('Transaction aborted. Reason: %s', e)
+
+    def find_lb_in_table(self, lb, table):
+        return FindLbInTableCommand(self, lb, table)
+
+    def get_lrs(self):
+        return GetLrsCommand(self)
 
     def create_lswitch_port(self, lport_name, lswitch_name, may_exist=True,
                             **columns):

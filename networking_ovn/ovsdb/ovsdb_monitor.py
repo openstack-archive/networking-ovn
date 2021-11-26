@@ -424,6 +424,7 @@ class OvnIdl(BaseOvnIdl):
         # but not granted by the ovsdb-server.
         if self.is_lock_contended:
             return
+        row = idlutils.frozen_row(row)
         self.notify_handler.notify(event, row, updates)
 
     @abc.abstractmethod
