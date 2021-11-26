@@ -13,6 +13,7 @@
 #    under the License.
 
 import abc
+import contextlib
 import datetime
 
 from neutron_lib.plugins import constants
@@ -537,6 +538,7 @@ class OvnSbIdl(OvnIdlDistributedLock):
         helper.register_table('Encap')
         helper.register_table('Port_Binding')
         helper.register_table('Datapath_Binding')
+        helper.register_table('Connection')
         return cls(driver, connection_string, helper)
 
     def post_connect(self):
@@ -572,3 +574,20 @@ def _check_and_set_ssl_files(schema_name):
 
     if ca_cert_file:
         Stream.ssl_set_ca_cert_file(ca_cert_file)
+
+
+@contextlib.contextmanager
+def short_living_ovsdb_api(api_class, idl):
+    """Context manager for short living connections to the database.
+
+    :param api_class: Class implementing the database calls
+                      (e.g. from the impl_idl module)
+    :param idl: An instance of IDL class (e.g. instance of OvnNbIdl)
+    """
+    conn = connection.Connection(
+        idl, timeout=ovn_config.get_ovn_ovsdb_timeout())
+    api = api_class(conn)
+    try:
+        yield api
+    finally:
+        api.ovsdb_connection.stop()
