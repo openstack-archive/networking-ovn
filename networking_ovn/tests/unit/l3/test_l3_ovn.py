@@ -1492,27 +1492,33 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         self.nb_idl().get_unhosted_gateways.assert_called_once_with(
             {'foo-1': 'physnet1'}, mock.ANY, mock.ANY)
 
-    @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_network')
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin.get_network')
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin.get_networks')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_port')
     @mock.patch('neutron.db.db_base_plugin_v2.NeutronDbPluginV2.get_subnet')
     @mock.patch('networking_ovn.common.ovn_client.OVNClient._get_router_ports')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.get_router')
     @mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.add_router_interface')
     def test_add_router_interface_need_to_frag_enabled(self, ari, gr, grps,
-                                                       gs, gp, gn):
+                                                       gs, gp, gns, gn):
 
         config.cfg.CONF.set_override(
             'ovn_emit_need_to_frag', True, group='ovn')
         router_id = 'router-id'
-        interface_info = {'port_id': 'router-port-id'}
+        interface_info = {'port_id': 'router-port-id',
+                'network_id': 'priv_net'}
         ari.return_value = self.fake_router_interface_info
         gr.return_value = self.fake_router_with_ext_gw
         gs.return_value = self.fake_subnet
-        gn.return_value = self.fake_network
+        network_attrs = {external_net.EXTERNAL: True, 'mtu': 1200}
+        prov_net = fakes.FakeNetwork.create_one_network(
+                attrs=network_attrs).info()
+        gn.return_value = prov_net
+        grps.return_value = [interface_info]
         self.fake_router_port['device_owner'] = (
             constants.DEVICE_OWNER_ROUTER_GW)
         gp.return_value = self.fake_router_port
-
+        gns.return_value = [self.fake_network]
         self.l3_inst.add_router_interface(self.context, router_id,
                                           interface_info)
 
@@ -1521,7 +1527,7 @@ class OVNL3RouterPlugin(test_mech_driver.OVNMechanismDriverTestCase):
         fake_router_port_assert['gateway_chassis'] = mock.ANY
         fake_router_port_assert['options'] = {
             ovn_const.OVN_ROUTER_PORT_GW_MTU_OPTION:
-            str(self.fake_network['mtu'])}
+            str(prov_net['mtu'])}
 
         self.l3_inst._ovn.add_lrouter_port.assert_called_once_with(
             **fake_router_port_assert)
