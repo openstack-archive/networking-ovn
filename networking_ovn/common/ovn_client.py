@@ -1275,13 +1275,11 @@ class OVNClient(object):
                 txn.add(self._nb_idl.update_lrouter(router_name, **update))
 
                 # Check for route updates
-                routes = new_router.get('routes')
-                if routes:
-                    old_routes = utils.get_lrouter_non_gw_routes(ovn_router)
-                    added, removed = helpers.diff_list_of_dict(
-                        old_routes, routes)
-                    self.update_router_routes(
-                        context, router_id, added, removed, txn=txn)
+                routes = new_router.get('routes', [])
+                old_routes = utils.get_lrouter_non_gw_routes(ovn_router)
+                added, removed = helpers.diff_list_of_dict(old_routes, routes)
+                self.update_router_routes(context, router_id, added,
+                        removed, txn=txn)
 
             if check_rev_cmd.result == ovn_const.TXN_COMMITTED:
                 db_rev.bump_revision(new_router, ovn_const.TYPE_ROUTERS)
