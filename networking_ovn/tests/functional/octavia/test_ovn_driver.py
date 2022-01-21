@@ -659,7 +659,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             'pools': [{'id': p.pool_id,
                        'provisioning_status': 'DELETED'}],
             'loadbalancers': [{'id': p.loadbalancer_id,
-                               'provisioning_status': 'ACTIVE'}]
+                               'provisioning_status': 'ACTIVE'}],
+            'listeners': []
         }
         if listener_id:
             pool_dict['listeners'] = [{'id': listener_id,
