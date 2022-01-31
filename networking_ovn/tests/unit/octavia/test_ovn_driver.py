@@ -279,6 +279,10 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             ovn_driver.OvnProviderHelper,
             '_find_ovn_lb_with_pool_key',
             return_value=self.ovn_lb).start()
+        self.mock_get_subnet_from_pool = mock.patch.object(
+            ovn_driver.OvnProviderHelper,
+            '_get_subnet_from_pool',
+            return_value=None).start()
 
     def test__ip_version_differs(self):
         self.assertFalse(self.driver._ip_version_differs(self.ref_member))
@@ -292,7 +296,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             mock.call('pool_%s' % self.pool_id),
             mock.call('pool_%s:D' % self.pool_id)])
 
-    def test_member_create(self):
+    def _test_member_create(self, member):
         info = {'id': self.ref_member.member_id,
                 'address': self.ref_member.address,
                 'protocol_port': self.ref_member.protocol_port,
@@ -310,11 +314,14 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         expected_dict_dvr = {
             'type': ovn_driver.REQ_TYPE_HANDLE_MEMBER_DVR,
             'info': info_dvr}
-        self.driver.member_create(self.ref_member)
+        self.driver.member_create(member)
         expected = [
             mock.call(expected_dict),
             mock.call(expected_dict_dvr)]
         self.mock_add_request.assert_has_calls(expected)
+
+    def test_member_create(self):
+        self._test_member_create(self.ref_member)
 
     def test_member_create_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
@@ -342,6 +349,15 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.ref_member.subnet_id = None
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_create, self.ref_member)
+
+    def test_member_create_no_subnet_provided_get_from_pool(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id)
+        member = copy.copy(self.ref_member)
+        member.subnet_id = data_models.UnsetType()
+        self._test_member_create(member)
+        member.subnet_id = None
+        self._test_member_create(member)
 
     def test_member_create_monitor_opts(self):
         self.ref_member.monitor_address = '172.20.20.1'
@@ -870,6 +886,32 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             execute.return_value = [self.ovn_lb, udp_lb]
         found = f(self.ovn_lb.id)
         self.assertListEqual(found, [self.ovn_lb, udp_lb])
+
+    def test__get_subnet_from_pool(self):
+        f = self.helper._get_subnet_from_pool
+
+        lb = data_models.LoadBalancer(
+            loadbalancer_id=self.loadbalancer_id,
+            name='The LB',
+            vip_address=self.vip_address,
+            vip_subnet_id=self.vip_subnet_id,
+            vip_network_id=self.vip_network_id)
+
+        lb_pool = data_models.Pool(
+            loadbalancer_id=self.loadbalancer_id,
+            name='The pool',
+            pool_id=self.pool_id,
+            protocol='TCP')
+
+        with mock.patch.object(self.helper, '_octavia_driver_lib') as dlib:
+            dlib.get_pool.return_value = None
+            found = f('not_found')
+            self.assertIsNone(found)
+
+            dlib.get_pool.return_value = lb_pool
+            dlib.get_loadbalancer.return_value = lb
+            found = f(self.pool_id)
+            self.assertEqual(found, lb.vip_subnet_id)
 
     def test__get_or_create_ovn_lb_no_lb_found(self):
         self.mock_find_ovn_lbs.stop()

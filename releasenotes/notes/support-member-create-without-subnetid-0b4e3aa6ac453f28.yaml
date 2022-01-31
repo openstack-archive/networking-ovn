@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Creating members without specifying a subnet ID is now supported.
+    Since the subnet ID is an optional API argument, if not given
+    the provider driver will now attempt to look it up via the pool
+    ID that is a required argument.
