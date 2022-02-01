@@ -1129,6 +1129,10 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.assertRaises(o_exceptions.UnsupportedOptionError,
                           self.ovn_driver.pool_create, m_pool)
 
+        self.assertRaises(o_exceptions.UnsupportedOptionError,
+                          self.ovn_driver.loadbalancer_failover,
+                          lb_data['model'].loadbalancer_id)
+
         m_listener = self._create_listener_model(
             lb_data['model'].loadbalancer_id, m_pool.pool_id, 80)
         m_listener.protocol = o_constants.PROTOCOL_HTTP
