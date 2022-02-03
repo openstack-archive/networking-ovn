@@ -255,6 +255,15 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             name='listener',
             protocol='http',
             protocol_port=42)
+        self.ref_lb_fully_populated = data_models.LoadBalancer(
+            admin_state_up=False,
+            listeners=[self.ref_listener],
+            pools=[self.ref_pool],
+            loadbalancer_id=self.loadbalancer_id,
+            name='favorite_lb0',
+            project_id=self.project_id,
+            vip_address=self.vip_address,
+            vip_network_id=self.vip_network_id)
         self.ref_lb0 = data_models.LoadBalancer(
             admin_state_up=False,
             listeners=[self.ref_listener],
@@ -530,15 +539,73 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.driver.listener_delete(self.ref_listener)
         self.mock_add_request.assert_called_once_with(expected_dict)
 
+    def test_loadbalancer_fully_populate_create(self):
+        info = {
+            'id': self.ref_lb_fully_populated.loadbalancer_id,
+            'vip_address': self.ref_lb_fully_populated.vip_address,
+            'vip_network_id': self.ref_lb_fully_populated.vip_network_id,
+            'admin_state_up': self.ref_lb_fully_populated.admin_state_up}
+        info_listener = {
+            'id': self.ref_listener.listener_id,
+            'protocol': self.ref_listener.protocol,
+            'protocol_port': self.ref_listener.protocol_port,
+            'default_pool_id': self.ref_listener.default_pool_id,
+            'admin_state_up': self.ref_listener.admin_state_up,
+            'loadbalancer_id': self.ref_listener.loadbalancer_id}
+        info_pool = {
+            'id': self.ref_pool.pool_id,
+            'loadbalancer_id': self.ref_pool.loadbalancer_id,
+            'listener_id': self.ref_pool.listener_id,
+            'protocol': self.ref_pool.protocol,
+            'lb_algorithm': constants.LB_ALGORITHM_SOURCE_IP_PORT,
+            'admin_state_up': self.ref_pool.admin_state_up}
+        info_member = {
+            'id': self.ref_member.member_id,
+            'address': self.ref_member.address,
+            'protocol_port': self.ref_member.protocol_port,
+            'pool_id': self.ref_member.pool_id,
+            'subnet_id': self.ref_member.subnet_id,
+            'admin_state_up': self.ref_member.admin_state_up}
+        info_dvr = {
+            'id': self.ref_member.member_id,
+            'address': self.ref_member.address,
+            'pool_id': self.ref_member.pool_id,
+            'subnet_id': self.ref_member.subnet_id,
+            'action': ovn_driver.REQ_INFO_MEMBER_ADDED}
+        expected_lb_dict = {
+            'type': ovn_driver.REQ_TYPE_LB_CREATE,
+            'info': info}
+        expected_listener_dict = {
+            'type': ovn_driver.REQ_TYPE_LISTENER_CREATE,
+            'info': info_listener}
+        expected_pool_dict = {
+            'type': ovn_driver.REQ_TYPE_POOL_CREATE,
+            'info': info_pool}
+        expected_member_dict = {
+            'type': ovn_driver.REQ_TYPE_MEMBER_CREATE,
+            'info': info_member}
+        expected_dict_dvr = {
+            'type': ovn_driver.REQ_TYPE_HANDLE_MEMBER_DVR,
+            'info': info_dvr}
+        calls = [mock.call(expected_lb_dict),
+                 mock.call(expected_listener_dict),
+                 mock.call(expected_pool_dict),
+                 mock.call(expected_member_dict),
+                 mock.call(expected_dict_dvr)]
+        self.driver.loadbalancer_create(self.ref_lb_fully_populated)
+        self.mock_add_request.assert_has_calls(calls)
+
     def test_loadbalancer_create(self):
         info = {'id': self.ref_lb0.loadbalancer_id,
                 'vip_address': self.ref_lb0.vip_address,
                 'vip_network_id': self.ref_lb0.vip_network_id,
                 'admin_state_up': self.ref_lb0.admin_state_up}
-        expected_dict = {'type': ovn_driver.REQ_TYPE_LB_CREATE,
-                         'info': info}
+        expected_dict = {
+            'type': ovn_driver.REQ_TYPE_LB_CREATE,
+            'info': info}
+        calls = [mock.call(expected_dict)]
         self.driver.loadbalancer_create(self.ref_lb0)
-        self.mock_add_request.assert_called_once_with(expected_dict)
+        self.mock_add_request.assert_has_calls(calls)
 
     def test_loadbalancer_create_unset_admin_state_up(self):
         self.ref_lb0.admin_state_up = data_models.UnsetType()
@@ -546,10 +613,12 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
                 'vip_address': self.ref_lb0.vip_address,
                 'vip_network_id': self.ref_lb0.vip_network_id,
                 'admin_state_up': True}
-        expected_dict = {'type': ovn_driver.REQ_TYPE_LB_CREATE,
-                         'info': info}
+        expected_dict = {
+            'type': ovn_driver.REQ_TYPE_LB_CREATE,
+            'info': info}
+        calls = [mock.call(expected_dict)]
         self.driver.loadbalancer_create(self.ref_lb0)
-        self.mock_add_request.assert_called_once_with(expected_dict)
+        self.mock_add_request.assert_has_calls(calls)
 
     def test_loadbalancer_update(self):
         info = {'id': self.ref_lb1.loadbalancer_id,
