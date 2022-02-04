@@ -41,7 +41,6 @@ from networking_ovn import ovn_db_sync
 CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
-DB_CONSISTENCY_CHECK_INTERVAL = 300  # 5 minutes
 INCONSISTENCY_TYPE_CREATE_UPDATE = 'create/update'
 INCONSISTENCY_TYPE_DELETE = 'delete'
 
@@ -325,7 +324,7 @@ class DBInconsistenciesPeriodics(SchemaAwarePeriodicsBase):
         _log(create_update_inconsistencies, INCONSISTENCY_TYPE_CREATE_UPDATE)
         _log(delete_inconsistencies, INCONSISTENCY_TYPE_DELETE)
 
-    @periodics.periodic(spacing=DB_CONSISTENCY_CHECK_INTERVAL,
+    @periodics.periodic(spacing=ovn_const.DB_CONSISTENCY_CHECK_INTERVAL,
                         run_immediately=True)
     def check_for_inconsistencies(self):
         # Only the worker holding a valid lock within OVSDB will run
@@ -377,6 +376,8 @@ class DBInconsistenciesPeriodics(SchemaAwarePeriodicsBase):
             try:
                 if row.resource_type == ovn_const.TYPE_SUBNETS:
                     self._ovn_client.delete_subnet(row.resource_uuid)
+                elif row.resource_type == ovn_const.TYPE_PORTS:
+                    self._ovn_client.delete_port(row.resource_uuid)
                 else:
                     self._fix_delete(row)
             except Exception:

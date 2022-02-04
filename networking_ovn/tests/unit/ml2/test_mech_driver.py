@@ -12,6 +12,7 @@
 #    under the License.
 #
 
+import collections
 import copy
 import datetime
 import shlex
@@ -47,6 +48,7 @@ from oslo_db import exception as os_db_exc
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
+from ovsdbapp.backend.ovs_idl import idlutils
 from webob import exc
 
 from networking_ovn.agent import neutron_agent
@@ -59,6 +61,9 @@ from networking_ovn.ml2 import mech_driver
 from networking_ovn.tests.unit import fakes
 
 OVN_PROFILE = ovn_const.OVN_PORT_BINDING_PROFILE
+
+OvnRevNumberRow = collections.namedtuple(
+    'OvnRevNumberRow', ['created_at'])
 
 
 class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
@@ -851,6 +856,39 @@ class TestOVNMechanismDriver(test_plugin.Ml2PluginV2TestCase):
                     self._delete('ports', port['port']['id'])
                     # Assert that delete_revision wasn't invoked
                     mock_del_rev.assert_not_called()
+
+    @mock.patch.object(db_rev, 'delete_revision')
+    @mock.patch.object(ovn_client.OVNClient, '_delete_port')
+    def test_delete_port_not_exist_in_ovn(self, mock_del_port,
+                                          mock_del_rev):
+        mock_del_port.side_effect = idlutils.RowNotFound
+        with self.network(set_context=True, tenant_id='test') as net:
+            with self.subnet(network=net) as subnet:
+                with self.port(subnet=subnet,
+                               set_context=True, tenant_id='test') as port:
+                    self._delete('ports', port['port']['id'])
+                    # Assert that delete_revision wasn't invoked
+                    mock_del_rev.assert_not_called()
+
+    @mock.patch.object(db_rev, 'delete_revision')
+    @mock.patch.object(ovn_client.OVNClient, '_delete_port')
+    def test_delete_port_stale_entry(self, mock_del_port,
+                                     mock_del_rev):
+        created_at = timeutils.utcnow() - datetime.timedelta(
+            seconds=ovn_const.DB_CONSISTENCY_CHECK_INTERVAL * 2)
+        mock_del_port.side_effect = idlutils.RowNotFound
+        with self.network(set_context=True, tenant_id='test') as net:
+            with self.subnet(network=net) as subnet:
+                with self.port(subnet=subnet,
+                               set_context=True, tenant_id='test') as port, \
+                        mock.patch.object(db_rev,
+                                          'get_revision_row',
+                                          return_value=OvnRevNumberRow(
+                                              created_at=created_at)):
+                    self._delete('ports', port['port']['id'])
+                    # Assert that delete_revision was invoked
+                    mock_del_rev.assert_called_once_with(port['port']['id'],
+                                                         ovn_const.TYPE_PORTS)
 
     def _test_set_port_status_up(self, is_compute_port=False):
         port_device_owner = 'compute:nova' if is_compute_port else ''
