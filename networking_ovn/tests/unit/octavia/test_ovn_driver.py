@@ -713,7 +713,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                    'vip_network_id': self.vip_network_id,
                    'admin_state_up': False}
         self.ports = {'ports': [{
-            'fixed_ips': [{'ip_address': self.vip_address}],
+            'fixed_ips': [{'ip_address': self.vip_address,
+                           'subnet_id': uuidutils.generate_uuid()}],
             'network_id': self.vip_network_id,
             'id': self.port1_id}]}
         self.pool = {'id': self.pool_id,
@@ -1042,6 +1043,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.lb['admin_state_up'] = True
         net_dr.return_value.neutron_client.list_ports.return_value = (
             self.ports)
+        net_dr.return_value.neutron_client.show_subnet.return_value = {
+            'subnet': mock.MagicMock()}
         self.pool['lb_algoritm'] = 'foo'
         status = self.helper.lb_create(self.lb)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
@@ -1780,7 +1783,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         status = self.helper.member_create(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
-        f_lr.assert_called_once_with(self.network)
+        f_lr.assert_called_once_with(self.network, fake_subnet['gateway_ip'])
         f_ls.assert_called_once_with(self.router)
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ls_for_lr')
@@ -2396,25 +2399,35 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         lsp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={
                 'external_ids': {
-                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router1'},
+                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router1',
+                    'neutron:cidrs': '10.10.10.1/24'},
                 'type': 'router',
                 'options': {
-                    'router-port': 'lrp-foo-name'}
+                    'router-port': 'lrp-foo-name'},
+            })
+        lsp2 = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={
+                'external_ids': {
+                    ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router2',
+                    'neutron:cidrs': '10.10.10.2/24'},
+                'type': 'router',
+                'options': {
+                    'router-port': 'lrp-bar-name'},
             })
         lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={
-                'name': 'lrp-foo-name'
+                'name': 'lrp-foo-name',
             })
         lr = fakes.FakeOVNRouter.create_one_router(
             attrs={
                 'name': 'router1',
                 'ports': [lrp]})
         ls = fakes.FakeOvsdbRow.create_one_ovsdb_row(
-            attrs={'ports': [lsp]})
+            attrs={'ports': [lsp2, lsp]})
 
         (self.helper.ovn_nbdb_api.get_lrs.return_value.
             execute.return_value) = [lr]
-        returned_lr = self.helper._find_lr_of_ls(ls)
+        returned_lr = self.helper._find_lr_of_ls(ls, '10.10.10.1')
         self.assertEqual(lr, returned_lr)
 
     def test__find_lr_of_ls_no_lrp(self):
