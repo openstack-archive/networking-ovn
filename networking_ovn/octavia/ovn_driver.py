@@ -2036,6 +2036,18 @@ class OvnProviderDriver(driver_base.ProviderDriver):
                    'info': request_info}
         self._ovn_helper.add_request(request)
 
+        if not isinstance(loadbalancer.listeners, o_datamodels.UnsetType):
+            for listener in loadbalancer.listeners:
+                self.listener_create(listener)
+
+        if not isinstance(loadbalancer.pools, o_datamodels.UnsetType):
+            for pool in loadbalancer.pools:
+                self.pool_create(pool)
+                for member in pool.members:
+                    if not member.subnet_id:
+                        member.subnet_id = loadbalancer.vip_network_id
+                    self.member_create(member)
+
     def loadbalancer_delete(self, loadbalancer, cascade=False):
         request_info = {'id': loadbalancer.loadbalancer_id,
                         'cascade': cascade}
@@ -2104,7 +2116,6 @@ class OvnProviderDriver(driver_base.ProviderDriver):
     def listener_create(self, listener):
         self._check_for_supported_protocols(listener.protocol)
         self._check_for_allowed_cidrs(listener.allowed_cidrs)
-
         admin_state_up = listener.admin_state_up
         if isinstance(admin_state_up, o_datamodels.UnsetType):
             admin_state_up = True
