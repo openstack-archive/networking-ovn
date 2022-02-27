@@ -61,6 +61,8 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         ovn_driver.get_network_driver = mock.MagicMock()
         ovn_driver.get_network_driver.return_value = self.fake_network_driver
         self.fake_network_driver.get_subnet = self._mock_get_subnet
+        self.fake_network_driver.neutron_client.show_subnet = (
+            self._mock_show_subnet)
         self.fake_network_driver.neutron_client.list_ports = (
             self._mock_list_ports)
         self.fake_network_driver.neutron_client.show_port = (
@@ -75,7 +77,13 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
     def _mock_get_subnet(self, subnet_id):
         m_subnet = mock.MagicMock()
         m_subnet.network_id = self._local_net_cache[subnet_id]
+        m_subnet.gateway_ip = None
         return m_subnet
+
+    def _mock_show_subnet(self, subnet_id):
+        subnet = {}
+        subnet['network_id'] = self._local_net_cache[subnet_id]
+        return {'subnet': subnet}
 
     def _mock_list_ports(self, **kwargs):
         return self._local_port_cache
