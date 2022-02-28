@@ -16,6 +16,7 @@ import os
 
 import mock
 from neutron.tests import base
+from neutron_lib import constants as n_const
 from neutronclient.common import exceptions as n_exc
 from octavia_lib.api.drivers import data_models
 from octavia_lib.api.drivers import driver_lib
@@ -1840,20 +1841,22 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.assertEqual(status['members'][0]['provisioning_status'],
                          constants.ACTIVE)
 
-    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ls_for_lr')
+    @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ovn_lb_by_pool_id')
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_lr_of_ls')
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
-    def test_member_create_lb_add_from_lr(self, net_dr, f_lr, f_ls):
+    def test_member_create_lb_add_from_lr(self, net_dr, f_lr, folbpi):
         fake_subnet = fakes.FakeSubnet.create_one_subnet()
         net_dr.return_value.get_subnet.return_value = fake_subnet
         f_lr.return_value = self.router
-        f_ls.return_value = [self.network]
+        pool_key = 'pool_%s' % self.pool_id
+        folbpi.return_value = (pool_key, self.ovn_lb)
         self.ovn_lb.external_ids = mock.MagicMock()
         status = self.helper.member_create(self.member)
         self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
                          constants.ACTIVE)
         f_lr.assert_called_once_with(self.network, fake_subnet['gateway_ip'])
-        f_ls.assert_called_once_with(self.router)
+        self.helper._update_lb_to_lr_association.assert_called_once_with(
+            self.ovn_lb, self.router)
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_ls_for_lr')
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_find_lr_of_ls')
@@ -2469,7 +2472,9 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             attrs={
                 'external_ids': {
                     ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router1',
-                    'neutron:cidrs': '10.10.10.1/24'},
+                    'neutron:cidrs': '10.10.10.1/24',
+                    ovn_const.OVN_DEVICE_OWNER_EXT_ID_KEY:
+                        n_const.DEVICE_OWNER_ROUTER_INTF},
                 'type': 'router',
                 'options': {
                     'router-port': 'lrp-foo-name'},
@@ -2478,7 +2483,9 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             attrs={
                 'external_ids': {
                     ovn_const.OVN_ROUTER_NAME_EXT_ID_KEY: 'router2',
-                    'neutron:cidrs': '10.10.10.2/24'},
+                    'neutron:cidrs': '10.10.10.2/24',
+                    ovn_const.OVN_DEVICE_OWNER_EXT_ID_KEY:
+                        n_const.DEVICE_OWNER_ROUTER_INTF},
                 'type': 'router',
                 'options': {
                     'router-port': 'lrp-bar-name'},
