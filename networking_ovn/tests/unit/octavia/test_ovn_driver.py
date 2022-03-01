@@ -654,11 +654,9 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.mock_add_request.assert_called_once_with(expected_dict)
 
     def test_loadbalancer_failover(self):
-        info = {'id': self.ref_lb0.loadbalancer_id}
-        expected_dict = {'type': ovn_driver.REQ_TYPE_LB_FAILOVER,
-                         'info': info}
-        self.driver.loadbalancer_failover(info['id'])
-        self.mock_add_request.assert_called_once_with(expected_dict)
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.loadbalancer_failover,
+                          self.ref_lb0.loadbalancer_id)
 
     def test_pool_create_unsupported_protocol(self):
         self.ref_pool.protocol = 'HTTP'
@@ -1277,11 +1275,6 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         self.helper.ovn_nbdb_api.lb_del.assert_has_calls([
             mock.call(self.ovn_lb.uuid),
             mock.call(udp_lb.uuid)])
-
-    def test_lb_failover(self):
-        status = self.helper.lb_failover(self.lb)
-        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
-                         constants.ACTIVE)
 
     @mock.patch.object(ovn_driver.OvnProviderHelper, '_refresh_lb_vips')
     def test_lb_update_disabled(self, refresh_vips):

@@ -49,7 +49,6 @@ LOG = logging.getLogger(__name__)
 
 REQ_TYPE_LB_CREATE = 'lb_create'
 REQ_TYPE_LB_DELETE = 'lb_delete'
-REQ_TYPE_LB_FAILOVER = 'lb_failover'
 REQ_TYPE_LB_UPDATE = 'lb_update'
 REQ_TYPE_LISTENER_CREATE = 'listener_create'
 REQ_TYPE_LISTENER_DELETE = 'listener_delete'
@@ -221,7 +220,6 @@ class OvnProviderHelper(object):
             REQ_TYPE_LB_CREATE: self.lb_create,
             REQ_TYPE_LB_DELETE: self.lb_delete,
             REQ_TYPE_LB_UPDATE: self.lb_update,
-            REQ_TYPE_LB_FAILOVER: self.lb_failover,
             REQ_TYPE_LISTENER_CREATE: self.listener_create,
             REQ_TYPE_LISTENER_DELETE: self.listener_delete,
             REQ_TYPE_LISTENER_UPDATE: self.listener_update,
@@ -1178,12 +1176,6 @@ class OvnProviderHelper(object):
         self._execute_commands(commands)
         return status
 
-    def lb_failover(self, loadbalancer):
-        status = {
-            'loadbalancers': [{'id': loadbalancer['id'],
-                               'provisioning_status': constants.ACTIVE}]}
-        return status
-
     def lb_update(self, loadbalancer):
         lb_status = {'id': loadbalancer['id'],
                      'provisioning_status': constants.ACTIVE}
@@ -2074,10 +2066,10 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def loadbalancer_failover(self, loadbalancer_id):
-        request_info = {'id': loadbalancer_id}
-        request = {'type': REQ_TYPE_LB_FAILOVER,
-                   'info': request_info}
-        self._ovn_helper.add_request(request)
+        msg = _('OVN provider does not support loadbalancer failover')
+        raise driver_exceptions.UnsupportedOptionError(
+            user_fault_string=msg,
+            operator_fault_string=msg)
 
     def loadbalancer_update(self, old_loadbalancer, new_loadbalncer):
         request_info = {'id': new_loadbalncer.loadbalancer_id}
