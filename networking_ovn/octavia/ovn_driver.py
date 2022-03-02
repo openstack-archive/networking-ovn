@@ -419,7 +419,7 @@ class OvnProviderHelper(object):
         port_name = vip_lp.external_ids.get(ovn_const.OVN_PORT_NAME_EXT_ID_KEY)
         lb_id = port_name[len(ovn_const.LB_VIP_PORT_PREFIX):]
         try:
-            ovn_lbs = self._find_ovn_lbs(lb_id)
+            ovn_lbs = self._find_ovn_lbs_with_retry(lb_id)
         except idlutils.RowNotFound:
             LOG.debug("Loadbalancer %s not found!", lb_id)
             return
@@ -502,6 +502,14 @@ class OvnProviderHelper(object):
         status = OvnProviderHelper._delete_disabled_from_status(status)
         LOG.debug('Updating status to octavia: %s', status)
         self._octavia_driver_lib.update_loadbalancer_status(status)
+
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(idlutils.RowNotFound),
+        wait=tenacity.wait_exponential(),
+        stop=tenacity.stop_after_delay(10),
+        reraise=True)
+    def _find_ovn_lbs_with_retry(self, lb_id, protocol=None):
+        return self._find_ovn_lbs(lb_id, protocol=protocol)
 
     def _find_ovn_lbs(self, lb_id, protocol=None):
         """Find the Loadbalancers in OVN with the given lb_id as its name

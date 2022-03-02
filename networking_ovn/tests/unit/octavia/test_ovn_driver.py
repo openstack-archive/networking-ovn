@@ -2698,7 +2698,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
     @mock.patch('networking_ovn.octavia.ovn_driver.OvnProviderHelper.'
                 '_find_ovn_lbs')
     def test_vip_port_update_handler_lb_not_found(self, lb):
-        lb.side_effect = [idlutils.RowNotFound]
+        lb.side_effect = [idlutils.RowNotFound for _ in range(5)]
         self.switch_port_event = ovn_driver.LogicalSwitchPortUpdateEvent(
             self.helper)
         port_name = '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX, 'foo')
