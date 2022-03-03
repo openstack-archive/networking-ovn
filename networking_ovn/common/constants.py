@@ -277,6 +277,8 @@ LSP_OPTIONS_VIRTUAL_IP_KEY = 'virtual-ip'
 LSP_OPTIONS_MCAST_FLOOD_REPORTS = 'mcast_flood_reports'
 LSP_OPTIONS_MCAST_FLOOD = 'mcast_flood'
 
+LRP_OPTIONS_RESIDE_REDIR_CH = 'reside-on-redirect-chassis'
+
 # OVN igmp options
 MCAST_SNOOP = 'mcast_snoop'
 MCAST_FLOOD_UNREGISTERED = 'mcast_flood_unregistered'
