@@ -32,6 +32,7 @@ from ovs.stream import Stream
 from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import event as row_event
 from ovsdbapp.backend.ovs_idl import idlutils
+from ovsdbapp.schema.ovn_northbound import commands as cmd
 from six.moves import queue as Queue
 from stevedore import driver
 import tenacity
@@ -357,7 +358,6 @@ class OvnProviderHelper(object):
         # Network and Router references as pushed in the patch
         # https://github.com/openvswitch/ovs/commit
         # /612f80fa8ebf88dad2e204364c6c02b451dca36c
-        commands = []
         network = info['network']
         router = info['router']
 
@@ -367,14 +367,27 @@ class OvnProviderHelper(object):
         r_lb = set(router.load_balancer) - nw_lb
         # Delete all LB on N/W from Router
         for nlb in nw_lb:
-            commands.extend(self._update_lb_to_lr_association(nlb, router,
-                                                              delete=True))
+            try:
+                self._update_lb_to_lr_association(nlb, router, delete=True)
+            except idlutils.RowNotFound:
+                LOG.warning("The disassociation of loadbalancer %s to the "
+                            "logical router %s failed, trying step by step",
+                            nlb.uuid, router.uuid)
+                self._update_lb_to_lr_association_by_step(
+                    nlb, router, delete=True)
         # Delete all LB on Router from N/W
         for rlb in r_lb:
-            commands.append(self.ovn_nbdb_api.ls_lb_del(
-                network.uuid, rlb.uuid))
-        if commands:
-            self._execute_commands(commands)
+            try:
+                self._update_lb_to_ls_association(
+                    rlb,
+                    network_id=ovn_utils.ovn_uuid(network.name),
+                    associate=False,
+                    update_ls_ref=False)
+            except idlutils.RowNotFound:
+                LOG.warning("The disassociation of loadbalancer %s to the "
+                            "logical switch %s failed, just keep going on",
+                            rlb.uuid, ovn_utils.ovn_uuid(network.name))
+                pass
 
     def lb_create_lrp_assoc_handler(self, row):
         try:
@@ -388,21 +401,31 @@ class OvnProviderHelper(object):
                           'info': request_info})
 
     def lb_create_lrp_assoc(self, info):
-        commands = []
-
         router_lb = set(info['router'].load_balancer)
         network_lb = set(info['network'].load_balancer)
         # Add only those lb to routers which are unique to the network
         for lb in (network_lb - router_lb):
-            commands.extend(self._update_lb_to_lr_association(
-                lb, info['router']))
+            try:
+                self._update_lb_to_lr_association(lb, info['router'])
+            except idlutils.RowNotFound:
+                LOG.warning("The association of loadbalancer %s to the "
+                            "logical router %s failed, trying step by step",
+                            lb.uuid, info['router'].uuid)
+                self._update_lb_to_lr_association_by_step(lb, info['router'])
 
         # Add those lb to the network which are unique to the router
         for lb in (router_lb - network_lb):
-            commands.append(self.ovn_nbdb_api.ls_lb_add(
-                            info['network'].uuid, lb.uuid, may_exist=True))
-        if commands:
-            self._execute_commands(commands)
+            try:
+                self._update_lb_to_ls_association(
+                    lb,
+                    network_id=ovn_utils.ovn_uuid(info['network'].name),
+                    associate=True,
+                    update_ls_ref=False)
+            except idlutils.RowNotFound:
+                LOG.warning("The association of loadbalancer %s to the "
+                            "logical switch %s failed, just keep going on",
+                            lb.uuid, ovn_utils.ovn_uuid(info['network'].name))
+                pass
 
     def vip_port_update_handler(self, vip_lp):
         """Handler for VirtualIP port updates.
@@ -648,8 +671,24 @@ class OvnProviderHelper(object):
                     'fetch its data.', subnet_id)
         return None
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(idlutils.RowNotFound),
+        wait=tenacity.wait_exponential(),
+        stop=tenacity.stop_after_attempt(3),
+        reraise=True)
     def _update_lb_to_ls_association(self, ovn_lb, network_id=None,
-                                     subnet_id=None, associate=True):
+                                     subnet_id=None, associate=True,
+                                     update_ls_ref=True):
+        # Note(froyo): Large topologies can change from the time we
+        # list the ls association commands and the execution, retry
+        # if this situation arises.
+        commands = self._get_lb_to_ls_association_commands(
+            ovn_lb, network_id, subnet_id, associate, update_ls_ref)
+        self._execute_commands(commands)
+
+    def _get_lb_to_ls_association_commands(self, ovn_lb, network_id=None,
+                                           subnet_id=None, associate=True,
+                                           update_ls_ref=True):
         """Update LB association with Logical Switch
 
            This function deals with updating the References of Logical Switch
@@ -716,10 +755,12 @@ class OvnProviderHelper(object):
             else:
                 ls_refs[ls_name] = ref_ct - 1
 
-        ls_refs = {ovn_const.LB_EXT_IDS_LS_REFS_KEY: jsonutils.dumps(ls_refs)}
-        commands.append(self.ovn_nbdb_api.db_set(
-            'Load_Balancer', ovn_lb.uuid,
-            ('external_ids', ls_refs)))
+        if update_ls_ref:
+            ls_refs = {
+                ovn_const.LB_EXT_IDS_LS_REFS_KEY: jsonutils.dumps(ls_refs)}
+            commands.append(self.ovn_nbdb_api.db_set(
+                'Load_Balancer', ovn_lb.uuid,
+                ('external_ids', ls_refs)))
 
         return commands
 
@@ -779,12 +820,44 @@ class OvnProviderHelper(object):
                                          ('external_ids', lr_rf)))
         return commands
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(idlutils.RowNotFound),
+        wait=tenacity.wait_exponential(),
+        stop=tenacity.stop_after_attempt(3),
+        reraise=True)
     def _update_lb_to_lr_association(self, ovn_lb, ovn_lr, delete=False):
+        # Note(froyo): Large topologies can change from the time we
+        # list the ls associated to lr until we execute the
+        # association command, retry if this situation arises.
+        commands = self._get_lb_to_lr_association_commands(
+            ovn_lb, ovn_lr, delete)
+        self._execute_commands(commands)
+
+    def _update_lb_to_lr_association_by_step(self, ovn_lb, ovn_lr,
+                                             delete=False):
+        # Note(froyo): just to make association commands step by
+        # step, in order to keep going on when LsLbAdd or LsLbDel
+        # happen.
+        commands = self._get_lb_to_lr_association_commands(
+            ovn_lb, ovn_lr, delete)
+        for command in commands:
+            try:
+                command.execute(check_error=True)
+            except idlutils.RowNotFound:
+                if isinstance(command, (cmd.LsLbAddCommand,
+                                        cmd.LsLbDelCommand)):
+                    LOG.warning('action lb to ls fail because ls '
+                                '%s is not found, keep going on...',
+                                getattr(command, 'switch', ''))
+                else:
+                    raise
+
+    def _get_lb_to_lr_association_commands(
+            self, ovn_lb, ovn_lr, delete=False):
         lr_ref = ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_LR_REF_KEY)
         if delete:
             return self._del_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
-        else:
-            return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
+        return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
 
     def _find_ls_for_lr(self, router):
         ls = []
@@ -1028,16 +1101,29 @@ class OvnProviderHelper(object):
                 loadbalancer['id'],
                 protocol=protocol)
             ovn_lb = ovn_lb if protocol else ovn_lb[0]
-            commands = self._update_lb_to_ls_association(
+            # NOTE(froyo): This is the association of the lb to the VIP ls
+            # so this is executed right away
+            self._update_lb_to_ls_association(
                 ovn_lb, network_id=port['network_id'],
-                associate=True)
+                associate=True, update_ls_ref=True)
             ls_name = ovn_utils.ovn_name(port['network_id'])
             ovn_ls = self.ovn_nbdb_api.ls_get(ls_name).execute(
                 check_error=True)
             ovn_lr = self._find_lr_of_ls(ovn_ls, subnet.get('gateway_ip'))
             if ovn_lr:
-                commands.extend(self._update_lb_to_lr_association(
-                    ovn_lb, ovn_lr))
+                try:
+                    # NOTE(froyo): This is the association of the lb to the
+                    # router associated to VIP ls and all ls connected to that
+                    # router we try atomically, if it fails we will go step by
+                    # step, discarding the associations from lb to a
+                    # non-existent ls, but we will demand the association of
+                    # lb to lr
+                    self._update_lb_to_lr_association(ovn_lb, ovn_lr)
+                except idlutils.RowNotFound:
+                    LOG.warning("The association of loadbalancer %s to the "
+                                "logical router %s failed, trying step by "
+                                "step", ovn_lb.uuid, ovn_lr.uuid)
+                    self._update_lb_to_lr_association_by_step(ovn_lb, ovn_lr)
 
             # NOTE(mjozefcz): In case of LS references where passed -
             # apply LS to the new LB. That could happend in case we
@@ -1053,11 +1139,10 @@ class OvnProviderHelper(object):
                     # to duplicate.
                     if ls == ovn_ls.name:
                         continue
-                    commands.extend(self._update_lb_to_ls_association(
-                        ovn_lb, network_id=ls.replace('neutron-', ''),
-                        associate=True))
+                    self._update_lb_to_ls_association(
+                        ovn_lb, network_id=ovn_utils.ovn_uuid(ls),
+                        associate=True, update_ls_ref=True)
 
-            self._execute_commands(commands)
             operating_status = constants.ONLINE
             # The issue is that since OVN doesnt support any HMs,
             # we ideally should never put the status as 'ONLINE'
@@ -1181,6 +1266,9 @@ class OvnProviderHelper(object):
                 self.ovn_nbdb_api.lr_lb_del(lr.uuid, ovn_lb.uuid,
                                             if_exists=True))
         commands.append(self.ovn_nbdb_api.lb_del(ovn_lb.uuid))
+
+        # TODO(froyo): atomic process to execute all commands in a transaction
+        # if any of them fails the transaction is aborted
         self._execute_commands(commands)
         return status
 
@@ -1646,17 +1734,21 @@ class OvnProviderHelper(object):
         commands.extend(
             self._refresh_lb_vips(ovn_lb.uuid, external_ids)
         )
+        # Note (froyo): commands are now splitted to separate atomic process,
+        # leaving outside the not mandatory ones to allow add_member
+        # finish correctly
+        self._execute_commands(commands)
+
         subnet_id = member['subnet_id']
-        commands.extend(
-            self._update_lb_to_ls_association(
-                ovn_lb, subnet_id=subnet_id, associate=True)
-        )
+        self._update_lb_to_ls_association(
+            ovn_lb, subnet_id=subnet_id, associate=True, update_ls_ref=True)
 
         # Make sure that all logical switches related to logical router
         # are associated with the load balancer. This is needed to handle
         # potential race that happens when lrp and lb are created at the
         # same time.
         subnet = self._get_subnet(subnet_id)
+        ovn_lr = None
         if subnet:
             ls_name = ovn_utils.ovn_name(subnet.network_id)
             try:
@@ -1664,13 +1756,17 @@ class OvnProviderHelper(object):
                     check_error=True)
                 ovn_lr = self._find_lr_of_ls(
                     ovn_ls, subnet.gateway_ip)
-                if ovn_lr:
-                    commands.extend(self._update_lb_to_lr_association(
-                                    ovn_lb, ovn_lr))
             except idlutils.RowNotFound:
                 pass
 
-        self._execute_commands(commands)
+        if ovn_lr:
+            try:
+                self._update_lb_to_lr_association(ovn_lb, ovn_lr)
+            except idlutils.RowNotFound:
+                LOG.warning("The association of loadbalancer %s to the "
+                            "logical router %s failed, trying step by step",
+                            ovn_lb.uuid, ovn_lr.uuid)
+                self._update_lb_to_lr_association_by_step(ovn_lb, ovn_lr)
 
     def member_create(self, member):
         pool_listeners = []
@@ -1732,11 +1828,10 @@ class OvnProviderHelper(object):
             external_ids[pool_key] = ",".join(existing_members)
             commands.extend(
                 self._refresh_lb_vips(ovn_lb.uuid, external_ids))
-            commands.extend(
-                self._update_lb_to_ls_association(
-                    ovn_lb, subnet_id=member.get('subnet_id'),
-                    associate=False))
             self._execute_commands(commands)
+            self._update_lb_to_ls_association(
+                ovn_lb, subnet_id=member.get(constants.SUBNET_ID),
+                associate=False, update_ls_ref=True)
             return pool_status
         else:
             msg = "Member %s not found in the pool" % member['id']

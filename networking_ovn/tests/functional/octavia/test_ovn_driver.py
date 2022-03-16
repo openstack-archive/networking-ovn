@@ -331,6 +331,77 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         expected_lbs = self._make_expected_lbs(lb_data)
         self._validate_loadbalancers(expected_lbs)
 
+    def _create_load_balancer_custom_lr_ls_and_validate(
+        self, admin_state_up=True, create_router=True,
+            force_retry_ls_to_lr_assoc=True):
+
+        self._o_driver_lib.update_loadbalancer_status.reset_mock()
+        r_id = self._create_router('r1') if create_router else None
+
+        net_info = []
+        net_info.append(self._create_net("n1", "10.0.1.0/24", r_id))
+        net_info.append(self._create_net("n2", "10.0.2.0/24", r_id))
+        net_info.append(self._create_net("n3", "10.0.3.0/24", r_id))
+
+        lb_data = {}
+        lb_data['model'] = self._create_lb_model(
+            vip=net_info[0][2],
+            vip_network_id=net_info[0][0],
+            vip_subnet_id=net_info[0][1],
+            vip_port_id=net_info[0][3],
+            admin_state_up=admin_state_up)
+
+        lb_data[ovn_const.LB_EXT_IDS_LR_REF_KEY] = \
+            (LR_REF_KEY_HEADER + r_id)
+        lb_data['vip_net_info'] = net_info[0]
+        lb_data[ovn_const.LB_EXT_IDS_LS_REFS_KEY] = {}
+        lb_data['listeners'] = []
+        lb_data['pools'] = []
+        self._update_ls_refs(lb_data, net_info[0][0])
+        ls = [LR_REF_KEY_HEADER + net[0] for net in net_info]
+
+        if force_retry_ls_to_lr_assoc:
+            ls_foo = copy.deepcopy(ls)
+            ls_foo.append('neutron-foo')
+            self.ovn_driver._ovn_helper._find_ls_for_lr = mock.MagicMock()
+            self.ovn_driver._ovn_helper._find_ls_for_lr.side_effect = \
+                [ls_foo, ls]
+
+        self.ovn_driver.loadbalancer_create(lb_data['model'])
+
+        name = '%s%s' % (ovn_const.LB_VIP_PORT_PREFIX,
+                         lb_data['model'].loadbalancer_id)
+        self.driver.update_port(
+            self.context, net_info[0][3], {'port': {'name': name}})
+
+        if lb_data['model'].admin_state_up:
+            expected_status = {
+                'loadbalancers': [{"id": lb_data['model'].loadbalancer_id,
+                                   "provisioning_status": "ACTIVE",
+                                   "operating_status": o_constants.ONLINE}]
+            }
+        else:
+            expected_status = {
+                'loadbalancers': [{"id": lb_data['model'].loadbalancer_id,
+                                   "provisioning_status": "ACTIVE",
+                                   "operating_status": o_constants.OFFLINE}]
+            }
+        self._wait_for_status_and_validate(lb_data, [expected_status])
+        self.assertTrue(
+            self._is_lb_associated_to_ls(
+                lb_data['model'].loadbalancer_id,
+                LR_REF_KEY_HEADER + net_info[0][0]))
+
+        # NOTE(froyo): Just to check all net connected to lr have a
+        # reference to lb
+        for net_id in ls:
+            self.assertTrue(
+                self._is_lb_associated_to_ls(
+                    lb_data['model'].loadbalancer_id,
+                    net_id))
+
+        return lb_data
+
     def _create_load_balancer_and_validate(self, lb_info,
                                            admin_state_up=True,
                                            only_model=False,
@@ -913,6 +984,16 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             {'vip_network': 'vip_network',
              'cidr': '10.0.0.0/24'}, admin_state_up=False)
         self._delete_load_balancer_and_validate(lb_data)
+
+    def test_create_lb_custom_network(self):
+        self._create_load_balancer_custom_lr_ls_and_validate(
+            admin_state_up=True, create_router=True,
+            force_retry_ls_to_lr_assoc=False)
+
+    def test_create_lb_custom_network_retry(self):
+        self._create_load_balancer_custom_lr_ls_and_validate(
+            admin_state_up=True, create_router=True,
+            force_retry_ls_to_lr_assoc=True)
 
     def test_delete_lb_on_nonexisting_lb(self):
         # LoadBalancer doesnt exist anymore, so just create a model and delete
