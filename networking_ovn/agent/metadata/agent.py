@@ -375,8 +375,6 @@ class MetadataAgent(object):
         metadata_driver.MetadataDriver.destroy_monitored_metadata_proxy(
             self._process_monitor, dp, self.conf, namespace)
         veth_name = self._get_veth_name(dp)
-
-        veth_name = self._get_veth_name(datapath)
         self.ovs_idl.del_port(veth_name[0]).execute()
         if ip_lib.device_exists(veth_name[0]):
             ip_lib.IPWrapper().del_veth(veth_name[0])
