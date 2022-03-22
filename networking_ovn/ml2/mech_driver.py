@@ -24,6 +24,7 @@ import types
 import netaddr
 from neutron.common import utils as n_utils
 from neutron.db import provisioning_blocks
+from neutron.extensions import securitygroup as ext_sg
 from neutron.plugins.ml2 import db as ml2_db
 from neutron import service
 from neutron.services.segments import db as segment_service_db
@@ -349,8 +350,12 @@ class OVNMechanismDriver(api.MechanismDriver):
                 kwargs.get('security_group_rule'))
         elif event == events.BEFORE_DELETE:
             admin_context = n_context.get_admin_context()
-            sg_rule = self._plugin.get_security_group_rule(
-                admin_context, kwargs.get('security_group_rule_id'))
+            try:
+                sg_rule = self._plugin.get_security_group_rule(
+                    admin_context, kwargs.get('security_group_rule_id'))
+            except ext_sg.SecurityGroupRuleNotFound:
+                return
+
             if sg_rule.get('remote_ip_prefix') is not None:
                 if self._sg_has_rules_with_same_normalized_cidr(sg_rule):
                     return
