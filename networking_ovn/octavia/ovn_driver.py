@@ -2332,11 +2332,20 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         self._ovn_helper.add_request(request)
 
     def member_delete(self, member):
+        # NOTE(froyo): OVN provider allow to create member without param
+        # subnet_id, in that case the driver search it according to the
+        # pool_id, but it is not propagated to Octavia. In this case, if
+        # the member is deleted, Octavia send the object without subnet_id.
+        subnet_id = member.subnet_id
+        if (isinstance(subnet_id, o_datamodels.UnsetType) or not subnet_id):
+            subnet_id = self._ovn_helper._get_subnet_from_pool(
+                member.pool_id)
+
         request_info = {'id': member.member_id,
                         'address': member.address,
                         'protocol_port': member.protocol_port,
                         'pool_id': member.pool_id,
-                        'subnet_id': member.subnet_id}
+                        'subnet_id': subnet_id}
         request = {'type': REQ_TYPE_MEMBER_DELETE,
                    'info': request_info}
         self._ovn_helper.add_request(request)
@@ -2346,7 +2355,7 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         request_info = {'id': member.member_id,
                         'address': member.address,
                         'pool_id': member.pool_id,
-                        'subnet_id': member.subnet_id,
+                        'subnet_id': subnet_id,
                         'action': REQ_INFO_MEMBER_DELETED}
         request = {'type': REQ_TYPE_HANDLE_MEMBER_DVR,
                    'info': request_info}
@@ -2358,13 +2367,22 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             raise driver_exceptions.UnsupportedOptionError(
                 user_fault_string=msg,
                 operator_fault_string=msg)
+        # NOTE(froyo): OVN provider allow to create member without param
+        # subnet_id, in that case the driver search it according to the
+        # pool_id, but it is not propagated to Octavia. In this case, if
+        # the member is updated, Octavia send the object without subnet_id.
+        subnet_id = old_member.subnet_id
+        if (isinstance(subnet_id, o_datamodels.UnsetType) or not subnet_id):
+            subnet_id = self._ovn_helper._get_subnet_from_pool(
+                old_member.pool_id)
+
         if new_member.address and self._ip_version_differs(new_member):
             raise IPVersionsMixingNotSupportedError()
         request_info = {'id': new_member.member_id,
                         'address': old_member.address,
                         'protocol_port': old_member.protocol_port,
                         'pool_id': old_member.pool_id,
-                        'subnet_id': old_member.subnet_id}
+                        'subnet_id': subnet_id}
         if not isinstance(new_member.admin_state_up, o_datamodels.UnsetType):
             request_info['admin_state_up'] = new_member.admin_state_up
         request = {'type': REQ_TYPE_MEMBER_UPDATE,
@@ -2379,19 +2397,30 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         pool = external_ids[pool_key]
         existing_members = pool.split(',') if pool else []
         members_to_delete = copy.copy(existing_members)
+        pool_subnet_id = None
         for member in members:
             if (self._check_monitor_options(member) or
                     member.address and self._ip_version_differs(member)):
                 skipped_members.append(member.member_id)
                 continue
-            # NOTE(mjozefcz): We need to have subnet_id information.
-            if (isinstance(member.subnet_id, o_datamodels.UnsetType) or
-                    not member.subnet_id):
-                msg = _('Subnet is required for Member creation'
-                        ' with OVN Provider Driver')
-                raise driver_exceptions.UnsupportedOptionError(
-                    user_fault_string=msg,
-                    operator_fault_string=msg)
+            # NOTE(froyo): if subnet_id not provided, lets try to get it
+            # from the member pool_id
+            subnet_id = member.subnet_id
+            if (isinstance(subnet_id, o_datamodels.UnsetType) or
+                    not subnet_id):
+                pool_subnet_id = (
+                    pool_subnet_id
+                    if pool_subnet_id
+                    else self._ovn_helper._get_subnet_from_pool(pool_id))
+                # NOTE(mjozefcz): We need to have subnet_id information.
+                if not pool_subnet_id:
+                    msg = _('Subnet is required, or Loadbalancer associated '
+                            'with Pool must have a subnet, for Member '
+                            'creation with OVN Provider Driver')
+                    raise driver_exceptions.UnsupportedOptionError(
+                        user_fault_string=msg,
+                        operator_fault_string=msg)
+                member.subnet_id = pool_subnet_id
             admin_state_up = member.admin_state_up
             if isinstance(admin_state_up, o_datamodels.UnsetType):
                 admin_state_up = True

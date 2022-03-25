@@ -407,6 +407,22 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.driver.member_update(self.ref_member, self.update_member)
         self.mock_add_request.assert_called_once_with(expected_dict)
 
+    def test_member_update_missing_subnet_id(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id)
+        info = {'id': self.update_member.member_id,
+                'address': self.ref_member.address,
+                'protocol_port': self.ref_member.protocol_port,
+                'pool_id': self.ref_member.pool_id,
+                'admin_state_up': self.update_member.admin_state_up,
+                'subnet_id': self.ref_member.subnet_id}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_MEMBER_UPDATE,
+                         'info': info}
+        member = copy.copy(self.ref_member)
+        member.subnet_id = data_models.UnsetType()
+        self.driver.member_update(member, self.update_member)
+        self.mock_add_request.assert_called_once_with(expected_dict)
+
     @mock.patch.object(ovn_driver.OvnProviderDriver, '_ip_version_differs')
     def test_member_update_no_ip_addr(self, mock_ip_differs):
         self.update_member.address = None
@@ -452,6 +468,12 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
                           self.driver.member_batch_update,
                           self.pool_id, [self.ref_member])
 
+    def test_member_batch_update_missing_subnet_id_get_from_pool(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id)
+        self.ref_member.subnet_id = None
+        self.driver.member_batch_update(self.pool_id, [self.ref_member])
+
     def test_member_update_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
                           self.driver.member_update, self.ref_member,
@@ -481,6 +503,34 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
             'type': ovn_driver.REQ_TYPE_HANDLE_MEMBER_DVR,
             'info': info_dvr}
         self.driver.member_delete(self.ref_member)
+        expected = [
+            mock.call(expected_dict),
+            mock.call(expected_dict_dvr)]
+        self.mock_add_request.assert_has_calls(expected)
+
+    def test_member_delete_missing_subnet_id(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id)
+        info = {'id': self.ref_member.member_id,
+                'address': self.ref_member.address,
+                'protocol_port': self.ref_member.protocol_port,
+                'pool_id': self.ref_member.pool_id,
+                'subnet_id': self.ref_member.subnet_id}
+        expected_dict = {'type': ovn_driver.REQ_TYPE_MEMBER_DELETE,
+                         'info': info}
+        info_dvr = {
+            'id': self.ref_member.member_id,
+            'address': self.ref_member.address,
+            'pool_id': self.ref_member.pool_id,
+            'subnet_id': self.ref_member.subnet_id,
+            'action': ovn_driver.REQ_INFO_MEMBER_DELETED}
+        expected_dict_dvr = {
+            'type': ovn_driver.REQ_TYPE_HANDLE_MEMBER_DVR,
+            'info': info_dvr}
+
+        member = copy.copy(self.ref_member)
+        member.subnet_id = data_models.UnsetType()
+        self.driver.member_delete(member)
         expected = [
             mock.call(expected_dict),
             mock.call(expected_dict_dvr)]

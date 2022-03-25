@@ -814,12 +814,21 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             if m.address == member_address:
                 return m
 
-    def _update_member_and_validate(self, lb_data, pool_id, member_address):
+    def _update_member_and_validate(self, lb_data, pool_id, member_address,
+                                    remove_subnet_id=False):
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
 
         member = self._get_pool_member(pool, member_address)
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
-        self.ovn_driver.member_update(member, member)
+        old_member = copy.deepcopy(member)
+
+        # NOTE(froyo): In order to test update of member without passing the
+        # subnet_id parameter of the member, just to cover the case when a new
+        # member has been created without passing that argument
+        if remove_subnet_id:
+            old_member.subnet_id = None
+
+        self.ovn_driver.member_update(old_member, member)
         expected_status = {
             'pools': [{'id': pool.pool_id,
                        'provisioning_status': 'ACTIVE'}],
@@ -874,7 +883,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                            check_call=False)
 
     def _delete_member_and_validate(self, lb_data, pool_id, network_id,
-                                    member_address):
+                                    member_address, remove_subnet_id=False):
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
         member = self._get_pool_member(pool, member_address)
         pool.members.remove(member)
@@ -885,7 +894,15 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
             pool_status['operating_status'] = o_constants.OFFLINE
 
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
-        self.ovn_driver.member_delete(member)
+
+        # NOTE(froyo): In order to test deletion of member without passing
+        # the subnet_id parameter of the member, just to cover the case when
+        # a new member has been created without passing that argument
+        m_member = copy.deepcopy(member)
+        if remove_subnet_id:
+            m_member.subnet_id = None
+
+        self.ovn_driver.member_delete(m_member)
         expected_status = {
             'pools': [pool_status],
             'members': [{"id": member.member_id,
@@ -1131,10 +1148,28 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self._o_driver_lib.get_pool.return_value = lb_data['pools'][0]
         self._o_driver_lib.get_loadbalancer.return_value = lb_data['model']
 
-        # Test creating Member without subnet but with pool
+        # Test deleting a member without subnet
         self._create_member_and_validate(
             lb_data, pool_TCP_id, None,
             lb_data['vip_net_info'][0], '10.0.0.10',
+            expected_subnet=lb_data['vip_net_info'][1])
+
+        self._delete_member_and_validate(
+            lb_data, pool_TCP_id, lb_data['vip_net_info'][0],
+            '10.0.0.10', remove_subnet_id=True)
+
+        # Test update member without subnet
+        self._create_member_and_validate(
+            lb_data, pool_TCP_id, None,
+            lb_data['vip_net_info'][0], '10.0.0.10',
+            expected_subnet=lb_data['vip_net_info'][1])
+        self._update_member_and_validate(
+            lb_data, pool_TCP_id, "10.0.0.10", remove_subnet_id=True)
+
+        # Test creating a Member without subnet but with pool
+        self._create_member_and_validate(
+            lb_data, pool_TCP_id, None,
+            lb_data['vip_net_info'][0], '10.0.0.11',
             expected_subnet=lb_data['vip_net_info'][1])
 
         # Deleting the pool should also delete the members.
