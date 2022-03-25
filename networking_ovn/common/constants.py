@@ -248,6 +248,7 @@ FIP_ACTION_DISASSOCIATE = 'fip_disassociate'
 
 # Loadbalancer constants
 LRP_PREFIX = "lrp-"
+OVN_NAME_PREFIX = "neutron-"
 RE_PORT_FROM_GWC = re.compile(r'(%s)([\w-]+)_([\w-]+)' % LRP_PREFIX)
 LB_VIP_PORT_PREFIX = "ovn-lb-vip-"
 LB_EXT_IDS_LS_REFS_KEY = 'ls_refs'

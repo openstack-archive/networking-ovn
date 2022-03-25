@@ -53,13 +53,30 @@ PortExtraDHCPValidation = collections.namedtuple(
     'PortExtraDHCPValidation', ['failed', 'invalid_ipv4', 'invalid_ipv6'])
 
 
+def ovn_uuid(name):
+    # Get the UUID of a neutron OVN entry (neutron-<UUID>)
+    return name.replace(constants.OVN_NAME_PREFIX, '')
+
+
 def ovn_name(id):
     # The name of the OVN entry will be neutron-<UUID>
     # This is due to the fact that the OVN application checks if the name
     # is a UUID. If so then there will be no matches.
     # We prefix the UUID to enable us to use the Neutron UUID when
     # updating, deleting etc.
-    return 'neutron-%s' % id
+    # To be sure that just one prefix is used, we will check it before
+    # return concatenation.
+
+    # NOTE(froyo): Add the initial checking for None case in order
+    # to not crash checking the startswith, it is a anormal situation
+    # but some tests in neutron are reporting error on this.
+    # Remove it asap when ensuring nowhere call to this function with
+    # a None as argument
+    if not id:
+        return constants.OVN_NAME_PREFIX + '%s' % id
+    if not id.startswith(constants.OVN_NAME_PREFIX):
+        return constants.OVN_NAME_PREFIX + '%s' % id
+    return id
 
 
 def ovn_lrouter_port_name(id):
