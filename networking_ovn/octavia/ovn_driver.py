@@ -518,8 +518,8 @@ class OvnProviderHelper(object):
     @tenacity.retry(
         retry=tenacity.retry_if_exception_type(
             driver_exceptions.UpdateStatusError),
-        wait=tenacity.wait_exponential(),
-        stop=tenacity.stop_after_delay(10),
+        wait=tenacity.wait_exponential(max=75),
+        stop=tenacity.stop_after_attempt(15),
         reraise=True)
     def _update_status_to_octavia(self, status):
         status = OvnProviderHelper._delete_disabled_from_status(status)
@@ -1162,9 +1162,15 @@ class OvnProviderHelper(object):
             LOG.exception(EXCEPTION_MSG, "creation of loadbalancer")
             # Any Exception set the status to ERROR
             if isinstance(port, dict):
-                self.delete_vip_port(port.get('id'))
-                LOG.warning("Deleting the VIP port %s since LB went into "
-                            "ERROR state", str(port.get('id')))
+                try:
+                    self.delete_vip_port(port.get('id'))
+                    LOG.warning("Deleting the VIP port %s since LB went into "
+                                "ERROR state", str(port.get('id')))
+                except Exception:
+                    LOG.exception("Error deleting the VIP port %s upon "
+                                  "loadbalancer %s creation failure",
+                                  str(port.get('id')),
+                                  str(loadbalancer[constants.ID]))
             status = {
                 'loadbalancers': [{"id": loadbalancer['id'],
                                    "provisioning_status": constants.ERROR,
@@ -1187,6 +1193,24 @@ class OvnProviderHelper(object):
             LOG.warning("Loadbalancer %s not found in OVN Northbound DB. "
                         "Setting the Loadbalancer status to DELETED "
                         "in Octavia", str(loadbalancer['id']))
+
+            # NOTE(ltomasbo): In case the previous loadbalancer deletion
+            # action failed at VIP deletion step, this ensures the VIP
+            # is not leaked
+            try:
+                vip_port_id = self._get_vip_port_from_loadbalancer_id(
+                    loadbalancer[constants.ID])
+                if vip_port_id:
+                    LOG.warning("Deleting the VIP port %s associated to LB "
+                                "missing in OVN DBs", str(vip_port_id))
+                    self.delete_vip_port(vip_port_id)
+            except Exception:
+                LOG.exception("Error deleting the VIP port %s",
+                              str(vip_port_id))
+                status = {
+                    'loadbalancers': [{"id": loadbalancer['id'],
+                                       "provisioning_status": constants.ERROR,
+                                       "operating_status": constants.ERROR}]}
             return status
 
         try:
@@ -1199,14 +1223,15 @@ class OvnProviderHelper(object):
             # dict while iterating over it. So first get a list of keys.
             # https://cito.github.io/blog/never-iterate-a-changing-dict/
             status = {key: value for key, value in status.items() if value}
+            # Delete VIP port from neutron.
+            self.delete_vip_port(port_id)
         except Exception:
             LOG.exception(EXCEPTION_MSG, "deletion of loadbalancer")
             status = {
                 'loadbalancers': [{"id": loadbalancer['id'],
                                    "provisioning_status": constants.ERROR,
                                    "operating_status": constants.ERROR}]}
-        # Delete VIP port from neutron.
-        self.delete_vip_port(port_id)
+
         return status
 
     def _lb_delete(self, loadbalancer, ovn_lb, status):
@@ -1308,6 +1333,11 @@ class OvnProviderHelper(object):
             lb_status['provisioning_status'] = constants.ERROR
             lb_status['operating_status'] = constants.ERROR
         return status
+
+    def _get_vip_port_from_loadbalancer_id(self, lb_id):
+        lb = self._octavia_driver_lib.get_loadbalancer(lb_id)
+        if lb and lb.vip_port_id:
+            return lb.vip_port_id
 
     def listener_create(self, listener):
         ovn_lb = self._get_or_create_ovn_lb(
@@ -1986,6 +2016,12 @@ class OvnProviderHelper(object):
             LOG.debug('VIP Port already exists, uuid: %s', port['id'])
             return {'port': port}
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(
+            n_exc.NeutronClientException),
+        wait=tenacity.wait_exponential(max=75),
+        stop=tenacity.stop_after_attempt(15),
+        reraise=True)
     def delete_vip_port(self, port_id):
         network_driver = get_network_driver()
         try:
