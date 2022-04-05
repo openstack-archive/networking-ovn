@@ -246,11 +246,14 @@ class OvsdbNbOvnIdl(nb_impl_idl.OvnNbApiIdlImpl, Backend):
         This method is just a wrapper around the ovsdbapp transaction
         to handle revision conflicts correctly.
         """
+        revision_mismatch_raise = kwargs.pop('revision_mismatch_raise', False)
         try:
             with super(OvsdbNbOvnIdl, self).transaction(*args, **kwargs) as t:
                 yield t
         except ovn_exc.RevisionConflict as e:
             LOG.info('Transaction aborted. Reason: %s', e)
+            if revision_mismatch_raise:
+                raise e
 
     def find_lb_in_table(self, lb, table):
         return FindLbInTableCommand(self, lb, table)
