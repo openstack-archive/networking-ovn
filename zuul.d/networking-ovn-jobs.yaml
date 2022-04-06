@@ -322,7 +322,7 @@
         ENABLE_CHASSIS_AS_GW: true
         OVN_L3_CREATE_PUBLIC_NETWORK: true
         OVN_BRANCH: main
-        OVS_BRANCH: master
+        OVS_BRANCH: "91e1ff5dde396fbcc8623ac0726066e970e6de15"
       devstack_local_conf:
         post-config:
           "${RALLY_CONF_DIR}/${RALLY_CONF_FILE}":
