@@ -14,10 +14,7 @@
         - openstack-tox-cover:
             required-projects:
               - openstack/neutron
-        # NOTE(slaweq): Those jobs, even that are non-voting are still very
-        # useful to test ovn octavia provider driver
-        - networking-ovn-octavia-v2-dsvm-scenario:
-            voting: false
+        - networking-ovn-octavia-v2-dsvm-scenario
     gate:
       jobs:
         - networking-ovn-tempest-dsvm-ovs-release
