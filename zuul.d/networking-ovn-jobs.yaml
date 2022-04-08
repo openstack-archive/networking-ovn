@@ -389,6 +389,8 @@
         PHYSICAL_NETWORK: public
         ENABLE_CHASSIS_AS_GW: true
         OVN_DBS_LOG_LEVEL: dbg
+        OVN_BRANCH: main
+        OVS_BRANCH: "91e1ff5dde396fbcc8623ac0726066e970e6de15"
       devstack_local_conf:
         post-config:
           $OCTAVIA_CONF:
