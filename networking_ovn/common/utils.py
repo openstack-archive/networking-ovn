@@ -37,8 +37,10 @@ from ovsdbapp.backend.ovs_idl import connection
 from ovsdbapp.backend.ovs_idl import idlutils
 
 from networking_ovn._i18n import _
+from networking_ovn.common import config as ovn_conf
 from networking_ovn.common import constants
 from networking_ovn.common import exceptions as ovn_exc
+
 
 LOG = log.getLogger(__name__)
 
@@ -429,6 +431,30 @@ def get_system_dns_resolvers(resolver_file=DNS_RESOLVER_FILE):
             if ipv4:
                 resolvers.append(ipv4.group(0))
     return resolvers
+
+
+def is_dns_servers_any_address(dns_servers, ip_version):
+    """Checks if DNS server list matches the IP any address '0.0.0.0'/'::'"""
+    ip_any = netaddr.IPNetwork(const.IP_ANY[ip_version]).ip
+    return (len(dns_servers) == 1 and
+            netaddr.IPNetwork(dns_servers[0]).ip == ip_any)
+
+
+def get_dhcp_dns_servers(subnet, ip_version=const.IP_VERSION_4):
+    """Retrieve the DHCP option DNS servers
+    The DHCP should not announce any DNS resolver at all on the subnet if any
+    configured DNS server is "0.0.0.0" (IPv4) or "::" (IPv6).
+    https://docs.openstack.org/neutron/latest/admin/config-dns-res.html
+    """
+    if ip_version == const.IP_VERSION_4:
+        dns_servers = (subnet.get('dns_nameservers') or
+                       ovn_conf.get_dns_servers() or
+                       get_system_dns_resolvers())
+    else:
+        dns_servers = subnet['dns_nameservers']
+    if is_dns_servers_any_address(dns_servers, ip_version):
+        return []
+    return dns_servers
 
 
 def get_port_subnet_ids(port):
