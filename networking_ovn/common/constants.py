@@ -297,7 +297,9 @@ HA_CHASSIS_GROUP_HIGHEST_PRIORITY = 32767
 
 EXTERNAL_PORT_TYPES = (portbindings.VNIC_DIRECT,
                        portbindings.VNIC_DIRECT_PHYSICAL,
-                       portbindings.VNIC_MACVTAP)
+                       portbindings.VNIC_MACVTAP,
+                       portbindings.VNIC_BAREMETAL,
+                       )
 
 # LB selection fields to represent LB algorithm
 LB_SELECTION_FIELDS_MAP = {
