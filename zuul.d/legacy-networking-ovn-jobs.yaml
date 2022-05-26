@@ -10,6 +10,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     required-projects:
       - openstack/devstack-gate
       - openstack/neutron
@@ -29,6 +30,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     required-projects:
       - openstack/devstack-gate
       - openstack/neutron
@@ -84,6 +86,7 @@
       - ^tox.ini$
       - ^vagrant/.*$
       - ^migration/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     required-projects:
       - openstack/grenade
       - openstack/devstack-gate

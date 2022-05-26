@@ -21,6 +21,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
       - ^networking_ovn/locale/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     vars:
       tox_envlist: all
       tempest_test_regex: "^(?!.*\
@@ -158,6 +159,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
       - ^networking_ovn/locale/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     roles:
       - zuul: zuul/zuul-jobs
       - zuul: openstack/neutron-tempest-plugin
@@ -294,6 +296,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
       - ^networking_ovn/locale/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     vars:
       devstack_plugins:
         rally-openstack: https://opendev.org/openstack/rally-openstack
@@ -348,6 +351,7 @@
       - ^vagrant/.*$
       - ^migration/.*$
       - ^networking_ovn/locale/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
 
 - job:
     name: networking-ovn-tempest-slow
@@ -378,6 +382,7 @@
       - ^doc/.*$
       - ^etc/.*$
       - ^releasenotes/.*$
+      - ^zuul.d/(?!(project)).*\.yaml
     vars:
       devstack_localrc:
         USE_PYTHON3: True
@@ -389,8 +394,8 @@
         PHYSICAL_NETWORK: public
         ENABLE_CHASSIS_AS_GW: true
         OVN_DBS_LOG_LEVEL: dbg
-        OVN_BRANCH: main
-        OVS_BRANCH: "91e1ff5dde396fbcc8623ac0726066e970e6de15"
+        OVN_BRANCH: v21.06.0
+        OVS_BRANCH: "a4b04276ab5934d087669ff2d191a23931335c87"
       devstack_local_conf:
         post-config:
           $OCTAVIA_CONF:
