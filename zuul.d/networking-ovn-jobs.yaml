@@ -1,3 +1,13 @@
+- nodeset:
+    name: ovn-nested-virt-ubuntu-bionic
+    nodes:
+      - name: controller
+        label: nested-virt-ubuntu-bionic
+    groups:
+      - name: tempest
+        nodes:
+          - controller
+
 - job:
     name: networking-ovn-base
     description: Base job for devstack/tempest based networking-ovn jobs.
@@ -253,6 +263,7 @@
     name: networking-ovn-tempest-dsvm-ovs-release
     description: Job testing for devstack/tempest testing networking-ovn with the latest released OVN branch
     parent: networking-ovn-base
+    nodeset: ovn-nested-virt-ubuntu-bionic
     vars:
       devstack_localrc:
         OVN_BRANCH: v20.03.0
@@ -262,6 +273,7 @@
     name: networking-ovn-tempest-dsvm-ovs-release-python2
     description: Job testing for devstack/tempest testing networking-ovn with the latest released OVN branch
     parent: networking-ovn-base
+    nodeset: ovn-nested-virt-ubuntu-bionic
     vars:
       # TODO(flaviof): remove trunk tests test from blacklist when bug
       # https://bugs.launchpad.net/tempest/+bug/1927985 and
