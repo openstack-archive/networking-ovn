@@ -1045,27 +1045,47 @@ class OvnProviderHelper(object):
     def lb_create(self, loadbalancer, protocol=None):
         port = None
         subnet = {}
-        network_driver = get_network_driver()
-        if loadbalancer.get('vip_port_id'):
-            # In case we don't have vip_network_id
-            port = network_driver.neutron_client.show_port(
-                loadbalancer['vip_port_id'])['port']
-            for ip in port['fixed_ips']:
-                if ip['ip_address'] == loadbalancer[constants.VIP_ADDRESS]:
-                    subnet = network_driver.neutron_client.show_subnet(
-                        ip['subnet_id'])['subnet']
-                    break
-        elif (loadbalancer.get('vip_network_id') and
-              loadbalancer.get('vip_address')):
-            ports = network_driver.neutron_client.list_ports(
-                network_id=loadbalancer['vip_network_id'])
-            for p in ports['ports']:
-                for ip in p['fixed_ips']:
-                    if ip['ip_address'] == loadbalancer['vip_address']:
-                        port = p
+        try:
+            network_driver = get_network_driver()
+            if loadbalancer.get('vip_port_id'):
+                # In case we don't have vip_network_id
+                port = network_driver.neutron_client.show_port(
+                    loadbalancer['vip_port_id'])['port']
+                for ip in port['fixed_ips']:
+                    if ip['ip_address'] == loadbalancer[constants.VIP_ADDRESS]:
                         subnet = network_driver.neutron_client.show_subnet(
                             ip['subnet_id'])['subnet']
                         break
+            elif (loadbalancer.get('vip_network_id') and
+                  loadbalancer.get('vip_address')):
+                ports = network_driver.neutron_client.list_ports(
+                    network_id=loadbalancer['vip_network_id'])
+                for p in ports['ports']:
+                    for ip in p['fixed_ips']:
+                        if ip['ip_address'] == loadbalancer['vip_address']:
+                            port = p
+                            subnet = network_driver.neutron_client.show_subnet(
+                                ip['subnet_id'])['subnet']
+                            break
+        except Exception:
+            LOG.error('Cannot get info from neutron client')
+            LOG.exception(EXCEPTION_MSG, "creation of loadbalancer")
+            # Any Exception set the status to ERROR
+            if isinstance(port, dict):
+                try:
+                    self.delete_vip_port(port.get('id'))
+                    LOG.warning("Deleting the VIP port %s since LB went into "
+                                "ERROR state", str(port.get('id')))
+                except Exception:
+                    LOG.exception("Error deleting the VIP port %s upon "
+                                  "loadbalancer %s creation failure",
+                                  str(port.get('id')),
+                                  str(loadbalancer[constants.ID]))
+            status = {
+                'loadbalancers': [{"id": loadbalancer['id'],
+                                   "provisioning_status": constants.ERROR,
+                                   "operating_status": constants.ERROR}]}
+            return status
 
         # If protocol set make sure its lowercase
         protocol = protocol.lower() if protocol else []
