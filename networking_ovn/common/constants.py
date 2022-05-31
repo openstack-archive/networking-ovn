@@ -288,10 +288,6 @@ LRP_OPTIONS_RESIDE_REDIR_CH = 'reside-on-redirect-chassis'
 MCAST_SNOOP = 'mcast_snoop'
 MCAST_FLOOD_UNREGISTERED = 'mcast_flood_unregistered'
 
-# Port Binding types
-PB_TYPE_PATCH = 'patch'
-PB_TYPE_VIRTUAL = 'virtual'
-
 HA_CHASSIS_GROUP_DEFAULT_NAME = 'default_ha_chassis_group'
 HA_CHASSIS_GROUP_HIGHEST_PRIORITY = 32767
 
