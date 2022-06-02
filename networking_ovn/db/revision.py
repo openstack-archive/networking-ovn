@@ -91,18 +91,17 @@ def _ensure_revision_row_exist(session, resource, resource_type):
     # deal with objects that already existed before the sync work. I believe
     # that we can remove this method after few development cycles. Or,
     # if we decide to make a migration script as well.
-    with session.begin(subtransactions=True):
-        try:
-            session.query(models.OVNRevisionNumbers).filter_by(
-                resource_uuid=resource['id'],
-                resource_type=resource_type).one()
-        except exc.NoResultFound:
-            LOG.warning(
-                'No revision row found for %(res_uuid)s (type: '
-                '%(res_type)s) when bumping the revision number. '
-                'Creating one.', {'res_uuid': resource['id'],
-                                  'res_type': resource_type})
-            create_initial_revision(resource['id'], resource_type, session)
+    if session.query(models.OVNRevisionNumbers).filter_by(
+            resource_uuid=resource['id'],
+            resource_type=resource_type).one_or_none():
+        return
+
+    LOG.warning(
+        'No revision row found for %(res_uuid)s (type: '
+        '%(res_type)s) when bumping the revision number. '
+        'Creating one.', {'res_uuid': resource['id'],
+                          'res_type': resource_type})
+    create_initial_revision(resource['id'], resource_type, session)
 
 
 @_wrap_db_retry
