@@ -1509,6 +1509,17 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                       update_ls_ref=True)])
 
     @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test_lb_create_neutron_client_exception(self, net_dr):
+        net_dr.return_value.neutron_client.list_ports.return_value = self.ports
+        net_dr.return_value.neutron_client.show_subnet.side_effect = [
+            n_exc.NotFound]
+        status = self.helper.lb_create(self.lb)
+        self.assertEqual(status['loadbalancers'][0]['provisioning_status'],
+                         constants.ERROR)
+        self.assertEqual(status['loadbalancers'][0]['operating_status'],
+                         constants.ERROR)
+
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
     @mock.patch.object(ovn_driver.OvnProviderHelper, 'delete_vip_port')
     def test_lb_create_exception(self, del_port, net_dr):
         self.helper._find_ovn_lbs.side_effect = [RuntimeError]
