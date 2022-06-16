@@ -264,7 +264,7 @@ class TestDHCPUtils(base.TestCase):
         # Assert the names got translated to their OVN names
         expected_options = {'tftp_server_address': '10.0.0.1',
                             'ntp_server': '10.0.2.1',
-                            'bootfile_name': 'homer_simpson.bin'}
+                            'bootfile_name': '"homer_simpson.bin"'}
         self.assertEqual(expected_options, options)
 
 
