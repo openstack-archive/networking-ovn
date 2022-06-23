@@ -851,7 +851,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         pool = self._get_pool_from_lb_data(lb_data, pool_id=pool_id)
         expected_status = []
         self._o_driver_lib.update_loadbalancer_status.reset_mock()
-        self.ovn_driver.member_batch_update(pool_id, members)
+        self.ovn_driver.member_batch_update(members)
         for member in members:
             expected_status.append(
                 {'pools': [{'id': pool.pool_id,
