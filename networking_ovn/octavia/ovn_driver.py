@@ -2035,6 +2035,18 @@ class OvnProviderHelper(object):
             port = ports['ports'][0]
             LOG.debug('VIP Port already exists, uuid: %s', port['id'])
             return {'port': port}
+        except n_exc.NeutronClientException as e:
+            # NOTE (froyo): whatever other exception as e.g. Timeout
+            # we should try to ensure no leftover port remains
+            ports = network_driver.neutron_client.list_ports(
+                network_id=vip_d['vip_network_id'],
+                name='%s%s' % (ovn_const.LB_VIP_PORT_PREFIX, lb_id))
+            if ports['ports']:
+                port = ports['ports'][0]
+                LOG.debug('Leftover port %s has been found. Trying to '
+                          'delete it', port['id'])
+                self.delete_vip_port(port['id'])
+            raise e
 
     @tenacity.retry(
         retry=tenacity.retry_if_exception_type(
