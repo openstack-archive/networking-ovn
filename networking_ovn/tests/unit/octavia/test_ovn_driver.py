@@ -303,7 +303,11 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
         self.mock_get_subnet_from_pool = mock.patch.object(
             ovn_driver.OvnProviderHelper,
             '_get_subnet_from_pool',
-            return_value=None).start()
+            return_value=(None, None)).start()
+        self.mock_check_ip_in_subnet = mock.patch.object(
+            ovn_driver.OvnProviderHelper,
+            '_check_ip_in_subnet',
+            return_value=True).start()
 
     def test_check_for_allowed_cidrs_exception(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
@@ -377,7 +381,18 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
 
     def test_member_create_no_subnet_provided_get_from_pool(self):
         self.driver._ovn_helper._get_subnet_from_pool.return_value = (
-            self.ref_member.subnet_id)
+            self.ref_member.subnet_id, '198.52.100.0/24')
+        self.driver._ovn_helper._check_ip_in_subnet.return_value = False
+        self.ref_member.subnet_id = data_models.UnsetType()
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+        self.ref_member.subnet_id = None
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_create, self.ref_member)
+
+    def test_member_create_no_subnet_provided_get_from_pool_failed(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id, '198.52.100.0/24')
         member = copy.copy(self.ref_member)
         member.subnet_id = data_models.UnsetType()
         self._test_member_create(member)
@@ -424,7 +439,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
 
     def test_member_update_missing_subnet_id(self):
         self.driver._ovn_helper._get_subnet_from_pool.return_value = (
-            self.ref_member.subnet_id)
+            self.ref_member.subnet_id, '198.52.100.0/24')
         info = {'id': self.update_member.member_id,
                 'address': self.ref_member.address,
                 'protocol_port': self.ref_member.protocol_port,
@@ -440,7 +455,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
 
     def test_member_update_unset_admin_state_up(self):
         self.driver._ovn_helper._get_subnet_from_pool.return_value = (
-            self.ref_member.subnet_id)
+            self.ref_member.subnet_id, '198.52.100.0/24')
         self.update_member.admin_state_up = data_models.UnsetType()
         info = {'id': self.update_member.member_id,
                 'address': self.ref_member.address,
@@ -505,9 +520,17 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
 
     def test_member_batch_update_missing_subnet_id_get_from_pool(self):
         self.driver._ovn_helper._get_subnet_from_pool.return_value = (
-            self.ref_member.subnet_id)
+            self.ref_member.subnet_id, '198.52.100.0/24')
         self.ref_member.subnet_id = None
         self.driver.member_batch_update([self.ref_member])
+
+    def test_member_batch_update_missing_subnet_id_get_from_pool_fail(self):
+        self.driver._ovn_helper._get_subnet_from_pool.return_value = (
+            self.ref_member.subnet_id, '198.52.100.0/24')
+        self.driver._ovn_helper._check_ip_in_subnet.return_value = False
+        self.ref_member.subnet_id = None
+        self.assertRaises(exceptions.UnsupportedOptionError,
+                          self.driver.member_batch_update, [self.ref_member])
 
     def test_member_update_failure(self):
         self.assertRaises(exceptions.UnsupportedOptionError,
@@ -545,7 +568,7 @@ class TestOvnProviderDriver(TestOvnOctaviaBase):
 
     def test_member_delete_missing_subnet_id(self):
         self.driver._ovn_helper._get_subnet_from_pool.return_value = (
-            self.ref_member.subnet_id)
+            self.ref_member.subnet_id, '198.52.100.0/24')
         info = {'id': self.ref_member.member_id,
                 'address': self.ref_member.address,
                 'protocol_port': self.ref_member.protocol_port,
@@ -1214,7 +1237,10 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         found = f(self.ovn_lb.id, protocol='tcp')
         self.assertEqual(found, self.ovn_lb)
 
-    def test__get_subnet_from_pool(self):
+    @mock.patch('networking_ovn.octavia.ovn_driver.get_network_driver')
+    def test__get_subnet_from_pool(self, net_dr):
+        net_dr.return_value.neutron_client.show_subnet.return_value = {
+            'subnet': {'cidr': '10.22.33.0/24'}}
         f = self.helper._get_subnet_from_pool
 
         lb = data_models.LoadBalancer(
@@ -1233,12 +1259,12 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         with mock.patch.object(self.helper, '_octavia_driver_lib') as dlib:
             dlib.get_pool.return_value = None
             found = f('not_found')
-            self.assertIsNone(found)
+            self.assertEqual((None, None), found)
 
             dlib.get_pool.return_value = lb_pool
             dlib.get_loadbalancer.return_value = lb
             found = f(self.pool_id)
-            self.assertEqual(found, lb.vip_subnet_id)
+            self.assertEqual(found, (lb.vip_subnet_id, '10.22.33.0/24'))
 
     def test__get_subnet_from_pool_lb_no_vip_subnet_id(self):
         f = self.helper._get_subnet_from_pool
@@ -1258,12 +1284,12 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         with mock.patch.object(self.helper, '_octavia_driver_lib') as dlib:
             dlib.get_pool.return_value = None
             found = f('not_found')
-            self.assertIsNone(found)
+            self.assertEqual((None, None), found)
 
             dlib.get_pool.return_value = lb_pool
             dlib.get_loadbalancer.return_value = lb
             found = f(self.pool_id)
-            self.assertIsNone(found)
+            self.assertEqual((None, None), found)
 
     def test__get_or_create_ovn_lb_no_lb_found(self):
         self.mock_find_ovn_lbs.stop()

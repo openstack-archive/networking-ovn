@@ -70,6 +70,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
         self.fake_network_driver.neutron_client.\
             delete_port.return_value = True
         self._local_net_cache = {}
+        self._local_cidr_cache = {}
         self._local_port_cache = {'ports': []}
         self.addCleanup(self.ovn_driver._ovn_helper.shutdown)
         self.core_plugin = directory.get_plugin()
@@ -83,6 +84,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
     def _mock_show_subnet(self, subnet_id):
         subnet = {}
         subnet['network_id'] = self._local_net_cache[subnet_id]
+        subnet['cidr'] = self._local_cidr_cache[subnet_id]
         return {'subnet': subnet}
 
     def _mock_list_ports(self, **kwargs):
@@ -260,6 +262,7 @@ class TestOctaviaOvnProviderDriver(base.TestOVNFunctionalBase):
                                   cidr)
         subnet = self.deserialize(self.fmt, res)['subnet']
         self._local_net_cache[subnet['id']] = n1['network']['id']
+        self._local_cidr_cache[subnet['id']] = subnet['cidr']
 
         port = self._make_port(self.fmt, n1['network']['id'])
         if router_id:

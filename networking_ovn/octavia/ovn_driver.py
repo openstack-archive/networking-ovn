@@ -645,13 +645,26 @@ class OvnProviderHelper(object):
             ovn_lb = self._find_ovn_lb_with_pool_key(pool_key)
         return pool_key, ovn_lb
 
+    def _check_ip_in_subnet(self, ip, subnet):
+        return (netaddr.IPAddress(ip) in netaddr.IPNetwork(subnet))
+
     def _get_subnet_from_pool(self, pool_id):
         pool = self._octavia_driver_lib.get_pool(pool_id)
         if not pool:
-            return
+            return None, None
         lb = self._octavia_driver_lib.get_loadbalancer(pool.loadbalancer_id)
         if lb and lb.vip_subnet_id:
-            return lb.vip_subnet_id
+            network_driver = get_network_driver()
+            try:
+                subnet = network_driver.neutron_client.show_subnet(
+                    lb.vip_subnet_id)
+                vip_subnet_cidr = subnet['subnet']['cidr']
+            except n_exc.NotFound:
+                LOG.warning('Subnet %s not found while trying to '
+                            'fetch its data.', lb.vip_subnet_id)
+                return None, None
+            return lb.vip_subnet_id, vip_subnet_cidr
+        return None, None
 
     def _execute_commands(self, commands):
         with self.ovn_nbdb_api.transaction(check_error=True) as txn:
@@ -2366,11 +2379,15 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         admin_state_up = member.admin_state_up
         subnet_id = member.subnet_id
         if (isinstance(subnet_id, o_datamodels.UnsetType) or not subnet_id):
-            subnet_id = self._ovn_helper._get_subnet_from_pool(member.pool_id)
-            if not subnet_id:
+            subnet_id, subnet_cidr = self._ovn_helper._get_subnet_from_pool(
+                member.pool_id)
+            if not (subnet_id and
+                    self._ovn_helper._check_ip_in_subnet(member.address,
+                                                         subnet_cidr)):
                 msg = _('Subnet is required, or Loadbalancer associated with '
                         'Pool must have a subnet, for Member creation '
-                        'with OVN Provider Driver')
+                        'with OVN Provider Driver if it is not the same as '
+                        'LB VIP subnet')
                 raise driver_exceptions.UnsupportedOptionError(
                     user_fault_string=msg,
                     operator_fault_string=msg)
@@ -2406,8 +2423,18 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         # the member is deleted, Octavia send the object without subnet_id.
         subnet_id = member.subnet_id
         if (isinstance(subnet_id, o_datamodels.UnsetType) or not subnet_id):
-            subnet_id = self._ovn_helper._get_subnet_from_pool(
+            subnet_id, subnet_cidr = self._ovn_helper._get_subnet_from_pool(
                 member.pool_id)
+            if not (subnet_id and
+                    self._ovn_helper._check_ip_in_subnet(member.address,
+                                                         subnet_cidr)):
+                msg = _('Subnet is required, or Loadbalancer associated with '
+                        'Pool must have a subnet, for Member deletion if it is'
+                        'with OVN Provider Driver if it is not the same as '
+                        'LB VIP subnet')
+                raise driver_exceptions.UnsupportedOptionError(
+                    user_fault_string=msg,
+                    operator_fault_string=msg)
 
         request_info = {'id': member.member_id,
                         'address': member.address,
@@ -2441,8 +2468,18 @@ class OvnProviderDriver(driver_base.ProviderDriver):
         # the member is updated, Octavia send the object without subnet_id.
         subnet_id = old_member.subnet_id
         if (isinstance(subnet_id, o_datamodels.UnsetType) or not subnet_id):
-            subnet_id = self._ovn_helper._get_subnet_from_pool(
+            subnet_id, subnet_cidr = self._ovn_helper._get_subnet_from_pool(
                 old_member.pool_id)
+            if not (subnet_id and
+                    self._ovn_helper._check_ip_in_subnet(new_member.address,
+                                                         subnet_cidr)):
+                msg = _('Subnet is required, or Loadbalancer associated with '
+                        'Pool must have a subnet, for Member update '
+                        'with OVN Provider Driver if it is not the same as '
+                        'LB VIP subnet')
+                raise driver_exceptions.UnsupportedOptionError(
+                    user_fault_string=msg,
+                    operator_fault_string=msg)
 
         if new_member.address and self._ip_version_differs(new_member):
             raise IPVersionsMixingNotSupportedError()
@@ -2489,19 +2526,23 @@ class OvnProviderDriver(driver_base.ProviderDriver):
             subnet_id = member.subnet_id
             if (isinstance(subnet_id, o_datamodels.UnsetType) or
                     not subnet_id):
-                pool_subnet_id = (
-                    pool_subnet_id
-                    if pool_subnet_id
-                    else self._ovn_helper._get_subnet_from_pool(pool_id))
-                # NOTE(mjozefcz): We need to have subnet_id information.
                 if not pool_subnet_id:
+                    pool_subnet_id, pool_subnet_cidr = (
+                        self._ovn_helper._get_subnet_from_pool(pool_id))
+                if pool_subnet_id:
+                    if (self._ovn_helper._check_ip_in_subnet(
+                            member.address, pool_subnet_cidr)):
+                        member.subnet_id = pool_subnet_id
+                # NOTE(mjozefcz): We need to have subnet_id information.
+                if not member.subnet_id:
                     msg = _('Subnet is required, or Loadbalancer associated '
                             'with Pool must have a subnet, for Member '
-                            'creation with OVN Provider Driver')
+                            'batch update with OVN Provider Driver if it is '
+                            'not the same as LB VIP subnet')
                     raise driver_exceptions.UnsupportedOptionError(
                         user_fault_string=msg,
                         operator_fault_string=msg)
-                member.subnet_id = pool_subnet_id
+
             admin_state_up = member.admin_state_up
             if isinstance(admin_state_up, o_datamodels.UnsetType):
                 admin_state_up = True
