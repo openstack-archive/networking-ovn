@@ -1325,9 +1325,30 @@ class OvnProviderHelper(object):
                                             if_exists=True))
         commands.append(self.ovn_nbdb_api.lb_del(ovn_lb.uuid))
 
-        # TODO(froyo): atomic process to execute all commands in a transaction
-        # if any of them fails the transaction is aborted
-        self._execute_commands(commands)
+        try:
+            self._execute_commands(commands)
+        except idlutils.RowNotFound:
+            # NOTE(froyo): If any of the Ls or Lr had been deleted between
+            # time to list and time to execute txn, we will received a
+            # RowNotFound exception, if this case we will run every command
+            # one by one passing exception in case the command is related to
+            # deletion of Ls or Lr already deleted. Any other case will raise
+            # exception and upper function will report the LB in ERROR status
+            for command in commands:
+                try:
+                    command.execute(check_error=True)
+                except idlutils.RowNotFound:
+                    if isinstance(command, (cmd.LsLbDelCommand)):
+                        LOG.warning('delete lb from ls fail because ls '
+                                    '%s is not found, keep going on...',
+                                    getattr(command, 'switch', ''))
+                    elif isinstance(command, (cmd.LrLbDelCommand)):
+                        LOG.warning('delete lb to lr fail because lr '
+                                    '%s is not found, keep going on...',
+                                    getattr(command, 'router', ''))
+                    else:
+                        raise
+
         return status
 
     def lb_update(self, loadbalancer):
