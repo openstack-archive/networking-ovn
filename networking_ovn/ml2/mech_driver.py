@@ -16,6 +16,7 @@ import atexit
 import copy
 import datetime
 import functools
+import multiprocessing
 import operator
 import signal
 import threading
@@ -39,6 +40,7 @@ from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
 from neutron_lib.utils import helpers
+from oslo_concurrency import lockutils
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
@@ -113,6 +115,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         self._plugin_property = None
         self._ovn_client_inst = None
         self._maintenance_thread = None
+        self._hash_ring_thread = None
+        self._hash_ring_probe_event = multiprocessing.Event()
         self.node_uuid = None
         self.hash_ring_group = ovn_const.HASH_RING_ML2_GROUP
         self.sg_enabled = ovn_acl.is_sg_enabled()
@@ -256,6 +260,17 @@ class OVNMechanismDriver(api.MechanismDriver):
                                 worker.MaintenanceWorker,
                                 service.RpcWorker)
 
+    @lockutils.synchronized('hash_ring_probe_lock', external=True)
+    def _start_hash_ring_probe(self):
+        if not self._hash_ring_probe_event.is_set():
+            self._hash_ring_thread = maintenance.MaintenanceThread()
+            self._hash_ring_thread.add_periodics(
+                maintenance.HashRingHealthCheckPeriodics(
+                    self.hash_ring_group))
+            self._hash_ring_thread.start()
+            LOG.info("Hash Ring probing thread has started")
+            self._hash_ring_probe_event.set()
+
     def post_fork_initialize(self, resource, event, trigger, payload=None):
         # Initialize API/Maintenance workers with OVN IDL connections
         worker_class = utils.get_method_class(trigger)
@@ -267,6 +282,7 @@ class OVNMechanismDriver(api.MechanismDriver):
 
         if worker_class == neutron.wsgi.WorkerService:
             self.node_uuid = db_hash_ring.add_node(self.hash_ring_group)
+            self._start_hash_ring_probe()
 
         self._nb_ovn, self._sb_ovn = impl_idl_ovn.get_ovn_idls(self, trigger)
 
@@ -313,10 +329,8 @@ class OVNMechanismDriver(api.MechanismDriver):
             self._maintenance_thread = maintenance.MaintenanceThread()
             self._maintenance_thread.add_periodics(
                 maintenance.DBInconsistenciesPeriodics(self._ovn_client))
-            self._maintenance_thread.add_periodics(
-                maintenance.HashRingHealthCheckPeriodics(
-                    self.hash_ring_group))
             self._maintenance_thread.start()
+            LOG.info("Maintenance task thread has started")
 
     def _create_security_group_precommit(self, resource, event, trigger,
                                          security_group, context, **kwargs):
