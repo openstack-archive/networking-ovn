@@ -120,7 +120,7 @@ class LogicalRouterPortEvent(row_event.RowEvent):
                   '%(event)s, %(row)s',
                   {'event': event,
                    'row': row})
-        if not self.driver or row.gateway_chassis:
+        if not self.driver:
             return
         if event == self.ROW_CREATE:
             self.driver.lb_create_lrp_assoc_handler(row)
@@ -396,7 +396,8 @@ class OvnProviderHelper(object):
             LOG.debug("Router or network information not found")
             return
         request_info = {'network': network,
-                        'router': router}
+                        'router': router,
+                        'gateway_chassis': row.gateway_chassis}
         self.add_request({'type': REQ_TYPE_LB_CREATE_LRP_ASSOC,
                           'info': request_info})
 
@@ -412,6 +413,15 @@ class OvnProviderHelper(object):
                             "logical router %s failed, trying step by step",
                             lb.uuid, info['router'].uuid)
                 self._update_lb_to_lr_association_by_step(lb, info['router'])
+
+        # if gateway_chassis ports, there is no need to re-add the
+        # loadbalancers from the router into the provider network.
+        # This will be already done for loadbalancer created with VIPs on
+        # provider networks, regardless of the gateway_chassis lrp port
+        # existence. And it should never be there when the VIPs are on
+        # tenant networks.
+        if info['gateway_chassis']:
+            return
 
         # Add those lb to the network which are unique to the router
         for lb in (router_lb - network_lb):
