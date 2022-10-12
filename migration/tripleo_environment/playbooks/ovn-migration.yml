@@ -50,8 +50,6 @@
   hosts: localhost
   roles:
     - tripleo-update
-  vars:
-      ovn_bridge: br-migration
   tags:
     - setup
   become: false
@@ -85,20 +83,6 @@
     - post-migration
   tags:
     - post-migration
-
-#
-# Final step to make sure tripleo knows about OVNIntegrationBridge == br-int.
-#
-
-- name: Rerun the stack update to reset the OVNIntegrationBridge to br-int
-  hosts: localhost
-  roles:
-    - tripleo-update
-  vars:
-      ovn_bridge: br-int
-  tags:
-    - setup
-  become: false
 
 #
 # Final validation after tripleo update to br-int
