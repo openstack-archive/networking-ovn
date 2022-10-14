@@ -756,7 +756,10 @@ class OvnProviderHelper(object):
                         ovn_ls.uuid, ovn_lb.uuid, may_exist=True))
         else:
             if ls_name not in ls_refs:
-                # Nothing to be done.
+                if ovn_ls:
+                    commands.append(self.ovn_nbdb_api.ls_lb_del(
+                        ovn_ls.uuid, ovn_lb.uuid, if_exists=True))
+                # Nothing else to be done.
                 return commands
 
             ref_ct = ls_refs[ls_name]
