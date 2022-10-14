@@ -2693,7 +2693,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         expected = {
             'info':
                 {'router': self.router,
-                 'network': self.network},
+                 'network': self.network,
+                 'gateway_chassis': []},
             'type': 'lb_create_lrp_assoc'}
         self.mock_add_request.assert_called_once_with(expected)
 
@@ -2718,7 +2719,13 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         row = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'gateway_chassis': ['temp-gateway-chassis']})
         self.router_port_event.run(mock.ANY, row, mock.ANY)
-        self.mock_add_request.assert_not_called()
+        expected = {
+            'info':
+                {'router': self.router,
+                 'network': self.network,
+                 'gateway_chassis': ['temp-gateway-chassis']},
+            'type': 'lb_create_lrp_assoc'}
+        self.mock_add_request.assert_called_once_with(expected)
 
     def test__get_pool_listeners(self):
         self._get_pool_listeners.stop()
@@ -2880,12 +2887,14 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
                 self.router, delete=True)
 
     def test_lb_create_lrp_assoc_handler(self):
-        lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row()
+        lrp = fakes.FakeOvsdbRow.create_one_ovsdb_row(
+            attrs={'gateway_chassis': []})
         self.helper.lb_create_lrp_assoc_handler(lrp)
         expected = {
             'info':
                 {'router': self.router,
-                 'network': self.network},
+                 'network': self.network,
+                 'gateway_chassis': []},
             'type': 'lb_create_lrp_assoc'}
         self.mock_add_request.assert_called_once_with(expected)
 
@@ -2904,6 +2913,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         info = {
             'network': self.network,
             'router': self.router,
+            'gateway_chassis': [],
         }
         self.helper.lb_create_lrp_assoc(info)
         self.helper._update_lb_to_lr_association.assert_called_once_with(
@@ -2914,6 +2924,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         info = {
             'network': self.network,
             'router': self.router,
+            'gateway_chassis': [],
         }
         self.helper._update_lb_to_ls_association.side_effect = [
             idlutils.RowNotFound]
@@ -2931,6 +2942,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         info = {
             'network': self.network,
             'router': self.router,
+            'gateway_chassis': 'fake-chassis',
         }
         self.helper._update_lb_to_lr_association.side_effect = [
             idlutils.RowNotFound]
@@ -2947,6 +2959,7 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         info = {
             'network': self.network,
             'router': self.router,
+            'gateway_chassis': 'fake-chassis',
         }
         # Make it already uniq.
         self.network.load_balancer = self.router.load_balancer
