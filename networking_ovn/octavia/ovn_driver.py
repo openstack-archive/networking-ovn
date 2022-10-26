@@ -890,12 +890,10 @@ class OvnProviderHelper(object):
         for port in router.ports:
             if port.gateway_chassis:
                 continue
-            sids = port.external_ids.get(
-                ovn_const.OVN_SUBNET_EXT_IDS_KEY, '').split(' ')
-            for sid in sids:
-                subnet = self._get_subnet(sid)
-                if subnet:
-                    ls.append(ovn_utils.ovn_name(subnet.network_id))
+            port_network_name = port.external_ids.get(
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY)
+            if port_network_name:
+                ls.append(ovn_utils.ovn_name(port_network_name))
         return ls
 
     def _find_lr_of_ls(self, ovn_ls, subnet_gateway_ip=None):
