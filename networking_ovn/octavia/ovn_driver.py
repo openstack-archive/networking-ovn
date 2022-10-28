@@ -819,7 +819,9 @@ class OvnProviderHelper(object):
                 self.ovn_nbdb_api.lr_lb_del(ovn_lr.uuid, ovn_lb.uuid,
                                             if_exists=True)
             )
-        for net in self._find_ls_for_lr(ovn_lr):
+        lb_vip = netaddr.IPNetwork(
+            ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_VIP_KEY))
+        for net in self._find_ls_for_lr(ovn_lr, ip_version=lb_vip.version):
             commands.append(self.ovn_nbdb_api.ls_lb_del(
                 net, ovn_lb.uuid, if_exists=True))
         return commands
@@ -830,7 +832,9 @@ class OvnProviderHelper(object):
             self.ovn_nbdb_api.lr_lb_add(ovn_lr.uuid, ovn_lb.uuid,
                                         may_exist=True)
         )
-        for net in self._find_ls_for_lr(ovn_lr):
+        lb_vip = netaddr.IPNetwork(
+            ovn_lb.external_ids.get(ovn_const.LB_EXT_IDS_VIP_KEY))
+        for net in self._find_ls_for_lr(ovn_lr, ip_version=lb_vip.version):
             commands.append(self.ovn_nbdb_api.ls_lb_add(
                 net, ovn_lb.uuid, may_exist=True))
 
@@ -885,10 +889,12 @@ class OvnProviderHelper(object):
             return self._del_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
         return self._add_lb_to_lr_association(ovn_lb, ovn_lr, lr_ref)
 
-    def _find_ls_for_lr(self, router):
+    def _find_ls_for_lr(self, router, ip_version):
         ls = []
         for port in router.ports:
             if port.gateway_chassis:
+                continue
+            if netaddr.IPNetwork(port.networks[0]).version != ip_version:
                 continue
             port_network_name = port.external_ids.get(
                 ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY)

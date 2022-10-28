@@ -1121,7 +1121,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             ext_ids={
                 ovn_const.LB_EXT_IDS_LR_REF_KEY: "neutron-%s" % net_id,
                 ovn_const.LB_EXT_IDS_LS_REFS_KEY:
-                    '{\"neutron-%s\": 1}' % net_id})
+                    '{\"neutron-%s\": 1}' % net_id,
+                ovn_const.LB_EXT_IDS_VIP_KEY: self.vip_address})
         self.ref_lb2 = MockedLB(
             uuid=uuidutils.generate_uuid(),
             admin_state_up=True,
@@ -1134,7 +1135,8 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
             ext_ids={
                 ovn_const.LB_EXT_IDS_LR_REF_KEY: "neutron-%s" % net_id,
                 ovn_const.LB_EXT_IDS_LS_REFS_KEY:
-                    '{\"neutron-%s\": 1}' % net_id})
+                    '{\"neutron-%s\": 1}' % net_id,
+                ovn_const.LB_EXT_IDS_VIP_KEY: self.vip_address})
         # TODO(mjozefcz): Consider using FakeOVNRouter.
         self.router = fakes.FakeOvsdbRow.create_one_ovsdb_row(
             attrs={'load_balancer': [self.ref_lb1],
@@ -2982,36 +2984,59 @@ class TestOvnProviderHelper(TestOvnOctaviaBase):
         p1 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': [],
             'external_ids': {
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'}})
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'},
+            'networks': ["10.0.0.1/24"]})
         p2 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': [],
             'external_ids': {
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo2'}})
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo2'},
+            'networks': ["10.0.10.1/24"]})
         self.router.ports.append(p1)
         self.router.ports.append(p2)
-        res = self.helper._find_ls_for_lr(self.router)
+        res = self.helper._find_ls_for_lr(self.router, n_const.IP_VERSION_4)
         self.assertListEqual(['neutron-foo1', 'neutron-foo2'], res)
 
     def test__find_ls_for_lr_net_not_found(self):
         p1 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': [],
             'external_ids': {
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'}})
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'},
+            'networks': ["10.0.0.1/24"]})
         p2 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': [],
-            'external_ids': {}})
+            'external_ids': {},
+            'networks': ["10.0.0.1/24"]})
         self.router.ports.append(p2)
         self.router.ports.append(p1)
-        res = self.helper._find_ls_for_lr(self.router)
+        res = self.helper._find_ls_for_lr(self.router, n_const.IP_VERSION_4)
         self.assertListEqual(['neutron-foo1'], res)
+
+    def test__find_ls_for_lr_different_ip_version(self):
+        p1 = fakes.FakeOVNPort.create_one_port(attrs={
+            'gateway_chassis': [],
+            'external_ids': {
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'},
+            'networks': ["10.0.0.1/24"]})
+        p2 = fakes.FakeOVNPort.create_one_port(attrs={
+            'gateway_chassis': [],
+            'external_ids': {
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo2'},
+            'networks': ["fdaa:4ad8:e8fb::/64"]})
+        self.router.ports.append(p2)
+        self.router.ports.append(p1)
+        res = self.helper._find_ls_for_lr(self.router, n_const.IP_VERSION_4)
+        self.assertListEqual(['neutron-foo1'], res)
+        res = self.helper._find_ls_for_lr(self.router, n_const.IP_VERSION_6)
+        self.assertListEqual(['neutron-foo2'], res)
 
     def test__find_ls_for_lr_gw_port(self):
         p1 = fakes.FakeOVNPort.create_one_port(attrs={
             'gateway_chassis': ['foo-gw-chassis'],
             'external_ids': {
-                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'}})
+                ovn_const.OVN_NETWORK_NAME_EXT_ID_KEY: 'foo1'},
+            'networks': ["10.0.0.1/24"]})
         self.router.ports.append(p1)
-        result = self.helper._find_ls_for_lr(self.router)
+        result = self.helper._find_ls_for_lr(self.router, n_const.IP_VERSION_4)
         self.assertListEqual([], result)
 
     @mock.patch.object(
