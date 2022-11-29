@@ -38,16 +38,6 @@
       - openstack/tempest
 
 - job:
-    name: networking-ovn-dsvm-functional-py27
-    parent: legacy-networking-ovn-dsvm-base
-    run: playbooks/legacy/networking-ovn-dsvm-functional-py27/run.yaml
-    post-run: playbooks/legacy/networking-ovn-dsvm-functional-py27/post.yaml
-    timeout: 7800
-    required-projects:
-      - openstack/devstack-gate
-      - openstack/networking-ovn
-
-- job:
     name: networking-ovn-dsvm-functional
     parent: legacy-networking-ovn-dsvm-base
     run: playbooks/legacy/networking-ovn-dsvm-functional/run.yaml

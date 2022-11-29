@@ -9,7 +9,6 @@
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         - openstack-tox-cover:
             required-projects:
@@ -20,7 +19,6 @@
         - networking-ovn-tempest-dsvm-ovs-release
         - networking-ovn-tempest-dsvm-ovs-release-python2
         - networking-ovn-rally-task
-        - networking-ovn-dsvm-functional-py27
         - networking-ovn-dsvm-functional
         - openstack-tox-cover:
             required-projects:
